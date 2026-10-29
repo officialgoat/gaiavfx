@@ -99,16 +99,30 @@ def start_render(
     if not seeds or len(seeds) != len(set(seeds)):
         raise ApplicationError("Render seeds must be distinct.", 422)
     grid = minimax_h3.capabilities().frame_grid
+    handoff = plan.continuation if segment.continues else None
     try:
         compiled = compile_prompt(
             segment,
             pictures,
             tuple(keyframes),
             grid,
-            grid.context_default if segment.continues else 0,
+            handoff.context_frames if handoff else 0,
         )
     except ValueError as exc:
         raise ApplicationError(str(exc), 422) from exc
+    # Run evidence: which handoff this take used, and whether it followed the rule.
+    continuation = (
+        {
+            "method": handoff.method,
+            "chosen": handoff.explicit_method is not None,
+            "recommended": handoff.recommended,
+            "context_frames": handoff.context_frames,
+            "audio_context_frames": handoff.audio_context_frames,
+            "audio_follows_picture": handoff.audio_follows_picture,
+        }
+        if handoff
+        else None
+    )
     jobs = []
     delivery = render_presets().delivery
     for seed in seeds:
@@ -149,6 +163,7 @@ def start_render(
                     context_latent=f"{prefix}/context.safetensors" if segment.continues else None,
                     output_prefix=prefix,
                     capture_context=True,
+                    handoff=handoff,
                 ),
                 snapshot={
                     "knowledge": knowledge_snapshot(minimax_h3),
@@ -156,6 +171,7 @@ def start_render(
                     "capture_context": context_descriptor(prefix),
                     "technique": plan.technique_id,
                     "context_frames": compiled.context_frames,
+                    "continuation": continuation,
                     "expect": {
                         "kind": "video",
                         "frames": compiled.window_frames - compiled.context_frames,
@@ -184,6 +200,7 @@ def start_render(
         **({"sheet_asset": sheet_asset} if sheet_asset is not None else {}),
         "context_artifact": context_artifact,
         "context_source": context_source,
+        "continuation": continuation,
         "segment_revision": segment_row["revision"],
         "phase_revisions": {phase["id"]: phase["revision"] for phase in segment_row["phases"]},
         "subject_revisions": {

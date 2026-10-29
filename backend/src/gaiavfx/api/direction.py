@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.application import set_scenes, set_seed, sets
 from gaiavfx.application.authored import segment_to_dict
+from gaiavfx.application.continuation import set_continuation
 from gaiavfx.application.direction_plans import (
     DEFAULT_INTEGRATION,
     plan_for_cut,
@@ -284,6 +285,13 @@ class SegmentPatch(DirectionRevisionInput):
     opening_technique: str | None = Field(default=None, min_length=1, max_length=80)
 
 
+class SegmentContinuationPatch(DirectionRevisionInput):
+    """A continuing segment's handoff (docs/CONTINUATION.md). Only the fields sent change; null follows the rule."""
+
+    method: Literal["paired", "masked"] | None = None
+    context_frames: int | None = Field(default=None, strict=True)
+
+
 class SegmentMove(DirectionRevisionInput):
     ordinal: int = Field(strict=True)
 
@@ -345,6 +353,9 @@ class SegmentDTO(RecordDTO):
     content_schema: int
     opening_angle_id: str | None = None
     opening_technique: str | None = None
+    # A continuation's chosen handoff; null follows the rule (the segment plan says what it resolves to).
+    continuation_method: str | None = None
+    context_frames: int | None = None
     phases: list[PhaseDTO]
     cuts: list[CutDTO]
 
@@ -609,6 +620,22 @@ class BuildSetPreviewDTO(BaseModel):
     seed: SeedStateDTO | None
 
 
+class ContinuationPlanDTO(BaseModel):
+    """How a continuing segment hands over its predecessor's motion (docs/CONTINUATION.md)."""
+
+    method: str  # what the segment renders with
+    explicit_method: str | None  # the choice made; null follows the rule
+    recommended: Literal["paired", "masked"]
+    reason: str  # why the rule recommends it, in words
+    masked_problem: str | None  # why masked handoff does not qualify here
+    context_frames: int
+    explicit_context: int | None
+    default_context: int
+    context_choices: list[int]  # the lengths this join can carry now
+    audio_context_frames: int
+    audio_follows_picture: bool  # masked ties the audio history to the picture context
+
+
 class DirectionSegmentPlanDTO(BaseModel):
     segment_id: str
     cuts: list[CutPlanDTO]
@@ -621,6 +648,7 @@ class DirectionSegmentPlanDTO(BaseModel):
     place: PlaceStatusDTO | None = None
     seed: SeedStateDTO | None = None
     build_refusal: str | None = None  # why Build a set from this take… cannot run now
+    continuation: ContinuationPlanDTO | None = None  # set for a continuing segment
 
 
 def direction_router(workspace, authenticate):
@@ -736,6 +764,23 @@ def direction_router(workspace, authenticate):
                 session,
                 direction.update_segment(
                     session, segment_id, **body.model_dump(exclude_unset=True)
+                ),
+            )
+
+    @router.patch(
+        "/segments/{segment_id}/continuation",
+        response_model=SegmentCommandDTO,
+        response_model_exclude_unset=True,
+    )
+    def set_segment_continuation(segment_id: str, body: SegmentContinuationPatch):
+        with workspace.db.transaction() as session:
+            return segment_dto(
+                session,
+                set_continuation(
+                    session,
+                    segment_id,
+                    body.expected_revision,
+                    **body.model_dump(exclude_unset=True, exclude={"expected_revision"}),
                 ),
             )
 

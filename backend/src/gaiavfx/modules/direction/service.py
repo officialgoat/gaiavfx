@@ -299,6 +299,23 @@ def _continues(value):
         raise ApplicationError("continues must be a boolean.", 422)
 
 
+_HANDOFF = ("continuation_method", "context_frames")
+
+
+def _handoff(continuation_method, context_frames):
+    """Shape only: the integration owns the method names, the context grid and when each qualifies."""
+    if continuation_method is not None and not (
+        isinstance(continuation_method, str)
+        and 0 < len(continuation_method) <= 16
+        and continuation_method.isascii()
+        and continuation_method.replace("_", "").isalpha()
+        and continuation_method.islower()
+    ):
+        raise ApplicationError("continuation_method names a handoff method.", 422)
+    if context_frames is not None and (type(context_frames) is not int or context_frames < 1):
+        raise ApplicationError("context_frames must be a positive integer.", 422)
+
+
 def _title(value):
     value = _required(value, "title")
     if len(value) > 120:
@@ -802,6 +819,8 @@ class DirectionService:
         continues,
         phases=(),
         at=None,
+        continuation_method=None,
+        context_frames=None,
         _restore=None,
         _undoes=None,
     ):
@@ -810,6 +829,14 @@ class DirectionService:
         self._segment_content(session, movie_id, content)
         _frames(delivered_frames)
         _continues(continues)
+        _handoff(continuation_method, context_frames)
+        handoff = {
+            key: value
+            for key, value in zip(_HANDOFF, (continuation_method, context_frames))
+            if value is not None
+        }
+        if handoff and not continues:
+            raise ApplicationError("Only a continuing segment hands over motion context.", 422)
         starts = set()
         phases = [authored.phase_record(phase) for phase in phases]
         for start, document, schema in phases:
@@ -837,6 +864,8 @@ class DirectionService:
                     "content_schema": restored.get(
                         "content_schema", authored.segment_schema(content)
                     ),
+                    # Absent, a restored segment keeps the handoff it was removed with.
+                    **handoff,
                 },
                 restored,
             )
@@ -885,6 +914,8 @@ class DirectionService:
         continues=None,
         opening_angle_id=_UNSET,
         opening_technique=_UNSET,
+        continuation_method=_UNSET,
+        context_frames=_UNSET,
         _undoes=None,
     ):
         row = _get(session, SegmentRecord, segment_id)
@@ -921,6 +952,15 @@ class DirectionService:
             ):
                 raise ApplicationError("opening_technique names a technique.", 422)
             changes["opening_technique"] = opening_technique
+        for key, value in zip(_HANDOFF, (continuation_method, context_frames)):
+            if value is not _UNSET:
+                _handoff(**{k: value if k == key else None for k in _HANDOFF})
+                changes[key] = value
+        if not changes.get("continues", row.continues):
+            if any(changes.get(key) is not None for key in _HANDOFF):
+                raise ApplicationError("Only a continuing segment hands over motion context.", 422)
+            # A segment that stops continuing drops its handoff in the same receipt, so Undo restores both.
+            changes |= {key: None for key in _HANDOFF if getattr(row, key) is not None}
         result = _updated(
             session, row, expected_revision, changes, row.movie_id, "segment", _undoes
         )
@@ -1205,6 +1245,9 @@ class DirectionService:
         right.update(
             opening_angle_id=earlier[-1]["to_angle_id"] if earlier else left["opening_angle_id"],
             opening_technique=None,
+            # The new join follows the continuation rule until someone chooses otherwise.
+            continuation_method=None,
+            context_frames=None,
         )
         for half, is_right in ((left, False), (right, True)):
             for collection, key in (("phases", "start_frame"), ("cuts", "frame")):

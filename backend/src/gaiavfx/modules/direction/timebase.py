@@ -17,6 +17,7 @@ class FrameGrid:
     context_default: int  # editable default: motion-context frames before the delivered clip
     max_window: int | None = None  # a hard limit, when the integration has one
     recommended_max_window: int | None = None  # display guidance, never a hard limit
+    context_max: int | None = None  # the longest choosable context; None offers the default
 
     def __post_init__(self):
         if self.fps <= 0 or self.length_step <= 0 or self.length_base < 1:
@@ -32,6 +33,26 @@ class FrameGrid:
             self.max_window is not None and self.context_default >= self.max_window
         ):
             raise ValueError("the context default must fit inside a window")
+        if self.context_max is not None and not (
+            self.valid_window(self.context_max)
+            and self.valid_window(self.context_default)
+            and self.context_default <= self.context_max
+        ):
+            raise ValueError("the longest context is a window holding the default")
+
+    def context_lengths(self, source_frames: int | None = None) -> tuple[int, ...]:
+        """The motion-context lengths a continuation may carry, each a whole window.
+
+        The context is the end of the source take's window, so none is longer than `source_frames`.
+        """
+        if self.context_max is None:
+            lengths = (self.context_default,)
+        else:
+            lengths = tuple(range(self.length_base, self.context_max + 1, self.length_step))
+        return tuple(n for n in lengths if source_frames is None or n <= source_frames)
+
+    def valid_context(self, frames: int) -> bool:
+        return type(frames) is int and frames in self.context_lengths()
 
     def frames(self, seconds: Fraction | int) -> int:
         """Editorial seconds to whole delivered frames, rounding up so no requested time is lost."""

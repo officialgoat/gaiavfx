@@ -22,6 +22,8 @@ from gaiavfx.application.selected_takes import current_take
 from gaiavfx.application.set_seed import segment_seed
 from gaiavfx.application.sheet_recipes import sheet_reference
 from gaiavfx.integrations import minimax_h3
+from gaiavfx.integrations.minimax_h3 import continuation as continuity
+from gaiavfx.integrations.minimax_h3.continuation import ContinuationFacts, Handoff
 from gaiavfx.integrations.minimax_h3.prompt import compile_prompt, gaps
 from gaiavfx.modules.direction.application import default_policy
 from gaiavfx.modules.direction.planning import (
@@ -182,6 +184,7 @@ class SegmentPlan:
         None  # a set being built from the segment's current take (ADR 0019 §4), in words
     )
     build_refusal: str | None = None  # why no set can be built from that take now
+    continuation: Handoff | None = None  # a continuation's handoff and the rule's hint
 
 
 @dataclass(frozen=True)
@@ -330,7 +333,14 @@ def segment_render_inputs(
             for g in gaps(segment, pictures, keyframes)
             if g.code != "several_sheets" or not any(r.code == g.code for r in refusals)
         )
-        if not refusals:
+        missing_source = None
+        try:
+            artifact, source = continuation_input(session, row, context_artifact)
+        except ApplicationError as exc:
+            missing_source = SegmentRefusal("continuation_source", str(exc))
+        handoff = _handoff(row, shots, keyframes, artifact, integration)
+        handoff_refusals = [SegmentRefusal(*r) for r in (handoff.refusals if handoff else ())]
+        if not refusals and not handoff_refusals:
             grid = INTEGRATIONS[integration].capabilities().frame_grid
             try:
                 compile_prompt(
@@ -338,14 +348,16 @@ def segment_render_inputs(
                     pictures,
                     keyframes,
                     grid,
-                    grid.context_default if segment.continues else 0,
+                    handoff.context_frames if handoff else 0,
                 )
             except ValueError as exc:
                 refusals.append(SegmentRefusal("compiler", str(exc)))
-        try:
-            artifact, source = continuation_input(session, row, context_artifact)
-        except ApplicationError as exc:
-            refusals.append(SegmentRefusal("continuation_source", str(exc)))
+        refusals.extend(handoff_refusals)
+        if missing_source:
+            refusals.append(missing_source)
+    else:
+        # The continuation row still says how this join would hand over, while the structure is refused.
+        handoff = _handoff(row, shots, (), None, integration)
     shaping = [shot.plan for shot in shots if _shapes_window(shot)]
     techniques = {p.recommended.technique_id for p in shaping if p.recommended}
     technique = (
@@ -371,8 +383,45 @@ def segment_render_inputs(
         sheet_shots[0][2] if sheet_shots else None,
         opening,
         place_status(session, opening, refusals),
+        continuation=handoff,
     )
     return plan, segment, pictures, keyframes, artifact, source
+
+
+def _continuation_facts(row, shots, keyframes, artifact):
+    planned = sum(
+        1 for s in shots if s.plan.recommended and Block.PINNED_FRAME in s.plan.recommended.blocks
+    )
+    return ContinuationFacts(
+        continues=row["continues"],
+        cuts=len(row["cuts"]),
+        guides=max(planned, len(keyframes)),
+        source_frames=continuity.source_frames(artifact.get("info")) if artifact else None,
+    )
+
+
+def _handoff(row, shots, keyframes, artifact, integration):
+    if not row["continues"]:
+        return None
+    return continuity.resolve(
+        _continuation_facts(row, shots, keyframes, artifact),
+        method=row["continuation_method"],
+        context_frames=row["context_frames"],
+        grid=INTEGRATIONS[integration].capabilities().frame_grid,
+    )
+
+
+def continuation_facts(session, segment_id, integration=DEFAULT_INTEGRATION):
+    """What the continuation rule reads about a segment, without lowering its window."""
+    _provider(integration)
+    row = direction.read_segment(session, segment_id)
+    opening = plan_for_opening(session, segment_id, integration)
+    plans = tuple(plan_for_cut(session, cut["id"], integration) for cut in row["cuts"])
+    try:
+        artifact, _ = continuation_input(session, row)
+    except ApplicationError:
+        artifact = None  # no selected take yet: the render plan checks the source
+    return row, _continuation_facts(row, _shots(row, opening, plans), (), artifact)
 
 
 direction = DIRECTION

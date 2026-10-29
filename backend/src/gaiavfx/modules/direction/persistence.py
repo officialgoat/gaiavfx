@@ -49,6 +49,9 @@ class SegmentRecord(Base):
         ForeignKey("direction_angles.id"), nullable=True, default=None
     )
     opening_technique: Mapped[str | None] = mapped_column(String(80), nullable=True, default=None)
+    # A continuation's handoff (0014): null follows the integration's rule and default context.
+    continuation_method: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
+    context_frames: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     created_at: Mapped[str] = mapped_column(String(40), default=timestamp)
     updated_at: Mapped[str] = mapped_column(String(40), default=timestamp)
 

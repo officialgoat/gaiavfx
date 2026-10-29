@@ -49,7 +49,8 @@ def capabilities(presets=None) -> Capabilities:
             canvas_high=1280,
             canvas_aspect=(0.5, 2.0),
         ),
-        # windows are 5 + 17k frames at 24 fps; a continuation carries 22 frames of motion context by default.
+        # windows are 5 + 17k frames at 24 fps; a continuation carries 22 frames of motion context by default,
+        # or 5, 39 or 56 when chosen (2/7/12/17 latent steps; docs/CONTINUATION.md).
         # The manifest sets no hard maximum; 396 is the recommended 15 s plus 22 context frames, on the grid.
         frame_grid=FrameGrid(
             fps=24,
@@ -58,6 +59,7 @@ def capabilities(presets=None) -> Capabilities:
             context_default=22,
             max_window=None,
             recommended_max_window=396,
+            context_max=56,
         ),
     )
 

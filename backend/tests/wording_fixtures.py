@@ -17,6 +17,7 @@ FIXTURES = (
     "two-cuts",
     "cut-state-at-cut",
     "cut-continuation",
+    "cut-continuation-39",  # a chosen 39-frame context moves every window timecode by 17 frames
     "single-continuation",
     "dialogue",
     "event-beat",

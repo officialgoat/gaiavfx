@@ -140,6 +140,39 @@ def test_a_stage_fix_may_keep_a_still_and_the_downgrade_drops_kept_fixes(tmp_pat
         db.close()
 
 
+def test_existing_segments_follow_the_continuation_rule_after_0014(tmp_path):
+    config = Config()
+    config.set_main_option("script_location", MIGRATIONS.as_posix())
+    config.set_main_option(
+        "sqlalchemy.url", "sqlite:///" + (tmp_path / "library.sqlite3").as_posix()
+    )
+    command.upgrade(config, "0013_set_fix_keep")
+    db = Database(tmp_path)
+    try:
+        with db.engine.begin() as connection:
+            connection.exec_driver_sql(
+                "INSERT INTO direction_movies (id, title, revision, created_at, updated_at) "
+                "VALUES ('m', 'Movie', 1, 'now', 'now')"
+            )
+            connection.exec_driver_sql(
+                "INSERT INTO direction_segments (id, movie_id, ordinal, delivered_frames, continues, "
+                "content, content_schema, revision, created_at, updated_at) "
+                "VALUES ('s', 'm', 0, 48, 1, '{}', 1, 3, 'now', 'now')"
+            )
+        command.upgrade(config, "head")
+        with db.engine.connect() as connection:
+            assert connection.exec_driver_sql(
+                "SELECT continuation_method, context_frames, revision FROM direction_segments"
+            ).one() == (None, None, 3)
+        command.downgrade(config, "0013_set_fix_keep")
+        with db.engine.connect() as connection:
+            columns = {c["name"] for c in inspect(connection).get_columns("direction_segments")}
+            assert not {"continuation_method", "context_frames"} & columns
+            assert connection.exec_driver_sql("SELECT id FROM direction_segments").all() == [("s",)]
+    finally:
+        db.close()
+
+
 def test_baseline_matches_all_records_and_downgrades_to_empty(tmp_path):
     for module in (
         "infrastructure.records",
@@ -169,6 +202,7 @@ def test_baseline_matches_all_records_and_downgrades_to_empty(tmp_path):
         "0011_sets.py",
         "0012_sets_in_scenes.py",
         "0013_set_fix_keep.py",
+        "0014_segment_continuation.py",
     }
     LibraryService(tmp_path, MIGRATIONS).create("Baseline")
     db = Database(tmp_path)
@@ -179,7 +213,7 @@ def test_baseline_matches_all_records_and_downgrades_to_empty(tmp_path):
         with db.engine.connect() as connection:
             assert connection.exec_driver_sql(
                 "SELECT version_num FROM alembic_version"
-            ).scalar() == ("0013_set_fix_keep")
+            ).scalar() == ("0014_segment_continuation")
             assert set(inspect(connection).get_table_names()) == TABLES | {"alembic_version"}
             assert set(Base.metadata.tables) == TABLES
             context = MigrationContext.configure(connection)

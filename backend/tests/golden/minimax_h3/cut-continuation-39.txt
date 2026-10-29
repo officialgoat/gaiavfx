@@ -1,0 +1,22 @@
+subject_definitions:
+<Subject 1> is Mara, Adult woman with short wavy brown hair and an ochre raincoat. Source: <Picture 1>. <Picture 1> supplies identity only.
+
+summary:
+[reference generation + video continuation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - Preserve the reference contributions defined above.
+
+detailed_description:
+Use <Picture 1> for identity, outfit only. Preserve Mara's identity and clothing; the background follows the scene.
+Continue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat.
+Production context: A misty harbour at dusk: a wet wooden pier with a dark railing.
+<Subject 1>: Adult woman with short wavy brown hair and an ochre raincoat.
+[Shot 1] This shot follows the referenced identities of <Subject 1>. Mara walks steadily along the wet pier, the railing on her left. Side-view tracking shot. Subjects in frame: <Subject 1>.
+[Shot 2] At 00:03.125, the shot cuts. Mara keeps walking; she is small in the frame at the railing. Wide static reverse angle from the water. Camera position: Out on the water, looking back at the pier. Screen direction: Seen from the water, she walks from screen right to screen left. Subjects in frame: <Subject 1>. This shot follows the referenced identities of <Subject 1>.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

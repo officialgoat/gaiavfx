@@ -1,8 +1,9 @@
 """Lowering a compiled H3 prompt to a ComfyUI graph (ADR 0010).
 
 Pictures take reference slots at `ref_image_size=match`; each keyframe is a `MiniMaxH3AddGuide` at its model-window
-frame, chained before the motion context; a continuation loads the predecessor's context latent and trims the
-context frames from the delivered clip. Model files and sampling come from `knowledge/render.toml`.
+frame, chained before the motion context; a continuation loads the predecessor's context latent, hands it over by
+paired latents (`MiniMaxH3MotionContext`) or masked handoff (`GaiaH3ContinuityMasked`), and trims the context
+frames from the delivered clip. Model files and sampling come from `knowledge/render.toml`.
 """
 
 import math
@@ -13,6 +14,7 @@ from dataclasses import dataclass
 from functools import cache
 from importlib import resources
 
+from gaiavfx.integrations.minimax_h3.continuation import MASKED, METHODS, PAIRED, Handoff
 from gaiavfx.integrations.minimax_h3.prompt import CompiledH3
 
 RENDER_KEYS = {
@@ -144,8 +146,13 @@ def build_graph(
     output_prefix: str,
     capture_context: bool = True,
     presets: RenderPresets | None = None,
+    handoff: Handoff | None = None,
 ) -> dict:
-    """`files` maps each asset id to the file name the ComfyUI server loads it by."""
+    """`files` maps each asset id to the file name the ComfyUI server loads it by.
+
+    A continuation hands over as `handoff` says (continuation.py); without one it uses paired latents with the
+    presets' independent audio window.
+    """
     presets = presets or render_presets()
     models, sampling, conditioning_presets, decode = (
         presets.models,
@@ -153,6 +160,20 @@ def build_graph(
         presets.conditioning,
         presets.decode,
     )
+    method = handoff.method if handoff else PAIRED
+    audio_context = (
+        handoff.audio_context_frames if handoff else conditioning_presets["audio_context_frames"]
+    )
+    if context_latent is not None:
+        if method not in METHODS:
+            raise ValueError(f"unknown continuation method {method!r}")
+        if handoff and handoff.context_frames != compiled.context_frames:
+            raise ValueError("the handoff's context differs from the compiled window's")
+        # The audio coupling is part of the method: masked re-encodes exactly the picture context's audio.
+        if method == MASKED and audio_context != compiled.context_frames:
+            raise ValueError("masked handoff ties the audio history to the picture context")
+        if method == MASKED and compiled.keyframes:
+            raise ValueError("masked handoff does not combine with pinned keyframes")
     graph: dict = {}
 
     def add(key, kind, **inputs):
@@ -196,6 +217,7 @@ def build_graph(
             image=image,
             frame_idx=frame,
         )
+    trim_frames = compiled.context_frames
     if context_latent is not None:
         loaded = add(
             "load_context",
@@ -203,17 +225,34 @@ def build_graph(
             latent_path=context_latent,
             clip_index=1,
         )
-        conditioning = add(
-            "motion_context",
-            "MiniMaxH3MotionContext",
-            conditioning=conditioning,
-            latent=latent,
-            vae=vae,
-            audio_vae=audio_vae,
-            context_latent=loaded,
-            context_length=str(compiled.context_frames),
-            audio_context_length=conditioning_presets["audio_context_frames"],
-        )
+        if method == MASKED:
+            # The node protects the source's latent tail in the target and patches the model's audio positions;
+            # its four outputs replace the model, the conditioning, the target latent and the trim.
+            add(
+                "masked_context",
+                "GaiaH3ContinuityMasked",
+                model=model,
+                positive=conditioning,
+                latent=latent,
+                context_latent=loaded,
+                audio_vae=audio_vae,
+                context_length=compiled.context_frames,
+                fps=float(fps),
+            )
+            model, conditioning, latent = (["masked_context", n] for n in range(3))
+            trim_frames = ["masked_context", 3]
+        else:
+            conditioning = add(
+                "motion_context",
+                "MiniMaxH3MotionContext",
+                conditioning=conditioning,
+                latent=latent,
+                vae=vae,
+                audio_vae=audio_vae,
+                context_latent=loaded,
+                context_length=str(compiled.context_frames),
+                audio_context_length=audio_context,
+            )
     shifted = add(
         "shift",
         "MiniMaxH3SigmaShift",
@@ -261,7 +300,7 @@ def build_graph(
             "GaiaH3ContinuityTrim",
             images=images,
             audio=audio,
-            trim_frames=compiled.context_frames,
+            trim_frames=trim_frames,
             fps=float(fps),
         )
         images, audio = ["trim", 0], ["trim", 1]
