@@ -3,6 +3,7 @@
 import json
 import os
 import platform
+import shutil
 import sys
 import tomllib
 from importlib import resources
@@ -13,6 +14,29 @@ def repo_root() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
     return Path(__file__).resolve().parents[4]
+
+
+def resolve_tool(name: str) -> str:
+    """Find setup executables on PATH, then in this checkout's portable tools."""
+    if executable := shutil.which(name):
+        return executable
+    windows = os.name == "nt"
+    relative = {
+        "git": "git/cmd/git.exe" if windows else "git/bin/git",
+        "uv": "uv/uv.exe" if windows else "uv/uv",
+        "node": "node/node.exe" if windows else "node/bin/node",
+        "npm": "node/npm.cmd" if windows else "node/bin/npm",
+    }
+    if name not in relative:
+        raise ValueError(f"Unknown setup tool: {name}")
+    portable = repo_root() / ".runtime/tools" / relative[name]
+    if portable.is_file() and (windows or os.access(portable, os.X_OK)):
+        return str(portable)
+    raise FileNotFoundError(
+        f"Required tool {name!r} was not found on PATH or at {portable}. "
+        "Run install.ps1 -InstallPrerequisites (Windows) or "
+        "bash install.sh --install-prerequisites (Linux)."
+    )
 
 
 def setup_file() -> Path:

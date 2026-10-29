@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+source scripts/prerequisites.sh
+add_portable_tools_path
 case "${1:-}" in
   --with-comfy) shift; .venv/bin/python scripts/start_comfy.py "$@" ;;
   '') ;;

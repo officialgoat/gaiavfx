@@ -7,10 +7,13 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from ._runtime import resolve_tool
 from .manifest import comfy_directory, load_manifest, repo_root, update_setup_file
 
 
 def run(args: list[str | Path], **kwargs):
+    if args[0] in ("git", "uv"):
+        args = [resolve_tool(str(args[0])), *args[1:]]
     return subprocess.run([str(a) for a in args], check=True, **kwargs)
 
 

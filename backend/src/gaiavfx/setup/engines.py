@@ -12,6 +12,7 @@ from gaiavfx.setup._runtime import (
     read_setup,
     repo_root,
     require_x64,
+    resolve_tool,
     workers_dir,
     write_json,
 )
@@ -54,7 +55,7 @@ def install(root: Path) -> int:
     for index, command in enumerate(commands[:-1]):
         if index == 0 and python_path(home).is_file():
             continue
-        subprocess.run(command, check=True)
+        subprocess.run([resolve_tool(command[0]), *command[1:]], check=True)
     spec = manifest()["worldbuilder"]
     pins = dict(item.split("==", 1) for item in spec["packages"])
     pins.update(torch=spec["torch"], gsplat=spec["gsplat"])
