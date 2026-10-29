@@ -65,7 +65,7 @@ def scan(root: Path) -> list[str]:
             continue
         if path.stat().st_size > MAX_BYTES:
             fail("size", "file exceeds 2 MiB")
-        if path.suffix.lower() in WEIGHTS | MEDIA and not name.startswith(("assets/brand/", "tests/fixtures/")):
+        if path.suffix.lower() in WEIGHTS | MEDIA and not name.startswith(("assets/brand/", "tests/fixtures/", "docs/images/")):
             fail("artifact", "weights and media belong in approved fixture or brand folders")
         try:
             text = path.read_text(encoding="utf-8-sig")
