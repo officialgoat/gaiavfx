@@ -285,7 +285,7 @@ class EditSegment(TransactionTool):
         op: Literal["add", "set", "move", "remove"]
         expected_revision: int = Field(ge=1)
         segment_id: str | None = None
-        subject_ids: list[str] | None = Field(default=None, min_length=1, max_length=24)
+        subject_ids: list[str] | None = Field(default=None, max_length=24)
         place: PlaceText | None = None
         style: str | None = Field(default=None, max_length=8000)
         delivered_frames: int | None = Field(default=None, gt=0)
@@ -297,17 +297,10 @@ class EditSegment(TransactionTool):
     def narrow(self, context):
         if not granted(context, "edit"):
             return None
-        specs = {}
-        if context.state.cast:
-            required = [
-                "expected_revision",
-                "subject_ids",
-                "place",
-                "delivered_frames",
-                "continues",
-                "phases",
-            ]
-            specs["add"] = (required, [*required, "style", "at"])
+        # A segment may have no cast. With no cast to name, subject_ids is left out (never an empty enum).
+        cast = ["subject_ids"] if context.state.cast else []
+        required = ["expected_revision", *cast, "place", "delivered_frames", "continues", "phases"]
+        specs = {"add": (required, [*required, "style", "at"])}
         ids = [s["id"] for s in context.state.segments]
         if ids:
             common = ["segment_id", "expected_revision"]
@@ -316,8 +309,6 @@ class EditSegment(TransactionTool):
                 "move": ([*common, "ordinal"], [*common, "ordinal"]),
                 "remove": (common, common),
             }
-        if not specs:
-            return None
         schema = inlined(branches(self.Input, specs))
         for branch in schema.get("oneOf", [schema]):
             if "phases" in branch["properties"]:
@@ -328,7 +319,6 @@ class EditSegment(TransactionTool):
             if "subject_ids" in branch["properties"]:
                 branch["properties"]["subject_ids"] = {
                     "type": "array",
-                    "minItems": 1,
                     "maxItems": 24,
                     "items": {"enum": [s["id"] for s in context.state.cast]},
                 }
@@ -336,10 +326,9 @@ class EditSegment(TransactionTool):
 
     def execute(self, session, context, value):
         if value.op == "add":
-            require(value, "subject_ids", "place", "delivered_frames", "continues", "phases")
-            if not context.state.cast:
-                raise ApplicationError("Add a cast member first.", 422)
-            for subject in value.subject_ids:
+            require(value, "place", "delivered_frames", "continues", "phases")
+            subject_ids = value.subject_ids or []
+            for subject in subject_ids:
                 scoped(context.state.cast, subject, "Subject")
             revision(
                 direction.read_movie(session, context.movie_id),
@@ -349,7 +338,7 @@ class EditSegment(TransactionTool):
             )
             if value.phases[0].start_frame != 0:
                 raise ApplicationError("The first phase must start at 0.", 422)
-            content = {"subjects": value.subject_ids, "place": value.place.model_dump()}
+            content = {"subjects": subject_ids, "place": value.place.model_dump()}
             if value.style is not None:
                 content["style"] = value.style
             row = direction.add_segment(

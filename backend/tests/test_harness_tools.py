@@ -243,7 +243,55 @@ def test_structural_commands_receipts_revisions_and_schema_two_preserved(world):
     empty = replace(
         context_for(work, setup), state=replace(context_for(work, setup).state, cast=[])
     )
-    assert '"const": "add"' not in __import__("json").dumps(edit.narrow(empty))
+    # A segment needs no cast: add is still offered, with no cast ids to name.
+    offered = __import__("json").dumps(edit.narrow(empty))
+    assert '"const": "add"' in offered and "subject_ids" not in offered
+
+
+def test_segments_can_be_added_and_drafted_with_no_cast(world):
+    from gaiavfx.application.harness.tools.draft import DraftStoryline
+    from gaiavfx.application.harness.tools.edits import EditSegment
+
+    work, setup = world
+    direction = DirectionService()
+    edit = EditSegment()
+
+    def revision():
+        with work.db.transaction() as session:
+            return direction.read_movie(session, setup["movie_id"])["revision"]
+
+    beat = {
+        "place": {"noun": "bridge", "description": "London Bridge at night", "landmarks": ""},
+        "delivered_frames": 96,
+        "continues": False,
+        "phases": [{"start_frame": 0, "description": "A ship passes.", "screen_direction": "left"}],
+    }
+    added = execute_edit(
+        work, setup, edit, op="add", expected_revision=revision(), subject_ids=[], **beat
+    )
+    assert added.ok, added.discrepancy
+    context = context_for(work, setup)
+    empty = replace(context, state=replace(context.state, cast=[]))
+    _, parsed = parse_action(
+        {
+            "tool": edit.name,
+            "thought": "",
+            "input": {"op": "add", "expected_revision": revision(), **beat},
+        },
+        [(edit, edit.narrow(empty))],
+    )
+    no_cast = edit.run(empty, parsed)
+    assert no_cast.ok, no_cast.discrepancy
+    with work.db.transaction() as session:
+        for result in (added, no_cast):
+            assert (
+                direction.read_segment(session, result.payload["id"])["content"]["subjects"] == []
+            )
+    drafted = DraftStoryline().narrow(empty)["properties"]["beats"]["items"]
+    assert "subject_ids" not in drafted["properties"]
+    cast = DraftStoryline().narrow(context)["properties"]["beats"]["items"]
+    assert "subject_ids" in cast["required"]
+    assert "minItems" not in cast["properties"]["subject_ids"]
 
 
 def test_cut_add_atomic_two_receipts_and_existing_phase(world):

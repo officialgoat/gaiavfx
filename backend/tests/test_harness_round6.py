@@ -98,7 +98,6 @@ def test_o1_empty_angles_give_an_executable_example(kernel):
     "tool_name,values,field",
     [
         ("draft_storyline", {"expected_revision": 1, "beats": []}, "beats"),
-        ("edit_segment", {"op": "add", "expected_revision": 1, "subject_ids": []}, "subject_ids"),
         ("edit_segment", {"op": "add", "expected_revision": 1, "phases": []}, "phases"),
         ("propose_plan", {"goal": "Film", "steps": []}, "steps"),
         ("render_candidates", {"segment_id": "segment", "seeds": []}, "seeds"),
