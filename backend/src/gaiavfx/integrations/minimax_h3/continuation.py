@@ -24,7 +24,7 @@ PAIRED, MASKED = "paired", "masked"
 METHODS = (PAIRED, MASKED)
 NAMES = {PAIRED: "Paired latents", MASKED: "Masked handoff"}
 
-# Measured by FlooPowder's continuity and cross-angle campaigns (21–24 Sep 2026), all at 22 context frames.
+# Measured by the H3 continuity and cross-angle research campaigns (21–26 Sep 2026), all at 22 context frames.
 SAME_SHOT = (
     "This segment continues the same shot. Masked handoff kept the smallest joins and the most faithful "
     "context in the continuity campaign."

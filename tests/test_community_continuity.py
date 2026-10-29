@@ -3,7 +3,7 @@
 Run with ComfyUI's Python and COMFYUI_PATH set to its ComfyUI folder:
     python tests/test_community_continuity.py
 Audio encode/decode is a deterministic fake VAE; core audio helpers are real.
-Set GAIAVFX_CONTINUITY_ORIGINAL to FlooPowder's comfy_nodes/floopowder_h3_community/continuity.py
+Set GAIAVFX_CONTINUITY_ORIGINAL to the research adapter's continuity.py (sha256-pinned below)
 for the exact parity checks against the reviewed original.
 """
 
@@ -40,8 +40,17 @@ spec = importlib.util.spec_from_file_location("continuity_contract_adapter", MOD
 adapter = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(adapter)
 
-# FlooPowder 12a1918d, the masked adapter its continuity campaign measured.
+# The masked adapter the continuity campaign measured (research repository commit 12a1918d).
 ORIGINAL_SHA256 = "9ee1eb1f541627370706cd0e3397397f8622427351bc0a0c18ddef66b981876c"
+
+
+def masked_node(module):
+    """The original names its node and receipt for its own app; parity compares behaviour, not names."""
+    return next(v for k, v in vars(module).items() if k.endswith("H3ContinuityMasked"))
+
+
+def receipt(latent):
+    return next(v for k, v in latent.items() if k.endswith("_continuity"))
 
 
 def original_adapter():
@@ -240,7 +249,7 @@ class MaskedTests(unittest.TestCase):
 
 
 class ParityTests(unittest.TestCase):
-    """The port equals FlooPowder's FlooH3ContinuityMasked on identical inputs."""
+    """The port equals the research adapter's masked node on identical inputs."""
 
     def setUp(self):
         self.original = original_adapter()
@@ -251,7 +260,7 @@ class ParityTests(unittest.TestCase):
         port_vae, original_vae = AudioVAE(), AudioVAE()
         port = adapter.GaiaH3ContinuityMasked().prepare(
             **self.case.arguments(audio_vae=port_vae, **copy.deepcopy(overrides)))
-        original = self.original.FlooH3ContinuityMasked().prepare(
+        original = masked_node(self.original)().prepare(
             **self.case.arguments(audio_vae=original_vae, **copy.deepcopy(overrides)))
         return port, original, port_vae, original_vae
 
@@ -263,7 +272,7 @@ class ParityTests(unittest.TestCase):
                 for key in ("samples", "noise_mask"):
                     for left, right in zip(port[2][key].unbind(), original[2][key].unbind()):
                         self.assertTrue(torch.equal(left, right), key)
-                self.assertEqual(port[2]["gaiavfx_continuity"], original[2]["floopowder_continuity"])
+                self.assertEqual(port[2]["gaiavfx_continuity"], receipt(original[2]))
                 self.assertTrue(torch.equal(port_vae.encoded_waveform, original_vae.encoded_waveform))
                 ours, theirs = port[1][0][1]["minimax_refs"], original[1][0][1]["minimax_refs"]
                 self.assertEqual(len(ours), len(theirs))
@@ -293,10 +302,9 @@ class ParityTests(unittest.TestCase):
         for arguments in self.case.unsupported():
             with self.subTest(arguments=tuple(arguments)):
                 messages = []
-                for module, node in ((adapter, "GaiaH3ContinuityMasked"),
-                                     (self.original, "FlooH3ContinuityMasked")):
+                for module in (adapter, self.original):
                     with self.assertRaises(ValueError) as caught:
-                        getattr(module, node)().prepare(**self.case.arguments(**arguments))
+                        masked_node(module)().prepare(**self.case.arguments(**arguments))
                     messages.append(str(caught.exception))
                 self.assertEqual(*messages)
 
@@ -337,7 +345,7 @@ class TrimTests(unittest.TestCase):
         ] + [
             name.name for node in ast.walk(tree) if isinstance(node, ast.Import) for name in node.names
         ]
-        self.assertFalse(any(name.startswith(("creator", "gaiavfx.", "floopowder", "server", "aiohttp"))
+        self.assertFalse(any(name.startswith(("creator", "gaiavfx.", "server", "aiohttp"))
                              for name in imports))
 
 

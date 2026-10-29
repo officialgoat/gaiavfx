@@ -45,7 +45,7 @@ Collection registers media/assets or managed artifacts through Library and links
 
 | Integration | Knowledge and execution |
 |---|---|
-| `minimax_h3/` | H3 rendering, continuation, replacement, survey and probes. `knowledge/` contains `pack`, `head`, `render`, `replacement`, `survey`, `probe` and `wording` TOMLs. |
+| `minimax_h3/` | H3 rendering, continuation, replacement, survey and probes. `knowledge/` contains `pack`, `head`, `render`, `replacement`, `survey`, `probe` and `wording` TOMLs. `continuation.py` holds the handoff rule ([CONTINUATION.md](CONTINUATION.md)). |
 | `qwen_image_edit/` | Qwen image-edit graphs and prompt wording, with `render.toml` and `wording.toml`. |
 | `person_analysis/` | Face analysis and SAM tracking graphs; `knowledge/render.toml` declares model settings. |
 | `worldbuilder/` | Geometry extraction, take-to-stage rules and fill planning; `take`, `rules`, `fill` and `engines` TOMLs. |
