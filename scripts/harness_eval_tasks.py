@@ -1708,7 +1708,8 @@ def check_segment_render(task, work, setup, harness, recorder):
                 reasons.append(
                     "Both cut-relative pins must be present at cut + 12 + 22 context frames"
                 )
-        if "motion_context" not in graph:
+        # docs/CONTINUATION.md: an uncut continuation follows the rule to masked handoff, a cut keeps paired.
+        if ("motion_context" if count else "masked_context") not in graph:
             reasons.append("Continuation context missing")
         if count == 0 and "single continuous take" not in prompt.lower():
             reasons.append("Single-take wording missing")

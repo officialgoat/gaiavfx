@@ -1,15 +1,9 @@
 """Typed revision-checked edits through Direction's public commands."""
 
-import re
 from typing import Literal
 
 from pydantic import Field
 
-from gaiavfx.application.continuation import (
-    context_lengths,
-    require_new_choice,
-    set_continuation,
-)
 from gaiavfx.application.harness.actions import (
     CROSSES_BARRIER_GUIDANCE,
     ToolResult,
@@ -17,6 +11,7 @@ from gaiavfx.application.harness.actions import (
     inlined,
     pin_enum,
 )
+from gaiavfx.application.harness.tools import handoff
 from gaiavfx.application.harness.tools.authoring import (
     MOTION,
     phase_direction_schema,
@@ -88,27 +83,6 @@ def pin_existing(schema, name, values):
     if "oneOf" in schema or name in schema.get("properties", {}):
         return pin_enum(schema, name, values)
     return schema
-
-
-HANDOFF = ("continuation_method", "context_frames")
-FIELDS_BY_TOOL = {"continuation_method": "method", "context_frames": "context_frames"}
-
-
-# A continuation's handoff follows the rule (docs/CONTINUATION.md) unless the user asks about it, so its fields are
-# offered only then: the widest schemas stay inside their budget.
-HANDOFF_REQUEST = re.compile(
-    r"\b(?:hand ?off|masked|paired|latents|motion context|context (?:length|frames)|"
-    r"frames of context)\b",
-    re.IGNORECASE,
-)
-
-
-def handoff_schema():
-    """Compact enums for a continuation's handoff fields; the grid names the lengths."""
-    return {
-        "continuation_method": {"enum": ["paired", "masked", None]},
-        "context_frames": {"enum": [*context_lengths(), None]},
-    }
 
 
 def segment_in_scope(session, context, segment_id):
@@ -338,20 +312,16 @@ class EditSegment(TransactionTool):
         ids = [s["id"] for s in context.state.segments]
         if ids:
             common = ["segment_id", "expected_revision"]
-            handoff = HANDOFF if HANDOFF_REQUEST.search(context.latest_user_message) else ()
+            settable = [*common, "place", "style", "delivered_frames", "continues"]
             specs |= {
-                "set": (
-                    common,
-                    [*common, "place", "style", "delivered_frames", "continues", *handoff],
-                ),
+                "set": (common, [*settable, *handoff.offered(context)]),
                 "move": ([*common, "ordinal"], [*common, "ordinal"]),
                 "remove": (common, common),
             }
         schema = inlined(branches(self.Input, specs))
-        # A continuation's handoff (docs/CONTINUATION.md): null follows the rule, which the world view names.
         for branch in schema.get("oneOf", [schema]):
             if "context_frames" in branch["properties"]:
-                branch["properties"] |= handoff_schema()
+                branch["properties"] |= handoff.schema()
             if "phases" in branch["properties"]:
                 phase = branch["properties"]["phases"]["anyOf"][0]["items"]
                 phase.setdefault("required", []).append("screen_direction")
@@ -366,6 +336,7 @@ class EditSegment(TransactionTool):
         return pin_existing(schema, "segment_id", ids) if ids else schema
 
     def execute(self, session, context, value):
+        receipts = None  # a set with a handoff has two
         if value.op == "add":
             require(value, "place", "delivered_frames", "continues", "phases")
             subject_ids = value.subject_ids or []
@@ -382,11 +353,6 @@ class EditSegment(TransactionTool):
             content = {"subjects": subject_ids, "place": value.place.model_dump()}
             if value.style is not None:
                 content["style"] = value.style
-            require_new_choice(
-                continues=value.continues,
-                method=value.continuation_method,
-                context_frames=value.context_frames,
-            )
             row = direction.add_segment(
                 session,
                 context.movie_id,
@@ -398,8 +364,7 @@ class EditSegment(TransactionTool):
                     (p.start_frame, p.model_dump(exclude={"start_frame"})) for p in value.phases
                 ],
                 at=value.at,
-                continuation_method=value.continuation_method,
-                context_frames=value.context_frames,
+                **handoff.added(value),
             )
         else:
             segment = segment_in_scope(session, context, value.segment_id)
@@ -415,26 +380,7 @@ class EditSegment(TransactionTool):
                     if value.style is not None:
                         content["style"] = value.style
                     changes["content"] = content
-                # An explicit null returns a handoff field to the rule, so set fields count, not values.
-                handoff = {
-                    FIELDS_BY_TOOL[name]: getattr(value, name)
-                    for name in HANDOFF
-                    if name in value.model_fields_set
-                }
-                if not changes and not handoff:
-                    raise ApplicationError("Specify at least one segment field to change.", 422)
-                row, rows = segment, []
-                if changes:
-                    row = direction.update_segment(
-                        session, value.segment_id, value.expected_revision, **changes
-                    )
-                    rows.append(row)
-                if handoff:
-                    row = set_continuation(session, value.segment_id, row["revision"], **handoff)
-                    rows.append(row)
-                require_assemblable(session, row["id"])
-                require_segment_continuity(session, row["id"], context.latest_user_message)
-                return edited(context, row, receipts=[direction_receipt(r) for r in rows])
+                row, receipts = handoff.update(session, value, segment, changes)
             else:
                 revision(
                     direction.read_movie(session, context.movie_id),
@@ -461,7 +407,7 @@ class EditSegment(TransactionTool):
         if value.op in {"add", "set"}:
             require_assemblable(session, row["id"])
             require_segment_continuity(session, row["id"], context.latest_user_message)
-        return edited(context, row, structural=value.op != "set")
+        return edited(context, row, structural=value.op != "set", receipts=receipts)
 
 
 class EditPhase(TransactionTool):

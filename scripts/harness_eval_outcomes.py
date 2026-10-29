@@ -116,6 +116,13 @@ DEFINITIONS.update(
         "cast-but-empty-shot": "Add one segment whose cast is empty for a shot with nobody in it and leave the existing cast unchanged; no jobs.",
     }
 )
+# docs/CONTINUATION.md: the handoff the user asked for, the rule for the rest, and a refusal's reason.
+DEFINITIONS.update(
+    {
+        "continuation-context-keeps-rule": "Set only the requested 39-frame context on the second segment; its handoff method keeps following the rule; no jobs.",
+        "continuation-masked-refused": "Leave the handoff unchanged when masked handoff is refused, and relay the refusal's reason (the pinned keyframe); no jobs.",
+    }
+)
 
 
 def evaluate(task, data):
