@@ -21,3 +21,9 @@ def pytest_configure(config):
             "Install this checkout in its own virtual environment or set "
             f"PYTHONPATH={SOURCE}."
         )
+
+
+@pytest.fixture(autouse=True)
+def isolated_setup_file(tmp_path, monkeypatch):
+    # The developer's own .runtime/setup.json must not seed the libraries tests create.
+    monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
