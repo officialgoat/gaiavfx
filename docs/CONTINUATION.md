@@ -113,10 +113,41 @@ joins were measured, but no listening verdict was given.
 Masked handoff kept the sound 3 to 10 dB above paired at no cost in timing. With fresh seeds included, masked
 crossed 6 of 11 against paired's 9 of 11. A dialogue shot and reverse held 4 of 4 with both methods.
 
+**GPU check in GAIAVFX** (29 October 2026, RTX 4090, ComfyUI `--lowvram`, clean install with this pack). The setup:
+
+- The graphs came from GAIAVFX's own `compile_prompt` and `build_graph`.
+- The source is one uncut 51-frame take (seed 5101, 56-frame window) of the `single-continuation` direction.
+- Its continuation was rendered four ways with the same seed:
+
+| Method | Context | Window | Audio window | Delivered | Join jump | Sound after the join | Render |
+|---|---|---|---|---|---|---|---|
+| paired | 22 | 73 | 24 | 51 f, 2.125 s | 0.89× | −43.7 dB | 93 s |
+| masked | 22 | 73 | 22 | 51 f, 2.125 s | 0.85× | −42.2 dB | 11 min 51 s ¹ |
+| paired | 39 | 90 | 24 | 51 f, 2.125 s | 0.96× | −46.3 dB | 96 s |
+| masked | 39 | 90 | 39 | 51 f, 2.125 s | 0.98× | −43.1 dB | 60 s |
+
+How to read it:
+
+- **Join jump** is the mean luma change from the source's last frame to the continuation's first, divided by the
+  continuation's median frame-to-frame change over its first second.
+- **Sound after the join** is the RMS level of the continuation's first half second. The source's last half second
+  was −36.4 dB.
+- The masked node's receipts show the coupling: 29,333 audio samples (37 ticks) at 22 frames and 52,000 samples
+  (65 ticks) at 39.
+- Every join was continuous by eye: framing, identity and light carry over, with no break at the cut.
+
+¹ The first masked render compiled the wrapped model once; the next masked render took 60 s.
+
+This is one seed of one shot. It shows that every method and length renders, trims to exactly the delivered frames
+and audio, and joins without a visible break. It is not a quality ranking.
+
 ## Limits
 
 - Only the 22-frame context was measured by the research. 5, 39 and 56 frames are allowed by the grid, the node
-  and the trim, and are covered here by CPU contracts and graph goldens, not by quality measurements.
+  and the trim. CPU contracts and graph goldens cover them all; one GPU check covers 39. None has a quality
+  measurement.
+- The first masked render after ComfyUI starts compiles the wrapped model once (about ten minutes on an RTX 4090
+  with `--lowvram`).
 - Masked handoff carries the old walking direction past a cut. That is why the rule keeps paired latents there.
 - In a chain, masked handoff keeps the faded sound level it is handed (near −46 dB after a take that faded in its
   last second). That fade needs its own fix.
