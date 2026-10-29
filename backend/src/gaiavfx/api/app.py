@@ -32,6 +32,7 @@ from .production import production_router
 from .recast import recast_router
 from .sets import sets_router
 from .settings import settings_router
+from .setup import setup_router
 
 
 class LibraryDTO(BaseModel):
@@ -240,6 +241,7 @@ def create_app(
     def create_library(body: CreateLibrary):
         try:
             result = library.create(body.name)
+            workspace.initialize_settings()
             workspace.telemetry.library_id = result.id
             if enable_runner:
                 start_operations()
@@ -252,6 +254,7 @@ def create_app(
     app.include_router(routes)
     app.include_router(media_routes)
     app.include_router(settings_router(workspace, gateway, authenticate))
+    app.include_router(setup_router(workspace, authenticate))
     app.include_router(direction_router(workspace, authenticate))
     app.include_router(production_router(workspace, authenticate))
     app.include_router(export_router(workspace, authenticate))

@@ -1,0 +1,125 @@
+.setup-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.setup-heading h3 {
+  margin-bottom: 0;
+}
+.setup-check > p {
+  line-height: 1.5;
+}
+.setup-endpoint {
+  overflow-wrap: anywhere;
+}
+.setup-feature {
+  border-bottom: 1px solid var(--line);
+}
+.setup-feature > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+.setup-feature > summary::-webkit-details-marker {
+  display: none;
+}
+.setup-feature > summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
+  transform: rotate(-45deg);
+  margin-right: 4px;
+}
+.setup-feature[open] > summary::before {
+  transform: rotate(45deg);
+}
+.setup-feature summary:hover {
+  color: var(--accent);
+}
+.setup-check summary:focus-visible,
+.setup-fix code:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.setup-state {
+  margin-left: auto;
+  flex-shrink: 0;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--danger);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.setup-state[data-state="ok"] {
+  color: var(--wave);
+}
+.setup-check-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.setup-check-item {
+  padding: 12px 0;
+  border-top: 1px solid var(--line);
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.setup-check-item p {
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 8px 0;
+}
+.setup-fix {
+  display: grid;
+  gap: 8px;
+}
+.setup-fix code {
+  display: block;
+  padding: 8px;
+  background: var(--raised);
+  border-radius: 4px;
+  user-select: all;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.setup-fix button {
+  justify-self: start;
+}
+.setup-fix [role="status"]:empty {
+  display: none;
+}
+.setup-notes {
+  padding-bottom: 12px;
+  font-size: 12px;
+}
+.setup-notes > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  color: var(--muted);
+}
+.setup-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 4px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+}
+.setup-banner > span {
+  flex: 1 1 220px;
+}
+.setup-banner > .icon-button {
+  flex-shrink: 0;
+}

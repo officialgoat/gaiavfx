@@ -18,6 +18,8 @@ import {
   OperationList,
 } from "../features/generation/WorkspaceUtilities";
 import { TelemetrySettings } from "../features/observability/TelemetrySettings";
+import { SetupBanner } from "../features/setup/SetupBanner";
+import { SetupPanel } from "../features/setup/SetupPanel";
 import { api } from "../shared/api";
 import { workspaceDock, usePreferences } from "../shared/preferences";
 import { Sheet } from "../shared/ui";
@@ -469,6 +471,7 @@ export function App() {
               </button>
             </div>
           </div>
+          <SetupBanner openSetup={() => setPanel("settings")} />
           {library.data?.library ? (
             ["direct", "agent", "prepare", "review"].includes(workspace) &&
             filmOpen ? (
@@ -764,6 +767,7 @@ export function App() {
             open={panel === "settings"}
             onOpenChange={(open) => !open && setPanel(null)}
           >
+            <SetupPanel />
             {library.data?.library && <ConnectionForm />}
             {library.data?.library && <TelemetrySettings />}
             <section className="settings-section">

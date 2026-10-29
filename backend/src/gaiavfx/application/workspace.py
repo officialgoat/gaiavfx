@@ -13,6 +13,7 @@ from gaiavfx.infrastructure.requests import Requests
 from gaiavfx.infrastructure.telemetry import Telemetry
 from gaiavfx.modules.catalog.application import Catalog
 from gaiavfx.modules.library.application import MediaLibrary
+from gaiavfx.setup.manifest import connection_defaults
 from gaiavfx.shared.errors import ApplicationError
 
 DEFAULT_SETTINGS = {
@@ -47,13 +48,24 @@ class Workspace:
 
     def settings(self) -> dict:
         if not self.db.path.exists():
-            return deepcopy(DEFAULT_SETTINGS)
+            return {**deepcopy(DEFAULT_SETTINGS), **connection_defaults()}
         with self.db.transaction() as session:
             row = session.get(SettingRecord, "connections")
             return {
                 key: (row.value if row else {}).get(key, deepcopy(default))
                 for key, default in DEFAULT_SETTINGS.items()
             }
+
+    def initialize_settings(self):
+        """Seed only a newly created library. Existing libraries keep their decisions."""
+        with self.db.transaction() as session:
+            if session.get(SettingRecord, "connections") is None:
+                session.add(
+                    SettingRecord(
+                        key="connections",
+                        value={**deepcopy(DEFAULT_SETTINGS), **connection_defaults()},
+                    )
+                )
 
     def save_settings(self, value: dict):
         from gaiavfx.shared.assistant import AssistantConnection, connection_for

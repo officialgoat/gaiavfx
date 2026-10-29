@@ -1,0 +1,280 @@
+# Pinned workstation research, 2026-10-29; see dispatcher decisions.
+[comfyui]
+min_version = "0.35.0"
+tested_version = "0.42.1"
+tested_commit = "63be2f9b82ad0dac88a7ceaa28a9cf3154125a18"
+repo = "https://github.com/comfyanonymous/ComfyUI"
+windows_portable_url = "https://github.com/Comfy-Org/ComfyUI/releases/download/v0.42.1/ComfyUI_windows_portable_nvidia.7z"
+windows_portable_sha256 = "496afd18790ec685d99ebba2edf200d7371a29fbdd3a992bb0f4f52f244a6874"
+windows_portable_bytes = 2018444114
+tag = "v0.42.1"
+python = "3.13"
+torch = "2.14.0"
+torchvision = "0.29.0"
+torchaudio = "2.11.0"
+torch_index = "https://download.pytorch.org/whl/cu130"
+
+[[node_packs]]
+name = "gaiavfx"
+source = "local:comfy_nodes/gaiavfx"
+classes = ["GaiaH3AudioVAE", "GaiaH3PowerShift", "GaiaH3LoraLoader", "GaiaH3MaskedSpan", "GaiaH3ContinuityTrim", "GaiaSaveSetGeometry", "GaiaSaveStillGeometry", "GaiaFaceScan", "GaiaFaceCheck"]
+features = ["core", "recast", "stages"]
+requirements = true
+requirements_note = "Face nodes are optional outside Recast. Install insightface==2.1 and onnxruntime==1.30.0 in ComfyUI Python. InsightFace 2.1 publishes a universal wheel; if installation fails, use that wheel from PyPI and restart ComfyUI."
+version = "0.1.0"
+
+[[node_packs]]
+name = "ComfyUI-H3-Motion-Context"
+url = "https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context"
+commit = "5335715abe54c1a9bfbe3494da29aae3e8635ce3"
+classes = ["MiniMaxH3MotionContext", "MiniMaxH3MotionContextLoadLatent", "MiniMaxH3MotionContextSaveLatent"]
+features = ["core", "recast"]
+license = "GPL-3.0 (LICENSE file)"
+requirements = false
+
+[[node_packs]]
+name = "ComfyUI-H3-NativeAudioLock"
+url = "https://github.com/Shrek3OnVH5/MiniMax-H3-NativeAudio-MusicVideo-Workflow"
+commit = "11a95f623b98496923714db99da0aecec672cbd4"
+classes = ["MiniMaxH3NativeAudioLock"]
+features = ["recast"]
+license = "NO LICENSE DECLARED"
+requirements = false
+subdir = "custom_nodes/ComfyUI-H3-NativeAudioLock"
+note = "Installed from the author's public repository; no declared licence upstream."
+
+[[node_packs]]
+name = "ComfyUI-KJNodes"
+url = "https://github.com/kijai/ComfyUI-KJNodes"
+commit = "6ab7e8130e449ed2c0037589bcf84146ceb7fc9c"
+classes = ["VRAM_Debug"]
+features = ["core", "recast", "stages"]
+license = "GPL-3.0 (LICENSE file)"
+requirements = true
+
+[[node_packs]]
+name = "ComfyUI-VideoHelperSuite"
+url = "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite"
+commit = "4ee72c065db22c9d96c2427954dc69e7b908444b"
+classes = ["VHS_SelectEveryNthImage"]
+features = ["stages"]
+license = "GPL-3.0 (LICENSE file)"
+requirements = true
+
+[[models]]
+file = "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+folder = "diffusion_models"
+bytes = 20970379616
+sha256 = "9255f52b6677845ad238f20dfaafa94727053694127ab7f255c048f0f9365779"
+url = "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+features = ["core", "recast", "stages"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+folder = "diffusion_models"
+bytes = 20970379616
+sha256 = "e889202c41dafb67b10d67b97f0d8541508036a6090af23425a5c2615d03c47a"
+url = "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/diffusion_models/minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+features = ["core", "recast", "stages"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+folder = "text_encoders"
+bytes = 15687142551
+sha256 = "35a88d51044231fe332301d7a62aa81e3f2cba62febeb446e2c1e3e0ef76f2c6"
+url = "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/text_encoders/qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+features = ["core", "recast", "stages"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "minimax_h3_video_vae_fp16.safetensors"
+folder = "vae"
+bytes = 5207808496
+sha256 = "7c1f131492e7eddacaac9069a61b81bdd39de5cc96561e677c5eab1cdce5e522"
+url = "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_video_vae_fp16.safetensors"
+features = ["core", "recast", "stages"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "minimax_h3_audio_vae_fp32.safetensors"
+folder = "vae"
+bytes = 605254808
+sha256 = "8e505d95dd1561d47abd43d4238fd40d9bb1ae9e147ed0a4cba778d76ae4db48"
+url = "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/vae/minimax_h3_audio_vae_fp32.safetensors"
+features = ["core", "recast", "stages"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "qwen_image_edit_2511_fp8mixed.safetensors"
+folder = "diffusion_models"
+bytes = 20533762817
+sha256 = "c9fdc158e46d3b61ef75f21ae866ca2fe808bf4a53643120d1c1e87c19280a4e"
+url = "https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI/resolve/f68ace85e60b4a02a323e394253731947657b7d2/split_files/diffusion_models/qwen_image_edit_2511_fp8mixed.safetensors"
+features = ["image-edit"]
+optional = false
+license = "apache-2.0"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+folder = "loras"
+bytes = 849608296
+sha256 = "22226e8d05d354bb356627d428809f5afd7819399b077238a2b70a82883a904f"
+url = "https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning/resolve/107d238d68b8387e32843d0b4a2e24ceb0d3ad86/Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+features = ["image-edit"]
+optional = false
+license = "apache-2.0"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+folder = "text_encoders"
+bytes = 9384670680
+sha256 = "cb5636d852a0ea6a9075ab1bef496c0db7aef13c02350571e388aea959c5c0b4"
+url = "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/1f12b17be14c89b026c51a91d67c32f84bb047bc/split_files/text_encoders/qwen_2.5_vl_7b_fp8_scaled.safetensors"
+features = ["image-edit"]
+optional = false
+license = "apache-2.0"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "qwen_image_vae.safetensors"
+folder = "vae"
+bytes = 253806246
+sha256 = "a70580f0213e67967ee9c95f05bb400e8fb08307e017a924bf3441223e023d1f"
+url = "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/1f12b17be14c89b026c51a91d67c32f84bb047bc/split_files/vae/qwen_image_vae.safetensors"
+features = ["image-edit"]
+optional = false
+license = "apache-2.0"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "sam3.1_multiplex_fp16.safetensors"
+folder = "checkpoints"
+bytes = 1745546848
+sha256 = "9ba99c92703c2e8b4f47de2d34a539bb8e18923049e238b780d70dbe6368eb03"
+url = "https://huggingface.co/Comfy-Org/sam3/resolve/7bb8374780a725b4353ed31f3a9395c9742b5621/checkpoints/sam3.1_multiplex_fp16.safetensors"
+features = ["recast", "stages"]
+optional = false
+license = "sam-license"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "h3_character_swap_pro4500_1000.safetensors"
+folder = "loras"
+bytes = 155110320
+sha256 = "4b2a3f420ae804c0aa3422761ff84dbd1bf52eef6900ffab6d2e66df63cb4e79"
+url = "https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA/resolve/96ea3407b230b6f7df71c58c70e31df96bd7e533/h3_character_swap_pro4500_1000.safetensors"
+features = ["recast"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "SS_FaceSwap_MiniMax_H3_REF2VA.safetensors"
+folder = "loras"
+bytes = 65623904
+sha256 = "1e032cf519cc143f434e67516d8ad0aacf4c6e146315b2dcc3b1c2800470326d"
+url = "https://huggingface.co/UntMods/FaceSwap_MiniMaxH3_REF2VA/resolve/b2a5823ca64bc78d91725fbfcc576095bfceb764/SS_FaceSwap_MiniMax_H3_REF2VA.safetensors"
+features = ["recast"]
+optional = false
+license = "apache-2.0"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "depth_anything_3_base.safetensors"
+folder = "geometry_estimation"
+bytes = 541524124
+sha256 = "418c0d2ea857e2d1215fa51baa46833f499a62eb2400ec63d337aa20d326414f"
+url = "https://huggingface.co/Comfy-Org/Depth-Anything-3/resolve/8265be070134dc7459217308cdc03109bde199b0/geometry_estimation/depth_anything_3_base.safetensors"
+features = ["stages"]
+optional = false
+license = "apache-2.0"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "moge_2_vitl_normal_fp16.safetensors"
+folder = "geometry_estimation"
+bytes = 661859924
+sha256 = "cb1a692d03235671e959e81360d7b4d9f44aefadb1f852d6ca6aa17799d5e31f"
+url = "https://huggingface.co/Comfy-Org/MoGe/resolve/1484985258ba7ef45c314144fcf0e90924ffbf44/geometry_estimation/moge_2_vitl_normal_fp16.safetensors"
+features = ["stages"]
+optional = false
+license = "mit"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors"
+folder = "model_patches"
+bytes = 4531220608
+sha256 = "890af58bb350f0c2f6c409b1c67ea8f4196654297d037769b72de1e6f504c612"
+url = "https://huggingface.co/Comfy-Org/MiniMax-H3/resolve/e5eb578a89295337b8ff433a035929ce0279e0b6/model_patches/minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors"
+features = ["stages"]
+optional = false
+license = "minimax-h3-community-license-agreement"
+note = "Local models-manifest.json SHA-256 and current file size equal pinned HF LFS oid/size. Anonymous HEAD returned 200; no weights downloaded."
+
+[[models]]
+file = "det_10g.onnx"
+folder = "insightface/models/buffalo_l"
+bytes = 16923827
+sha256 = "5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91"
+url = "https://huggingface.co/vjump21848/buffalo_l_unzip/resolve/fae2e3fdf3f0bb5792f3ebcbbd7dc4084dc3004c/det_10g.onnx"
+features = ["recast"]
+optional = false
+license = "InsightFace pretrained models: non-commercial research; separate licensing for other use"
+note = "Dispatcher hashed the workstation files on 29 Oct: sha256 equals the public mirror. Install under ComfyUI/models/insightface/models/buffalo_l (extra_model_paths is ignored by the face nodes)."
+
+[[models]]
+file = "w600k_r50.onnx"
+folder = "insightface/models/buffalo_l"
+bytes = 174383860
+sha256 = "4c06341c33c2ca1f86781dab0e829f88ad5b64be9fba56e56bc9ebdefc619e43"
+url = "https://huggingface.co/vjump21848/buffalo_l_unzip/resolve/fae2e3fdf3f0bb5792f3ebcbbd7dc4084dc3004c/w600k_r50.onnx"
+features = ["recast"]
+optional = false
+license = "InsightFace pretrained models: non-commercial research; separate licensing for other use"
+note = "Dispatcher hashed the workstation files on 29 Oct: sha256 equals the public mirror. Install under ComfyUI/models/insightface/models/buffalo_l (extra_model_paths is ignored by the face nodes)."
+
+[[models]]
+file = "2d106det.onnx"
+folder = "insightface/models/buffalo_l"
+bytes = 5030888
+sha256 = "f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf"
+url = "https://huggingface.co/vjump21848/buffalo_l_unzip/resolve/fae2e3fdf3f0bb5792f3ebcbbd7dc4084dc3004c/2d106det.onnx"
+features = ["recast"]
+optional = false
+license = "InsightFace pretrained models: non-commercial research; separate licensing for other use"
+note = "Dispatcher hashed the workstation files on 29 Oct: sha256 equals the public mirror. Install under ComfyUI/models/insightface/models/buffalo_l (extra_model_paths is ignored by the face nodes)."
+
+[features.core]
+core_classes = ["BasicGuider", "CLIPLoader", "CreateVideo", "KSamplerSelect", "LoadImage", "MiniMaxH3AddGuide", "MiniMaxH3ReferenceToVideo", "MiniMaxH3SigmaShift", "RandomNoise", "SamplerCustomAdvanced", "SaveVideo", "UNETLoader", "VAEDecodeAudio", "VAEDecodeTiled", "VAELoader"]
+node_classes = ["GaiaH3AudioVAE", "GaiaH3ContinuityTrim", "GaiaH3PowerShift", "MiniMaxH3MotionContext", "MiniMaxH3MotionContextLoadLatent", "MiniMaxH3MotionContextSaveLatent", "VRAM_Debug"]
+models = ["minimax_h3_ref2va_pruned_int8_convrot.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "minimax_h3_video_vae_fp16.safetensors", "minimax_h3_audio_vae_fp32.safetensors"]
+
+[features.image-edit]
+core_classes = ["CLIPLoader", "EmptySD3LatentImage", "ImageScaleToTotalPixels", "KSampler", "LoadImage", "LoraLoaderModelOnly", "ModelSamplingAuraFlow", "SaveImage", "TextEncodeQwenImageEditPlus", "UNETLoader", "VAEDecode", "VAELoader"]
+node_classes = []
+models = ["qwen_image_edit_2511_fp8mixed.safetensors", "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors", "qwen_2.5_vl_7b_fp8_scaled.safetensors", "qwen_image_vae.safetensors"]
+
+[features.recast]
+core_classes = ["BasicGuider", "BasicScheduler", "CLIPLoader", "CLIPTextEncode", "CheckpointLoaderSimple", "CreateVideo", "GetVideoComponents", "ImageFromBatch", "ImageToMask", "KSamplerSelect", "LoadImage", "LoadVideo", "LoraLoaderModelOnly", "MaskToImage", "MiniMaxH3ReferenceToVideo", "RandomNoise", "SAM3_Detect", "SAM3_TrackToMask", "SAM3_VideoTrack", "SamplerCustomAdvanced", "SaveImage", "SaveVideo", "UNETLoader", "VAEDecodeAudio", "VAEDecodeTiled", "VAEEncode", "VAELoader"]
+node_classes = ["GaiaFaceCheck", "GaiaFaceScan", "GaiaH3AudioVAE", "GaiaH3LoraLoader", "GaiaH3MaskedSpan", "MiniMaxH3MotionContext", "MiniMaxH3MotionContextLoadLatent", "MiniMaxH3MotionContextSaveLatent", "MiniMaxH3NativeAudioLock", "VRAM_Debug"]
+models = ["minimax_h3_ref2va_pruned_int8_convrot.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "minimax_h3_video_vae_fp16.safetensors", "minimax_h3_audio_vae_fp32.safetensors", "sam3.1_multiplex_fp16.safetensors", "h3_character_swap_pro4500_1000.safetensors", "SS_FaceSwap_MiniMax_H3_REF2VA.safetensors", "det_10g.onnx", "w600k_r50.onnx", "2d106det.onnx"]
+
+[features.stages]
+core_classes = ["BasicGuider", "CLIPLoader", "CLIPTextEncode", "CheckpointLoaderSimple", "CreateVideo", "DA3Inference", "GetVideoComponents", "ImageFromBatch", "ImageToMask", "KSamplerSelect", "LoadDA3Model", "LoadImage", "LoadMoGeModel", "LoadVideo", "MiniMaxH3FunControlNetApply", "MiniMaxH3ImageToVideo", "MiniMaxH3SigmaShift", "MoGeInference", "ModelPatchLoader", "RandomNoise", "SAM3_Detect", "SAM3_TrackToMask", "SAM3_VideoTrack", "SamplerCustomAdvanced", "SaveVideo", "UNETLoader", "VAEDecodeAudio", "VAEDecodeTiled", "VAELoader"]
+node_classes = ["GaiaH3AudioVAE", "GaiaH3PowerShift", "GaiaSaveSetGeometry", "GaiaSaveStillGeometry", "VHS_SelectEveryNthImage", "VRAM_Debug"]
+models = ["minimax_h3_ref2va_pruned_int8_convrot.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "minimax_h3_video_vae_fp16.safetensors", "minimax_h3_audio_vae_fp32.safetensors", "sam3.1_multiplex_fp16.safetensors", "depth_anything_3_base.safetensors", "moge_2_vitl_normal_fp16.safetensors", "minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors"]
