@@ -1,23 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
-missing=0
-for tool in git uv node npm; do
-  if ! command -v "$tool" >/dev/null 2>&1; then
-    case "$tool" in
-      git) hint='https://git-scm.com/downloads/linux' ;;
-      uv) hint='https://docs.astral.sh/uv/getting-started/installation/' ;;
-      node|npm) hint='Install Node.js >=24 (includes npm): https://nodejs.org/en/download' ;;
-    esac
-    printf 'Missing %s. %s\n' "$tool" "$hint"
-    missing=1
-  fi
+source scripts/prerequisites.sh
+install_prerequisites=0
+noninteractive=0
+for argument in "$@"; do
+  case "$argument" in
+    --install-prerequisites) install_prerequisites=1 ;;
+    --non-interactive) noninteractive=1 ;;
+  esac
 done
-if (( missing )); then exit 1; fi
-if (( $(node -p 'Number(process.versions.node.split(".")[0])') < 24 )); then
-  printf '%s\n' 'Node.js >=24 required: https://nodejs.org/en/download'
-  exit 1
-fi
+ensure_prerequisites "$install_prerequisites" "$noninteractive"
 export UV_PROJECT_ENVIRONMENT="$PWD/.venv"
 uv sync --project backend --python 3.12 --locked
 npm ci

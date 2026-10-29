@@ -30,7 +30,7 @@ The supplied launchers run ComfyUI with `--disable-api-nodes`: no partner or API
 
 ## Requirements and verified runs
 
-Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB RAM**, with **ComfyUI 0.42.1 portable** and `--lowvram --reserve-vram 4 --disable-api-nodes`. These are tested specifications, not minimum requirements. Install Git, uv and Node.js **24+** (including npm); the installer provisions Python 3.12 for the app. Linux x86-64 via `install.sh` is best effort. The bundled Linux llama.cpp server is CPU-only unless you build it with CUDA or choose another local server.
+Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB RAM**, with **ComfyUI 0.42.1 portable** and `--lowvram --reserve-vram 4 --disable-api-nodes`. These are tested specifications, not minimum requirements. The installer offers to install missing Git, uv and Node.js **24+** (including npm): winget on Windows, with verified portable copies when winget is unavailable or fails. uv provides Python 3.12 for the app and Python 3.10 for the stages engine; no separate Python installation is needed. On Linux, install Git through your distro; the installer can provide portable uv and Node 24. Linux x86-64 via `install.sh` is best effort. The bundled Linux llama.cpp server is CPU-only unless you build it with CUDA or choose another local server.
 
 | Model feature group | Disk for weights |
 |---|---:|
@@ -56,12 +56,12 @@ These prove the node, model and graph contract, **not output quality**. The stag
 
 ## Quick start
 
-From the repository root in PowerShell, choose **one** install command. Review the model licences before downloading. The first command downloads core and image-edit weights plus the local assistant and stages engine; the second reuses an existing ComfyUI and defers model downloads.
+From the repository root in PowerShell, choose **one** install command. `-InstallPrerequisites` consents to installing missing tools and their licence terms; interactive runs ask once instead. Review the model licences before downloading. The first command downloads core and image-edit weights plus the local assistant and stages engine; the second reuses an existing ComfyUI and defers model downloads.
 
 ```powershell
-.\install.ps1 -InstallComfy (Join-Path (Split-Path $PWD -Parent) 'ComfyUI') -Features core,image-edit -NonInteractive
+.\install.ps1 -InstallComfy (Join-Path (Split-Path $PWD -Parent) 'ComfyUI') -Features core,image-edit -NonInteractive -InstallPrerequisites
 # Or, with your existing ComfyUI:
-.\install.ps1 -ComfyDir 'C:\ComfyUI' -Features core,image-edit -SkipModels -NonInteractive
+.\install.ps1 -ComfyDir 'C:\ComfyUI' -Features core,image-edit -SkipModels -NonInteractive -InstallPrerequisites
 
 $env:GAIAVFX_LIBRARY = 'C:\GAIAVFX-Library'
 .\start.ps1 -WithComfy -ComfyArgs '--lowvram','--reserve-vram','4'
@@ -71,6 +71,7 @@ The assistant and stages engine install by default. Include `stages` in `-Featur
 
 | PowerShell | Linux / Python installer | Effect |
 |---|---|---|
+| `-InstallPrerequisites` | `--install-prerequisites` | Consent to missing prerequisite installation by the launcher; required for unattended installation of missing tools. |
 | `-SkipAssistant` | `--skip-assistant` | Skip the assistant; configure an existing local endpoint in Settings or install later. |
 | `-SkipStagesEngine` | `--skip-stages-engine` | Skip the worldbuilder stages engine. |
 | `-SkipModels` | `--skip-models` | Skip ComfyUI weights only. |
@@ -79,15 +80,17 @@ The assistant and stages engine install by default. Include `stages` in `-Featur
 Linux equivalents:
 
 ```bash
-bash install.sh --install-comfy "$(dirname "$PWD")/ComfyUI" --features core image-edit --non-interactive
+bash install.sh --install-comfy "$(dirname "$PWD")/ComfyUI" --features core image-edit --non-interactive --install-prerequisites
 # Or, with your existing ComfyUI:
-bash install.sh --comfy-dir /opt/ComfyUI --features core image-edit --skip-models --non-interactive
+bash install.sh --comfy-dir /opt/ComfyUI --features core image-edit --skip-models --non-interactive --install-prerequisites
 
 export GAIAVFX_LIBRARY="$HOME/GAIAVFX-Library"
 bash start.sh --with-comfy --lowvram --reserve-vram 4
 ```
 
-The installer checks prerequisites, installs locked app dependencies, installs verified FFmpeg tools, builds the renderer, installs or connects ComfyUI, installs node packs and selected weights, then installs the assistant and stages engine unless skipped and prints doctor findings. It saves defaults in `.runtime/setup.json`. It does not start inference services. Start without `-WithComfy` / `--with-comfy` if ComfyUI is already running; a separately launched ComfyUI must be stopped separately.
+The installer checks and, with consent, installs missing prerequisites, installs locked app dependencies, installs verified FFmpeg tools, builds the renderer, installs or connects ComfyUI, installs node packs and selected weights, then installs the assistant and stages engine unless skipped and prints doctor findings. It saves defaults in `.runtime/setup.json`. It does not start inference services. Start without `-WithComfy` / `--with-comfy` if ComfyUI is already running; a separately launched ComfyUI must be stopped separately.
+
+The launchers find portable tools automatically. For `npm` in new terminals, optionally add `<repo>/.runtime/tools/node` to your Windows user PATH, or `<repo>/.runtime/tools/node/bin` to your Linux shell PATH; see the [PATH note](docs/INSTALL.md#prerequisites). The installer never changes PATH persistently.
 
 In a second terminal, verify after ComfyUI has started:
 

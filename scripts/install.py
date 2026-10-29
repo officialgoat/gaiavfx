@@ -119,6 +119,11 @@ def main(argv=None):
         help="Deprecated: already enabled by default",
     )
     parser.add_argument("--non-interactive", action="store_true")
+    parser.add_argument(
+        "--install-prerequisites",
+        action="store_true",
+        help="Consent to prerequisite installation by install.ps1/install.sh before Python starts",
+    )
     args = parser.parse_args(argv)
     if not args.non_interactive and not sys.stdin.isatty():
         parser.error(

@@ -93,7 +93,7 @@ class StoryCut(StrictModel):
 class StoryBeat(StrictModel):
     title: str = Field(min_length=1, max_length=80)
     place: PlaceText
-    subject_ids: list[str] = Field(min_length=1, max_length=24)
+    subject_ids: list[str] = Field(default_factory=list, max_length=24)
     delivered_frames: int | None = Field(default=None, gt=0, strict=True)
     continues: bool
     # docs/CONTINUATION.md: omitted follows the rule (masked uncut, paired across cuts) and the default context.
@@ -132,10 +132,11 @@ class DraftStoryline(TransactionTool):
         beats: list[StoryBeat] = Field(min_length=1, max_length=DEFAULTS["beats_max"])
 
     def narrow(self, context):
-        if not granted(context, "edit") or not context.state.cast:
+        if not granted(context, "edit"):
             return None
         schema = inlined(self.Input.model_json_schema())
-        beat = schema["properties"]["beats"]["items"]["properties"]
+        beats = schema["properties"]["beats"]["items"]
+        beat = beats["properties"]
         for alias in ("place_id", "from_angle"):
             beat.pop(alias)
         beat["cuts"]["items"]["properties"]["from_angle"]["minLength"] = 1
@@ -148,7 +149,13 @@ class DraftStoryline(TransactionTool):
         phase.setdefault("required", []).append("screen_direction")
         if MOTION.search(context.latest_user_message):
             phase["properties"]["screen_direction"] = {"type": "string", "minLength": 1}
-        beat["subject_ids"]["items"] = {"enum": [s["id"] for s in context.state.cast]}
+        # A beat may have no cast. With a cast, each beat still names its own (possibly none);
+        # with no cast to name, subject_ids is left out (never an empty enum).
+        if context.state.cast:
+            beat["subject_ids"]["items"] = {"enum": [s["id"] for s in context.state.cast]}
+            beats["required"].append("subject_ids")
+        else:
+            beat.pop("subject_ids")
         return schema
 
     def execute(self, session, context, value):

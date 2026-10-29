@@ -73,4 +73,4 @@ missing_parts = "The cached reference parts are missing or invalid; read the ref
 invalid_notes = "Invalid reference notes: {detail}"
 
 [draft]
-description = "Draft beats atomically. Reverse: first beat has no cuts; next cuts at f36. Cuts need angle ids/names, shot, screen_direction; creates phases."
+description = "Draft beats atomically. Reverse: first beat has no cuts; next cuts at f36. Cuts need angle ids/names, shot, screen_direction; creates phases. People who appear are cast: add them with edit_cast first and name them in subject_ids; leave the cast empty only when nobody appears."

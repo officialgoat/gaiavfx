@@ -1,6 +1,33 @@
 # Install and run GAIAVFX
 
-Start with the [README](../README.md) for the tested workstation, measured smoke runs, model sizes and licences. Windows 11 with an NVIDIA GPU is the primary target; Linux x86-64 is best effort. You need Git, uv and Node.js 24+ with npm. The app uses Python 3.12 in the repository's `.venv`; ComfyUI and engines have separate environments.
+Start with the [README](../README.md) for the tested workstation, measured smoke runs, model sizes and licences. Windows 11 with an NVIDIA GPU is the primary target; Linux x86-64 is best effort. The installer can install missing Git, uv and Node.js 24+ with npm (Linux Git requires your distro package manager). uv downloads Python 3.12 for the app and Python 3.10 for the stages engine; no separate Python installation is needed. The app uses Python 3.12 in the repository's `.venv`; ComfyUI and engines have separate environments.
+
+## Prerequisites
+
+Before changing anything, interactive setup asks once: `Install the missing prerequisites (...) now? [Y/n]`. It names the installation method and explains that proceeding accepts those packages' licence terms. With `-NonInteractive` / `--non-interactive`, or redirected stdin, missing tools produce manual links and exit 1 unless `-InstallPrerequisites` / `--install-prerequisites` is supplied. Existing tools are reused; Node must be at least 24 and include npm.
+
+On Windows (PowerShell 5.1+), the installer tries:
+
+1. **winget:** installs `Git.Git`, `astral-sh.uv` and/or `OpenJS.NodeJS.LTS` with package and source agreement flags, then refreshes this process's PATH from Machine/User values and known installation folders. Normal winget packages may request Windows elevation.
+2. **App Installer registration:** if winget is absent, tries Microsoft's [documented registration command](https://learn.microsoft.com/en-us/windows/package-manager/winget/#install-winget), `Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe`, without downloading anything. If it succeeds, uses winget. Server/LTSC systems may not support registration.
+3. **Portable copies:** if winget remains unavailable or a package still fails the prerequisite check, downloads official MinGit, uv and Node 24 x64 archives to `.runtime/tools/downloads`, checks exact size and SHA-256, then extracts under `.runtime/tools/git`, `uv` and `node`. This also handles Node LTS below 24 or missing npm. Portable installation needs no admin rights and changes no system or registry settings. Pins are in [prerequisites.json](../scripts/prerequisites.json): MinGit 2.56.0.4, uv 0.11.8 and Node 24.22.2 LTS. Git/uv digests come from official GitHub release assets; Node hashes come from that release's `SHASUMS256.txt`.
+
+Downloads use TLS 1.2 and `Invoke-WebRequest`. If that transport fails, an existing app Python or curl can retry the same official URL; size and SHA-256 verification are still required. Python is not required for the initial bootstrap. A corrupt archive is deleted before extraction. If all methods fail (including offline), setup prints manual links and exits 1: [App Installer](https://aka.ms/getwinget), [Git](https://git-scm.com/download/win), [uv](https://docs.astral.sh/uv/getting-started/installation/), [Node.js 24](https://nodejs.org/en/download).
+
+On Linux x86-64, the installer prints distro-specific Git hints (`apt`, `dnf`, `pacman`) and Node 24 options (distro, NodeSource or nvm). Missing Git stops setup: install it yourself with your distro package manager. With consent, uv and Node use the same manifest's official, SHA-256-verified Linux archives, without sudo. Downloads require curl or wget, sha256sum, and tar with gzip/xz support. No sudo command runs automatically.
+
+`install.ps1`, `start.ps1`, `install.sh` and `start.sh` prepend existing portable folders for their session. Python setup finds git/uv on PATH first, then in the checkout's portable folder. For `npm` in new terminals, optionally add the absolute `<repo>/.runtime/tools/node`, `<repo>/.runtime/tools/uv`, and `<repo>/.runtime/tools/git/cmd` folders to your **user PATH** in Windows Environment Variables. On Linux, add `export PATH="<repo>/.runtime/tools/node/bin:<repo>/.runtime/tools/uv:$PATH"` to your shell profile, replacing `<repo>` with the absolute checkout path. The installer never edits PATH persistently.
+
+The prerequisite helper also has a standalone CLI:
+
+```powershell
+# Simulation only: emits JSON, performs no installation or registration.
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prerequisites.ps1 -Plan -SimulateMissing git,node -SimulateWinget registers -NonInteractive -InstallPrerequisites
+# Explicit consent to all three portable packages; bypasses winget entirely.
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/prerequisites.ps1 -ForcePortable -Destination C:/gvt/h-tools
+```
+
+`-SimulateWinget` accepts `present`, `absent` or `registers`. `-SimulateMissing` accepts git, uv, node and npm (comma-separated with `-File`). `-Plan` defaults to all prerequisites missing and winget absent. `-ForcePortable` is explicit consent to download all three packages even when tools already exist; `-Destination` defaults to `<repo>/.runtime/tools`. Normal launcher installation only installs missing packages.
 
 ## Installer flags
 
@@ -21,13 +48,14 @@ For feature arrays, use a PowerShell prompt and invoke `install.ps1` directly as
 | `-SkipAssistant` | `--skip-assistant` | Skip the default local Swift GGUF, vision projector and llama.cpp installation. |
 | `-SkipStagesEngine` | `--skip-stages-engine` | Skip the default isolated worldbuilder environment and CUDA probe. |
 | `-WithAssistant` / `-WithStagesEngine` | `--with-assistant` / `--with-stages-engine` | Deprecated no-ops with a one-line note; skip flags take precedence. |
+| `-InstallPrerequisites` | `--install-prerequisites` | Consent to missing prerequisite installation and package licence terms. Handled by the shell launcher before Python starts; accepted by Python argparse for forwarding/help. |
 | `-NonInteractive` | `--non-interactive` | Do not prompt; download selected weights unless skipped. Required when stdin is not a terminal. |
 
 With a valid saved ComfyUI folder, interactive setup offers it first and as the default, followed by fresh install, another existing folder, and skip. Otherwise it offers (1) a fresh install in `<repo parent>/ComfyUI` (default), (2) an existing folder, or (3) skip. Model downloads show the total size for selected features and default to Yes; the assistant and stages engine prompts also default to Yes. The model prompt appears only after choosing a ComfyUI folder. Non-interactive setup installs the assistant and stages engine unless skipped, and reuses a valid saved ComfyUI folder unless `-ComfyDir` / `--comfy-dir` or `-InstallComfy` / `--install-comfy` overrides it. Missing or invalid saved folders are ignored with a note. Without a usable location, ComfyUI and its models are skipped. Skip messages include a platform-specific installer command to run from the repository root. Existing local node-pack changes and commits are preserved, with a diagnostic rather than an overwrite.
 
 The installer performs these steps in order:
 
-1. Check Git, uv and Node/npm; sync locked Python dependencies into `.venv`; install locked npm dependencies into `node_modules`.
+1. Check Git, uv and Node/npm; install missing prerequisites with consent; sync locked Python dependencies into `.venv`; install locked npm dependencies into `node_modules`.
 2. Install media tools into `.runtime/media`, then build the renderer into `dist/frontend`.
 3. Install/adopt ComfyUI; install custom nodes; download selected weights unless skipped.
 4. Save connection defaults; install worldbuilder and the assistant unless skipped.

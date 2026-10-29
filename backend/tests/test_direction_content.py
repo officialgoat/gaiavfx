@@ -97,7 +97,7 @@ def test_assembly_matches_s2_segment_and_serialization(arm):
     [
         ({"subjects": ["s1"]}, 1, "place"),
         ({**CONTENT, "extra": 1}, 1, "extra"),
-        ({**CONTENT, "subjects": []}, 1, "subjects"),
+        ({**CONTENT, "subjects": "s1"}, 1, "subjects"),
         ({**CONTENT, "subjects": ["s1", "s1"]}, 1, "duplicate"),
         ({**CONTENT, "subjects": [2]}, 1, "id"),
         ({**CONTENT, "subjects": [""]}, 1, "id"),
@@ -159,6 +159,15 @@ def test_legacy_keeps_phrase_is_one_item_without_english_parsing():
     assert records["cast"][0]["keeps"] == ["coat, hat and bag"]
     data["subjects"][0]["keeps"] = ""
     assert load_segment(data)["cast"][0]["keeps"] == []
+
+
+def test_a_segment_with_no_cast_assembles_without_pictures():
+    segment, pictures = assemble(
+        {**CONTENT, "subjects": []}, 2, [cast_member(MEMBER)], [(0, SHOT, 1)], [], 102, False
+    )
+    assert segment.subjects == ()
+    assert pictures == ()
+    assert assembled_to_dict(segment, pictures)["subjects"] == []
 
 
 def test_cast_order_is_authored_and_unpictured_members_are_supported():

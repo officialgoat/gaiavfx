@@ -58,6 +58,8 @@ WORDS = (
     "list_separator",
     "list_last",
     "identity_item",
+    "sheet_landmarks",
+    "sheet_only_person",
 )
 
 
@@ -272,14 +274,20 @@ def compile_prompt(
                 p=p, noun=segment.place.noun, count=count, separators=separators, origin=origin
             )
         )
+        # A place without landmarks and a segment with no cast leave their sentence parts out.
+        landmarks, only = "", ""
+        if segment.place.landmarks:
+            landmarks = words.words["sheet_landmarks"].format(landmarks=segment.place.landmarks)
+        if segment.subjects:
+            only = words.words["sheet_only_person"].format(name=segment.subjects[0].name)
         retention.append(
             line["sheet_retention"].format(
                 p=p,
                 shots=", ".join(shot_labels[sheet.first_shot - 1 :]),
                 noun=segment.place.noun,
-                landmarks=segment.place.landmarks,
+                landmarks=landmarks,
                 separators=separators,
-                only=segment.subjects[0].name,
+                only=only,
             )
         )
     if shot_count == 1:

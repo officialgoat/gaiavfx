@@ -366,3 +366,44 @@ def test_direction_openapi_exposes_schema_two_content(tmp_path):
     assert "cast" in schemas["ShotDTO"]["properties"]
     assert schemas["SegmentCreate"]["properties"]["content"]["$ref"].endswith("/SegmentContentDTO")
     assert schemas["PhaseCreate"]["properties"]["content"]["$ref"].endswith("/ShotDTO")
+
+
+def test_a_segment_with_no_cast_is_created_assembled_and_planned(tmp_path):
+    """Usability: Movie > Add segment on a movie with no cast (a shot with no actors)."""
+    LibraryService(tmp_path, MIGRATIONS).create("No cast")
+    app = create_app(tmp_path, MIGRATIONS, "test-token", enable_runner=False)
+    with TestClient(app, base_url="http://localhost", headers=AUTH) as client:
+        movie = client.post("/api/direction/movies", json={"title": "Bridge"}).json()
+        place = {
+            "noun": "London Bridge at night",
+            "description": "London Bridge at night",
+            "landmarks": "",
+        }
+        shot = {
+            "description": "A ship passes under the bridge.",
+            "screen_direction": "",
+            "sound": "",
+        }
+        body = {
+            "expected_revision": movie["revision"],
+            "delivered_frames": 120,
+            "continues": False,
+            "content": {
+                "subjects": [],
+                "place": place,
+                "style": "",
+                "events": [],
+                "speech": [],
+                "states": [],
+            },
+            "phases": [{"start_frame": 0, "content": {**shot, "cast": []}}],
+        }
+        response = client.post(f"/api/direction/movies/{movie['id']}/segments", json=body)
+        assert response.status_code == 201, response.text
+        sid = response.json()["id"]
+        assembled = client.get(f"/api/direction/segments/{sid}/assembled")
+        assert assembled.status_code == 200, assembled.text
+        assert assembled.json()["subjects"] == []
+        assert assembled.json()["shots"] == [{**shot, "cast": []}]
+        plan = client.get(f"/api/direction/segments/{sid}/plan")
+        assert plan.status_code == 200, plan.text

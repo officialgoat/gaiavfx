@@ -80,8 +80,9 @@ def segment_content(document: dict, schema: int) -> SegmentContent:
         raise ValueError(f"Unknown segment content schema {schema}")
     _object(document, {"subjects", "place"}, "segment", SEGMENT_ADDITIONS if schema == 2 else ())
     ids = document["subjects"]
-    if not isinstance(ids, list) or not ids:
-        raise ValueError("subjects must be a non-empty list")
+    # An empty cast is a segment with no actors: a landscape, a vehicle, an establishing shot.
+    if not isinstance(ids, list):
+        raise ValueError("subjects must be a list")  # noqa: TRY004 - document errors are ValueError
     for subject_id in ids:
         _text(subject_id, "subjects id", nonempty=True)
     if len(set(ids)) != len(ids):

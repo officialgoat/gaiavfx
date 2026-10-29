@@ -292,6 +292,42 @@ def test_unbound_subjects_use_names_and_need_no_identity_wording(cast):
     assert compiled.slots == ()
 
 
+@pytest.mark.parametrize("cast", [None, ()])
+def test_a_segment_with_no_cast_compiles_without_subjects(cast):
+    segment = plain_segment(
+        subjects=(), shots=(Shot("A ship passes under the bridge.", "", "", cast),), cut_frames=()
+    )
+    compiled = compile_prompt(segment, (), (), GRID, 0)
+    assert compiled.prompt.definitions == ("No reference subjects.",)
+    assert compiled.prompt.retention == ("Follow the authored direction.",)
+    assert "Production context: An empty pier." in compiled.text
+    assert "A ship passes under the bridge." in compiled.text
+    assert "Subjects in frame" not in compiled.text
+    assert "<Subject" not in compiled.text
+    assert compiled.slots == ()
+
+
+@pytest.mark.parametrize("landmarks", ["", "the railings"])
+def test_a_stage_sheet_needs_no_cast(landmarks):
+    """Use a stage for this scene: a segment with no actors keeps the sheet, without an only-person sentence."""
+    segment = plain_segment(
+        subjects=(),
+        place=PlaceText("pier", "An empty pier.", landmarks),
+        shots=(Shot("A ship passes under the bridge.", "", "", ()),),
+        cut_frames=(),
+    )
+    sheet = place_sheet(first_shot=1)
+    assert gaps(segment, (sheet,), ()) == ()
+    compiled = compile_prompt(segment, (sheet,), (), GRID, 0)
+    assert compiled.slots == ("sheet",)
+    (retention,) = compiled.prompt.retention
+    assert "only person" not in compiled.text
+    assert retention.endswith("or several panels of the sheet.")
+    assert ("from the sheet: the railings." in retention) is bool(landmarks)
+    assert "from the sheet: ." not in compiled.text
+    assert_prompt_invariants(compiled.text, segment, GRID, 0)
+
+
 def test_bound_and_unbound_subjects_share_casts_but_only_bound_subjects_have_labels():
     segment = plain_segment(
         subjects=(

@@ -991,3 +991,89 @@ BAD |= {
         action("say", text="The segment now uses the masked handoff."),
     ],
 }
+
+
+# A segment may have no cast (usability, 29 Oct 2026).
+BRIDGE = {
+    "noun": "bridge",
+    "description": "London Bridge at night over the dark river.",
+    "landmarks": "",
+}
+
+
+def read_cast_movie(work, setup):
+    with work.db.transaction() as session:
+        return DirectionService().read_movie(session, setup["movie_id"])
+
+
+def cast_member(name):
+    def build(work, setup):
+        return action(
+            "edit_cast",
+            op="add",
+            expected_revision=read_cast_movie(work, setup)["revision"],
+            name=name,
+            description=f"{name}, a young wizard on a broom",
+            keeps=["the broom"],
+        )
+
+    return build
+
+
+def segment_cast(names, description):
+    """An edit_segment add naming the cast members called names; None leaves subject_ids out."""
+
+    def build(work, setup):
+        movie = read_cast_movie(work, setup)
+        value = {
+            "op": "add",
+            "expected_revision": movie["revision"],
+            "place": BRIDGE,
+            "delivered_frames": 96,
+            "continues": False,
+            "phases": [
+                {
+                    "start_frame": 0,
+                    "description": description,
+                    "screen_direction": "left to right",
+                }
+            ],
+        }
+        if names is not None:
+            value["subject_ids"] = [
+                s["id"] for s in movie["subjects"] if s["name"] in names
+            ]
+        return action("edit_segment", **value)
+
+    return build
+
+
+SHIP = "A cargo ship passes under the bridge."
+FLIGHT = "Harry flies his broom past a ship under the bridge."
+DONE = action("say", text="Added the segment.")
+GOOD |= {
+    "no-cast-no-actors": [action("read_movie"), segment_cast(None, SHIP), DONE],
+    "no-cast-names-people": [
+        action("read_movie"),
+        cast_member("Harry"),
+        segment_cast(["Harry"], FLIGHT),
+        DONE,
+    ],
+    "cast-but-empty-shot": [
+        action("read_movie"),
+        segment_cast([], "Dawn over the empty courtyard."),
+        DONE,
+    ],
+}
+BAD |= {
+    "no-cast-no-actors": [
+        cast_member("Captain"),
+        segment_cast(["Captain"], SHIP),
+        DONE,
+    ],
+    "no-cast-names-people": [action("read_movie"), segment_cast(None, FLIGHT), DONE],
+    "cast-but-empty-shot": [
+        segment_cast(["Arin"], "Dawn over the empty courtyard."),
+        DONE,
+    ],
+}

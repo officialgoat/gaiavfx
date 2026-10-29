@@ -69,6 +69,10 @@ function DialogContent({
   const { commands } = useCommands();
   const segment = d.getSegment();
   const [relation, setRelation] = useState("unknown");
+  // A new segment's cast, in the movie's cast order; none ticked is a segment with no actors.
+  const [picked, setPicked] = useState<string[]>([]);
+  const movieCast = d.movie.data?.subjects ?? [];
+  const cast = movieCast.filter((s) => picked.includes(s.id)).map((s) => s.id);
   if (dialog === "useSet" || dialog === "buildSet")
     return !segment ? (
       <p role="status">Select a segment first.</p>
@@ -182,7 +186,7 @@ function DialogContent({
                 delivered_frames: Number(data.get("duration")),
                 continues: data.get("continues") === "on",
                 content: {
-                  subjects: [],
+                  subjects: cast,
                   place: {
                     noun: text("place"),
                     description: text("place"),
@@ -200,7 +204,7 @@ function DialogContent({
                       description: text("description"),
                       screen_direction: "",
                       sound: "",
-                      cast: [],
+                      cast,
                     },
                   },
                 ],
@@ -307,6 +311,30 @@ function DialogContent({
               placeholder="What happens in this segment?"
             />
           </label>
+          <fieldset className="segment-cast">
+            <legend>Cast</legend>
+            {movieCast.map((s) => (
+              <label key={s.id} className="check-row">
+                <input
+                  type="checkbox"
+                  checked={picked.includes(s.id)}
+                  onChange={(e) =>
+                    setPicked((now) =>
+                      e.target.checked
+                        ? [...now, s.id]
+                        : now.filter((id) => id !== s.id),
+                    )
+                  }
+                />
+                {s.name}
+              </label>
+            ))}
+            <p className="muted">
+              {movieCast.length
+                ? "Leave everyone unticked for a segment with no actors."
+                : "This movie has no cast yet, so the segment has no actors."}
+            </p>
+          </fieldset>
           <label className="check-row">
             <input
               name="continues"
