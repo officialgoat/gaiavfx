@@ -17,7 +17,7 @@ schema = 2
 
 [engines.analysis]
 home = "analysis"
-environment = "env/Scripts/python.exe"
+environment = { windows = "env/Scripts/python.exe", linux = "env/bin/python" }
 worker = "analysis.py"
 packages = { torch = "2.7.1+cu128", torchaudio = "2.7.1+cu128", faster-whisper = "1.2.1", ctranslate2 = "4.8.3", speechbrain = "1.0.3", transformers = "5.19.0", onnxruntime-gpu = "1.22.0", audio-separator = "0.47.0", funasr = "1.4.16", numpy = "2.4.6", soundfile = "0.14.0", librosa = "0.11.0" }
 # The 21 Oct smoke batch measured the card at about 11.4 GB above idle for separation and 1.7 GB for super-resolution
@@ -286,7 +286,7 @@ licence = "CC BY 4.0"
 
 [engines.seedvc]
 home = "seedvc"
-environment = "env/Scripts/python.exe"
+environment = { windows = "env/Scripts/python.exe", linux = "env/bin/python" }
 worker = "seedvc.py"
 packages = { torch = "2.4.0+cu124", torchaudio = "2.4.0+cu124", transformers = "4.46.3", numpy = "1.26.4", soundfile = "0.12.1", librosa = "0.10.2" }
 [engines.seedvc.tasks.finetune]
@@ -412,7 +412,7 @@ licence = "MIT (HF model card)"
 
 [engines.rvc]
 home = "rvc"
-environment = "env/Scripts/python.exe"
+environment = { windows = "env/Scripts/python.exe", linux = "env/bin/python" }
 worker = "rvc.py"
 packages = { torch = "2.11.0+cu128", torchaudio = "2.11.0+cu128", transformers = "5.13.1", faiss-cpu = "1.14.3", numpy = "2.4.6", soundfile = "0.14.0", librosa = "0.11.0" }
 [engines.rvc.tasks.prepare]
@@ -471,10 +471,10 @@ licence = "Apache-2.0 (TITAN-Medium, fine-tuned on Expresso)"
 
 [engines.tts]
 home = "tts"
-environment = "env/Scripts/python.exe"
+environment = { windows = "env/Scripts/python.exe", linux = "env/bin/python" }
 worker = "tts.py"
 packages = { numpy = "2.4.6", soundfile = "0.14.0" }
-programs = { cli = "bin/audiocpp_cli.exe" }
+programs = { cli = { windows = "bin/audiocpp_cli.exe", linux = "bin/audiocpp_cli" } }
 [engines.tts.tasks.generate]
 gpu = true
 vram_gb = 11

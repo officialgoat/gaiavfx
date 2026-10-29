@@ -27,6 +27,10 @@ PATTERNS = {
 }
 # Each exception grants one rule to one file, with a reviewable reason.
 ALLOWLIST = {
+    ("frontend/public/brand/favicon.svg", "artifact"): "Approved brand favicon copied for Vite.",
+    ("frontend/public/brand/favicon.ico", "artifact"): "Approved brand icon for browser and desktop.",
+    ("frontend/public/brand/symbol.svg", "artifact"): "Approved currentColor symbol used in both themes.",
+    ("frontend/public/brand/app-icon.png", "artifact"): "Approved desktop window icon.",
     ("scripts/check_hygiene.py", "workstation"): "Literal signatures for the scanner itself.",
     ("scripts/check_hygiene.py", "old-brand"): "Literal signatures for the scanner itself.",
     (".gitignore", "local-path"): "Explicitly exclude this legacy cache directory.",

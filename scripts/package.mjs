@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { packager } from "@electron/packager";
 import { developmentPython } from "./python.mjs";
+import { pyinstallerDataArgs } from "./package-data.mjs";
 const require = createRequire(import.meta.url);
 if (process.platform !== "win32")
   throw new Error("Build the Windows runtime on Windows.");
@@ -44,24 +45,7 @@ run(developmentPython(root), [
   "gaiavfx-service",
   "--paths",
   path.join(root, "backend/src"),
-  "--add-data",
-  path.join(root, "backend/migrations") + ";migrations",
-  "--add-data",
-  path.join(root, "backend/src/gaiavfx/modules/direction/policy") +
-    ";gaiavfx/modules/direction/policy",
-  "--add-data",
-  path.join(
-    root,
-    "backend/src/gaiavfx/modules/generation/operations/review_tags.toml",
-  ) + ";gaiavfx/modules/generation/operations",
-  "--add-data",
-  path.join(root, "backend/src/gaiavfx/integrations/minimax_h3/knowledge") +
-    ";gaiavfx/integrations/minimax_h3/knowledge",
-  "--add-data",
-  path.join(
-    root,
-    "backend/src/gaiavfx/integrations/qwen_image_edit/knowledge",
-  ) + ";gaiavfx/integrations/qwen_image_edit/knowledge",
+  ...pyinstallerDataArgs(root),
   ...((await fs
     .stat(path.join(root, ".runtime/model-analysis"))
     .catch(() => null))
@@ -147,6 +131,7 @@ for (const dependency of ["@fontsource/inter"]) {
 const outputs = await packager({
   dir: appDir,
   name: "GAIAVFX",
+  icon: path.join(root, "assets", "brand", "favicon-forest.ico"),
   platform: "win32",
   arch: "x64",
   electronVersion: require("electron/package.json").version,

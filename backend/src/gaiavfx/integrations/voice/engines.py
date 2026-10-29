@@ -5,6 +5,7 @@ Every engine is a Python worker in its own environment. An engine lives in a hom
 its interpreter, the native programs its worker drives (audio.cpp) and its model files are paths inside that home."""
 
 import hashlib
+import os
 import re
 import tomllib
 from dataclasses import dataclass
@@ -55,7 +56,7 @@ def inside(value: object) -> bool:
     return ".." not in PurePosixPath(value.replace("\\", "/")).parts
 
 
-def load(text: str | None = None) -> dict[str, Engine]:
+def load(text: str | None = None, *, platform: str | None = None) -> dict[str, Engine]:
     """Parse and check the registry; any malformed entry is a ValueError, never a silent default."""
     document = tomllib.loads(registry_text() if text is None else text)
     if document.get("schema") != SCHEMA:
@@ -63,6 +64,10 @@ def load(text: str | None = None) -> dict[str, Engine]:
     engines = {}
     for name, entry in (document.get("engines") or {}).items():
         home, environment = entry.get("home"), entry.get("environment")
+        if isinstance(environment, dict):
+            environment = environment.get(
+                "windows" if (platform or os.name) in ("win32", "nt") else "linux"
+            )
         if not inside(home) or not inside(environment):
             raise ValueError(
                 f"Engine {name}: home and environment must be relative paths that stay inside."
@@ -71,6 +76,12 @@ def load(text: str | None = None) -> dict[str, Engine]:
         if not inside(worker) or not worker.endswith(".py"):
             raise ValueError(f"Engine {name}: name its worker file under engine_workers/.")
         programs = entry.get("programs") or {}
+        programs = {
+            name: value.get("windows" if (platform or os.name) in ("win32", "nt") else "linux")
+            if isinstance(value, dict)
+            else value
+            for name, value in programs.items()
+        }
         if not all(inside(path) for path in programs.values()):
             raise ValueError(f"Engine {name}: programs are paths inside the engine's home.")
         packages = entry.get("packages") or {}

@@ -34,15 +34,24 @@ class EngineStopped(Exception):
 
 
 def engines_root(configured: str | None = None) -> Path | None:
-    """Where engine homes are installed: GAIAVFX_ENGINES_ROOT, else the library's setting, else none."""
+    """Engine homes: environment override, library setting, then saved installer defaults."""
     value = os.environ.get("GAIAVFX_ENGINES_ROOT") or configured
+    if not value:
+        from gaiavfx.setup._runtime import read_setup
+
+        try:
+            value = read_setup().get("engines_root")
+        except (OSError, ValueError):
+            pass
     return Path(value) if value else None
 
 
 def workers_dir() -> Path:
-    """`engine_workers/` of the checkout (a packaged build sets GAIAVFX_ENGINE_WORKERS)."""
+    """Worker sources from an override, the checkout, or the frozen application's data."""
     value = os.environ.get("GAIAVFX_ENGINE_WORKERS")
-    return Path(value) if value else Path(__file__).resolve().parents[4] / "engine_workers"
+    from gaiavfx.setup._runtime import workers_dir as runtime_workers_dir
+
+    return Path(value) if value else runtime_workers_dir()
 
 
 class _ProcessTree:
