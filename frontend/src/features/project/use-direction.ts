@@ -13,6 +13,7 @@ import {
 } from "./client";
 import { useEditor, type Target } from "../timeline/editor-state";
 import { useOpenDocument } from "../../app/open-document";
+import { ApiError } from "../../shared/api";
 
 export function useDirection(enabled: boolean) {
   const editor = useEditor();
@@ -177,8 +178,13 @@ export function useDirection(enabled: boolean) {
       setNotice(label);
       return result;
     } catch (e) {
+      const message =
+        e instanceof Error ? e.message : "The edit could not be saved.";
+      // Only a stale revision is fixed by re-reading; a refused edit says why on its own.
       setError(
-        `${e instanceof Error ? e.message : "The edit could not be saved."} Review the refreshed details, then retry your edit.`,
+        e instanceof ApiError && e.status === 409
+          ? `${message} Review the refreshed details, then retry your edit.`
+          : message,
       );
       await refresh();
     } finally {
