@@ -3,6 +3,8 @@
 # An unauthored cast lists bound subjects on shot 1 only, as in the research arms and captured agent directions.
 # An authored cast lists exactly its subjects; an empty cast emits no cast clause.
 # Speech times in shot 1 include motion-context frames; later shots use time since their cut (v3 through v11).
+# A sheet names its landmarks and its one subject only when they exist: a segment with no cast has no only-person
+# sentence (not yet GPU-qualified); with both, the retention line is the research arms' text byte for byte.
 schema = 1
 
 [sections]
@@ -17,7 +19,7 @@ music = "N/A"
 subject_definition = "{label} is {name}, {description}. Source: <Picture {p}>. <Picture {p}> supplies identity only."
 sheet_definition = "<Picture {p}> is a reference sheet of this one {noun} in {count} panels separated by grey {separators}: {count} photographs of the same empty {noun} {origin}. The panels are alternative views of one place, not one picture; nobody is in them."
 subject_retention = "{label} (appears in {shots}): fully_preserved - Preserve the reference contributions defined above."
-sheet_retention = "<Picture {p}> (appears in {shots}): weak_reference - Preserve the layout and look of the {noun} from the sheet: {landmarks}. Never show the grid, the grey {separators} or several panels of the sheet. {only} remains the only person."
+sheet_retention = "<Picture {p}> (appears in {shots}): weak_reference - Preserve the layout and look of the {noun} from the sheet{landmarks}. Never show the grid, the grey {separators} or several panels of the sheet.{only}"
 identity_use = "Use <Picture {p}> for identity, outfit only. Preserve {name}'s {keeps}; the background follows the scene."
 single_take = "Single continuous take: one uninterrupted shot from start to finish. Do not introduce internal cuts, cutaways, montage or a change of scene. Perform only the action and camera movement specified for this shot."
 continuation = "Continue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat."
@@ -51,3 +53,5 @@ origin_set = "from different places in it"
 numbers = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
 subject_label = "<Subject {n}>"
 speech_delivery = ", {delivery}"
+sheet_landmarks = ": {landmarks}"
+sheet_only_person = " {name} remains the only person."

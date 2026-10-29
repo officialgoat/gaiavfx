@@ -46,8 +46,11 @@ def plain(workspace, function, *args, **kwargs):
 
 
 @pytest.fixture
-def shack(room, tmp_path):
-    """The room set accepted, a place built as it with a Door angle, and a scene of one subject opening there."""
+def shack(room, tmp_path, request):
+    """The room set accepted, a place built as it with a Door angle, and a scene of one subject opening there.
+
+    Parametrized indirectly with False, the scene has no cast: a stage needs no actors."""
+    cast = getattr(request, "param", True)
     workspace, set_id = room
     state = call(workspace, sets.set_state, set_id)
     call(workspace, sets.accept_version, set_id, state["version"]["id"], expected_current_id=None)
@@ -69,19 +72,18 @@ def shack(room, tmp_path):
             keeps="sweater",
             identity_asset_id=identity["id"],
         )
+        action = "Ivo feeds the stove." if cast else "The stove glows in the empty shack."
         segment = DIRECTION.add_segment(
             session,
             movie["id"],
             subject["receipt"]["after"]["revision"],
             content={
-                "subjects": [subject["id"]],
+                "subjects": [subject["id"]] if cast else [],
                 "place": {"noun": "shack", "description": "A fishing shack.", "landmarks": ""},
             },
             delivered_frames=97,
             continues=False,
-            phases=[
-                (0, {"description": "Ivo feeds the stove.", "screen_direction": "", "sound": ""})
-            ],
+            phases=[(0, {"description": action, "screen_direction": "", "sound": ""})],
         )
         DIRECTION.update_segment(
             session,
@@ -136,6 +138,7 @@ def opening_plan(workspace, segment):
     return plain(workspace, direction_plans.plan_for_segment, segment["id"])
 
 
+@pytest.mark.parametrize("shack", [True, False], indirect=True, ids=["one subject", "no cast"])
 def test_a_set_view_is_rendered_reviewed_and_bound_as_the_opening_sheet(shack):
     s = shack
     workspace, place, door = s.workspace, s.place, s.door

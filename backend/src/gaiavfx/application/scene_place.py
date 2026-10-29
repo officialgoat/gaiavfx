@@ -16,7 +16,7 @@ from gaiavfx.application.sets import STORE
 from gaiavfx.modules.direction.planning import Action, OpeningPlan
 from gaiavfx.modules.direction.techniques import Block
 
-SHEET_GAPS = frozenset({"sheet_no_subject", "sheet_several_subjects", "sheet_unbound_subject"})
+SHEET_GAPS = frozenset({"sheet_several_subjects", "sheet_unbound_subject"})
 
 
 @dataclass(frozen=True)
@@ -48,7 +48,7 @@ def _blocker(session, opening, found, refusals, view, producer):
     if actions:
         return choice.actions[0].reason[:1].upper() + choice.actions[0].reason[1:]
     if any(r.code in SHEET_GAPS for r in refusals):
-        return "A sheet needs one subject with a picture"
+        return "A stage sheet needs no cast, or one cast member with a picture"
     if not any(b.kind == "sheet" and not b.stale for b in opening.bindings):
         return "Assemble the sheet"
     return None
