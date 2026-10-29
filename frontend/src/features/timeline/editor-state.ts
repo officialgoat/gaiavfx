@@ -48,6 +48,9 @@ export type Target =
   // A segment's first-shot references (its place, and the set it is built as): its own kind, so Remove never
   // reaches the segment from the chip (ADR 0019 §5).
   | { kind: "opening"; id: string; segmentId: string }
+  // How a continuing segment hands over its predecessor's motion (docs/CONTINUATION.md): the method and the context
+  // length, never the segment itself.
+  | { kind: "continuation"; id: string; segmentId: string }
   | { kind: "state" | "dialogue" | "sound"; index: number; segmentId: string }
   | {
       kind: "picture" | "keyframe";

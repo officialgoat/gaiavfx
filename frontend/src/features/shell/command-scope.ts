@@ -86,6 +86,7 @@ const PREFIXES: [string, Scope][] = [
   ["relation.", "movie"],
   ["barrier.", "movie"],
   ["technique.", "movie"],
+  ["continuation.", "movie"],
   ["review.", "movie"],
   ["binding.", "movie"],
   ["prepare.", "movie"],

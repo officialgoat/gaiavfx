@@ -10,10 +10,19 @@
    ]
   },
   {
-   "label": "Phases",
+   "label": "Continuation",
    "box": [
     0,
     96,
+    1728,
+    52
+   ]
+  },
+  {
+   "label": "Phases",
+   "box": [
+    0,
+    148,
     1728,
     43
    ]
@@ -22,7 +31,7 @@
    "label": "Cuts",
    "box": [
     0,
-    139,
+    191,
     1728,
     52
    ]
@@ -31,7 +40,7 @@
    "label": "References",
    "box": [
     0,
-    191,
+    243,
     1728,
     70
    ]
@@ -40,7 +49,7 @@
    "label": "Keyframes",
    "box": [
     0,
-    261,
+    313,
     1728,
     43
    ]
@@ -49,7 +58,7 @@
    "label": "State",
    "box": [
     0,
-    304,
+    356,
     1728,
     43
    ]
@@ -58,7 +67,7 @@
    "label": "Dialogue",
    "box": [
     0,
-    347,
+    399,
     1728,
     43
    ]
@@ -67,7 +76,7 @@
    "label": "Sound",
    "box": [
     0,
-    390,
+    442,
     1728,
     70
    ]
@@ -97,12 +106,23 @@
    ]
   },
   {
+   "label": "Continuation into Segment 02 · Paired latents · 22 frames of context · Recommended",
+   "frame": "98",
+   "className": "track-item continuation-item",
+   "box": [
+    758,
+    101,
+    147,
+    41
+   ]
+  },
+  {
    "label": "Phase: Arin walks toward the iron railing.",
    "frame": "0",
    "className": "track-item phase-item",
    "box": [
     102,
-    101,
+    153,
     800,
     32
    ]
@@ -113,7 +133,7 @@
    "className": "track-item phase-item",
    "box": [
     905,
-    101,
+    153,
     800,
     32
    ]
@@ -124,7 +144,7 @@
    "className": "track-item cut-item",
    "box": [
     1146,
-    144,
+    196,
     188,
     41
    ]
@@ -135,7 +155,7 @@
    "className": "track-item picture-item",
    "box": [
     102,
-    196,
+    248,
     800,
     25
    ]
@@ -146,7 +166,7 @@
    "className": "track-item picture-item",
    "box": [
     905,
-    196,
+    248,
     800,
     25
    ]
@@ -157,7 +177,7 @@
    "className": "track-item place-item",
    "box": [
     905,
-    226,
+    278,
     800,
     25
    ]
@@ -168,7 +188,7 @@
    "className": "track-item keyframe-item pin-needed",
    "box": [
     1221,
-    266,
+    318,
     105,
     25
    ]
@@ -179,7 +199,7 @@
    "className": "track-item state-item",
    "box": [
     102,
-    309,
+    361,
     800,
     25
    ]
@@ -190,7 +210,7 @@
    "className": "track-item state-item",
    "box": [
     905,
-    309,
+    361,
     800,
     25
    ]
@@ -201,7 +221,7 @@
    "className": "track-item dialogue-item",
    "box": [
     504,
-    352,
+    404,
     174,
     32
    ]
@@ -212,7 +232,7 @@
    "className": "track-item dialogue-item",
    "box": [
     1307,
-    352,
+    404,
     174,
     32
    ]
@@ -223,7 +243,7 @@
    "className": "track-item sound-item",
    "box": [
     102,
-    395,
+    447,
     800,
     25
    ]
@@ -234,7 +254,7 @@
    "className": "track-item sound-item sound-event",
    "box": [
     571,
-    425,
+    477,
     146,
     25
    ]
@@ -245,7 +265,7 @@
    "className": "track-item sound-item",
    "box": [
     905,
-    395,
+    447,
     800,
     25
    ]
@@ -256,7 +276,7 @@
    "className": "track-item sound-item sound-event",
    "box": [
     1374,
-    425,
+    477,
     146,
     25
    ]
@@ -432,7 +452,7 @@
   102,
   23,
   1,
-  437
+  489
  ],
  "scrollLeft": 0
 }

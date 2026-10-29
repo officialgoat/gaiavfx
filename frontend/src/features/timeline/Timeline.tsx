@@ -88,12 +88,13 @@ export function Timeline({
     if (row.aggregate && width < 8) return row.aggregate(row.items, scale);
     const rooms = markerRoom(row.items, scale);
     return visibleItems(row.items, from, to).map(
-      ({ key, compact, children, ...item }) => {
+      ({ key, compact, compactBelow = 24, children, ...item }) => {
         const room = rooms.get(key);
-        // Level of detail per item: a box narrower than 24 px, or a marker with little room, shows its compact content.
+        // Level of detail per item: a box narrower than 24 px (or its own threshold), or a marker with little room,
+        // shows its compact content.
         const narrow =
           item.length !== undefined
-            ? item.length * scale < 24
+            ? item.length * scale < compactBelow
             : room !== undefined && room < MARKER_DETAIL_PX;
         return (
           <TrackItem

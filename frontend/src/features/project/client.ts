@@ -22,6 +22,15 @@ export const RELATION_WORDS: Record<Relation, string> = {
 export const relationWords = (relation: Cut["relation"] | undefined) =>
   RELATION_WORDS[relation ?? "unknown"];
 
+export type Continuation = Schema["ContinuationPlanDTO"];
+/** The one vocabulary of a continuation's handoff methods. */
+export const HANDOFF_WORDS: Record<string, [name: string, short: string]> = {
+  paired: ["Paired latents", "Paired"],
+  masked: ["Masked handoff", "Masked"],
+};
+export const handoffWords = (method: string, short = false) =>
+  HANDOFF_WORDS[method]?.[short ? 1 : 0] ?? method;
+
 const read = <T>(path: string) => request<T>("/api/direction/" + path);
 const write = <T>(path: string, body: unknown, method = "POST") =>
   request<T>("/api/direction/" + path, { method, body: JSON.stringify(body) });
@@ -37,6 +46,13 @@ export const direction = {
     write<Schema["SegmentCommandDTO"]>(`movies/${id}/segments`, body),
   updateSegment: (id: string, body: Schema["SegmentPatch"]) =>
     write<Schema["SegmentCommandDTO"]>(`segments/${id}`, body, "PATCH"),
+  /** A continuation's handoff (docs/CONTINUATION.md); null returns a field to the rule. Python refuses with why. */
+  setContinuation: (id: string, body: Schema["SegmentContinuationPatch"]) =>
+    write<Schema["SegmentCommandDTO"]>(
+      `segments/${id}/continuation`,
+      body,
+      "PATCH",
+    ),
   removeSegment: (id: string, body: Schema["DirectionRevisionInput"]) =>
     write<Schema["RemovedDTO"]>(`segments/${id}/remove`, body),
   moveSegment: (id: string, body: Schema["SegmentMove"]) =>

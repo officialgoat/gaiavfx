@@ -1,4 +1,5 @@
-import { direction, RELATION_WORDS } from "../project/client";
+import { direction, handoffWords, RELATION_WORDS } from "../project/client";
+import { setContext, setHandoff } from "../project/continuation";
 import type { DirectController } from "../project/use-direction";
 import type { Target } from "../timeline/editor-state";
 import type { DockLayout } from "../../shared/preferences";
@@ -319,6 +320,60 @@ export function makeCommands(
       undefined,
       cut,
     );
+  // A continuation's handoff (docs/CONTINUATION.md), from the selected segment's plan, like a cut's techniques:
+  // Python names the recommendation, the lengths this join can carry and why masked handoff may not qualify.
+  const handoffOf = (t: Target) => {
+    const s = d.getSegment(t);
+    const plan = s && d.segmentPlanMap.get(s.id)?.continuation;
+    return s && plan ? { s, plan } : undefined;
+  };
+  const continuing = (t: Target) =>
+    handoffOf(t) ? undefined : "Only a continuing segment hands over motion.";
+  const joined = d.getSegment();
+  const handoff = joined && d.segmentPlanMap.get(joined.id)?.continuation;
+  if (handoff) {
+    add(
+      "continuation.method.auto",
+      `Automatic · ${handoffWords(handoff.recommended)}`,
+      (t) => {
+        const h = handoffOf(t);
+        if (h && h.plan.explicit_method !== null) void setHandoff(d, h.s, null);
+      },
+      undefined,
+      continuing,
+      handoff.explicit_method === null,
+    );
+    for (const method of ["paired", "masked"] as const)
+      add(
+        `continuation.method.${method}`,
+        handoffWords(method),
+        (t) => {
+          const h = handoffOf(t);
+          if (h && h.plan.explicit_method !== method)
+            void setHandoff(d, h.s, method);
+        },
+        undefined,
+        (t) =>
+          continuing(t) ??
+          (method === "masked"
+            ? (handoffOf(t)!.plan.masked_problem ?? undefined)
+            : undefined),
+        handoff.explicit_method === method,
+      );
+    for (const frames of handoff.context_choices)
+      add(
+        `continuation.context.${frames}`,
+        `${frames} frames${frames === handoff.default_context ? " · default" : ""}`,
+        (t) => {
+          const h = handoffOf(t);
+          if (h && h.plan.context_frames !== frames)
+            void setContext(d, h.s, h.plan, frames);
+        },
+        undefined,
+        continuing,
+        handoff.context_frames === frames,
+      );
+  }
   add(
     "source",
     "Open in Source monitor",

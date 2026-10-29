@@ -622,6 +622,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/direction/segments/{segment_id}/continuation": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Set Segment Continuation */
+    patch: operations["set_segment_continuation_api_direction_segments__segment_id__continuation_patch"];
+    trace?: never;
+  };
   "/api/direction/segments/{segment_id}/use-set": {
     parameters: {
       query?: never;
@@ -3970,6 +3987,37 @@ export interface components {
       modality: string;
     };
     /**
+     * ContinuationPlanDTO
+     * @description How a continuing segment hands over its predecessor's motion (docs/CONTINUATION.md).
+     */
+    ContinuationPlanDTO: {
+      /** Method */
+      method: string;
+      /** Explicit Method */
+      explicit_method: string | null;
+      /**
+       * Recommended
+       * @enum {string}
+       */
+      recommended: "paired" | "masked";
+      /** Reason */
+      reason: string;
+      /** Masked Problem */
+      masked_problem: string | null;
+      /** Context Frames */
+      context_frames: number;
+      /** Explicit Context */
+      explicit_context: number | null;
+      /** Default Context */
+      default_context: number;
+      /** Context Choices */
+      context_choices: number[];
+      /** Audio Context Frames */
+      audio_context_frames: number;
+      /** Audio Follows Picture */
+      audio_follows_picture: boolean;
+    };
+    /**
      * Coverage
      * @enum {string}
      */
@@ -4400,6 +4448,7 @@ export interface components {
       seed?: components["schemas"]["SeedStateDTO"] | null;
       /** Build Refusal */
       build_refusal?: string | null;
+      continuation?: components["schemas"]["ContinuationPlanDTO"] | null;
     };
     /** DirectionSegmentRefusalDTO */
     DirectionSegmentRefusalDTO: {
@@ -6236,6 +6285,10 @@ export interface components {
       opening_angle_id?: string | null;
       /** Opening Technique */
       opening_technique?: string | null;
+      /** Continuation Method */
+      continuation_method?: string | null;
+      /** Context Frames */
+      context_frames?: number | null;
       /** Phases */
       phases: components["schemas"]["PhaseDTO"][];
       /** Cuts */
@@ -6255,6 +6308,18 @@ export interface components {
       speech?: components["schemas"]["SpeechDTO"][];
       /** States */
       states?: components["schemas"]["StateDTO"][];
+    };
+    /**
+     * SegmentContinuationPatch
+     * @description A continuing segment's handoff (docs/CONTINUATION.md). Only the fields sent change; null follows the rule.
+     */
+    SegmentContinuationPatch: {
+      /** Expected Revision */
+      expected_revision: number;
+      /** Method */
+      method?: ("paired" | "masked") | null;
+      /** Context Frames */
+      context_frames?: number | null;
     };
     /** SegmentCreate */
     SegmentCreate: {
@@ -6295,6 +6360,10 @@ export interface components {
       opening_angle_id?: string | null;
       /** Opening Technique */
       opening_technique?: string | null;
+      /** Continuation Method */
+      continuation_method?: string | null;
+      /** Context Frames */
+      context_frames?: number | null;
       /** Phases */
       phases: components["schemas"]["PhaseDTO"][];
       /** Cuts */
@@ -8964,6 +9033,41 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["AssembledSegmentDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  set_segment_continuation_api_direction_segments__segment_id__continuation_patch: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        segment_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SegmentContinuationPatch"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SegmentCommandDTO"];
         };
       };
       /** @description Validation Error */

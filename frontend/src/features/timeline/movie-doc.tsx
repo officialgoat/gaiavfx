@@ -4,12 +4,14 @@ import {
   Film,
   Image,
   Layers3,
+  Link2,
   ListChecks,
   MessageSquare,
   Scissors,
 } from "lucide-react";
 import type { DirectController } from "../project/use-direction";
-import { direction, relationWords } from "../project/client";
+import { direction, handoffWords, relationWords } from "../project/client";
+import { audioWords, ruleWords, setContext } from "../project/continuation";
 import { Sheet } from "../../shared/ui";
 import { RemoveCutDialog } from "./RemoveCutDialog";
 import { Timeline } from "./Timeline";
@@ -22,6 +24,12 @@ const ROWS: [
   empty?: string,
 ][] = [
   ["segment", "Segment", Film],
+  [
+    "continuation",
+    "Continuation",
+    Link2,
+    "No continuations: a continuing segment hands over its predecessor's motion here",
+  ],
   ["phases", "Phases", Layers3],
   ["cuts", "Cuts", Scissors],
   [
@@ -47,6 +55,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
   }));
   const [
     segmentRow,
+    continuationRow,
     phaseRow,
     cutRow,
     pictureRow,
@@ -121,6 +130,40 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
         </>
       ),
     });
+    // The join (docs/CONTINUATION.md): the predecessor's last frames this segment continues from, anchored at the
+    // join. Python resolves the method, the lengths and the recommendation; the leading edge chooses a length.
+    const handoff = d.segmentPlanMap.get(s.id)?.continuation;
+    if (handoff && s.ordinal > 0) {
+      const context = handoff.context_frames;
+      const method = handoffWords(handoff.method);
+      const follows = handoff.method === handoff.recommended;
+      item(continuationRow, {
+        key: `${s.id}-continuation`,
+        target: { kind: "continuation", id: s.id, segmentId: s.id },
+        frame: start - context,
+        length: context,
+        className: `continuation-item${follows ? "" : " off-rule"}`,
+        label: `Continuation into Segment ${number} · ${method} · ${context} frames of context · ${ruleWords(handoff)}`,
+        // Two lines, like a segment: the length and method, then whether that follows the rule, in words.
+        children: (
+          <>
+            <strong>{context} f</strong>
+            <span>{handoffWords(handoff.method, true)}</span>
+            <small title={`${handoff.reason} ${audioWords(handoff)}.`}>
+              {ruleWords(handoff, true)}
+            </small>
+          </>
+        ),
+        // At a fitted zoom the default 22 frames is a narrow band: the length alone, the rest in its name and title.
+        compact: <strong>{context} f</strong>,
+        compactBelow: 104,
+        resize: {
+          lengths: handoff.context_choices,
+          label: `Context length into Segment ${number}`,
+          commit: (frames) => void setContext(d, s, handoff, frames),
+        },
+      });
+    }
     s.phases.forEach((p, i) =>
       item(phaseRow, {
         key: p.id,

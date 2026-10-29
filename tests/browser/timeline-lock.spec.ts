@@ -4,6 +4,8 @@ import { openMovie, seedDirect } from "./direct-fixture";
 // ADR 0017 makes the timeline a generic renderer of a presentation document. The movie timeline must not change:
 // the accessibility and geometry snapshots were recorded on the renderer before that refactor (f6373b2); the
 // normalized DOM and the zoomed and scrolled geometry were recorded after it (U1), before the film extensions.
+// Deliberately re-recorded once since, for the Continuation row (docs/CONTINUATION.md): a 52 px row under Segment,
+// the rows below it moved down by its height and nothing else changed.
 
 function geometry(page: Page, origin = ".timeline-canvas") {
   return page.evaluate((origin) => {

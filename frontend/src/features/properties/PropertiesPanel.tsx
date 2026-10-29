@@ -13,6 +13,7 @@ import { CommandButton } from "../shell/Menus";
 import { SegmentReadiness } from "../prepare/SegmentReadiness";
 import { Bindings } from "../prepare/Bindings";
 import { AngleEditor } from "./AngleEditor";
+import { ContinuationProperties } from "./ContinuationProperties";
 import { OpeningProperties } from "./OpeningProperties";
 import { PlaceEditor } from "./PlaceEditor";
 import { ShotPlanSections, techniqueChoices } from "./ShotPlan";
@@ -189,10 +190,14 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
     target.kind === "place"
       ? d.places.data?.find((p) => p.id === target.id)
       : undefined;
+  const handoff = segment && d.segmentPlanMap.get(segment.id)?.continuation;
   return (
     <div className="properties-content dock-scroll">
       {segment &&
-        (cut || target.kind === "segment" || target.kind === "opening") && (
+        (cut ||
+          target.kind === "segment" ||
+          target.kind === "opening" ||
+          target.kind === "continuation") && (
           <section className="property-section">
             <h3>Segment render</h3>
             <SegmentReadiness plan={d.segmentPlanMap.get(segment.id)} />
@@ -336,6 +341,15 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
               : segment.phases[target.index]?.content.sound}
           </p>
         </>
+      ) : target.kind === "continuation" && segment ? (
+        <>
+          <h2>Into Segment {String(segment.ordinal + 1).padStart(2, "0")}</h2>
+          {handoff ? (
+            <ContinuationProperties d={d} segment={segment} plan={handoff} />
+          ) : (
+            <p className="muted">Loading the continuation plan…</p>
+          )}
+        </>
       ) : (target.kind === "segment" || target.kind === "opening") &&
         segment ? (
         <>
@@ -361,6 +375,9 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
             </dd>
           </dl>
           <CommandButton id="phase.new" className="secondary-button" />
+          {handoff && (
+            <ContinuationProperties d={d} segment={segment} plan={handoff} />
+          )}
           <OpeningProperties
             key={`${segment.id}-${segment.revision}`}
             d={d}

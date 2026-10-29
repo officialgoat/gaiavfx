@@ -22,6 +22,18 @@ export type TrackItemModel = {
   reason?: string;
   /** Drawn instead of `children` when the item is a narrow box, or a marker with little room (level of detail). */
   compact?: ReactNode;
+  /** A span narrower than this, in pixels, is a narrow box (default 24). */
+  compactBelow?: number;
+  /** A span whose leading edge drags to one of `lengths` while its trailing edge stays put. */
+  resize?: ResizeEdge;
+};
+
+export type ResizeEdge = {
+  /** The lengths the edge snaps to, in frames, ascending. */
+  lengths: number[];
+  /** Names the slider, for example "Context length". */
+  label: string;
+  commit: (length: number) => void;
 };
 
 // Every field below marked optional changes nothing when absent: a movie sets none of them, and its DOM stays as the

@@ -52,6 +52,23 @@ export function menuEntries(
     "-",
     "undo",
   ];
+  // A continuation's handoff: present only while the selection continues its predecessor.
+  const handoff: MenuEntry[] = [
+    {
+      label: "Handoff method",
+      children: [
+        "continuation.method.auto",
+        "continuation.method.paired",
+        "continuation.method.masked",
+      ],
+    },
+    {
+      label: "Context length",
+      children: [...commands.keys()].filter((id) =>
+        id.startsWith("continuation.context."),
+      ),
+    },
+  ];
   // Every version the shot has, A to the last; the others are hidden commands.
   const versions = (prefix: string) =>
     [...commands.keys()]
@@ -124,6 +141,8 @@ export function menuEntries(
       "phase.new",
       "cut.new",
       "segment.split",
+      "-",
+      ...handoff,
       "-",
       "review",
       "remove",
@@ -221,9 +240,12 @@ export function menuEntries(
       "review",
       "segment.split",
       "-",
+      ...handoff,
+      "-",
       "remove",
       "undo",
     ],
+    continuation: [...handoff, "-", "properties", "undo"],
     cut,
     phase: [
       "phase.new",

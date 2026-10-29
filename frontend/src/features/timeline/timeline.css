@@ -302,6 +302,115 @@
   color: var(--muted);
   border-color: var(--line);
 }
+/* A join (docs/CONTINUATION.md): the predecessor's last frames the next segment continues from. The hatch says they
+   are handed over, not delivered again; the band ends square at the join and its leading edge chooses the length. */
+.continuation-item {
+  background:
+    repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--accent) 13%, transparent) 0 4px,
+      transparent 4px 9px
+    ),
+    var(--panel);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--line));
+  border-right-color: var(--accent);
+  border-radius: 3px 0 0 3px;
+  padding-left: 10px;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: 1px 6px;
+}
+.track-row[data-row="continuation"] {
+  min-height: 52px;
+}
+.continuation-item strong {
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.continuation-item small {
+  flex-basis: 100%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 10px;
+  color: var(--success);
+}
+.continuation-item.off-rule {
+  border-style: dashed;
+  border-right-style: solid;
+}
+.continuation-item.off-rule small {
+  color: var(--warning);
+}
+.rule-chip {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--success);
+  background: var(--panel);
+  border: 1px solid var(--success);
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+.rule-chip[data-follows="false"] {
+  color: var(--warning);
+  border-style: dashed;
+  border-color: var(--warning);
+}
+.resize-edge {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: -5px;
+  width: 11px;
+  z-index: 2;
+  display: flex;
+  justify-content: center;
+  cursor: ew-resize;
+  touch-action: none;
+  border-radius: 4px;
+}
+.resize-edge::before {
+  content: "";
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+  opacity: 0.55;
+  transition:
+    opacity 150ms ease-out,
+    width 150ms ease-out;
+}
+.resize-edge:hover::before,
+.resize-edge:focus-visible::before,
+.resize-edge[data-dragging]::before {
+  opacity: 1;
+  width: 5px;
+}
+.resize-edge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.resize-edge[aria-disabled] {
+  cursor: progress;
+}
+.resize-edge-value {
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 2px 6px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  white-space: nowrap;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  pointer-events: none;
+}
 .keyframe-item {
   color: var(--playhead);
   border: 0;
