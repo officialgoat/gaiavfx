@@ -11,9 +11,34 @@ from gaiavfx.application.direction_plans import (
 )
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.integrations.minimax_h3 import continuation as continuity
+from gaiavfx.integrations.minimax_h3.continuation import ContinuationFacts
 from gaiavfx.shared.errors import ApplicationError
 
 FIELDS = {"method": "continuation_method", "context_frames": "context_frames"}
+
+
+def context_lengths(integration=DEFAULT_INTEGRATION):
+    """Every context length the integration's grid offers; a join's own plan narrows it to its source take."""
+    return INTEGRATIONS[integration].capabilities().frame_grid.context_lengths()
+
+
+def require_new_choice(*, continues, method, context_frames, integration=DEFAULT_INTEGRATION):
+    """A segment being added has no cuts, pins or selected take yet: its plan checks those once it has them."""
+    choice = {
+        key: value
+        for key, value in (("method", method), ("context_frames", context_frames))
+        if value is not None
+    }
+    if choice and (
+        problem := continuity.choice_problem(
+            ContinuationFacts(continues=continues, cuts=0, guides=0),
+            INTEGRATIONS[integration].capabilities().frame_grid,
+            method=method,
+            context_frames=context_frames,
+            changing=frozenset(choice),
+        )
+    ):
+        raise ApplicationError(problem, 422)
 
 
 def set_continuation(

@@ -129,3 +129,22 @@ values are not part of task fingerprints.
 | P2 | 016821cb22ca3acb | f080212851ddafce |
 | P3 | f512733213d0b63e | 07cd0f0696f8821d |
 | P4 | 403983f8c3964844 | 357736b0e3f545ac |
+
+## Continuation handoff tasks
+
+Two tasks cover a continuation's handoff (docs/CONTINUATION.md). They are frozen with the E-family, so the file
+now holds 19 fingerprints; no existing task, criterion, fixture or fingerprint changed.
+
+- `continuation-context-keeps-rule`: "Give the second segment 39 frames of motion context." GOOD sets only
+  `context_frames`, so the method keeps following the rule. BAD also chooses masked handoff, which nobody asked for.
+- `continuation-masked-refused`: "Use the masked handoff for this segment." The DZ reverse plans a pinned
+  keyframe, so Python refuses masked handoff. GOOD relays the refusal's reason (`pinned keyframe`). BAD claims the
+  change the refusal prevented.
+
+`edit_segment` (set) and `draft_storyline` beats offer `continuation_method` and `context_frames` only when the
+request names the handoff, so the widest schemas keep inside their budget.
+
+| Task | Fingerprint |
+|---|---|
+| continuation-context-keeps-rule | 029818d7d9998f48 |
+| continuation-masked-refused | 0549d73753955571 |

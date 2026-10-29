@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from gaiavfx.application.continuation import require_new_choice
 from gaiavfx.application.harness.actions import inlined
 from gaiavfx.application.harness.knowledge import load
 from gaiavfx.application.harness.tools.authoring import (
@@ -29,7 +30,12 @@ from gaiavfx.application.harness.tools.cut_continuity import (
     require_predecessor,
     require_segment_continuity,
 )
-from gaiavfx.application.harness.tools.edits import PhaseDraft, PlaceText
+from gaiavfx.application.harness.tools.edits import (
+    HANDOFF_REQUEST,
+    PhaseDraft,
+    PlaceText,
+    handoff_schema,
+)
 from gaiavfx.application.harness.tools.request_rules import count_refusal, missing_cut_refusal
 from gaiavfx.application.harness.world import direction, fields
 from gaiavfx.shared.contracts import StrictModel
@@ -90,6 +96,9 @@ class StoryBeat(StrictModel):
     subject_ids: list[str] = Field(min_length=1, max_length=24)
     delivered_frames: int | None = Field(default=None, gt=0, strict=True)
     continues: bool
+    # docs/CONTINUATION.md: omitted follows the rule (masked uncut, paired across cuts) and the default context.
+    continuation_method: Literal["paired", "masked"] | None = None
+    context_frames: int | None = Field(default=None, gt=0, strict=True)
     style: str | None = Field(default=None, max_length=8000)
     phases: list[PhaseDraft] = Field(min_length=1, max_length=4)
     place_id: str | None = None
@@ -130,6 +139,11 @@ class DraftStoryline(TransactionTool):
         for alias in ("place_id", "from_angle"):
             beat.pop(alias)
         beat["cuts"]["items"]["properties"]["from_angle"]["minLength"] = 1
+        if HANDOFF_REQUEST.search(context.latest_user_message):
+            beat |= handoff_schema()
+        else:
+            for name in ("continuation_method", "context_frames"):
+                beat.pop(name)
         phase = beat["phases"]["items"]
         phase.setdefault("required", []).append("screen_direction")
         if MOTION.search(context.latest_user_message):
@@ -217,6 +231,11 @@ class DraftStoryline(TransactionTool):
                 content = {"subjects": beat.subject_ids, "place": beat.place.model_dump()}
                 if beat.style is not None:
                     content["style"] = beat.style
+                require_new_choice(
+                    continues=beat.continues,
+                    method=beat.continuation_method,
+                    context_frames=beat.context_frames,
+                )
                 row = direction.add_segment(
                     session,
                     context.movie_id,
@@ -225,6 +244,8 @@ class DraftStoryline(TransactionTool):
                     delivered_frames=beat.delivered_frames or DEFAULTS["default_delivered_frames"],
                     continues=beat.continues,
                     phases=phases,
+                    continuation_method=beat.continuation_method,
+                    context_frames=beat.context_frames,
                 )
                 receipts.append(direction_receipt(row))
                 cut_ids = []

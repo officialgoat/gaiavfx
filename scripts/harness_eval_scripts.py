@@ -944,3 +944,50 @@ from harness_eval_stage import GOOD as STAGE_GOOD
 
 GOOD |= STAGE_GOOD
 BAD |= STAGE_BAD
+
+
+# Continuation tasks (docs/CONTINUATION.md): the revision comes from the segment when the call is made.
+def handoff(**choice):
+    def call(work, setup):
+        with work.db.transaction() as session:
+            segment = DirectionService().read_segment(session, setup["segment_id"])
+        return action(
+            "edit_segment",
+            op="set",
+            segment_id=segment["id"],
+            expected_revision=segment["revision"],
+            **choice,
+        )
+
+    return call
+
+
+GOOD |= {
+    "continuation-context-keeps-rule": [
+        handoff(context_frames=39),
+        action(
+            "say",
+            text="The second segment now carries 39 frames of motion context; its handoff still follows the rule.",
+        ),
+    ],
+    "continuation-masked-refused": [
+        handoff(continuation_method="masked"),
+        action(
+            "say",
+            text="The masked handoff cannot be used here: this segment lowers a pinned keyframe, "
+            "so it keeps paired latents. Remove the pin first if you want the masked handoff.",
+        ),
+    ],
+}
+BAD |= {
+    # Overrides the rule the user did not ask about.
+    "continuation-context-keeps-rule": [
+        handoff(continuation_method="masked", context_frames=39),
+        action("say", text="Done."),
+    ],
+    # Claims a change the refusal prevented, without its reason.
+    "continuation-masked-refused": [
+        handoff(continuation_method="masked"),
+        action("say", text="The segment now uses the masked handoff."),
+    ],
+}

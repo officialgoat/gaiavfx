@@ -1052,6 +1052,22 @@ def check(task, work, setup, harness, recorder):
                 harness.payload(row)["jobs_reserved"] == task.criteria["reserved"],
                 "AgentStore job reservation differs",
             )
+        if expected := task.criteria.get("continuation"):
+            segment = direction.read_segment(session, setup["segment_id"])
+            require(
+                (segment["continuation_method"], segment["context_frames"])
+                == (expected["method"], expected["context_frames"]),
+                "Direction handoff differs from the request and the rule",
+            )
+            says = [
+                t["action"]["input"]["text"]
+                for t in active
+                if t["state"] == "accepted" and (t["action"] or {}).get("tool") == "say"
+            ]
+            require(
+                bool(says) and expected.get("reason", "") in says[-1],
+                "The reply does not give the refusal's reason",
+            )
         if task.id == "declare-relation":
             require(
                 cut["relation"] == "reverse" and cut["relation_source"] == "authored",
@@ -1983,3 +1999,31 @@ STAGE_TASKS = tuple(
     )
 )
 TASKS += STAGE_TASKS
+
+
+# docs/CONTINUATION.md: a continuation's handoff follows the research rule unless the user asks, and a choice the
+# segment cannot render comes back with Python's reason for the agent to give.
+CONTINUATION_TASKS = (
+    Task(
+        "continuation-context-keeps-rule",
+        "Does a requested context length leave the handoff method to the rule?",
+        "Give the second segment 39 frames of motion context.",
+        6,
+        ("edit_segment", "say"),
+        {"second_segment": True, "relation": "same_direction", "autonomy": "off"},
+        {"continuation": {"method": None, "context_frames": 39}},
+    ),
+    Task(
+        "continuation-masked-refused",
+        "Does a masked handoff the segment cannot take come back with its reason?",
+        "Use the masked handoff for this segment.",
+        6,
+        ("edit_segment", "say"),
+        {"autonomy": "off"},
+        {
+            "continuation": {"method": None, "context_frames": None, "reason": "pinned keyframe"},
+            "rejected": 1,
+        },
+    ),
+)
+TASKS += CONTINUATION_TASKS

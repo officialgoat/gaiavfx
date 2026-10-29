@@ -250,6 +250,17 @@ def world_state(session, movie_id, scope_kind, scope_id, autonomy):
                 if selected
                 else None,
             }
+        # docs/CONTINUATION.md: the handoff and the rule's recommendation, so the agent follows it unless asked.
+        if handoff := state.segment_plans[segment["id"]].get("continuation"):
+            summary["continuation"] = {
+                **fields(handoff, "method", "recommended", "context_frames"),
+                "chosen": handoff["explicit_method"] is not None,
+                **(
+                    {"masked_problem": handoff["masked_problem"]}
+                    if handoff["masked_problem"]
+                    else {}
+                ),
+            }
         successor = next(
             (s for s in movie["segments"] if s["ordinal"] == segment["ordinal"] + 1), None
         )

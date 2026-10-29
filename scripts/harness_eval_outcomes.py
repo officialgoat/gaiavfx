@@ -747,4 +747,21 @@ def evaluate(task, data):
                 and len(set(cached_parts)) == 1
                 and (not samples or max(samples) == 1),
             )
+    # docs/CONTINUATION.md: the handoff the user asked for, the rule for the rest, and a refusal's reason.
+    if expected := task.criteria.get("continuation"):
+        segment = next(
+            s for s in state["movie"]["segments"] if s["id"] == setup["segment_id"]
+        )
+        require(
+            "handoff_record",
+            (segment["continuation_method"], segment["context_frames"])
+            == (expected["method"], expected["context_frames"])
+            and not ops,
+        )
+        if reason := expected.get("reason"):
+            says = [t for t in active if t["action"]["tool"] == "say"]
+            require(
+                "refusal_reason",
+                bool(says) and reason in says[-1]["action"]["input"]["text"],
+            )
     return rubric, [name for name, passed in rubric.items() if not passed]

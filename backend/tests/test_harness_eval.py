@@ -354,7 +354,7 @@ def test_fingerprints_stable_distinct_and_based_on_spec():
 
     first = fingerprints()
     frozen = json.loads((Path(__file__).parent / "fixtures/harness/fingerprints.json").read_text())
-    assert len(frozen) == 17
+    assert len(frozen) == 19  # the E-family and the two continuation handoff tasks
     assert {key: first[key] for key in frozen} == frozen
     assert first == fingerprints()
     assert len(set(first.values())) == len(TASKS)

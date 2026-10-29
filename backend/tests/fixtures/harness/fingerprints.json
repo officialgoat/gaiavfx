@@ -15,5 +15,7 @@
   "plan-revise-and-render": "237185e2a42938f7",
   "plan-reject": "9d3bf9f8dc4a0099",
   "plan-mode-off-direct": "f8274d767d040e5c",
-  "plan-deviation-refused": "f26a393decb87c85"
+  "plan-deviation-refused": "f26a393decb87c85",
+  "continuation-context-keeps-rule": "029818d7d9998f48",
+  "continuation-masked-refused": "0549d73753955571"
 }

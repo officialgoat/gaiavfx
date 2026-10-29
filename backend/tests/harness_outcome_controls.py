@@ -109,6 +109,13 @@ def corrupt_outcome(task_id, evidence, violation=None):
     elif task_id in {"segment-0-cuts", "segment-2-cuts"}:
         renders[0]["request"]["segment_id"] = "another-segment"
         criterion = "segment_render"
+    elif task_id == "continuation-context-keeps-rule":
+        segment = next(s for s in final["movie"]["segments"] if s["id"] == setup["segment_id"])
+        segment["continuation_method"] = "masked"
+        criterion = "handoff_record"
+    elif task_id == "continuation-masked-refused":
+        data["turns"][-1]["action"]["input"]["text"] = "Done."
+        criterion = "refusal_reason"
     elif task_id.startswith("replacement-"):
         # No analysis anywhere: neither read in the session nor already in context.
         data["turns"] = [
