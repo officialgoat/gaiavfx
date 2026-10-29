@@ -279,7 +279,11 @@ class EditCut(TransactionTool):
 
 class EditSegment(TransactionTool):
     name = "edit_segment"
-    description = "Add/move/remove: movie revision. Set: segment revision. Retains receipts."
+    description = (
+        "Add/move/remove: movie revision. Set: segment revision. Retains receipts. "
+        "People who appear are cast: add them with edit_cast first and name them in subject_ids; "
+        "leave the cast empty only when nobody appears."
+    )
 
     class Input(StrictModel):
         op: Literal["add", "set", "move", "remove"]
