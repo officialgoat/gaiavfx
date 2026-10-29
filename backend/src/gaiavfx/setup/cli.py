@@ -50,7 +50,7 @@ def main(argv: list[str] | None = None) -> int:
     config.set_defaults(func=configure)
     # Only the runtime subcommand selected by the caller is imported.
     requested = (argv if argv is not None else sys.argv[1:])[:1]
-    for name in ("engines", "assistant", "media"):
+    for name in ("engines", "assistant", "media", "smoke"):
         if requested == [name]:
             try:
                 module = importlib.import_module(f"gaiavfx.setup.{name}")
