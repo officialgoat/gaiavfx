@@ -153,3 +153,58 @@ def test_installer_does_not_hide_a_doctor_exception(monkeypatch, setup_file):
         ),
     )
     assert installer.main(["--non-interactive", "--skip-models"]) == 1
+
+
+def test_comfy_worker_disables_api_nodes_and_forwards_extra_arguments(tmp_path, monkeypatch):
+    launcher = script("dev_comfy")
+    runtime = tmp_path / "ComfyUI"
+    runtime.mkdir()
+    (runtime / "main.py").touch()
+    python = tmp_path / "python"
+    python.touch()
+    monkeypatch.setattr(
+        launcher,
+        "configured_runtime",
+        lambda _: {
+            "directory": str(runtime),
+            "python": str(python),
+            "data_directory": str(tmp_path / "data"),
+            "arguments": ["--lowvram"],
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("HF_HUB_OFFLINE", "0")
+    monkeypatch.setattr(launcher.sys, "path", list(launcher.sys.path))
+    monkeypatch.setattr(
+        launcher.sys, "argv", ["dev_comfy.py", "--worker", "--", "--reserve-vram", "4"]
+    )
+    calls = []
+    monkeypatch.setattr(
+        launcher.runpy, "run_path", lambda *a, **kw: calls.append(list(launcher.sys.argv))
+    )
+    launcher.main()
+    assert len(calls) == 1
+    assert "--disable-api-nodes" in calls[0]
+    assert calls[0][-3:] == ["--lowvram", "--reserve-vram", "4"]
+
+
+def test_start_comfy_forwards_arguments_without_starting_service(tmp_path, monkeypatch):
+    monkeypatch.syspath_prepend(str(ROOT / "scripts"))
+    launcher = script("start_comfy")
+    (tmp_path / "main.py").touch()
+    (tmp_path / "python").touch()
+    monkeypatch.setattr(
+        launcher,
+        "configured_runtime",
+        lambda: {
+            "directory": str(tmp_path),
+            "python": str(tmp_path / "python"),
+        },
+    )
+    monkeypatch.setattr(
+        launcher.sys, "argv", ["start_comfy.py", "--lowvram", "--reserve-vram", "4"]
+    )
+    calls = []
+    monkeypatch.setattr(launcher.subprocess, "Popen", lambda args, **kwargs: calls.append(args))
+    launcher.main()
+    assert calls[0][-5:] == ["--worker", "--", "--lowvram", "--reserve-vram", "4"]

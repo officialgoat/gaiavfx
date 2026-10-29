@@ -148,7 +148,17 @@ def install_nodes(
         requirements = target / "requirements.txt"
         if pack["requirements"] and requirements.is_file():
             try:
-                run([interpreter, "-m", "pip", "install", "-r", requirements])
+                run(
+                    [
+                        interpreter,
+                        "-m",
+                        "pip",
+                        "install",
+                        "--no-warn-script-location",
+                        "-r",
+                        requirements,
+                    ]
+                )
             except subprocess.CalledProcessError:
                 if not local:
                     raise

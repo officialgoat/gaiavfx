@@ -1,4 +1,4 @@
-"""Launch configured ComfyUI in its own console/session, inheriting output."""
+"""Launch configured ComfyUI as a separate process, inheriting output."""
 
 import os
 import subprocess
@@ -14,12 +14,20 @@ def main():
     if not python.is_file() or not (runtime / "main.py").is_file():
         raise ValueError("Configured ComfyUI is incomplete. Run the installer first.")
     subprocess.Popen(
-        [str(python), str(Path(__file__).with_name("dev_comfy.py")), "--worker"],
-        creationflags=subprocess.CREATE_NEW_CONSOLE if os.name == "nt" else 0,
+        [
+            str(python),
+            str(Path(__file__).with_name("dev_comfy.py")),
+            "--worker",
+            "--",
+            *sys.argv[1:],
+        ],
+        creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
         start_new_session=os.name != "nt",
         cwd=runtime,
     )
-    print("ComfyUI launched. Its output stays in its own console/session.")
+    print(
+        "ComfyUI launched with API nodes disabled. Stop its process separately when finished."
+    )
 
 
 if __name__ == "__main__":

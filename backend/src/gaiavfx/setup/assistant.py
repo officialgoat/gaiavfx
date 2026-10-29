@@ -8,12 +8,8 @@ import zipfile
 from pathlib import Path, PurePosixPath
 
 from gaiavfx.setup._runtime import host_os, manifest, read_setup, repo_root, require_x64
-from gaiavfx.setup._runtime_download import download
-
-try:
-    from gaiavfx.setup.manifest import Check, update_setup_file
-except ImportError:
-    from gaiavfx.setup._contract import Check, update_setup_file
+from gaiavfx.setup.download import download
+from gaiavfx.setup.manifest import Check, update_setup_file
 
 ALTERNATIVE = "Any OpenAI-compatible local endpoint (LM Studio, Ollama, vLLM) can be added in Settings instead."
 
@@ -109,7 +105,7 @@ def install(directory: Path, *, model_only=False, server_only=False) -> int:
     directory = directory.expanduser().resolve()
     keys = {}
     for item in install_plan(directory, model_only=model_only, server_only=server_only):
-        path = download(item["url"], item["destination"], item["sha256"])
+        path = download(item["url"], item["destination"], sha256=item["sha256"], verify=True)
         if item["kind"] == "server":
             extract_server(path, directory / "server")
         else:

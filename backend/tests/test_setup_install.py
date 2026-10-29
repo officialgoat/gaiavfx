@@ -91,6 +91,43 @@ def test_copy_and_link_failure_fallback(tmp_path, monkeypatch):
     assert not nodes.link_pack(source, tmp_path / "copy", copy=True)
 
 
+def test_node_requirements_suppress_script_location_warning(tmp_path, monkeypatch):
+    monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
+    pack = tmp_path / "custom_nodes/gaiavfx"
+    pack.mkdir(parents=True)
+    (pack / "requirements.txt").write_text("fixture==1\n")
+    monkeypatch.setattr(nodes, "python_path", lambda *args: tmp_path / "python")
+    monkeypatch.setattr(nodes, "link_pack", lambda *args, **kwargs: True)
+    commands = []
+    monkeypatch.setattr(nodes, "run", lambda args: commands.append(args))
+    assert (
+        nodes.install_nodes(
+            tmp_path,
+            manifest={
+                "node_packs": [
+                    {
+                        "name": "gaiavfx",
+                        "source": "local:comfy_nodes/gaiavfx",
+                        "requirements": True,
+                    }
+                ]
+            },
+        )
+        == 0
+    )
+    assert commands == [
+        [
+            tmp_path / "python",
+            "-m",
+            "pip",
+            "install",
+            "--no-warn-script-location",
+            "-r",
+            pack / "requirements.txt",
+        ]
+    ]
+
+
 def test_interpreter_detection_order(tmp_path):
     comfy = tmp_path / "ComfyUI"
     candidates = [
@@ -124,7 +161,9 @@ def test_git_comfy_install_uses_pins_without_starting(tmp_path, monkeypatch, cap
     assert not any("main.py" in str(call) for call in calls)
     assert read_setup_file()["comfy_dir"] == str(args.directory)
     assert read_setup_file()["comfy_url"] == "http://127.0.0.1:8999"
-    assert "--port 8999" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "--port 8999" in output
+    assert "--disable-api-nodes" in output
 
 
 def test_model_download_uses_shared_path_and_dry_run_is_read_only(tmp_path, monkeypatch, capsys):

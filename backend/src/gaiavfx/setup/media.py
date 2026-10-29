@@ -8,12 +8,8 @@ import zipfile
 from pathlib import Path
 
 from gaiavfx.setup._runtime import host_os, manifest, repo_root, require_x64, write_json
-from gaiavfx.setup._runtime_download import download, verify
-
-try:
-    from gaiavfx.setup.manifest import Check
-except ImportError:
-    from gaiavfx.setup._contract import Check
+from gaiavfx.setup.download import download
+from gaiavfx.setup.manifest import Check
 
 
 def archive_spec(system: str | None = None) -> dict:
@@ -63,8 +59,7 @@ def install() -> int:
     spec = archive_spec()
     target = Path(os.environ.get("GAIAVFX_MEDIA_DIR") or repo_root() / ".runtime/media")
     cache = repo_root() / ".cache/downloads" / spec["url"].rsplit("/", 1)[-1]
-    archive = download(spec["url"], cache, spec["sha256"])
-    verify(archive, spec["sha256"])
+    archive = download(spec["url"], cache, sha256=spec["sha256"], verify=True)
     extract_tools(archive, target)
     # Keep the redistribution notice alongside the two executables for portable builds.
     if zipfile.is_zipfile(archive):

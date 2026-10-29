@@ -7,11 +7,7 @@ import sys
 from pathlib import Path
 
 from gaiavfx.setup._runtime import read_setup
-
-try:
-    from gaiavfx.setup.manifest import update_setup_file
-except ImportError:
-    from gaiavfx.setup._contract import update_setup_file
+from gaiavfx.setup.manifest import update_setup_file
 
 
 def run_setup(*arguments):
@@ -25,6 +21,7 @@ def has_command(*arguments):
         [sys.executable, "-m", "gaiavfx.setup", *arguments, "--help"],
         capture_output=True,
         text=True,
+        check=False,
     )
     if result.returncode:
         print(
@@ -157,7 +154,7 @@ def main(argv=None):
                 print(
                     f"{row['status']:8} {row['feature']}/{row['item']}: {row['detail']}"
                 )
-                if row.get("fix"):
+                if row["status"] != "ok" and row.get("fix"):
                     print("  Fix: " + row["fix"])
         elif output:
             print(output, end="")

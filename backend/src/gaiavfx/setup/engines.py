@@ -15,11 +15,7 @@ from gaiavfx.setup._runtime import (
     workers_dir,
     write_json,
 )
-
-try:
-    from gaiavfx.setup.manifest import Check, update_setup_file
-except ImportError:
-    from gaiavfx.setup._contract import Check, update_setup_file
+from gaiavfx.setup.manifest import Check, update_setup_file
 
 
 def install_plan(root: Path, system: str | None = None) -> list[list[str]]:

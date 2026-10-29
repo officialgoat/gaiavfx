@@ -53,7 +53,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument(
+        "arguments", nargs=argparse.REMAINDER, help="Extra ComfyUI arguments after --"
+    )
     args = parser.parse_args()
+    extra = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
     try:
         config = configured_runtime(args.config)
     except (OSError, ValueError, KeyError) as exc:
@@ -71,6 +75,8 @@ def main():
                 str(Path(__file__).resolve()),
                 *(["--config", str(args.config.resolve())] if args.config else []),
                 "--worker",
+                "--",
+                *extra,
             ],
             cwd=ROOT,
             stdin=subprocess.DEVNULL,
@@ -129,7 +135,9 @@ def main():
         "--port",
         str(config.get("port", 8195)),
         "--disable-auto-launch",
+        "--disable-api-nodes",
         *config.get("arguments", []),
+        *extra,
     ]
     runpy.run_path(str(runtime / "main.py"), run_name="__main__")
 

@@ -4,7 +4,6 @@ import hashlib
 import io
 import json
 import os
-import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -13,8 +12,8 @@ import httpx
 import pytest
 
 from gaiavfx.integrations.voice import engines as registry
-from gaiavfx.setup import _runtime_download as downloads
 from gaiavfx.setup import assistant, engines, media
+from gaiavfx.setup import download as downloads
 from gaiavfx.setup._runtime import manifest, python_path
 from gaiavfx.setup.engines import update_setup_file
 
@@ -23,12 +22,6 @@ from gaiavfx.setup.engines import update_setup_file
 def isolated_setup(tmp_path, monkeypatch):
     monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
     monkeypatch.delenv("GAIAVFX_ENGINES_ROOT", raising=False)
-
-
-@pytest.fixture
-def fallback_downloader(monkeypatch):
-    # Keep these temporary downloader tests offline when Brief B is present at merge.
-    monkeypatch.setitem(sys.modules, "gaiavfx.setup.download", None)
 
 
 @pytest.mark.parametrize("system,extension", [("Windows", ".zip"), ("Linux", ".tar.xz")])
@@ -62,21 +55,22 @@ def test_extract_exactly_two_tools(tmp_path, system):
     assert not (tmp_path / "escape").exists()
 
 
-def test_sha_mismatch_never_publishes(tmp_path, monkeypatch, fallback_downloader):
+def test_sha_mismatch_never_publishes(tmp_path):
     target = tmp_path / "binary"
     transport = httpx.MockTransport(lambda request: httpx.Response(200, content=b"wrong"))
-    with httpx.Client(transport=transport) as client:
-        monkeypatch.setattr(downloads.httpx, "stream", client.stream)
-        with pytest.raises(ValueError, match="SHA-256 mismatch"):
-            downloads.download("https://example.test/binary", target, "a" * 64)
+    with (
+        httpx.Client(transport=transport) as client,
+        pytest.raises(ValueError, match="SHA-256 mismatch"),
+    ):
+        downloads.download("https://example.test/binary", target, sha256="a" * 64, client=client)
     assert not target.exists()
-    assert not target.with_name("binary.partial").exists()
+    assert not target.with_name("binary.part").exists()
 
 
 @pytest.mark.parametrize("resume_supported", [True, False])
-def test_resumable_download(tmp_path, monkeypatch, resume_supported, fallback_downloader):
+def test_resumable_download(tmp_path, resume_supported):
     target = tmp_path / "binary"
-    target.with_name("binary.partial").write_bytes(b"abc")
+    target.with_name("binary.part").write_bytes(b"abc")
     content = b"abcdef"
 
     def response(request):
@@ -88,9 +82,11 @@ def test_resumable_download(tmp_path, monkeypatch, resume_supported, fallback_do
         )
 
     with httpx.Client(transport=httpx.MockTransport(response)) as client:
-        monkeypatch.setattr(downloads.httpx, "stream", client.stream)
         downloads.download(
-            "https://example.test/binary", target, hashlib.sha256(content).hexdigest()
+            "https://example.test/binary",
+            target,
+            sha256=hashlib.sha256(content).hexdigest(),
+            client=client,
         )
     assert target.read_bytes() == content
 
@@ -221,7 +217,8 @@ def test_assistant_plan(tmp_path, system, count):
 
 
 def test_assistant_install_keys_and_check(tmp_path, monkeypatch):
-    def fake_download(url, destination, digest):
+    def fake_download(url, destination, *, sha256, verify):
+        assert len(sha256) == 64 and verify
         destination.parent.mkdir(parents=True, exist_ok=True)
         destination.touch()
         return destination
