@@ -292,6 +292,21 @@ def test_unbound_subjects_use_names_and_need_no_identity_wording(cast):
     assert compiled.slots == ()
 
 
+@pytest.mark.parametrize("cast", [None, ()])
+def test_a_segment_with_no_cast_compiles_without_subjects(cast):
+    segment = plain_segment(
+        subjects=(), shots=(Shot("A ship passes under the bridge.", "", "", cast),), cut_frames=()
+    )
+    compiled = compile_prompt(segment, (), (), GRID, 0)
+    assert compiled.prompt.definitions == ("No reference subjects.",)
+    assert compiled.prompt.retention == ("Follow the authored direction.",)
+    assert "Production context: An empty pier." in compiled.text
+    assert "A ship passes under the bridge." in compiled.text
+    assert "Subjects in frame" not in compiled.text
+    assert "<Subject" not in compiled.text
+    assert compiled.slots == ()
+
+
 def test_bound_and_unbound_subjects_share_casts_but_only_bound_subjects_have_labels():
     segment = plain_segment(
         subjects=(
@@ -443,6 +458,7 @@ def test_media_guides_are_typed_listable_gaps(kind):
             "sheet_several_subjects",
         ),
         ((Subject("mara", "Mara", "a walker"),), (place_sheet(),), "sheet_unbound_subject"),
+        ((), (place_sheet(),), "sheet_no_subject"),
     ],
 )
 def test_each_sheet_gap_is_raised_with_its_own_code(subjects, pictures, code):

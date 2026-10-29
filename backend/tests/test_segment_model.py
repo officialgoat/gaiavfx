@@ -67,7 +67,6 @@ def test_cast_requires_known_distinct_subjects(cast, message):
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
-        ({"subjects": ()}, "at least one subject"),
         ({"shots": ()}, "one shot"),
         ({"cut_frames": (36,)}, "every shot"),
         ({"subjects": (Subject("mara", "Mara", ""),) * 2}, "subject ids are unique"),
@@ -86,6 +85,24 @@ def test_cast_requires_known_distinct_subjects(cast, message):
 def test_existing_segment_rules_remain(changes, message):
     with pytest.raises(ValueError, match=message):
         replace(segment(), **changes)
+
+
+def test_a_segment_may_have_no_cast():
+    authored = replace(segment(), subjects=(), shots=(Shot("A ship passes.", "", "", ()),))
+    assert authored.subjects == ()
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        {"speech": (Speech("mara", 0, "Hi.", "English"),)},
+        {"states": (State(0, "mara", "hood", "up"),)},
+        {"shots": (Shot("She walks.", "", "", ("mara",)),)},
+    ],
+)
+def test_a_segment_with_no_cast_names_nobody(changes):
+    with pytest.raises(ValueError, match="subject"):
+        replace(segment(), subjects=(), **changes)
 
 
 @pytest.mark.parametrize("kind", ["video", "audio"])

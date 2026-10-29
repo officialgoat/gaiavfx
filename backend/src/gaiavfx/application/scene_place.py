@@ -16,7 +16,7 @@ from gaiavfx.application.sets import STORE
 from gaiavfx.modules.direction.planning import Action, OpeningPlan
 from gaiavfx.modules.direction.techniques import Block
 
-SHEET_GAPS = frozenset({"sheet_several_subjects", "sheet_unbound_subject"})
+SHEET_GAPS = frozenset({"sheet_no_subject", "sheet_several_subjects", "sheet_unbound_subject"})
 
 
 @dataclass(frozen=True)

@@ -150,6 +150,13 @@ def gaps(
         found.append(
             CapabilityGap("several_sheets", "several place sheets have no tested H3 wording")
         )
+    if sheets and not segment.subjects:
+        found.append(
+            CapabilityGap(
+                "sheet_no_subject",
+                "a place sheet without a cast has no tested H3 wording",
+            )
+        )
     if sheets and len(segment.subjects) > 1:
         found.append(
             CapabilityGap(

@@ -315,6 +315,24 @@
   flex-direction: row;
   align-items: center;
 }
+/* Add segment: the movie's cast as ticks, laid out as Use a stage lists its choices. */
+.segment-cast {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.segment-cast legend {
+  margin-bottom: 6px;
+  padding: 0;
+  color: var(--muted);
+}
+.segment-cast p {
+  margin: 0;
+  font-size: 12px;
+}
 .properties-content dl {
   display: grid;
   grid-template-columns: 1fr 1.3fr;

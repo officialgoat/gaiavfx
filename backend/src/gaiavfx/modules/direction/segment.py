@@ -96,8 +96,9 @@ class Segment:
     states: tuple[State, ...] = ()
 
     def __post_init__(self):
-        if not self.subjects or not self.shots:
-            raise ValueError("a segment needs at least one subject and one shot")
+        # The cast may be empty (a segment with no actors); speech and states then have no speaker.
+        if not self.shots:
+            raise ValueError("a segment needs at least one shot")
         if len(self.cut_frames) != len(self.shots) - 1:
             raise ValueError("every shot after the first begins at a cut")
         if list(self.cut_frames) != sorted(set(self.cut_frames)):
