@@ -14,6 +14,7 @@ CORE = {
     "GaiaH3PowerShift",
     "GaiaH3LoraLoader",
     "GaiaH3MaskedSpan",
+    "GaiaH3ContinuityMasked",
     "GaiaH3ContinuityTrim",
     "GaiaSaveSetGeometry",
     "GaiaSaveStillGeometry",

@@ -9,7 +9,7 @@ from aiohttp import web
 from server import PromptServer
 
 from .audio import GaiaH3AudioVAE
-from .continuity import GaiaH3ContinuityTrim
+from .continuity import GaiaH3ContinuityMasked, GaiaH3ContinuityTrim
 from .geometry import GaiaSaveSetGeometry, GaiaSaveStillGeometry
 from .lora_loader import GaiaH3LoraLoader
 from .masked_span import GaiaH3MaskedSpan
@@ -36,6 +36,7 @@ _nodes = [
     GaiaH3PowerShift,
     GaiaH3LoraLoader,
     GaiaH3MaskedSpan,
+    GaiaH3ContinuityMasked,
     GaiaH3ContinuityTrim,
     GaiaSaveSetGeometry,
     GaiaSaveStillGeometry,
@@ -60,6 +61,7 @@ _DISPLAY_NAMES = {
     "GaiaH3PowerShift": "H3 Power Shift",
     "GaiaH3LoraLoader": "H3 LoRA Loader",
     "GaiaH3MaskedSpan": "H3 Masked Latent Spans",
+    "GaiaH3ContinuityMasked": "H3 Continuity Masked Handoff",
     "GaiaH3ContinuityTrim": "H3 Continuity Trim",
     "GaiaFaceScan": "Face Scan",
     "GaiaFaceCheck": "Face Check",

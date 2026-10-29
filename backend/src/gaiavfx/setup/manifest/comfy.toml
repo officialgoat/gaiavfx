@@ -17,7 +17,7 @@ torch_index = "https://download.pytorch.org/whl/cu130"
 [[node_packs]]
 name = "gaiavfx"
 source = "local:comfy_nodes/gaiavfx"
-classes = ["GaiaH3AudioVAE", "GaiaH3PowerShift", "GaiaH3LoraLoader", "GaiaH3MaskedSpan", "GaiaH3ContinuityTrim", "GaiaSaveSetGeometry", "GaiaSaveStillGeometry", "GaiaFaceScan", "GaiaFaceCheck"]
+classes = ["GaiaH3AudioVAE", "GaiaH3PowerShift", "GaiaH3LoraLoader", "GaiaH3MaskedSpan", "GaiaH3ContinuityMasked", "GaiaH3ContinuityTrim", "GaiaSaveSetGeometry", "GaiaSaveStillGeometry", "GaiaFaceScan", "GaiaFaceCheck"]
 features = ["core", "recast", "stages"]
 requirements = true
 requirements_note = "Face nodes are optional outside Recast. Install insightface==2.1 and onnxruntime==1.30.0 in ComfyUI Python. InsightFace 2.1 publishes a universal wheel; if installation fails, use that wheel from PyPI and restart ComfyUI."
@@ -261,7 +261,7 @@ note = "Dispatcher hashed the workstation files on 29 Oct: sha256 equals the pub
 
 [features.core]
 core_classes = ["BasicGuider", "CLIPLoader", "CreateVideo", "KSamplerSelect", "LoadImage", "MiniMaxH3AddGuide", "MiniMaxH3ReferenceToVideo", "MiniMaxH3SigmaShift", "RandomNoise", "SamplerCustomAdvanced", "SaveVideo", "UNETLoader", "VAEDecodeAudio", "VAEDecodeTiled", "VAELoader"]
-node_classes = ["GaiaH3AudioVAE", "GaiaH3ContinuityTrim", "GaiaH3PowerShift", "MiniMaxH3MotionContext", "MiniMaxH3MotionContextLoadLatent", "MiniMaxH3MotionContextSaveLatent", "VRAM_Debug"]
+node_classes = ["GaiaH3AudioVAE", "GaiaH3ContinuityMasked", "GaiaH3ContinuityTrim", "GaiaH3PowerShift", "MiniMaxH3MotionContext", "MiniMaxH3MotionContextLoadLatent", "MiniMaxH3MotionContextSaveLatent", "VRAM_Debug"]
 models = ["minimax_h3_ref2va_pruned_int8_convrot.safetensors", "minimax_h3_fl2va_pruned_int8_convrot.safetensors", "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors", "minimax_h3_video_vae_fp16.safetensors", "minimax_h3_audio_vae_fp32.safetensors"]
 
 [features.image-edit]
