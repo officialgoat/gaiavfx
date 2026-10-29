@@ -117,7 +117,9 @@ Point ComfyUI's `extra_model_paths.yaml` at shared model folders before installi
 
 The default assistant is [Swift 1.5 Qwen3.8-27B Q4_K_M](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GGUF), an UkisAI finetune, with its F16 vision projector (about 18.4 GB together). It uses pinned llama.cpp b10549. UkisAI's contributions use Swift Open License v1.0: free for individuals and organisations under US$1M gross annual revenue; above that, a separate enterprise licence is required. The base uses Apache-2.0. Review the publisher's licence before downloading.
 
-The public Unsloth Qwen3.8-27B UD-Q4_K_M base and projector remain available under Apache-2.0 (about 17.4 GB). Select them with `python -m gaiavfx.setup assistant install --model qwen3.8-base`; `--model swift-1.5` selects the default. Neither model is inference-qualified by this change.
+The public Unsloth Qwen3.8-27B UD-Q4_K_M base and projector remain available under Apache-2.0 (about 17.4 GB). Select them with `python -m gaiavfx.setup assistant install --model qwen3.8-base`; `--model swift-1.5` selects the default. The base model has not been run with GAIAVFX.
+
+On 29 October 2026, Swift 1.5 ran on the RTX 4090 with the app's own llama-server flags (32k context, q8_0 KV cache, flash attention): the model and projector loaded in 21.7 GB of VRAM and answered a text and an image request. On the agent's stage evaluation (nine scripted tasks, real local model, fake ComfyUI) it passed 8 of 9 tasks with no provider or context failures; the failing task is a known fixture issue.
 
 The tables below come from [the setup manifest](backend/src/gaiavfx/setup/manifest/comfy.toml); regenerate with `python scripts/update_readme_models.py`. Folder names are relative to `ComfyUI/models` unless mapped by extra model paths.
 
