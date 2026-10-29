@@ -90,6 +90,11 @@ def link_pack(source: Path, target: Path, *, copy: bool = False) -> bool:
     if target.exists() or target.is_symlink() or target.is_junction():
         if target.resolve() == source:
             return True
+        # A link from an earlier checkout holds no files of its own: point it at this one.
+        if target.is_symlink() or target.is_junction():
+            target.unlink() if target.is_symlink() else target.rmdir()
+            print(f"Re-linking {target.name} to {source}")
+            return link_pack(source, target, copy=copy)
         # Copies are repeatable when unmodified. Never overwrite an unrelated/local pack.
         if target.is_dir() and all(
             (target / p.relative_to(source)).is_file()

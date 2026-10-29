@@ -91,6 +91,18 @@ def test_copy_and_link_failure_fallback(tmp_path, monkeypatch):
     assert not nodes.link_pack(source, tmp_path / "copy", copy=True)
 
 
+def test_link_from_another_checkout_is_repointed(tmp_path):
+    old, new = tmp_path / "old", tmp_path / "new"
+    for checkout in (old, new):
+        checkout.mkdir()
+        (checkout / "node.py").write_text(checkout.name)
+    target = tmp_path / "custom_nodes" / "gaiavfx"
+    assert nodes.link_pack(old, target)
+    assert nodes.link_pack(new, target)
+    assert target.resolve() == new.resolve()
+    assert (old / "node.py").read_text() == "old"
+
+
 def test_interpreter_detection_order(tmp_path):
     comfy = tmp_path / "ComfyUI"
     candidates = [
