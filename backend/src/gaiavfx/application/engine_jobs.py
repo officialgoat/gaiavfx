@@ -190,9 +190,7 @@ def readiness(configured: str = "", registry_text: str | None = None) -> dict:
     Readiness is reported, never enforced here: a missing engine fails its job with the reason."""
     root = engines.engines_root(configured)
     source = (
-        "environment"
-        if os.environ.get("GAIAVFX_ENGINES_ROOT")
-        else ("setting" if configured else "none")
+        "environment" if os.environ.get("GAIAVFX_ENGINES_ROOT") else ("setting" if root else "none")
     )
     rows = []
     for engine in registry.load(registry_text).values():

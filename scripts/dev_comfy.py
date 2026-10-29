@@ -11,18 +11,53 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
+def configured_runtime(config_path=None):
+    if config_path is not None:
+        return json.loads(config_path.read_text(encoding="utf-8-sig"))["comfy"]
+    setup_path = Path(
+        os.environ.get("GAIAVFX_SETUP_FILE") or ROOT / ".runtime/setup.json"
+    )
+    if not setup_path.is_file():
+        raise ValueError(
+            "No ComfyUI configuration. Run the installer with --comfy-dir first."
+        )
+    settings = json.loads(setup_path.read_text(encoding="utf-8-sig"))
+    if not settings.get("comfy_dir"):
+        raise ValueError(
+            "No ComfyUI folder configured. Run the installer with --comfy-dir first."
+        )
+    runtime = Path(settings["comfy_dir"]).expanduser().resolve()
+    if not (runtime / "main.py").is_file() and (runtime / "ComfyUI/main.py").is_file():
+        runtime = runtime / "ComfyUI"
+    suffix = "Scripts/python.exe" if os.name == "nt" else "bin/python"
+    candidates = [
+        runtime.parent / "python_embeded/python.exe",
+        runtime / ".venv" / suffix,
+        runtime / "venv" / suffix,
+    ]
+    python = settings.get("comfy_python") or next(
+        (str(p) for p in candidates if p.is_file()), ""
+    )
+    if not python:
+        raise ValueError(
+            "No ComfyUI interpreter found; configure comfy_python in setup.json."
+        )
+    return {
+        "directory": str(runtime),
+        "python": python,
+        "port": settings.get("comfy_port", 8188),
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--config", type=Path, default=ROOT / ".cache/development-machine.json"
-    )
+    parser.add_argument("--config", type=Path)
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if not args.config.is_file():
-        parser.error(
-            "Missing machine configuration: provide --config with a JSON comfy object containing directory and python."
-        )
-    config = json.loads(args.config.read_text(encoding="utf-8-sig"))["comfy"]
+    try:
+        config = configured_runtime(args.config)
+    except (OSError, ValueError, KeyError) as exc:
+        parser.error(str(exc))
     runtime = Path(config["directory"]).resolve()
     python = Path(config["python"]).resolve()
     if not python.is_file() or not (runtime / "main.py").is_file():
@@ -34,8 +69,7 @@ def main():
             [
                 str(python),
                 str(Path(__file__).resolve()),
-                "--config",
-                str(args.config.resolve()),
+                *(["--config", str(args.config.resolve())] if args.config else []),
                 "--worker",
             ],
             cwd=ROOT,

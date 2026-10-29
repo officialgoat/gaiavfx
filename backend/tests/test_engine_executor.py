@@ -364,7 +364,8 @@ def test_resolve_builds_the_command_from_the_engine_home(tmp_path, monkeypatch):
         str(workers / "fake_worker.py"),
     )
     assert command.home == str(root / "fake")
-    assert command.programs == {"cli": str(root / "fake" / "bin" / "cli.exe")}
+    # Missing override tools may now fall back to the repo runtime or PATH.
+    assert command.programs["cli"] == str(root / "fake" / "bin" / "cli.exe")
     # The app's media tools, once installed, are every engine's ffmpeg and ffprobe too.
     tools = MediaTools(media)
     media.mkdir()

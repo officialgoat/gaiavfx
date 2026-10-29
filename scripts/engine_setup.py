@@ -253,7 +253,11 @@ def probe(
             report[name] = {"state": "not adopted"}
             continue
         environment = (
-            known[name].environment if name in known else "env/Scripts/python.exe"
+            known[name].environment
+            if name in known
+            else "env/Scripts/python.exe"
+            if os.name == "nt"
+            else "env/bin/python"
         )
         command = [
             str(home / environment),

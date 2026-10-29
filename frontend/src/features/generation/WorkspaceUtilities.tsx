@@ -279,7 +279,7 @@ function EngineReadiness() {
       <p className="small muted" role="status">
         {root
           ? `Using ${root}${root_source === "environment" ? " (from GAIAVFX_ENGINES_ROOT)" : ""}.`
-          : "No engines folder yet. Run scripts/engine_setup.py adopt, then enter its folder here."}
+          : "No engines folder yet. Run npm run setup -- engines install worldbuilder. Voice engines are experimental and need manual setup."}
       </p>
       {rows.length > 0 && (
         <ul className="engine-readiness" aria-label="Local engines">

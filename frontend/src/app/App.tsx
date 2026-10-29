@@ -386,7 +386,7 @@ export function App() {
         <div className="studio-application">
           <header className="studio-titlebar">
             <div className="studio-brand">
-              <Film size={16} strokeWidth={1.5} />
+              <span className="brand-symbol brand-symbol-small" aria-hidden="true" />
               GAIAVFX
             </div>
             {/* The page's one heading: the library and the open document. */}
@@ -635,7 +635,7 @@ export function App() {
             <main className="welcome">
               <div className="welcome-content">
                 <div className="welcome-symbol">
-                  <Film size={32} strokeWidth={1.25} />
+                  <span className="brand-symbol" role="img" aria-label="GAIAVFX" />
                 </div>
                 <h1>A home for your stories.</h1>
                 <p>

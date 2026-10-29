@@ -103,6 +103,7 @@ app
       minWidth: 720,
       minHeight: 600,
       title: "GAIAVFX",
+      icon: path.join(frontend, "brand", process.platform === "win32" ? "favicon.ico" : "app-icon.png"),
       backgroundColor: "#1b1d21",
       show: false,
       webPreferences: {

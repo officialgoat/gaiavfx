@@ -14,8 +14,10 @@
     "package:win": "node scripts/package.mjs",
     "check:contracts": "node scripts/contracts.mjs --check",
     "generate:contracts": "node scripts/contracts.mjs",
-    "setup:media": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/setup-media.ps1",
-    "check:hygiene": "node scripts/python.mjs scripts/check_hygiene.py"
+    "setup:media": "node scripts/python.mjs -m gaiavfx.setup media install",
+    "check:hygiene": "node scripts/python.mjs scripts/check_hygiene.py",
+    "setup": "node scripts/python.mjs -m gaiavfx.setup",
+    "doctor": "node scripts/python.mjs -m gaiavfx.setup doctor"
   },
   "dependencies": {
     "@fontsource/inter": "5.3.0",
@@ -45,5 +47,8 @@
     "typescript": "5.9.3",
     "vite": "8.3.0"
   },
-  "license": "GPL-3.0-or-later"
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=24"
+  }
 }

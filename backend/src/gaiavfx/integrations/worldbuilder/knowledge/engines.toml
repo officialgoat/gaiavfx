@@ -8,7 +8,7 @@ schema = 2
 
 [engines.worldbuilder]
 home = "worldbuilder"
-environment = "Scripts/python.exe"
+environment = { windows = "Scripts/python.exe", linux = "bin/python" }
 worker = "worldbuilder.py"
 packages = { torch = "2.4.1+cu124", gsplat = "1.5.3+pt24cu124", plyfile = "1.1.3", numpy = "1.26.4" }
 # Lays out a version's atlas from Library files, retracts keyframes and carves the map again: numpy on the CPU, the

@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import threading
@@ -89,17 +90,35 @@ class MediaTools:
         )
 
     def __init__(self, directory: Path | None = None):
-        if directory is None:
-            directory = Path(os.environ.get("GAIAVFX_MEDIA_DIR", ""))
-            if not os.environ.get("GAIAVFX_MEDIA_DIR"):
-                directory = (
-                    Path(sys.executable).parent.parent / "media"
-                    if getattr(sys, "frozen", False)
-                    else Path(__file__).resolve().parents[4] / ".runtime" / "media"
-                )
         suffix = ".exe" if os.name == "nt" else ""
-        self.ffmpeg = directory / ("ffmpeg" + suffix)
-        self.ffprobe = directory / ("ffprobe" + suffix)
+        runtime = (
+            Path(sys.executable).parent.parent / "media"
+            if getattr(sys, "frozen", False)
+            else Path(__file__).resolve().parents[4] / ".runtime" / "media"
+        )
+        directories = (
+            [directory]
+            if directory is not None
+            else [
+                *(
+                    [Path(os.environ["GAIAVFX_MEDIA_DIR"])]
+                    if os.environ.get("GAIAVFX_MEDIA_DIR")
+                    else []
+                ),
+                runtime,
+            ]
+        )
+
+        def locate(name):
+            for folder in directories:
+                candidate = folder / (name + suffix)
+                if candidate.is_file():
+                    return candidate
+            # An explicit directory is used by callers to select a particular tool pair.
+            found = shutil.which(name) if directory is None else None
+            return Path(found) if found else directories[0] / (name + suffix)
+
+        self.ffmpeg, self.ffprobe = locate("ffmpeg"), locate("ffprobe")
         self._processes = set()
         self._process_lock = threading.Lock()
         self._closing = False
@@ -142,7 +161,8 @@ class MediaTools:
     ) -> str:
         if not executable.is_file():
             raise ApplicationError(
-                "Media tools are missing. Run npm run setup:media before importing.", 503
+                "Media tools are missing. Run python -m gaiavfx.setup media install (or npm run setup:media) before importing.",
+                503,
             )
         try:
             with self.process(
