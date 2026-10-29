@@ -49,7 +49,8 @@ test("chat and polish in both layouts and themes", async ({
     await expect(
       page.getByRole("button", { name: "Razor tool", exact: true }),
     ).toBeEnabled();
-    await expect(page.locator(".track-row .track-label svg")).toHaveCount(8);
+    // Nine movie rows, the Continuation row (docs/CONTINUATION.md) among them.
+    await expect(page.locator(".track-row .track-label svg")).toHaveCount(9);
     await expect(
       page.getByRole("button", { name: "Play preview", exact: true }),
     ).toHaveCount(2);

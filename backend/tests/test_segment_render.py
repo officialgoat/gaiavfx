@@ -204,7 +204,9 @@ def test_segment_api_plan_render_and_target_validation(tmp_path, cut_count):
             graph = operation["jobs"][0]["graph"]
             # docs/CONTINUATION.md: an uncut continuation follows the rule to masked handoff; a cut keeps paired.
             assert ("masked_context" if not cuts else "motion_context") in graph
-            assert operation["request"]["continuation"]["method"] == ("paired" if cuts else "masked")
+            assert operation["request"]["continuation"]["method"] == (
+                "paired" if cuts else "masked"
+            )
             if not cuts:
                 assert "single continuous take" in json.dumps(graph).lower()
             assert operation["request"]["cut_ids"] == [c["id"] for c in cuts]
