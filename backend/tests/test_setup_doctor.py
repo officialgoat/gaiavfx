@@ -264,3 +264,19 @@ def test_runtime_dependencies_contribute_to_their_feature(monkeypatch):
     core = doctor.check_setup(gateway=FakeGateway(), features="core")
     assert "stages" not in doctor.verdicts(core)
     assert doctor.verdicts(core)["core"] == "ok"
+
+
+def test_doctor_hides_healthy_fixes_but_preserves_json(monkeypatch, capsys):
+    from gaiavfx.setup.cli import main
+
+    checks = [
+        Check("core", "ready", "ok", "Installed", "healthy fix"),
+        Check("core", "missing", "missing", "Absent", "missing fix"),
+    ]
+    monkeypatch.setattr(doctor, "check_setup", lambda *args, **kwargs: checks)
+    assert main(["doctor", "--features", "core"]) == 1
+    output = capsys.readouterr().out
+    assert "healthy fix" not in output
+    assert "Fix: missing fix" in output
+    assert main(["doctor", "--features", "core", "--json"]) == 1
+    assert json.loads(capsys.readouterr().out)[0]["fix"] == "healthy fix"

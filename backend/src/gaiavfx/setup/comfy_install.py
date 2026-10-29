@@ -20,7 +20,7 @@ def start_command(comfy_dir: Path, port: int = 8188) -> str:
     args = [interpreter]
     if interpreter.parent.name == "python_embeded":
         args.append("-s")
-    return command(*args, comfy_dir / "main.py", "--port", port)
+    return command(*args, comfy_dir / "main.py", "--port", port, "--disable-api-nodes")
 
 
 def install_comfy(args) -> int:

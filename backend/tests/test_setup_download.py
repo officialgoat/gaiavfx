@@ -1,10 +1,12 @@
 import hashlib
+import os
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import httpx
 import pytest
 
+from gaiavfx.setup import download as downloader
 from gaiavfx.setup.download import download
 
 DATA = b"small portable model fixture\n" * 200
@@ -127,3 +129,43 @@ def test_bad_content_range_does_not_append(tmp_path):
     ):
         download("https://example.test/file", target, size=len(DATA), sha256=SHA, client=client)
     assert partial.read_bytes() == DATA[:10]
+
+
+@pytest.mark.parametrize("terminal,known_size", [(False, True), (False, False), (True, True)])
+def test_progress_is_bounded_in_logs_and_reuses_terminal_line(
+    tmp_path, monkeypatch, capsys, terminal, known_size
+):
+    # Twenty chunks over 100 seconds: logs should report ten percent or 30 seconds,
+    # while an interactive terminal updates in place.
+    payload = b"x" * (20 * 1024 * 1024)
+    ticks = iter(range(0, 1000, 5))
+    monkeypatch.setattr(downloader.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(downloader.sys.stdout, "isatty", lambda: terminal)
+    monkeypatch.setattr(downloader.shutil, "get_terminal_size", lambda: os.terminal_size((40, 20)))
+    with httpx.Client(
+        transport=httpx.MockTransport(lambda _: httpx.Response(200, content=payload))
+    ) as client:
+        download(
+            "https://example.test/model",
+            tmp_path / "model",
+            size=len(payload) if known_size else 0,
+            sha256=hashlib.sha256(payload).hexdigest(),
+            client=client,
+        )
+    output = capsys.readouterr().out
+    assert "Verified model" in output
+    if terminal:
+        assert output.count("\r") >= 20
+        assert all(len(line) <= 39 for line in output.split("\r")[:-1])
+        assert output.count("\n") == 1
+    else:
+        assert "\r" not in output
+        assert len(output.splitlines()) == (11 if known_size else 4)
+
+
+def test_complete_runtime_partial_handles_range_not_satisfiable(tmp_path):
+    target = tmp_path / "runtime.zip"
+    target.with_suffix(".zip.part").write_bytes(DATA)
+    with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(416))) as client:
+        download("https://example.test/runtime", target, sha256=SHA, client=client)
+    assert target.read_bytes() == DATA

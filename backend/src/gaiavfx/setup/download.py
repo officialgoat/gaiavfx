@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
+import sys
 import time
 from contextlib import nullcontext
 from pathlib import Path
@@ -68,6 +70,9 @@ def download(
         headers["Authorization"] = "Bearer " + token
     started = time.monotonic()
     reported = started
+    reported_bucket = offset * 10 // size if size else 0
+    terminal = progress is print and sys.stdout.isatty()
+    line_width = 0
     received = 0
     with (
         (
@@ -75,6 +80,13 @@ def download(
         ) as transport,
         transport.stream("GET", url, headers=headers, follow_redirects=True) as response,
     ):
+        if response.status_code == 416 and offset:
+            if (not size or offset == size) and digest.hexdigest() == sha256:
+                part.replace(target)
+                progress(f"Verified {target.name}: {offset:,} bytes")
+                return target
+            part.unlink(missing_ok=True)
+            raise ValueError(f"Size or SHA-256 mismatch for {target.name}; retry the download.")
         response.raise_for_status()
         if response.status_code == 206:
             content_range = re.fullmatch(
@@ -89,6 +101,7 @@ def download(
                 raise ValueError(f"Size mismatch for {target.name}; discarded partial download")
         elif response.status_code == 200:
             offset = 0
+            reported_bucket = 0
             digest = hashlib.sha256()
         else:
             raise ValueError(
@@ -100,11 +113,24 @@ def download(
                 digest.update(chunk)
                 received += len(chunk)
                 now = time.monotonic()
-                if now - reported >= 1:
-                    progress(
-                        f"{target.name}: {offset + received:,}/{size or '?'} bytes, {received / max(now - started, 0.001):,.0f} bytes/s"
-                    )
+                bucket = (offset + received) * 10 // size if size else 0
+                due = (
+                    now - reported >= 0.25
+                    if terminal
+                    else bucket > reported_bucket or now - reported >= 30
+                )
+                if due:
+                    message = f"{target.name}: {offset + received:,}/{size or '?'} bytes, {received / max(now - started, 0.001):,.0f} bytes/s"
+                    if terminal:
+                        message = message[: max(1, shutil.get_terminal_size().columns - 1)]
+                        line_width = max(line_width, len(message))
+                        print(message.ljust(line_width), end="\r", flush=True)
+                    else:
+                        progress(message)
                     reported = now
+                    reported_bucket = bucket
+    if terminal and line_width:
+        print(" " * line_width, end="\r", flush=True)
     if (size and part.stat().st_size != size) or digest.hexdigest() != sha256:
         part.unlink(missing_ok=True)
         raise ValueError(

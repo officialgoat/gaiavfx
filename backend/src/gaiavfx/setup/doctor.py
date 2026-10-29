@@ -405,7 +405,7 @@ def doctor(args) -> int:
             for check in checks:
                 if check.feature == feature:
                     print(f"{check.status:9} {check.item:45} {check.detail}")
-                    if check.fix:
+                    if check.status != "ok" and check.fix:
                         print("  Fix: " + check.fix)
             print(
                 f"{feature}: {'ready' if verdict == 'ok' else 'setup incomplete (' + verdict + ')'}"
