@@ -46,6 +46,10 @@ def setup_file() -> Path:
     return Path(override).expanduser() if override else repo_root() / ".runtime" / "setup.json"
 
 
+def default_comfy_directory() -> Path:
+    return repo_root().resolve().parent / "ComfyUI"
+
+
 def comfy_directory(path: Path) -> Path:
     """Accept either the ComfyUI folder or the container created by portable install."""
     path = path.expanduser().resolve()

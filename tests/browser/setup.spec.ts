@@ -73,7 +73,7 @@ for (const theme of ["dark", "light"] as const) {
     await expect(panel.getByText("Recast", { exact: true })).toBeVisible();
     await expect(panel.getByText("Stages", { exact: true })).toBeVisible();
     await expect(
-      panel.getByText("Local runtimes", { exact: true }),
+      panel.getByText("Agent and tools", { exact: true }),
     ).toBeVisible();
     const summary = panel.locator("summary").filter({ hasText: "Core video" });
     await summary.focus();

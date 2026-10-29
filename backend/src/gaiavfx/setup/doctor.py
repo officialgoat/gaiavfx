@@ -16,9 +16,9 @@ import httpx
 from .comfy_install import start_command
 from .download import file_sha256
 from .manifest import (
-    FEATURES,
     Check,
     comfy_directory,
+    default_comfy_directory,
     load_manifest,
     read_setup_file,
     selected_features,
@@ -37,9 +37,12 @@ class HttpGateway:
             return response.json()
 
 
-def runtime_checks() -> list[Check]:
+def runtime_checks(features: list[str] | None = None) -> list[Check]:
     checks = []
+    stages = "stages" in (features or [])
+    defaults = read_setup_file()
     for name in ("engines", "assistant", "media"):
+        group = "stages" if name == "engines" and stages else "runtime"
         fix = (
             setup_command(name, "install", "worldbuilder")
             if name == "engines"
@@ -48,16 +51,22 @@ def runtime_checks() -> list[Check]:
         try:
             module = importlib.import_module(f"gaiavfx.setup.{name}")
             for check in module.check():
-                # Preserve feature dependencies (e.g. Stages needs Worldbuilder), and
-                # also list all runtime items together for setup and installation.
-                if check.feature in FEATURES:
+                skipped = name in {"engines", "assistant"} and defaults.get(
+                    "skip_stages_engine" if name == "engines" else "skip_assistant"
+                )
+                if skipped and check.status != "ok" and check.feature != "voice":
+                    check = replace(
+                        check, detail=check.detail + " Skipped during setup. Install later: " + fix
+                    )
+                if check.feature == "stages" and stages:
                     checks.append(check)
-                checks.append(replace(check, feature="runtime", item=f"{name}: {check.item}"))
+                else:
+                    checks.append(replace(check, feature="runtime", item=f"{name}: {check.item}"))
         except ModuleNotFoundError as exc:
             if exc.name != f"gaiavfx.setup.{name}":
                 checks.append(
                     Check(
-                        "runtime",
+                        group,
                         name,
                         "unknown",
                         f"Runtime checker dependency is missing: {exc.name}",
@@ -65,11 +74,19 @@ def runtime_checks() -> list[Check]:
                     )
                 )
             else:
-                checks.append(Check("runtime", name, "optional", "not available in this build"))
-        except Exception as exc:  # noqa: BLE001 -- one unavailable optional runtime must not break the doctor
+                checks.append(
+                    Check(
+                        group,
+                        name,
+                        "missing",
+                        "not available in this build",
+                        fix,
+                    )
+                )
+        except Exception as exc:  # noqa: BLE001 -- one unavailable runtime must not break the doctor
             checks.append(
                 Check(
-                    "runtime",
+                    group,
                     name,
                     "unknown",
                     f"Could not check {name}: {exc}",
@@ -128,7 +145,7 @@ def check_setup(
     known_dir = comfy_dir or (
         comfy_directory(Path(saved_dir)) if isinstance(saved_dir, str) and saved_dir else None
     )
-    target = known_dir or Path("ComfyUI")
+    target = known_dir or default_comfy_directory()
     install = setup_command("comfy", "install", target)
     nodes_fix = setup_command("nodes", "install", "--comfy-dir", target)
     baseline = manifest["comfyui"]
@@ -370,7 +387,7 @@ def check_setup(
     if include_runtime:
         checks.extend(
             check
-            for check in runtime_checks()
+            for check in runtime_checks(selected)
             if check.feature == "runtime" or check.feature in selected
         )
     return checks

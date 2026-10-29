@@ -18,18 +18,19 @@ For feature arrays, use a PowerShell prompt and invoke `install.ps1` directly as
 | `-InstallComfy DIR` | `--install-comfy DIR` | Install fresh ComfyUI; mutually exclusive with the preceding flag. |
 | `-Features core,image-edit,stages,recast` | `--features core image-edit stages recast` | Select weights and doctor checks; default is all four. Node installation still installs all packs. |
 | `-SkipModels` | `--skip-models` | Skip ComfyUI weights, including when a feature is selected. |
-| `-WithAssistant` | `--with-assistant` | Install the optional local Qwen GGUF, vision projector and llama.cpp. |
-| `-WithStagesEngine` | `--with-stages-engine` | Install the isolated worldbuilder environment and probe CUDA. |
+| `-SkipAssistant` | `--skip-assistant` | Skip the default local Swift GGUF, vision projector and llama.cpp installation. |
+| `-SkipStagesEngine` | `--skip-stages-engine` | Skip the default isolated worldbuilder environment and CUDA probe. |
+| `-WithAssistant` / `-WithStagesEngine` | `--with-assistant` / `--with-stages-engine` | Deprecated no-ops with a one-line note; skip flags take precedence. |
 | `-NonInteractive` | `--non-interactive` | Do not prompt; download selected weights unless skipped. Required when stdin is not a terminal. |
 
-Without non-interactive mode, the installer asks for ComfyUI location, model downloads and optional runtimes. With no ComfyUI location it can reuse the saved path; otherwise it skips ComfyUI setup. Existing local node-pack changes and commits are preserved, with a diagnostic rather than an overwrite.
+With a valid saved ComfyUI folder, interactive setup offers it first and as the default, followed by fresh install, another existing folder, and skip. Otherwise it offers (1) a fresh install in `<repo parent>/ComfyUI` (default), (2) an existing folder, or (3) skip. Model downloads show the total size for selected features and default to Yes; the assistant and stages engine prompts also default to Yes. The model prompt appears only after choosing a ComfyUI folder. Non-interactive setup installs the assistant and stages engine unless skipped, and reuses a valid saved ComfyUI folder unless `-ComfyDir` / `--comfy-dir` or `-InstallComfy` / `--install-comfy` overrides it. Missing or invalid saved folders are ignored with a note. Without a usable location, ComfyUI and its models are skipped. Skip messages include a platform-specific installer command to run from the repository root. Existing local node-pack changes and commits are preserved, with a diagnostic rather than an overwrite.
 
 The installer performs these steps in order:
 
 1. Check Git, uv and Node/npm; sync locked Python dependencies into `.venv`; install locked npm dependencies into `node_modules`.
 2. Install media tools into `.runtime/media`, then build the renderer into `dist/frontend`.
 3. Install/adopt ComfyUI; install custom nodes; download selected weights unless skipped.
-4. Save connection defaults; install requested worldbuilder and assistant runtimes.
+4. Save connection defaults; install worldbuilder and the assistant unless skipped.
 5. Run doctor and print remaining setup work. Stopped ComfyUI or deferred features may yield incomplete readiness without failing the installer; failed provisioning, downloads, builds or doctor errors still fail. Standalone doctor keeps its strict exit status.
 
 Nothing starts ComfyUI automatically during installation. Review model licences before downloading. Rerunning is supported: weights with matching sizes are reused (use `--verify` to hash existing weights), interrupted `.part` files resume, and fresh downloads are SHA-256 verified before publication. Logs emit progress at ten-percent boundaries or after 30 seconds; terminal progress updates in place.
@@ -52,7 +53,7 @@ The web workspace prints its local URL (normally port 5173). Create the named li
 
 ComfyUI uses the directory/interpreter saved in `.runtime/setup.json`; it discovers portable `python_embeded/python.exe`, `.venv` or `venv`. An explicit `comfy_python` key overrides discovery. The launcher defaults to port 8188; `comfy_port` overrides it. If changing ports, keep the saved `comfy_url` and the library's Settings URL in agreement. Launcher input/output/temp/user files live in `.cache/manual-development/comfy/`.
 
-The optional assistant is configured through Settings. The supplied Windows llama.cpp build includes CUDA runtime files. The Linux binary is CPU-only; build llama.cpp with CUDA for GPU acceleration or use an existing OpenAI-compatible local server. Avoid keeping another large model resident alongside H3.
+The assistant is configured through Settings. The supplied Windows llama.cpp build includes CUDA runtime files. The Linux binary is CPU-only; build llama.cpp with CUDA for GPU acceleration or use an existing OpenAI-compatible local server. Avoid keeping another large model resident alongside H3.
 
 ## Existing weights
 
@@ -89,7 +90,7 @@ usage: python -m gaiavfx.setup doctor [-h] [--comfy-url COMFY_URL]
                                       [--json]
 ```
 
-Read-only readiness checks. Defaults to all four feature groups plus runtime checks; select `core`, `image-edit`, `recast`, `stages` and/or `runtime` with `--features`. `--comfy-dir` adds local size checks; `--verify` hashes files and requires that directory. `--extra-model-paths` also requires `--comfy-dir`. `--json` prints the unchanged machine-readable check list, including fix fields even on healthy rows. Exit 0 means every selected feature is ready; exit 1 means incomplete setup. No files are written and no GPU work is run.
+Read-only readiness checks. Defaults to all four feature groups plus runtime checks; select `core`, `image-edit`, `recast`, `stages` and/or `runtime` with `--features`. `--comfy-dir` adds local size checks; `--verify` hashes files and requires that directory. `--extra-model-paths` also requires `--comfy-dir`. `--json` prints the unchanged machine-readable check list, including fix fields even on healthy rows. Exit 0 means every selected feature is ready; exit 1 means incomplete setup. No files are written and no GPU work is run. Engine, probe and CUDA rows appear under stages when stages is selected, otherwise under runtime. Runtime keeps the assistant, media and manual voice checks (labelled **Agent and tools** in the app). Missing assistant and stages engine installations are required gaps; explicitly skipped add-ons retain their diagnostic status and show how to install later.
 
 ### comfy install
 
@@ -98,6 +99,8 @@ usage: python -m gaiavfx.setup comfy install [-h] [--version TAG] [--git]
                                              [--cuda CUDA]
                                              DIR
 ```
+
+Targets inside the repository checkout are refused. Use `<repo parent>/ComfyUI`, for example `E:\ComfyUI` for a clone at `E:\gaiavfx`. From the repository root in PowerShell: `python -m gaiavfx.setup comfy install (Join-Path (Split-Path $PWD -Parent) 'ComfyUI')`; in Bash: `python -m gaiavfx.setup comfy install "$(dirname "$PWD")/ComfyUI"`.
 
 On Windows, installs the SHA-verified official portable build in `DIR/ComfyUI_windows_portable/`; caches its archive at `DIR/../.cache/gaiavfx/ComfyUI_windows_portable_nvidia.7z`. Windows uses built-in `tar.exe` for extraction. Linux and `--git` use a pinned Git checkout at `DIR`, create `DIR/.venv`, then install pinned PyTorch and ComfyUI requirements. `--version TAG` and `--cuda CUDA` override the Git route (CUDA accepts an index URL or a name such as `cu130`, `cu128` or `cpu`); portable uses the verified pinned version/CUDA only. Saves `comfy_dir` and `comfy_url` in setup.json and prints a start command with `--disable-api-nodes`. Does not start ComfyUI.
 
@@ -143,10 +146,15 @@ Caches the pinned archive in `.cache/downloads`, verifies it, then installs `ffm
 
 ```text
 usage: python -m gaiavfx.setup assistant install [-h] [--dir DIR]
+                                                 [--model {swift-1.5,qwen3.8-base}]
                                                  [--model-only | --server-only]
 ```
 
-Defaults to `.runtime/assistant`: archives under `downloads/`, extracted llama.cpp under `server/`, and the Qwen GGUF plus F16 vision projector under `models/`. Saves `assistant_executable`, `assistant_model` and `assistant_projector` in setup.json as applicable. `--model-only` and `--server-only` are mutually exclusive. Uses the public Unsloth Qwen3.8-27B UD-Q4_K_M model and pinned llama.cpp b10549; the model/projector total about 17.4 GB. Windows includes CUDA 12.4 runtime files; Linux is CPU-only. No server is started. The alternative gated orcarouter entries in runtime.toml have unresolved hashes/URLs and are not automatic installer choices.
+Defaults to `.runtime/assistant`: archives under `downloads/`, extracted llama.cpp under `server/`, and the GGUF plus F16 vision projector under `models/`. Saves the selected paths as `assistant_executable`, `assistant_model` and `assistant_projector` in setup.json as applicable. Doctor accepts either model. `--model-only` and `--server-only` are mutually exclusive.
+
+`--model swift-1.5` is the default: public UkisAI Swift 1.5 Qwen3.8-27B Q4_K_M and its projector, about 18.4 GB together, pinned to commit `14bfe4b42be4a925d98816db830155f476c605e7`. UkisAI's contributions use Swift Open License v1.0 (free for individuals and organisations under US$1M gross annual revenue; above that, a separate enterprise licence is required), on an Apache-2.0 base. See the [publisher's model repository](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GGUF) for terms.
+
+`python -m gaiavfx.setup assistant install --model qwen3.8-base` selects the public Unsloth Qwen3.8-27B UD-Q4_K_M and projector (Apache-2.0, about 17.4 GB). Both use pinned llama.cpp b10549. Windows includes CUDA 12.4 runtime files; Linux is CPU-only. No server is started. These model choices have not been inference-qualified by this change.
 
 ### engines install
 

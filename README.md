@@ -40,7 +40,7 @@ Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB R
 | stages | 66.1 GiB |
 | All 18 files, shared files counted once | **95.3 GiB (102.4 GB)** |
 
-Leave additional space for ComfyUI, download archives, Python environments, generated media and the optional assistant (about 17.4 GB of model/projector files).
+Leave additional space for ComfyUI, download archives, Python environments, generated media and the assistant (about 18.4 GB of model/projector files).
 
 On 29 October 2026, a fresh install using our CLI downloaded the official 2.0 GB portable archive, verified its SHA-256 and extracted it with Windows' built-in tar. Node installation took 40 s, including insightface and onnxruntime. Recast downloaded buffalo_l (196 MB, SHA verified) and reused other weights through `extra_model_paths.yaml`. Doctor reported core, image-edit and recast ready (146 checks ok). `engines install worldbuilder` then provisioned the stage engine (Python 3.10, torch 2.4.1 cu124, gsplat 1.5.3; a CUDA gsplat rasterization ran on the RTX 4090), after which doctor and the in-app Setup check reported all four features ready. A fresh `git clone` followed by `install.ps1 -ComfyDir … -SkipModels -NonInteractive` completed and ended with the doctor summary.
 
@@ -56,10 +56,10 @@ These prove the node, model and graph contract, **not output quality**. The stag
 
 ## Quick start
 
-From the repository root in PowerShell, choose **one** install command. Review the model licences before downloading. The first command downloads core and image-edit weights plus the local assistant; the second reuses an existing ComfyUI and defers model downloads.
+From the repository root in PowerShell, choose **one** install command. Review the model licences before downloading. The first command downloads core and image-edit weights plus the local assistant and stages engine; the second reuses an existing ComfyUI and defers model downloads.
 
 ```powershell
-.\install.ps1 -InstallComfy .runtime\ComfyUI -Features core,image-edit -WithAssistant -NonInteractive
+.\install.ps1 -InstallComfy (Join-Path (Split-Path $PWD -Parent) 'ComfyUI') -Features core,image-edit -NonInteractive
 # Or, with your existing ComfyUI:
 .\install.ps1 -ComfyDir 'C:\ComfyUI' -Features core,image-edit -SkipModels -NonInteractive
 
@@ -67,12 +67,19 @@ $env:GAIAVFX_LIBRARY = 'C:\GAIAVFX-Library'
 .\start.ps1 -WithComfy -ComfyArgs '--lowvram','--reserve-vram','4'
 ```
 
-Add `-WithStagesEngine` and include `stages` in `-Features` to provision stage building. Without `-WithAssistant`, configure an existing local assistant in Settings. `-SkipModels` skips only ComfyUI weights; explicit assistant/engine flags still install their runtimes. Without `-NonInteractive`, the installer prompts for optional downloads.
+The assistant and stages engine install by default. Include `stages` in `-Features` for its ComfyUI weights. `-SkipModels` skips only ComfyUI weights. Interactive setup defaults to the saved ComfyUI folder when it still contains ComfyUI, otherwise a fresh install in `<repo parent>/ComfyUI` and Yes for model, assistant and engine downloads. Non-interactive setup reuses a valid saved folder; otherwise pass `-ComfyDir` or `-InstallComfy` to install or use ComfyUI.
+
+| PowerShell | Linux / Python installer | Effect |
+|---|---|---|
+| `-SkipAssistant` | `--skip-assistant` | Skip the assistant; configure an existing local endpoint in Settings or install later. |
+| `-SkipStagesEngine` | `--skip-stages-engine` | Skip the worldbuilder stages engine. |
+| `-SkipModels` | `--skip-models` | Skip ComfyUI weights only. |
+| `-WithAssistant` / `-WithStagesEngine` | `--with-assistant` / `--with-stages-engine` | Deprecated no-ops; each prints a note. Skip flags take precedence. |
 
 Linux equivalents:
 
 ```bash
-bash install.sh --install-comfy .runtime/ComfyUI --features core image-edit --with-assistant --non-interactive
+bash install.sh --install-comfy "$(dirname "$PWD")/ComfyUI" --features core image-edit --non-interactive
 # Or, with your existing ComfyUI:
 bash install.sh --comfy-dir /opt/ComfyUI --features core image-edit --skip-models --non-interactive
 
@@ -80,7 +87,7 @@ export GAIAVFX_LIBRARY="$HOME/GAIAVFX-Library"
 bash start.sh --with-comfy --lowvram --reserve-vram 4
 ```
 
-The installer checks prerequisites, installs locked app dependencies, installs verified FFmpeg tools, builds the renderer, installs or connects ComfyUI, installs node packs and selected weights, then installs requested runtimes and prints doctor findings. It saves defaults in `.runtime/setup.json`. It does not start inference services. Start without `-WithComfy` / `--with-comfy` if ComfyUI is already running; a separately launched ComfyUI must be stopped separately.
+The installer checks prerequisites, installs locked app dependencies, installs verified FFmpeg tools, builds the renderer, installs or connects ComfyUI, installs node packs and selected weights, then installs the assistant and stages engine unless skipped and prints doctor findings. It saves defaults in `.runtime/setup.json`. It does not start inference services. Start without `-WithComfy` / `--with-comfy` if ComfyUI is already running; a separately launched ComfyUI must be stopped separately.
 
 In a second terminal, verify after ComfyUI has started:
 
@@ -107,6 +114,10 @@ python -m gaiavfx.setup nodes install --comfy-dir 'C:\ComfyUI'
 Point ComfyUI's `extra_model_paths.yaml` at shared model folders before installing weights. The downloader reuses matching files and writes missing files to the first configured folder. See the [YAML example and CLI reference](docs/INSTALL.md). The face nodes require buffalo_l in `ComfyUI/models/insightface/models/buffalo_l`; they ignore extra model paths. Restart ComfyUI after installing nodes or changing paths.
 
 ## Models and node packs
+
+The default assistant is [Swift 1.5 Qwen3.8-27B Q4_K_M](https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GGUF), an UkisAI finetune, with its F16 vision projector (about 18.4 GB together). It uses pinned llama.cpp b10549. UkisAI's contributions use Swift Open License v1.0: free for individuals and organisations under US$1M gross annual revenue; above that, a separate enterprise licence is required. The base uses Apache-2.0. Review the publisher's licence before downloading.
+
+The public Unsloth Qwen3.8-27B UD-Q4_K_M base and projector remain available under Apache-2.0 (about 17.4 GB). Select them with `python -m gaiavfx.setup assistant install --model qwen3.8-base`; `--model swift-1.5` selects the default. Neither model is inference-qualified by this change.
 
 The tables below come from [the setup manifest](backend/src/gaiavfx/setup/manifest/comfy.toml); regenerate with `python scripts/update_readme_models.py`. Folder names are relative to `ComfyUI/models` unless mapped by extra model paths.
 

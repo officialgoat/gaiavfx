@@ -74,63 +74,65 @@ def download(
     terminal = progress is print and sys.stdout.isatty()
     line_width = 0
     received = 0
-    with (
-        (
-            nullcontext(client) if client else httpx.Client(timeout=60, follow_redirects=True)
-        ) as transport,
-        transport.stream("GET", url, headers=headers, follow_redirects=True) as response,
-    ):
-        if response.status_code == 416 and offset:
-            if (not size or offset == size) and digest.hexdigest() == sha256:
-                part.replace(target)
-                progress(f"Verified {target.name}: {offset:,} bytes")
-                return target
-            part.unlink(missing_ok=True)
-            raise ValueError(f"Size or SHA-256 mismatch for {target.name}; retry the download.")
-        response.raise_for_status()
-        if response.status_code == 206:
-            content_range = re.fullmatch(
-                r"bytes (\d+)-(\d+)/(\d+|\*)", response.headers.get("content-range", "")
-            )
-            if not content_range or int(content_range[1]) != offset:
-                raise ValueError(
-                    f"Invalid resume response for {target.name}; kept partial download"
-                )
-            if size and content_range[3] != "*" and int(content_range[3]) != size:
+    try:
+        with (
+            (
+                nullcontext(client) if client else httpx.Client(timeout=60, follow_redirects=True)
+            ) as transport,
+            transport.stream("GET", url, headers=headers, follow_redirects=True) as response,
+        ):
+            if response.status_code == 416 and offset:
+                if (not size or offset == size) and digest.hexdigest() == sha256:
+                    part.replace(target)
+                    progress(f"Verified {target.name}: {offset:,} bytes")
+                    return target
                 part.unlink(missing_ok=True)
-                raise ValueError(f"Size mismatch for {target.name}; discarded partial download")
-        elif response.status_code == 200:
-            offset = 0
-            reported_bucket = 0
-            digest = hashlib.sha256()
-        else:
-            raise ValueError(
-                f"Unexpected download response {response.status_code} for {target.name}"
-            )
-        with part.open("ab" if offset else "wb") as stream:
-            for chunk in response.iter_bytes(1024 * 1024):
-                stream.write(chunk)
-                digest.update(chunk)
-                received += len(chunk)
-                now = time.monotonic()
-                bucket = (offset + received) * 10 // size if size else 0
-                due = (
-                    now - reported >= 0.25
-                    if terminal
-                    else bucket > reported_bucket or now - reported >= 30
+                raise ValueError(f"Size or SHA-256 mismatch for {target.name}; retry the download.")
+            response.raise_for_status()
+            if response.status_code == 206:
+                content_range = re.fullmatch(
+                    r"bytes (\d+)-(\d+)/(\d+|\*)", response.headers.get("content-range", "")
                 )
-                if due:
-                    message = f"{target.name}: {offset + received:,}/{size or '?'} bytes, {received / max(now - started, 0.001):,.0f} bytes/s"
-                    if terminal:
-                        message = message[: max(1, shutil.get_terminal_size().columns - 1)]
-                        line_width = max(line_width, len(message))
-                        print(message.ljust(line_width), end="\r", flush=True)
-                    else:
-                        progress(message)
-                    reported = now
-                    reported_bucket = bucket
-    if terminal and line_width:
-        print(" " * line_width, end="\r", flush=True)
+                if not content_range or int(content_range[1]) != offset:
+                    raise ValueError(
+                        f"Invalid resume response for {target.name}; kept partial download"
+                    )
+                if size and content_range[3] != "*" and int(content_range[3]) != size:
+                    part.unlink(missing_ok=True)
+                    raise ValueError(f"Size mismatch for {target.name}; discarded partial download")
+            elif response.status_code == 200:
+                offset = 0
+                reported_bucket = 0
+                digest = hashlib.sha256()
+            else:
+                raise ValueError(
+                    f"Unexpected download response {response.status_code} for {target.name}"
+                )
+            with part.open("ab" if offset else "wb") as stream:
+                for chunk in response.iter_bytes(1024 * 1024):
+                    stream.write(chunk)
+                    digest.update(chunk)
+                    received += len(chunk)
+                    now = time.monotonic()
+                    bucket = (offset + received) * 10 // size if size else 0
+                    due = (
+                        now - reported >= 0.25
+                        if terminal
+                        else bucket > reported_bucket or now - reported >= 30
+                    )
+                    if due:
+                        message = f"{target.name}: {offset + received:,}/{size or '?'} bytes, {received / max(now - started, 0.001):,.0f} bytes/s"
+                        if terminal:
+                            message = message[: max(1, shutil.get_terminal_size().columns - 1)]
+                            line_width = max(line_width, len(message))
+                            print(message.ljust(line_width), end="\r", flush=True)
+                        else:
+                            progress(message)
+                        reported = now
+                        reported_bucket = bucket
+    finally:
+        if terminal and line_width:
+            print(flush=True)
     if (size and part.stat().st_size != size) or digest.hexdigest() != sha256:
         part.unlink(missing_ok=True)
         raise ValueError(

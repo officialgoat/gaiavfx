@@ -5,6 +5,8 @@ param(
     [string]$InstallComfy,
     [string[]]$Features = @('core', 'image-edit', 'stages', 'recast'),
     [switch]$SkipModels,
+    [switch]$SkipAssistant,
+    [switch]$SkipStagesEngine,
     [switch]$WithAssistant,
     [switch]$WithStagesEngine,
     [switch]$NonInteractive
@@ -45,6 +47,8 @@ $installArgs = @('scripts/install.py', '--features') + $Features
 if ($ComfyDir) { $installArgs += @('--comfy-dir', $ComfyDir) }
 if ($InstallComfy) { $installArgs += @('--install-comfy', $InstallComfy) }
 if ($SkipModels) { $installArgs += '--skip-models' }
+if ($SkipAssistant) { $installArgs += '--skip-assistant' }
+if ($SkipStagesEngine) { $installArgs += '--skip-stages-engine' }
 if ($WithAssistant) { $installArgs += '--with-assistant' }
 if ($WithStagesEngine) { $installArgs += '--with-stages-engine' }
 if ($NonInteractive) { $installArgs += '--non-interactive' }

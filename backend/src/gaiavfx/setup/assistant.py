@@ -15,11 +15,19 @@ ALTERNATIVE = "Any OpenAI-compatible local endpoint (LM Studio, Ollama, vLLM) ca
 
 
 def install_plan(
-    directory: Path, system: str | None = None, *, model_only=False, server_only=False
+    directory: Path,
+    system: str | None = None,
+    *,
+    model_only=False,
+    server_only=False,
+    model="swift-1.5",
 ) -> list[dict]:
     if model_only and server_only:
         raise ValueError("Choose either --model-only or --server-only.")
     spec = manifest()["assistant"]
+    if model not in ("swift-1.5", "qwen3.8-base"):
+        raise ValueError("Unknown assistant model: " + model)
+    weights = spec if model == "swift-1.5" else spec["alternatives"][model]
     result = []
     if not model_only:
         for key in [host_os(system), "cudart"] if host_os(system) == "windows" else ["linux"]:
@@ -33,7 +41,11 @@ def install_plan(
     if not server_only:
         for key in ("model", "projector"):
             result.append(
-                {"kind": key, **spec[key], "destination": directory / "models" / spec[key]["file"]}
+                {
+                    "kind": key,
+                    **weights[key],
+                    "destination": directory / "models" / weights[key]["file"],
+                }
             )
     return result
 
@@ -100,11 +112,13 @@ def extract_server(archive: Path, target: Path) -> None:
         shutil.copytree(root, target, dirs_exist_ok=True)
 
 
-def install(directory: Path, *, model_only=False, server_only=False) -> int:
+def install(directory: Path, *, model_only=False, server_only=False, model="swift-1.5") -> int:
     require_x64()
     directory = directory.expanduser().resolve()
     keys = {}
-    for item in install_plan(directory, model_only=model_only, server_only=server_only):
+    for item in install_plan(
+        directory, model_only=model_only, server_only=server_only, model=model
+    ):
         path = download(item["url"], item["destination"], sha256=item["sha256"], verify=True)
         if item["kind"] == "server":
             extract_server(path, directory / "server")
@@ -146,16 +160,17 @@ def check() -> list[Check]:
 
 def register(subparsers):
     parser = subparsers.add_parser(
-        "assistant", help="Install the optional local assistant", description=ALTERNATIVE
+        "assistant", help="Install the local assistant", description=ALTERNATIVE
     )
     actions = parser.add_subparsers(dest="action", required=True)
     command = actions.add_parser("install", description=ALTERNATIVE)
     command.add_argument("--dir", type=Path, default=repo_root() / ".runtime/assistant")
+    command.add_argument("--model", choices=["swift-1.5", "qwen3.8-base"], default="swift-1.5")
     choice = command.add_mutually_exclusive_group()
     choice.add_argument("--model-only", action="store_true")
     choice.add_argument("--server-only", action="store_true")
     command.set_defaults(
         func=lambda args: install(
-            args.dir, model_only=args.model_only, server_only=args.server_only
+            args.dir, model_only=args.model_only, server_only=args.server_only, model=args.model
         )
     )

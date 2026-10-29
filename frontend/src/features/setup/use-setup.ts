@@ -10,7 +10,7 @@ export const featureNames: Record<string, string> = {
   "image-edit": "Image edit",
   recast: "Recast",
   stages: "Stages",
-  runtime: "Local runtimes",
+  runtime: "Agent and tools",
 };
 
 export const isGap = (check: SetupCheck) =>

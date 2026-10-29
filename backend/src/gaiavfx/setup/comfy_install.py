@@ -6,7 +6,16 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from .download import download
-from .manifest import comfy_directory, command, load_manifest, read_setup_file, update_setup_file
+from .manifest import (
+    comfy_directory,
+    command,
+    default_comfy_directory,
+    load_manifest,
+    read_setup_file,
+    repo_root,
+    setup_command,
+    update_setup_file,
+)
 from .nodes import checkout, python_path, run
 
 
@@ -26,6 +35,11 @@ def start_command(comfy_dir: Path, port: int = 8188) -> str:
 def install_comfy(args) -> int:
     baseline = load_manifest()["comfyui"]
     destination = args.directory.expanduser().resolve()
+    if destination.is_relative_to(repo_root().resolve()):
+        raise ValueError(
+            "ComfyUI must be installed outside the repository checkout. Use: "
+            + setup_command("comfy", "install", default_comfy_directory())
+        )
     tag = args.version or baseline["tag"]
     existing = comfy_directory(destination)
     portable = (existing.parent / "python_embeded/python.exe").is_file()

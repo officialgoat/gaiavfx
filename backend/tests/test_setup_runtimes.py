@@ -216,7 +216,8 @@ def test_assistant_plan(tmp_path, system, count):
         assistant.install_plan(tmp_path, system, server_only=True, model_only=True)
 
 
-def test_assistant_install_keys_and_check(tmp_path, monkeypatch):
+@pytest.mark.parametrize("model", ["swift-1.5", "qwen3.8-base"])
+def test_assistant_install_keys_and_check(tmp_path, monkeypatch, model):
     def fake_download(url, destination, *, sha256, verify):
         assert len(sha256) == 64 and verify
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -230,9 +231,18 @@ def test_assistant_install_keys_and_check(tmp_path, monkeypatch):
     monkeypatch.setattr(assistant, "download", fake_download)
     monkeypatch.setattr(assistant, "extract_server", fake_extract)
     update_setup_file(comfy_dir="existing")
-    assert assistant.install(tmp_path / "assistant") == 0
+    from gaiavfx.setup.cli import main
+
+    assert (
+        main(["assistant", "install", "--dir", str(tmp_path / "assistant"), "--model", model]) == 0
+    )
     settings = json.loads((tmp_path / "setup.json").read_text())
     assert settings["comfy_dir"] == "existing"
+    expected = manifest()["assistant"]
+    if model == "qwen3.8-base":
+        expected = expected["alternatives"][model]
+    assert Path(settings["assistant_model"]).name == expected["model"]["file"]
+    assert Path(settings["assistant_projector"]).name == expected["projector"]["file"]
     assert all(
         Path(settings[key]).is_file()
         for key in ("assistant_executable", "assistant_model", "assistant_projector")
@@ -267,3 +277,31 @@ def test_linux_server_materializes_internal_library_links(tmp_path):
     assistant.extract_server(archive, tmp_path / "server")
     library = tmp_path / "server/build/bin/libllama.so"
     assert library.read_bytes() == b"lib" and not library.is_symlink()
+
+
+def test_swift_manifest_exact_identity():
+    spec = manifest()["assistant"]
+    expected = {
+        "model": (
+            "Swift-1.5-Qwen3.8-27B-Q4_K_M.gguf",
+            17442399936,
+            "2ebba0ff1e63c1ac3fadd4e83efcea189f47f33ec72c91877af94de6ebe30590",
+        ),
+        "projector": (
+            "mmproj-Swift-1.5-Qwen3.8-27B-F16.gguf",
+            927606912,
+            "10a24dc46eb801ad794886ef27ea1e43634d35388dfaf2e2374b7a8b67faf526",
+        ),
+    }
+    for kind, (file, size, sha) in expected.items():
+        assert spec[kind]["file"] == file
+        assert spec[kind]["bytes"] == size
+        assert spec[kind]["sha256"] == sha
+        assert (
+            spec[kind]["url"]
+            == "https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GGUF/resolve/14bfe4b42be4a925d98816db830155f476c605e7/"
+            + file
+        )
+        assert "Swift Open License v1.0" in spec[kind]["license"]
+    assert "Uncensored" not in json.dumps(spec)
+    assert "gated_model" not in spec and "gated_mmproj" not in spec

@@ -157,7 +157,7 @@ def test_progress_is_bounded_in_logs_and_reuses_terminal_line(
     if terminal:
         assert output.count("\r") >= 20
         assert all(len(line) <= 39 for line in output.split("\r")[:-1])
-        assert output.count("\n") == 1
+        assert output.count("\n") == 2
     else:
         assert "\r" not in output
         assert len(output.splitlines()) == (11 if known_size else 4)
@@ -169,3 +169,30 @@ def test_complete_runtime_partial_handles_range_not_satisfiable(tmp_path):
     with httpx.Client(transport=httpx.MockTransport(lambda _: httpx.Response(416))) as client:
         download("https://example.test/runtime", target, sha256=SHA, client=client)
     assert target.read_bytes() == DATA
+
+
+def test_interrupt_ends_terminal_progress_and_preserves_partial(tmp_path, monkeypatch, capsys):
+    class InterruptedStream(httpx.SyncByteStream):
+        def __iter__(self):
+            yield b"x" * (1024 * 1024)
+            raise KeyboardInterrupt
+
+    ticks = iter(range(100))
+    monkeypatch.setattr(downloader.time, "monotonic", lambda: next(ticks))
+    monkeypatch.setattr(downloader.sys.stdout, "isatty", lambda: True)
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(lambda _: httpx.Response(200, stream=InterruptedStream()))
+        ) as client,
+        pytest.raises(KeyboardInterrupt),
+    ):
+        download(
+            "https://example.test/model",
+            tmp_path / "model",
+            size=2 * 1024 * 1024,
+            sha256="a" * 64,
+            client=client,
+        )
+    assert capsys.readouterr().out.endswith("\r\n")
+    assert (tmp_path / "model.part").stat().st_size == 1024 * 1024
+    assert not (tmp_path / "model").exists()

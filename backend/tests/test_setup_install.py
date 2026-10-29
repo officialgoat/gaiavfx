@@ -158,6 +158,8 @@ def test_interpreter_detection_order(tmp_path):
 
 
 def test_git_comfy_install_uses_pins_without_starting(tmp_path, monkeypatch, capsys):
+    # Keep the fixture checkout separate even when pytest temp files live in the repo.
+    monkeypatch.setattr(comfy_install, "repo_root", lambda: tmp_path / "app-checkout")
     monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
     monkeypatch.setenv("GAIAVFX_COMFY_URL", "http://127.0.0.1:8999")
     calls = []
@@ -238,6 +240,8 @@ def test_configure_and_missing_runtime_cli(tmp_path, monkeypatch, capsys):
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows portable profile")
 def test_portable_install_detects_embedded_python_and_is_repeatable(tmp_path, monkeypatch):
+    # Keep the fixture checkout separate even when pytest temp files live in the repo.
+    monkeypatch.setattr(comfy_install, "repo_root", lambda: tmp_path / "app-checkout")
     monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
     destination = tmp_path / "install"
     comfy = destination / "ComfyUI_windows_portable/ComfyUI"
@@ -270,6 +274,8 @@ def test_portable_install_detects_embedded_python_and_is_repeatable(tmp_path, mo
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows portable profile")
 def test_portable_extraction_failure_prints_recovery(tmp_path, monkeypatch):
+    # Keep the fixture checkout separate even when pytest temp files live in the repo.
+    monkeypatch.setattr(comfy_install, "repo_root", lambda: tmp_path / "app-checkout")
     monkeypatch.setattr(comfy_install, "download", lambda *_a, **_kw: None)
 
     def broken(args):
@@ -279,3 +285,27 @@ def test_portable_extraction_failure_prints_recovery(tmp_path, monkeypatch):
     args = argparse.Namespace(directory=tmp_path / "install", version=None, git=False, cuda=None)
     with pytest.raises(ValueError, match="7-Zip.*--git"):
         comfy_install.install_comfy(args)
+
+
+@pytest.mark.parametrize("relative", [".", "ComfyUI", ".runtime/ComfyUI"])
+def test_comfy_install_refuses_checkout_targets(tmp_path, monkeypatch, relative, capsys):
+    from gaiavfx.setup import manifest
+
+    monkeypatch.setattr(comfy_install, "repo_root", lambda: tmp_path)
+    monkeypatch.setattr(manifest, "repo_root", lambda: tmp_path)
+    monkeypatch.setattr(comfy_install, "download", lambda *a, **kw: pytest.fail("No download"))
+    assert cli.main(["comfy", "install", str(tmp_path / relative)]) == 1
+    assert str(tmp_path.parent / "ComfyUI") in capsys.readouterr().err
+
+
+def test_cli_interrupt_message(monkeypatch, capsys):
+    def interrupt(args):
+        print("progress", end="")
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(comfy_install, "install_comfy", interrupt)
+    assert cli.main(["comfy", "install", "unused"]) == 130
+    assert (
+        capsys.readouterr().err
+        == "\nCancelled. Run the same command again to resume partial downloads.\n"
+    )

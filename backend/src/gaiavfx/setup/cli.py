@@ -73,5 +73,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Setup failed: {exc}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
-        print("Setup cancelled. Partial downloads can be resumed.", file=sys.stderr)
+        print(
+            "\nCancelled. Run the same command again to resume partial downloads.", file=sys.stderr
+        )
         return 130

@@ -174,7 +174,7 @@ def test_api_cache_refresh_features_and_new_library_defaults(tmp_path, monkeypat
         engines_root=str(tmp_path / "engines"),
     )
     monkeypatch.setattr(
-        doctor, "runtime_checks", lambda: [Check("runtime", "media", "ok", "Ready")]
+        doctor, "runtime_checks", lambda _features: [Check("runtime", "media", "ok", "Ready")]
     )
     app = create_app(
         tmp_path / "library", Path(__file__).parents[1] / "migrations", "token", enable_runner=False
@@ -260,7 +260,7 @@ def test_runtime_dependencies_contribute_to_their_feature(monkeypatch):
 
     monkeypatch.setattr(doctor.importlib, "import_module", runtime)
     checks = doctor.check_setup(gateway=FakeGateway(), features="stages")
-    assert doctor.verdicts(checks) == {"stages": "missing", "runtime": "missing"}
+    assert doctor.verdicts(checks) == {"stages": "missing", "runtime": "ok"}
     core = doctor.check_setup(gateway=FakeGateway(), features="core")
     assert "stages" not in doctor.verdicts(core)
     assert doctor.verdicts(core)["core"] == "ok"
@@ -280,3 +280,85 @@ def test_doctor_hides_healthy_fixes_but_preserves_json(monkeypatch, capsys):
     assert "Fix: missing fix" in output
     assert main(["doctor", "--features", "core", "--json"]) == 1
     assert json.loads(capsys.readouterr().out)[0]["fix"] == "healthy fix"
+
+
+@pytest.mark.parametrize(
+    "features,group", [(["stages", "runtime"], "stages"), (["runtime"], "runtime")]
+)
+def test_engine_rows_once_in_doctor_cli_and_api(tmp_path, monkeypatch, capsys, features, group):
+    from gaiavfx.setup import assistant, engines, media
+    from gaiavfx.setup.cli import main
+
+    monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
+    monkeypatch.setattr(
+        engines,
+        "check",
+        lambda: (
+            [
+                Check("stages", item, "missing", "absent")
+                for item in ("worldbuilder", "probe", "CUDA")
+            ]
+            + [Check("voice", "voice engines", "optional", "manual")]
+        ),
+    )
+    monkeypatch.setattr(
+        assistant, "check", lambda: [Check("assistant", "model", "missing", "absent")]
+    )
+    monkeypatch.setattr(media, "check", lambda: [Check("media", "ffmpeg", "ok", "ready")])
+    monkeypatch.setattr(doctor, "HttpGateway", FakeGateway)
+    assert main(["doctor", "--features", *features, "--json"]) == 1
+    rows = json.loads(capsys.readouterr().out)
+    for item in ("worldbuilder", "probe", "CUDA"):
+        matched = [r for r in rows if r["item"].endswith(item)]
+        assert len(matched) == 1 and matched[0]["feature"] == group
+    assert main(["doctor", "--features", *features]) == 1
+    output = capsys.readouterr().out
+    for item in ("worldbuilder", "probe", "CUDA"):
+        assert output.count(item) == 1
+    app = create_app(
+        tmp_path / "library", Path(__file__).parents[1] / "migrations", "token", enable_runner=False
+    )
+    app.state.workspace.comfy = FakeGateway()
+    with TestClient(
+        app, base_url="http://localhost", headers={"Authorization": "Bearer token"}
+    ) as client:
+        assert client.post("/api/v1/library", json={"name": "Setup"}).status_code == 201
+        response = client.get("/api/v1/setup/status", params={"features": ",".join(features)})
+        assert response.status_code == 200
+        checks = [
+            row for feature in response.json()["features"].values() for row in feature["checks"]
+        ]
+        for item in ("worldbuilder", "probe", "CUDA"):
+            matched = [r for r in checks if r["item"].endswith(item)]
+            assert len(matched) == 1 and matched[0]["feature"] == group
+
+
+def test_comfy_fix_uses_absolute_outside_default(tmp_path, monkeypatch):
+    from gaiavfx.setup import manifest
+
+    root = tmp_path / "a repo's checkout"
+    monkeypatch.setattr(manifest, "repo_root", lambda: root)
+    monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
+    gateway = FakeGateway(lambda routes: routes.pop("/system_stats"))
+    row = doctor.check_setup(gateway=gateway, features="core", include_runtime=False)[0]
+    target = manifest.default_comfy_directory()
+    assert target.is_absolute() and not target.is_relative_to(root)
+    assert row.fix == manifest.setup_command("comfy", "install", target)
+
+
+def test_skipped_addons_remain_actionable(tmp_path, monkeypatch):
+    from gaiavfx.setup import assistant, engines
+
+    monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
+    update_setup_file(skip_assistant=True, skip_stages_engine=True)
+    monkeypatch.setattr(
+        assistant, "check", lambda: [Check("assistant", "model", "missing", "absent")]
+    )
+    monkeypatch.setattr(
+        engines, "check", lambda: [Check("stages", "worldbuilder", "missing", "absent")]
+    )
+    rows = doctor.runtime_checks(["stages"])
+    for row in rows:
+        if row.item in ("assistant: model", "worldbuilder"):
+            assert row.status == "missing"
+            assert "Skipped during setup. Install later: python -m gaiavfx.setup" in row.detail

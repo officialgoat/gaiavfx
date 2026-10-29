@@ -42,27 +42,33 @@ sha256 = "8c79a9b226de4b3cacfd1f83d24f962d0773be79f1e7b75c6af4ded7e32ae1d6"
 file = "cudart-llama-bin-win-cuda-12.4-x64.zip"
 
 [assistant.model]
+file = "Swift-1.5-Qwen3.8-27B-Q4_K_M.gguf"
+url = "https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GGUF/resolve/14bfe4b42be4a925d98816db830155f476c605e7/Swift-1.5-Qwen3.8-27B-Q4_K_M.gguf"
+sha256 = "2ebba0ff1e63c1ac3fadd4e83efcea189f47f33ec72c91877af94de6ebe30590"
+bytes = 17442399936
+license = "Swift Open License v1.0 (UkisAI contributions); Apache-2.0 base"
+note = "Public ungated Swift 1.5, UkisAI finetune of Qwen3.8-27B; pinned HF LFS identity. Swift contributions are free for individuals and organisations under US$1M gross annual revenue; above that, a separate enterprise licence is required. No inference qualification."
+
+[assistant.projector]
+file = "mmproj-Swift-1.5-Qwen3.8-27B-F16.gguf"
+url = "https://huggingface.co/ukisai/Swift-1.5-Qwen3.8-27B-GGUF/resolve/14bfe4b42be4a925d98816db830155f476c605e7/mmproj-Swift-1.5-Qwen3.8-27B-F16.gguf"
+sha256 = "10a24dc46eb801ad794886ef27ea1e43634d35388dfaf2e2374b7a8b67faf526"
+bytes = 927606912
+license = "Swift Open License v1.0 (UkisAI contributions); Apache-2.0 base"
+note = "Public ungated Swift 1.5, UkisAI finetune of Qwen3.8-27B; pinned HF LFS identity. Swift contributions are free for individuals and organisations under US$1M gross annual revenue; above that, a separate enterprise licence is required. No inference qualification."
+
+[assistant.alternatives."qwen3.8-base".model]
 file = "Qwen3.8-27B-UD-Q4_K_M.gguf"
 url = "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4ca720788d1e01f1bff70c033e0d0028fd02e502/Qwen3.8-27B-UD-Q4_K_M.gguf"
 sha256 = "322e194ff79741c7baa497c240f677f54b201b0efab44ca8e50f122b39123482"
 bytes = 16464440224
+license = "Apache-2.0"
 note = "Public ungated Qwen3.8-27B, Unsloth publisher; pinned HF LFS identity. No inference qualification."
 
-[assistant.projector]
+[assistant.alternatives."qwen3.8-base".projector]
 file = "mmproj-F16.gguf"
 url = "https://huggingface.co/unsloth/Qwen3.8-27B-GGUF/resolve/4ca720788d1e01f1bff70c033e0d0028fd02e502/mmproj-F16.gguf"
 sha256 = "cbb841a9ee0636b2ec172f5bb8df2ea8dfeb01e90fe7c6126581d662a0b4e43e"
 bytes = 927607488
+license = "Apache-2.0"
 note = "Public ungated Qwen3.8-27B, Unsloth publisher; pinned HF LFS identity. No inference qualification."
-
-[assistant.gated_model]
-file = "Qwen3.8-27B-Uncensored-Q4_K_M.gguf"
-url = ""
-sha256 = ""
-note = "Fallback from f7bb18d4 workstation handoff; file exists at documented location. Gated candidate matches exact filename and size, but anonymous HF LFS oid is masked and HEAD/raw return 401. No local hash record available. HF_TOKEN with accepted repository access is needed before identity can be verified; do not treat this as an install-ready entry. Alternative: orcarouter/Qwen3.8-27B-Uncensored-GGUF. Requires HF_TOKEN and accepted access; unresolved."
-
-[assistant.gated_mmproj]
-file = "mmproj-Qwen3.8-27B-Uncensored-f16.gguf"
-url = ""
-sha256 = ""
-note = "Fallback from f7bb18d4 workstation handoff; file exists at documented location. Gated candidate matches exact filename and size, but anonymous HF LFS oid is masked and HEAD/raw return 401. No local hash record available. HF_TOKEN with accepted repository access is needed before identity can be verified; do not treat this as an install-ready entry. Alternative: orcarouter/Qwen3.8-27B-Uncensored-GGUF. Requires HF_TOKEN and accepted access; unresolved."
