@@ -94,6 +94,12 @@ def corrupt_outcome(task_id, evidence, violation=None):
     elif task_id in {"drafts-structure-from-brief", "narrative-reverse-storyline"}:
         final["movie"]["segments"][1]["continues"] = False
         criterion = "reverse_continuation"
+    elif task_id in {"no-cast-no-actors", "cast-but-empty-shot"}:
+        final["movie"]["segments"][-1]["content"]["subjects"] = ["invented"]
+        criterion = "no_actor_segment"
+    elif task_id == "no-cast-names-people":
+        final["movie"]["segments"][-1]["content"]["subjects"] = []
+        criterion = "no_uncast_people"
     elif task_id in {"plan-propose-approve-execute", "draft-storyline-under-plan"}:
         doc["plan"]["state"] = "executing"
         criterion = "plan_completed"

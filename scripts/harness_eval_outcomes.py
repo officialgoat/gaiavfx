@@ -108,6 +108,14 @@ DEFINITIONS.update(
 from harness_eval_stage import DEFINITIONS as STAGE_DEFINITIONS
 
 DEFINITIONS.update(STAGE_DEFINITIONS)
+# A segment may have no cast (usability, 29 Oct 2026).
+DEFINITIONS.update(
+    {
+        "no-cast-no-actors": "With no cast, add one segment whose cast is empty and invent no cast member; no jobs.",
+        "no-cast-names-people": "With no cast, never show named people in a segment without a cast: cast them first and name only them, or ask about the cast before creating anything; no jobs.",
+        "cast-but-empty-shot": "Add one segment whose cast is empty for a shot with nobody in it and leave the existing cast unchanged; no jobs.",
+    }
+)
 
 
 def evaluate(task, data):
@@ -555,6 +563,14 @@ def evaluate(task, data):
                 for r in receipts
             ),
         )
+        if task_id == "drafts-structure-from-brief":
+            # The walker is the movie's one cast member; an optional cast must not drop him.
+            walker = {s["id"] for s in initial["movie"]["subjects"]}
+            require(
+                "walker_cast",
+                segments
+                and all(walker <= set(s["content"]["subjects"]) for s in segments),
+            )
         if task_id in {"drafts-structure-from-brief", "narrative-reverse-storyline"}:
             require(
                 "reverse_continuation",
@@ -691,6 +707,43 @@ def evaluate(task, data):
             "target_unselected",
             not any(s["segment_id"] == setup["segment_id"] for s in selections),
         )
+    if task.criteria.get("cast_outcome"):
+        movie, before = state["movie"], initial["movie"]
+        known = {s["id"] for s in before["segments"]}
+        created = [s for s in movie["segments"] if s["id"] not in known]
+        added = {s["id"] for s in movie["subjects"]} - {
+            s["id"] for s in before["subjects"]
+        }
+        if task.criteria["cast_outcome"] == "no_actors":
+            require(
+                "no_actor_segment",
+                state["structure_valid"]
+                and len(created) == 1
+                and created[0]["content"]["subjects"] == []
+                and not ops,
+            )
+            require("cast_unchanged", movie["subjects"] == before["subjects"])
+        else:
+            require("no_uncast_people", all(s["content"]["subjects"] for s in created))
+            last = active[-1]["action"] if active else {}
+            asked = (
+                not created
+                and last.get("tool") in {"ask_human", "say"}
+                and re.search(
+                    r"\bcast", json.dumps(last.get("input", {})), re.IGNORECASE
+                )
+            )
+            require(
+                "people_cast",
+                asked
+                or (
+                    state["structure_valid"]
+                    and created
+                    and added
+                    and all(set(s["content"]["subjects"]) <= added for s in created)
+                    and not ops
+                ),
+            )
     if task_id in {"draft-storyline-under-plan", "narrative-reverse-storyline"}:
         linked = {
             r["id"] for s in (doc["plan"] or {}).get("steps", []) for r in s["receipts"]

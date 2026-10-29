@@ -84,6 +84,7 @@ def dz_library(
     empty_movie=False,
     plan_mode=False,
     attachments=(),
+    no_cast=False,
 ):
     tmp_path.mkdir(parents=True, exist_ok=True)
     root = tmp_path / "library"
@@ -195,7 +196,7 @@ def dz_library(
             direction.set_plate(
                 session, place["id"], asset_id=plate_asset, angle_id=angles[0]["id"]
             )
-        if empty_movie:
+        if empty_movie and not no_cast:
             direction.add_subject(
                 session,
                 movie["id"],
@@ -205,6 +206,7 @@ def dz_library(
                 keeps=["plaid shirt"],
                 identity_asset_id=identity,
             )
+        if empty_movie:
             segment, cut = None, None
         else:
             segment_doc = deepcopy(authored("DZ")["segment"])
@@ -407,7 +409,10 @@ class Task:
             from harness_eval_outcomes import evaluate
 
             return evaluate(self, collect(work, setup, harness, recorder))[1]
-        if self.id in {"hard-cut-at-frame-36", "narrative-reverse-storyline"}:
+        if (
+            self.id
+            in {"hard-cut-at-frame-36", "narrative-reverse-storyline"} | CAST_IDS
+        ):
             from harness_eval_outcome_state import collect
             from harness_eval_outcomes import evaluate
 
@@ -1983,3 +1988,38 @@ STAGE_TASKS = tuple(
     )
 )
 TASKS += STAGE_TASKS
+
+# Usability (29 Oct 2026): a segment may have no cast. With no cast Gaia adds a segment with no actors, casts the
+# people a request names before showing them, and leaves an existing cast out of a shot with nobody in it.
+CAST_TASKS = (
+    Task(
+        "no-cast-no-actors",
+        "Does a movie with no cast get a segment with no actors?",
+        "Add a segment: a cargo ship passes under London Bridge at night. There are no people in it.",
+        10,
+        ("read_movie", "edit_segment", "say"),
+        {"empty_movie": True, "no_cast": True, "autonomy": "off"},
+        {"cast_outcome": "no_actors"},
+    ),
+    Task(
+        "no-cast-names-people",
+        "Are the people a request names cast before a segment shows them?",
+        "Add a segment: Harry Potter and his friends fly on their brooms through the night, "
+        "passing a ship closely under London Bridge.",
+        12,
+        ("read_movie", "edit_cast", "edit_segment", "say"),
+        {"empty_movie": True, "no_cast": True, "autonomy": "off"},
+        {"cast_outcome": "named_people"},
+    ),
+    Task(
+        "cast-but-empty-shot",
+        "Does a shot with nobody in it leave the movie's cast out?",
+        "Add a segment: the courtyard at dawn, empty, nobody in it.",
+        10,
+        ("read_movie", "edit_segment", "say"),
+        {"empty_movie": True, "autonomy": "off"},
+        {"cast_outcome": "no_actors"},
+    ),
+)
+CAST_IDS = {task.id for task in CAST_TASKS}
+TASKS += CAST_TASKS
