@@ -465,6 +465,23 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/setup/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Status */
+    get: operations["status_api_v1_setup_status_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/direction/movies": {
     parameters: {
       query?: never;
@@ -3737,6 +3754,25 @@ export interface components {
       frames_with_face: number;
       face: components["schemas"]["FaceDTO"] | null;
     };
+    /** Check */
+    Check: {
+      /** Feature */
+      feature: string;
+      /** Item */
+      item: string;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "ok" | "missing" | "mismatch" | "unknown" | "optional";
+      /** Detail */
+      detail: string;
+      /**
+       * Fix
+       * @default
+       */
+      fix: string;
+    };
     /** ChoiceDTO */
     ChoiceDTO: {
       /** Technique Id */
@@ -6964,6 +7000,25 @@ export interface components {
       /** Angle Ids */
       angle_ids: string[];
     };
+    /** SetupFeatureDTO */
+    SetupFeatureDTO: {
+      /**
+       * Verdict
+       * @enum {string}
+       */
+      verdict: "ok" | "missing" | "mismatch" | "unknown";
+      /** Checks */
+      checks: components["schemas"]["Check"][];
+    };
+    /** SetupStatusDTO */
+    SetupStatusDTO: {
+      /** Comfy Url */
+      comfy_url: string;
+      /** Features */
+      features: {
+        [key: string]: components["schemas"]["SetupFeatureDTO"];
+      };
+    };
     /** SheetInput */
     SheetInput: {
       /** Request Key */
@@ -8499,6 +8554,38 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ComfyStatusDTO"];
+        };
+      };
+    };
+  };
+  status_api_v1_setup_status_get: {
+    parameters: {
+      query?: {
+        features?: string | null;
+        refresh?: boolean;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SetupStatusDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
         };
       };
     };

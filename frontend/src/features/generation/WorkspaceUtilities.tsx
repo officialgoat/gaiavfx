@@ -24,6 +24,7 @@ export function ConnectionForm() {
       setDraft(value);
       client.setQueryData(["connections"], value);
       void client.invalidateQueries({ queryKey: ["comfy-status"] });
+      void client.invalidateQueries({ queryKey: ["setup-status"] });
       void client.invalidateQueries({ queryKey: ["engines"] });
       void client.invalidateQueries({ queryKey: ["voice-library"] });
     },
