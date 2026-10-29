@@ -1,0 +1,75 @@
+.telemetry-settings .studio-form {
+  gap: 12px;
+}
+.telemetry-settings p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.telemetry-settings label {
+  min-width: 0;
+}
+.telemetry-settings input:not([type="checkbox"]),
+.telemetry-settings select {
+  width: 100%;
+}
+.telemetry-delivery {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid var(--line);
+  padding-top: 16px;
+  margin-top: 4px;
+}
+.telemetry-delivery > button {
+  justify-self: start;
+}
+.telemetry-storage {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.telemetry-storage[open] {
+  display: grid;
+  gap: 12px;
+}
+.telemetry-storage > label {
+  margin-top: 12px;
+}
+.telemetry-unlock {
+  display: grid;
+  gap: 10px;
+}
+.telemetry-unlock button {
+  justify-self: start;
+}
+.telemetry-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+.telemetry-message svg {
+  flex: none;
+  margin-top: 3px;
+}
+.telemetry-settings .inline-actions {
+  flex-wrap: wrap;
+}
+.trace-links {
+  margin-block: 8px;
+}
+.trace-links .inline-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.trace-links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+}
+.trace-links a:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.trace-links p {
+  margin: 4px 0 0;
+  overflow-wrap: anywhere;
+}

@@ -1,0 +1,200 @@
+{
+ "schema": 1,
+ "description": "In-loop arcface_target (GaiaFaceCheck, composed sheet vs window frames) on close-up takes with the user's verdicts. Batch 6 (12 October 2026): RGB + FaceSwap takes the user saw as Nell; Batch 5 (11 October): the 058 draft the user flagged for identity. The bound sits between them.",
+ "accepted_min": 0.1861,
+ "accepted_max": 0.3742,
+ "rejected_max": 0.14,
+ "bound": 0.17,
+ "rankings": "calibration/data/recast-batch6-rankings-2026-10-13.json",
+ "takes": [
+  {
+   "shot": "s0057",
+   "window": 0,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3531,
+   "user_verdict": "usable (lighting and expression is better; eyes dont follow source properly)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0057",
+   "window": 1,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3513,
+   "user_verdict": "usable (lighting and expression is better; eyes dont follow source properly)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 0,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3398,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 0,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3388,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 0,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3742,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 1,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3175,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 1,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3156,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 1,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3231,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0060",
+   "window": 1,
+   "round": 2,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.3174,
+   "user_verdict": "usable (take D,A,B are all almost equally good; take D,A,B are all almost equally good; take D,A,B are all almost equally good; flickering)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0074",
+   "window": 0,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.2343,
+   "user_verdict": "not saved (single-version bench)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0074",
+   "window": 0,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.1983,
+   "user_verdict": "not saved (single-version bench)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0082",
+   "window": 0,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.2527,
+   "user_verdict": "usable (looks good)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0082",
+   "window": 0,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.258,
+   "user_verdict": "usable (looks good)",
+   "batch": "6"
+  },
+  {
+   "shot": "s0086",
+   "window": 0,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.2795,
+   "user_verdict": "not usable: we have some verry noticeable changes in face at 2.21 and 5.13s",
+   "batch": "6"
+  },
+  {
+   "shot": "s0086",
+   "window": 0,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.2467,
+   "user_verdict": "not usable: we have some verry noticeable changes in face at 2.21 and 5.13s",
+   "batch": "6"
+  },
+  {
+   "shot": "s0086",
+   "window": 1,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.2285,
+   "user_verdict": "not usable: we have some verry noticeable changes in face at 2.21 and 5.13s",
+   "batch": "6"
+  },
+  {
+   "shot": "s0086",
+   "window": 1,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.2786,
+   "user_verdict": "not usable: we have some verry noticeable changes in face at 2.21 and 5.13s",
+   "batch": "6"
+  },
+  {
+   "shot": "s0086",
+   "window": 2,
+   "round": 0,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.204,
+   "user_verdict": "not usable: we have some verry noticeable changes in face at 2.21 and 5.13s",
+   "batch": "6"
+  },
+  {
+   "shot": "s0086",
+   "window": 2,
+   "round": 1,
+   "arm": "rgb+faceswap",
+   "arcface_target": 0.1861,
+   "user_verdict": "not usable: we have some verry noticeable changes in face at 2.21 and 5.13s",
+   "batch": "6"
+  },
+  {
+   "shot": "s0057",
+   "window": 0,
+   "round": 0,
+   "arm": "inverted",
+   "arcface_target": 0.14,
+   "user_verdict": "identity flagged (Batch 5 app 058 draft)",
+   "batch": "5"
+  },
+  {
+   "shot": "s0057",
+   "window": 1,
+   "round": 0,
+   "arm": "inverted",
+   "arcface_target": 0.1341,
+   "user_verdict": "identity flagged (Batch 5 app 058 draft)",
+   "batch": "5"
+  }
+ ]
+}

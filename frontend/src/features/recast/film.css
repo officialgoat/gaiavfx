@@ -1,0 +1,1757 @@
+/* The film document on the track workspace (ADR 0017). Status colours always come with words in labels and titles. */
+:root {
+  --status-planned: color-mix(in srgb, var(--muted) 45%, transparent);
+  --status-queued: color-mix(in srgb, var(--accent) 35%, transparent);
+  --status-rendering: var(--accent);
+  --status-needs_review: var(--warning);
+  --status-approved: var(--success);
+  --status-kept_original: color-mix(in srgb, var(--success) 50%, transparent);
+  --status-gap: var(--danger);
+  --status-failed: var(--danger);
+  --status-unplanned: var(--line);
+  --status-analysing: color-mix(in srgb, var(--accent) 20%, transparent);
+  --status-excluded: transparent;
+  --status-absent: transparent;
+}
+
+.recast-trackbar {
+  container: trackbar / inline-size;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+  font-size: 11px;
+}
+.trackbar-steps {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.trackbar-steps > * {
+  flex: none;
+}
+.recast-trackbar > :not(.trackbar-steps) {
+  flex: none;
+}
+.trackbar-step {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--raised);
+  color: var(--text);
+  white-space: nowrap;
+}
+.trackbar-step strong {
+  font-weight: 400;
+  line-height: 1;
+}
+.trackbar-step small {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+}
+.trackbar-step[aria-disabled="true"] {
+  opacity: 1;
+  cursor: default;
+}
+.trackbar-step[aria-disabled="true"] strong {
+  color: var(--muted);
+}
+/* D2: a disabled step's reason, under the bar at the step's edge, so nothing in the bar moves. */
+.trackbar-step-reason {
+  position: absolute;
+  top: calc(100% + 3px);
+  /* Above the sticky ruler (5) and the pinned tool track (4) it overlaps. */
+  z-index: 30;
+  margin: 0;
+  padding: 3px 7px;
+  max-width: 420px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--raised);
+  color: var(--text);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+.trackbar-step-reason:empty {
+  display: none;
+}
+.step-review:not([aria-disabled="true"]) {
+  border-color: var(--warning);
+}
+.step-review:not([aria-disabled="true"]) small {
+  color: var(--warning);
+}
+.trackbar-gaps {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  /* Solid: a dashed outline is the app's drop-target signal. */
+  border: 1px solid color-mix(in srgb, var(--danger) 55%, var(--line));
+  border-radius: 3px;
+  background: transparent;
+  color: var(--danger);
+  white-space: nowrap;
+}
+.trackbar-range {
+  position: relative;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.trackbar-range > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.trackbar-range > summary::-webkit-details-marker {
+  display: none;
+}
+.trackbar-range > summary b {
+  font-weight: 400;
+  color: var(--text);
+}
+.trackbar-range-panel {
+  left: 0;
+  right: auto;
+  width: 230px;
+  gap: 4px;
+  padding: 6px;
+}
+.trackbar-range-panel > button {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 8px;
+  border-radius: 3px;
+  text-align: left;
+}
+.trackbar-range-panel > button:hover:not(:disabled) {
+  background: var(--hover);
+}
+.trackbar-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.trackbar-main small {
+  color: var(--muted);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.trackbar-main .primary-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 0;
+  height: 24px;
+  padding: 0 12px;
+  border-radius: 3px;
+}
+.range-dash {
+  display: none;
+}
+.trackbar-more {
+  position: relative;
+}
+.trackbar-more > summary {
+  list-style: none;
+  width: 26px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  cursor: pointer;
+}
+.trackbar-more > summary::-webkit-details-marker {
+  display: none;
+}
+.trackbar-panel {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+.trackbar-panel label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.trackbar-panel .recast-estimate {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+}
+.trackbar-panel .recast-estimate small {
+  color: var(--muted);
+}
+
+.film-analysis {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--accent) 8%, var(--panel));
+}
+.film-analysis progress {
+  width: 120px;
+}
+
+.tool-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+}
+.tool-header svg {
+  margin: 0;
+}
+.tool-header small {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--muted);
+}
+.cast-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+.cast-face {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--raised);
+}
+.cast-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cast-names strong {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.target-chip {
+  font-size: 10px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.target-chip.proposed {
+  color: var(--warning);
+}
+.target-chip.empty {
+  color: var(--subtle);
+}
+
+.track-row[data-row="shots"] {
+  min-height: 48px;
+}
+.track-row[data-row="takes"] {
+  min-height: 37px;
+}
+.track-item.shot-item {
+  padding: 0;
+  gap: 4px;
+  background: var(--phase);
+  overflow: hidden;
+}
+/* The matte frames a thumbnail; without one (a whole-film zoom) the shot is a quiet block, not a black band. */
+.track-item.shot-item:has(img) {
+  background: var(--image-matte);
+}
+.track-item.shot-item img {
+  height: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  flex: none;
+}
+.track-item.shot-item span {
+  padding-right: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.track-item.shot-item.excluded {
+  opacity: 0.45;
+}
+.track-item.status-cell {
+  padding: 0 5px;
+  border-width: 0;
+  background: var(--status-planned);
+}
+/* The Recast tool track: its own row is a thin status line under the header; its lanes are compact bars. */
+.timeline-pinned > .track-row:first-child {
+  min-height: 27px;
+}
+.timeline-pinned .sub-row {
+  min-height: 26px;
+}
+.timeline-pinned .track-position {
+  top: 4px;
+  bottom: 4px;
+}
+.timeline-pinned > .track-row:first-child .track-position {
+  top: auto;
+  bottom: 3px;
+  height: 4px;
+}
+.status-word {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--bg);
+  font-size: 10px;
+}
+.track-item.status-queued,
+.track-item.status-unplanned,
+.track-item.status-analysing,
+.track-item.status-planned {
+  background: var(--status-planned);
+}
+.track-item.status-queued .status-word,
+.track-item.status-unplanned .status-word,
+.track-item.status-analysing .status-word,
+.track-item.status-planned .status-word {
+  color: var(--text);
+}
+.track-item.status-rendering {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--status-rendering) 0 4px,
+    color-mix(in srgb, var(--status-rendering) 55%, transparent) 4px 8px
+  );
+}
+.track-item.status-needs_review {
+  background: var(--status-needs_review);
+}
+.track-item.status-approved {
+  background: var(--status-approved);
+}
+.track-item.status-kept_original {
+  background: var(--status-kept_original);
+}
+.track-item.status-gap,
+.track-item.status-failed {
+  background: transparent;
+  border: 1px solid var(--danger);
+}
+.track-item.status-gap .status-word,
+.track-item.status-failed .status-word {
+  color: var(--danger);
+}
+.track-item.status-excluded,
+.track-item.status-absent {
+  background: transparent;
+  border: 1px dotted var(--line);
+}
+.span-strip {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.status-strip {
+  position: absolute;
+  left: 0;
+  bottom: 3px;
+  height: 4px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+.track-item.take-item {
+  justify-content: center;
+  background: var(--raised);
+}
+.track-item.take-needs_review {
+  background: color-mix(in srgb, var(--warning) 30%, var(--panel));
+  border-color: var(--warning);
+}
+.track-item.take-approved,
+.track-item.take-kept_original {
+  background: color-mix(in srgb, var(--success) 25%, var(--panel));
+  border-color: var(--success);
+}
+.track-item.take-rendering {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--raised) 0 6px,
+    color-mix(in srgb, var(--accent) 25%, var(--raised)) 6px 12px
+  );
+}
+.track-item.take-failed {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+/* Each Cast lane keeps its own colour, like a clip colour; the face shows where the character is seen. */
+.track-item.cast-item {
+  --lane: var(--accent);
+  padding: 2px 6px 2px 2px;
+  justify-content: flex-start;
+  gap: 8px;
+  background: color-mix(in srgb, var(--lane) 18%, var(--panel));
+  border-color: color-mix(in srgb, var(--lane) 30%, var(--line));
+  color: var(--text);
+  overflow: hidden;
+}
+.track-item.cast-item.lane-1 {
+  --lane: var(--success);
+}
+.track-item.cast-item.lane-2 {
+  --lane: var(--warning);
+}
+.track-item.cast-item.lane-3 {
+  --lane: var(--danger);
+}
+.track-item.cast-item.mapped {
+  background: color-mix(in srgb, var(--lane) 38%, var(--panel));
+  border-color: color-mix(in srgb, var(--lane) 55%, var(--line));
+}
+.track-item.cast-item img {
+  height: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 2px;
+  flex: none;
+}
+.track-item.cast-item span {
+  font-variant-numeric: tabular-nums;
+}
+.track-item.window-item {
+  background: color-mix(in srgb, var(--muted) 35%, var(--panel));
+  border-color: transparent;
+}
+.track-item.window-running {
+  background: repeating-linear-gradient(
+    -45deg,
+    color-mix(in srgb, var(--success) 45%, var(--panel)) 0 4px,
+    color-mix(in srgb, var(--success) 25%, var(--panel)) 4px 8px
+  );
+}
+.track-item.window-succeeded {
+  background: color-mix(in srgb, var(--success) 35%, var(--panel));
+}
+.track-item.pass-item {
+  background: color-mix(in srgb, var(--muted) 35%, var(--panel));
+  border-color: transparent;
+}
+
+.film-project dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 12px;
+  margin: 12px;
+  font-size: 12px;
+}
+.film-project dt {
+  color: var(--muted);
+}
+.film-monitor-placeholder {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  background: var(--image-matte);
+}
+.film-monitor-placeholder img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+/* A running recast in the status bar: beside the film's summary, its dot the only colour. */
+.status-task {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 24px 0 auto;
+  color: var(--text);
+}
+.status-task::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.film-project h3 {
+  margin: 12px 12px 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.film-project > p {
+  margin: 0 12px 8px;
+  font-size: 11px;
+}
+
+/* Row headers that select what they name: the Recast tool and each character. */
+button.tool-header,
+button.cast-header {
+  min-width: 0;
+  padding: 2px 4px;
+  margin-left: -4px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+button.tool-header:hover,
+button.cast-header:hover {
+  background: var(--hover);
+}
+button.tool-header:focus-visible,
+button.cast-header:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* A long film's Shots bin lays out only the rows in view. */
+.film-project .project-record[data-shot-id] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 52px;
+}
+.film-project .project-record[aria-pressed="true"] {
+  background: var(--selected);
+}
+
+/* Program monitor: the comparison fills the well like any monitor's picture; the wipe is dragged anywhere on it and
+   its line shows position and focus. */
+.program-compare {
+  position: relative;
+}
+.program-compare .recast-wipe {
+  flex: 1;
+  aspect-ratio: auto;
+  min-width: 0;
+  min-height: 0;
+}
+.program-compare .recast-wipe-slider {
+  top: 0;
+  bottom: 0;
+  height: 100%;
+  opacity: 0;
+  cursor: ew-resize;
+}
+.program-compare
+  .recast-wipe:has(.recast-wipe-slider:focus-visible)
+  .recast-wipe-line {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.program-compare > p[role="alert"] {
+  position: absolute;
+  inset: auto 8px 8px;
+  margin: 0;
+}
+.film-program .monitor-transport [aria-pressed="true"] {
+  color: var(--accent);
+}
+
+/* Properties cards for the film. */
+.film-properties {
+  padding: 10px 12px 16px;
+  overflow: auto;
+}
+.film-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+}
+.film-card > header {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.film-card > header img {
+  width: 96px;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 3px;
+  flex: none;
+}
+.film-card h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+}
+.film-card h3 {
+  margin: 8px 0 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+}
+.film-card h3 small {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--subtle);
+}
+.film-card p {
+  margin: 0;
+}
+.film-card dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 10px;
+  margin: 6px 0 0;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.film-card dt {
+  color: var(--muted);
+}
+.film-card dd {
+  margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.film-card-details {
+  border-top: 1px solid var(--line);
+}
+.film-card-details + .film-card-details {
+  margin-top: -8px;
+}
+.film-card-details:last-child {
+  border-bottom: 1px solid var(--line);
+}
+.film-card-details summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 9px 0 9px 16px;
+  font-size: 11.5px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.film-card-details summary::-webkit-details-marker {
+  display: none;
+}
+.film-card-details summary::before {
+  content: "";
+  border: 4px solid transparent;
+  border-left: 6px solid currentColor;
+  border-right: 0;
+}
+.film-card-details[open] summary::before {
+  transform: rotate(90deg);
+}
+.film-card-details[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 10px;
+}
+.film-card-details > button {
+  align-self: flex-start;
+  margin-top: 4px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.shot-card .shot-card-title,
+.character-card .shot-card-title {
+  align-items: center;
+  justify-content: space-between;
+}
+.shot-card-nav {
+  display: flex;
+  gap: 4px;
+}
+.shot-card-nav button {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.shot-card-summary {
+  display: grid;
+  grid-template-columns: 122px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+.shot-card-poster {
+  width: 122px;
+  height: 158px;
+  object-fit: cover;
+  border-radius: 3px;
+  background: var(--image-matte);
+}
+.shot-card-summary dl {
+  margin: 8px 0 0;
+  gap: 7px 12px;
+  grid-template-columns: 74px minmax(0, 1fr);
+}
+.shot-card-summary dd {
+  color: var(--text);
+}
+.version-tiles {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+.version-tiles > button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 4px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+}
+.version-tiles b {
+  font-weight: 400;
+}
+.version-tiles kbd {
+  border: 0;
+  background: none;
+  padding: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 11px;
+}
+.version-tiles > button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--selected);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* The shown tile is pressed; the chosen one carries a check in its corner (preview first). */
+.version-tiles > button {
+  position: relative;
+}
+.tile-chosen {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  color: var(--accent);
+  font-size: 11px;
+}
+.check-rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.check-rows li {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 10px;
+  padding: 6px 10px;
+  border-top: 1px solid var(--line);
+  background: var(--raised);
+  color: var(--muted);
+}
+/* Filled status marks: the circle in the verdict's colour, the glyph cut out of it. */
+.check-rows li svg {
+  fill: currentColor;
+  stroke: var(--raised);
+}
+.check-rows li:first-child {
+  border-top: 0;
+}
+.check-rows li svg {
+  color: var(--success);
+}
+.check-rows li strong {
+  font-weight: 400;
+  color: var(--success);
+}
+.check-rows li.uncalibrated svg,
+.check-rows li.uncalibrated strong,
+.check-rows li.check-unsupported svg,
+.check-rows li.check-unsupported strong {
+  color: var(--muted);
+}
+.check-rows li.check-fail {
+  background: color-mix(in srgb, var(--warning) 22%, var(--panel));
+}
+.check-rows li.check-fail svg {
+  stroke: color-mix(in srgb, var(--warning) 22%, var(--panel));
+}
+.check-rows li.check-fail svg,
+.check-rows li.check-fail strong {
+  color: var(--danger);
+}
+.check-rows li small {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: 11px;
+}
+.shot-card-actions {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr 1fr;
+  gap: 8px;
+  margin-top: 6px;
+}
+.shot-card-actions > button,
+.shot-card-actions [aria-haspopup] {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--text);
+  white-space: nowrap;
+}
+.shot-card-actions > .primary-button {
+  min-height: 0;
+  padding: 0 12px;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--bg);
+}
+.shot-card-actions kbd {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 11px;
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* The film's Assets bin: one column, each picture at its own shape. */
+.film-assets {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 10px 2px;
+}
+.film-asset {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  font-size: 11px;
+}
+.film-asset[draggable="true"] {
+  cursor: grab;
+}
+.film-asset img {
+  align-self: flex-start;
+  max-width: 100%;
+  max-height: 76px;
+  object-fit: contain;
+  border-radius: 3px;
+}
+.film-asset strong {
+  margin-top: 4px;
+  font-weight: 400;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.film-asset span {
+  color: var(--muted);
+}
+
+/* Narrow timelines fold the counts the status line and the cards already carry. */
+@container trackbar (max-width: 760px) {
+  .step-analyse small,
+  .step-voice small,
+  .step-conform small,
+  .step-plan small {
+    display: none;
+  }
+}
+@container trackbar (max-width: 700px) {
+  .range-word {
+    display: none;
+  }
+  .range-dash {
+    display: inline;
+  }
+}
+/* The counts fold before any step label would be clipped (finish verdict: Conform cut at 1440 px); with the Voice
+   step (P4), the steps also sit a little tighter so all seven fit at 1440 px. */
+@container trackbar (max-width: 720px) {
+  .trackbar-steps {
+    gap: 3px;
+  }
+  .trackbar-step {
+    padding: 0 5px;
+  }
+  .trackbar-step small {
+    display: none;
+  }
+  .step-review small {
+    display: inline;
+  }
+}
+
+/* Messages from the last recast action, above the film's tracks. */
+.film-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 11px;
+  font-size: 11px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--danger) 12%, var(--panel));
+}
+.film-message.notice {
+  background: color-mix(in srgb, var(--accent) 10%, var(--panel));
+}
+.film-message.warning {
+  background: color-mix(in srgb, var(--warning) 12%, var(--panel));
+}
+.film-message.warning svg {
+  flex: none;
+  color: var(--warning);
+}
+.film-message button {
+  margin-left: auto;
+  color: var(--muted);
+}
+/* A notice's own step (Undo after a cast edit, Redo after its undo) sits before Dismiss and reads as the action. */
+.film-message button + button {
+  margin-left: 0;
+}
+.film-message .film-message-action {
+  color: var(--accent);
+}
+.shot-card-choice {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+.film-card .shot-card-choice h3 {
+  margin: 0;
+}
+.shot-card-choice .text-button {
+  min-height: 0;
+  padding: 0;
+  font-size: 11px;
+  color: var(--accent);
+}
+.film-card-target img {
+  max-width: 100%;
+  max-height: 160px;
+  object-fit: contain;
+  border-radius: 3px;
+  background: var(--image-matte);
+}
+/* A face sheet's thumbnail opens the whole sheet. */
+.film-card-target .recast-reference-open {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  cursor: zoom-in;
+}
+.film-card-target .recast-reference-open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* A mapped target's label reads as text until it is pointed at or focused. */
+.film-card-label {
+  field-sizing: content;
+  min-width: 4ch;
+  max-width: 100%;
+  margin-left: -5px;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+.film-card-label:hover {
+  border-color: var(--line);
+}
+.film-card-label:focus {
+  border-color: var(--accent);
+  background: var(--bg);
+  outline: none;
+}
+
+/* Cast edits (ADR 0017 §10): drop targets say they accept, actions sit in one wrapping row. */
+.cast-header[data-drop],
+.film-card-drop[data-drop] {
+  outline: 2px dashed var(--accent);
+  outline-offset: 1px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.film-card-drop {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  margin: 0 -6px;
+  border-radius: 4px;
+}
+.film-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.film-card-actions > button {
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+}
+.film-card-actions > .primary-button {
+  min-height: 0;
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--bg);
+}
+.film-card-similar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.film-card-similar small {
+  color: var(--muted);
+}
+.film-card-similar button {
+  color: var(--accent);
+  white-space: nowrap;
+}
+.film-cast-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.film-cast-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.film-cast-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.film-cast-choices button {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  text-align: left;
+}
+.film-cast-choices small {
+  color: var(--muted);
+}
+.film-cast-choices .film-merge-choice {
+  align-items: center;
+  justify-content: flex-start;
+}
+.film-merge-choice > img,
+.film-merge-choice > .portrait-missing {
+  flex: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--image-matte);
+}
+.film-merge-choice > .portrait-missing {
+  display: grid;
+  place-items: center;
+  font-size: 9px;
+  line-height: 1.1;
+  text-align: center;
+  color: var(--muted);
+}
+.film-merge-choice > span:not(.portrait-missing) {
+  display: flex;
+  flex-direction: column;
+}
+.film-merge-choice > small {
+  margin-left: auto;
+}
+.film-hidden-cast summary {
+  padding: 8px 10px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* A film's Export workspace: the conform form and the conforms so far. */
+.film-export {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  overflow: auto;
+}
+.film-export h1 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  font-weight: 500;
+}
+.conform-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.conform-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.film-card-link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.film-card-link small {
+  color: var(--muted);
+}
+
+/* The question before a new film's analysis. */
+.analyse-film {
+  margin: 4px 0 0;
+}
+.analyse-film-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0 16px;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+/* The Voice step's sheet (P4): the dialogue analysis's stage or line counts, then the lines by character. */
+.voice-status {
+  margin: 4px 0 8px;
+  font-variant-numeric: tabular-nums;
+}
+.voice-heading {
+  margin: 12px 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.voice-characters {
+  display: flex;
+  flex-direction: column;
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.voice-characters li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.voice-characters small {
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.voice-character-counts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+}
+
+/* A character's voice (P5): the recordings in their order, the build or audition's state, then its actions. */
+.film-card-voice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.film-card-voice ol,
+.voice-samples {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-variant-numeric: tabular-nums;
+}
+.film-card-voice li,
+.voice-samples li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 0;
+}
+.film-card-voice li span,
+.voice-samples li span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.film-card-voice li small,
+.voice-samples li small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.film-card-voice .asset-player audio {
+  margin: 2px 0;
+}
+.voice-samples {
+  margin: 4px 0 0;
+  border-top: 1px solid var(--line);
+}
+.voice-samples li {
+  padding: 4px 0;
+  border-bottom: 1px solid var(--line);
+}
+.voice-samples li button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: var(--muted);
+}
+.voice-samples li button:hover {
+  border-color: var(--line);
+  color: var(--text);
+}
+.voice-total {
+  margin: 8px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+.voice-expressive {
+  margin: 0 0 8px;
+}
+.voice-changed {
+  margin: 0 0 8px;
+  color: var(--warning);
+}
+/* Library recordings: one row each, its name and length, rather than a grid of artwork. */
+.recast-asset-list[data-kind="audio"] {
+  grid-template-columns: 1fr;
+  gap: 4px;
+  margin-top: 8px;
+}
+.recast-asset-list[data-kind="audio"] button {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.recast-asset-list[data-kind="audio"] .audio-art {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 3px;
+}
+.recast-asset-list[data-kind="audio"] .audio-art svg {
+  width: 14px;
+  height: 14px;
+}
+.recast-asset-list[data-kind="audio"] span:not(.audio-art) {
+  flex: 1;
+  padding: 0;
+}
+.recast-asset-list[data-kind="audio"] small {
+  padding: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The review queue (ADR 0017 §8): filters with counts, then the shots in film order. */
+/* One segmented control, at the 4 px radius of compact controls (DESIGN.md). */
+.queue-filters {
+  display: flex;
+  gap: 0;
+  margin-bottom: 8px;
+  padding: 1px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.queue-filters button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 3px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.queue-filters button span {
+  color: var(--subtle);
+  font-variant-numeric: tabular-nums;
+}
+.queue-filters button[aria-pressed="true"] {
+  background: var(--selected);
+  color: var(--text);
+}
+.queue-filters button[aria-pressed="true"] span {
+  color: var(--muted);
+}
+.queue-scope {
+  margin: 0 3px 8px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.queue-why {
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.review-queue {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.queue-record > span small + small {
+  margin-top: 2px;
+}
+.queue-chosen {
+  margin-left: 6px;
+  color: var(--accent);
+  font-size: 11px;
+}
+.queue-hint {
+  margin-top: 10px;
+  font-size: 11px;
+}
+
+/* Shared pieces kept from the retired Recast page (U5b): the Library picker, the comparison wipe, the face-track
+ * drawer, the merge sheet, the face-sheet preview, conform progress and the form actions. */
+.recast-track-list small,
+.recast-existing small {
+  display: block;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.recast-picker button {
+  cursor: pointer;
+}
+.recast-picker .recast-generated-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+.recast-estimate {
+  margin-inline: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.recast-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-block: 8px;
+}
+.recast-wipe {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: var(--image-matte);
+  overflow: hidden;
+}
+.recast-before,
+.recast-after {
+  position: absolute;
+  inset: 0;
+}
+.recast-wipe .asset-player {
+  height: 100%;
+}
+.recast-wipe video,
+.recast-wipe img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.recast-wipe-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--accent);
+  pointer-events: none;
+}
+.recast-wipe-slider {
+  position: absolute;
+  bottom: 0;
+  width: 100%;
+  margin: 0;
+  opacity: 0.8;
+}
+.recast-scale {
+  color: var(--muted);
+  margin: 8px 0;
+  font-size: 11px;
+}
+.recast-error {
+  color: var(--danger);
+  padding: 8px;
+}
+.recast-picker {
+  margin-top: 12px;
+}
+.recast-picker label {
+  display: grid;
+  gap: 8px;
+}
+.recast-asset-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.recast-asset-list button {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  text-align: left;
+  overflow: hidden;
+}
+.recast-asset-list img {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: var(--image-matte);
+}
+.recast-poster-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  background: var(--panel);
+}
+.recast-asset-list span {
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+.recast-existing {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin-top: 12px;
+  padding: 12px;
+}
+.recast-track-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  margin-block: 16px;
+}
+.recast-track-list label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.recast-track-list img {
+  width: 48px;
+  height: 56px;
+  object-fit: cover;
+}
+.recast-track-list input {
+  width: 16px;
+}
+.recast-conform-progress {
+  padding-block: 12px;
+  border-top: 1px solid var(--line);
+  margin-top: 16px;
+}
+@media (max-width: 1000px) {
+  .recast-wipe {
+    max-height: 420px;
+  }
+}
+@media (max-width: 600px) {
+  .recast-estimate {
+    flex-basis: 100%;
+    margin: 0;
+  }
+}
+.recast-actions > button {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.recast-merge-faces small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+.sheet.recast-merge-sheet {
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  width: min(520px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 24px;
+  border: 0;
+  border-radius: 6px;
+  animation: none;
+}
+.recast-merge-faces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-block: 24px;
+}
+.recast-merge-faces > div {
+  display: grid;
+  gap: 8px;
+}
+.recast-merge-faces img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 3px;
+}
+.recast-asset-list small {
+  padding: 0 8px 8px;
+}
+.recast-reference-preview.sheet {
+  width: min(818px, 100vw);
+}
+.recast-reference-preview .asset-player > img {
+  max-height: none;
+}
+
+/* Usability round 1: Cast */
+/* B5: a picture another character also plays. */
+.film-card-shared {
+  margin-top: 6px;
+  color: var(--warning);
+}
+/* B7: every "Same person?" suggestion, at the head of the Cast bin. */
+.film-same-person {
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--line);
+}
+.film-same-person summary {
+  padding: 8px 3px;
+  color: var(--muted);
+  cursor: pointer;
+}
+.film-same-person ul {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0 0 8px;
+  list-style: none;
+}
+.film-same-person li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 4px 8px;
+  padding: 6px 3px;
+}
+.film-same-person small {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+}
+.film-same-faces {
+  display: flex;
+  gap: 2px;
+}
+.film-same-faces > * {
+  width: 26px;
+  height: 30px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--image-matte);
+}
+.film-same-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.film-same-actions button {
+  padding: 3px 8px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  font-size: 11px;
+}
+.film-same-actions button:hover {
+  background: var(--hover);
+}
+/* B9: a ticked face track reads as ticked at a glance, not only by its small box. */
+.recast-track-list label {
+  padding: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.recast-track-list label:has(input:checked) {
+  border-color: var(--accent);
+  background: var(--selected);
+}
+
+/* Finish review (22 October): the shot card's timecode range wraps at a narrow inspector instead of being cut. */
+.shot-card-summary dd {
+  white-space: normal;
+}
+.film-program .monitor-heading small.unchosen {
+  color: var(--warning);
+}
+/* The character card takes the shot card's structure: title with navigation, a metadata grid, divided sections. */
+.character-card > h3 {
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.character-card .film-card-target img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  max-height: 160px;
+}
+.character-card .film-card-label {
+  margin-inline: -4px -3px;
+  padding: 1px 3px;
+}
+.character-card .film-card-similar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.character-card .film-card-similar > span {
+  flex: 1;
+  min-width: 0;
+}
+.film-card-quiet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+.film-card-quiet > button {
+  padding: 2px 0;
+  color: var(--muted);
+}
+.film-card-quiet > button:hover:not(:disabled) {
+  color: var(--text);
+}
+
+/* Usability round 2: Jobs, conform, Cast */
+/* C1: a film's job error is a sentence; its raw text waits behind "Technical details". */
+.task-error details {
+  margin-top: -4px;
+  font-size: 12px;
+}
+.task-error summary {
+  color: var(--muted);
+  cursor: pointer;
+}
+.task-error pre {
+  max-height: 200px;
+  overflow: auto;
+  margin: 6px 0 0;
+  padding: 8px;
+  border-radius: 4px;
+  background: var(--bg);
+  font-size: 11px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+/* C11: the Cast bin's rows, the "Same person?" pairs and the track tiles show faces large enough to tell apart. */
+.film-project .project-record-face {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 3px;
+  object-fit: cover;
+  background: var(--image-matte);
+}
+.film-same-faces {
+  flex: none;
+  gap: 4px;
+}
+.film-same-faces > * {
+  flex: none;
+  width: 36px;
+  height: 36px;
+}
+.recast-track-list {
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+}
+.recast-track-list img {
+  flex: none;
+  width: 72px;
+  height: 84px;
+  border-radius: 3px;
+}

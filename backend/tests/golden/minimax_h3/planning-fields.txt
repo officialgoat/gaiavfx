@@ -1,0 +1,20 @@
+subject_definitions:
+No reference subjects.
+
+summary:
+[reference generation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+Follow the authored direction.
+
+detailed_description:
+Single continuous take: one uninterrupted shot from start to finish. Do not introduce internal cuts, cutaways, montage or a change of scene. Perform only the action and camera movement specified for this shot.
+Production context: A misty harbour at dusk: a wet wooden pier with a dark railing. Handheld super 16.
+Mara: Adult woman with short wavy brown hair and an ochre raincoat.
+[Shot 1] Mara walks steadily along the wet pier, the railing on her left. Subjects in frame: Mara.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

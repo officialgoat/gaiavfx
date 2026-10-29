@@ -1,0 +1,94 @@
+{
+  "segment": {
+    "subjects": [
+      {
+        "id": "mara",
+        "name": "Mara",
+        "description": "Adult woman with short wavy brown hair and an ochre raincoat",
+        "keeps": [],
+        "identity_asset": null
+      },
+      {
+        "id": "tomas",
+        "name": "Tomas",
+        "description": "Man in his forties with short grey hair and a navy sweater",
+        "keeps": [],
+        "identity_asset": null
+      }
+    ],
+    "place": {
+      "noun": "place",
+      "description": "A misty harbour at dusk: a wet wooden pier with a dark railing.",
+      "landmarks": ""
+    },
+    "style": "",
+    "shots": [
+      {
+        "description": "Mara and Tomas sit at the cafe table. Wide two-shot. Camera position: Beside the window.",
+        "screen_direction": "",
+        "sound": "",
+        "cast": [
+          "mara",
+          "tomas"
+        ]
+      },
+      {
+        "description": "Tomas answers her. Over-the-shoulder shot on Tomas. Camera position: Behind Mara's right shoulder.",
+        "screen_direction": "Tomas faces screen left toward her.",
+        "sound": "",
+        "cast": [
+          "tomas"
+        ]
+      }
+    ],
+    "cut_frames": [
+      60
+    ],
+    "delivered_frames": 120,
+    "continues": false,
+    "speech": [
+      {
+        "speaker_id": "mara",
+        "at_frame": 12,
+        "text": "You came back.",
+        "language": "English",
+        "delivery": "quietly",
+        "off_screen": false
+      },
+      {
+        "speaker_id": "tomas",
+        "at_frame": 72,
+        "text": "I said I would.",
+        "language": "English",
+        "delivery": "",
+        "off_screen": false
+      },
+      {
+        "speaker_id": "mara",
+        "at_frame": 100,
+        "text": "Then stay.",
+        "language": "English",
+        "delivery": "",
+        "off_screen": true
+      }
+    ]
+  },
+  "context_frames": 0,
+  "keyframes": [],
+  "sheet": null,
+  "source": {
+    "fixture": "dialogue",
+    "reference": "h3-prompt-11",
+    "dropped": [
+      "restrictions, required_outcome, camera.purpose, review_required: planning and review fields excluded by v11.",
+      "Phase, cut, event and speech ids/names and locked flags: record identity and editing policy, not prose.",
+      "direction and story_context: replaced by setting and style in v6.",
+      "Document sound and music: empty; the prompt sections use fixed wording.",
+      "width, height, steps, seed, loras, model_state, render_mode, final_audio: render settings, not direction.",
+      "guides, utterances, source_observation, continuity states, manual_prompt: empty or obsolete features.",
+      "Subject kind, speakers, reference/association ids and contribution review metadata: identity binding is represented by identity_asset and keeps.",
+      "Camera defaults, inheritance flags, default_overrides, profile, prompt_version, manual_binding_fingerprint: old recipe configuration.",
+      "Terminal subject-description period: sentence closure is supplied by the wording template; action, staging and camera sentences are closed in this data."
+    ]
+  }
+}

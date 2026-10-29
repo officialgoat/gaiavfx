@@ -1,0 +1,85 @@
+{
+  "arm": "DZ",
+  "seed": 5821,
+  "segment": {
+    "subjects": [
+      {
+        "id": "s1",
+        "name": "Arin",
+        "description": "Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder",
+        "keeps": [
+          "plaid shirt",
+          "satchel"
+        ]
+      }
+    ],
+    "place": {
+      "noun": "courtyard",
+      "description": "A sunlit stone courtyard: a black iron railing in front of an open arcade of stone pillars and arches along a pale plaster wall, a shaded walkway under the arches, olive trees in terracotta pots, a worn stone floor.",
+      "landmarks": "the arcade and its railing, the building across the courtyard and its windows, the trees in their pots and the paving"
+    },
+    "shots": [
+      {
+        "description": "Arin keeps walking from left to right along the railing in the same side-view tracking shot, framing and light.",
+        "screen_direction": "Screen left to screen right, as before.",
+        "sound": "Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut."
+      },
+      {
+        "description": "Arin keeps walking at the same steady pace, mid-stride as the shot begins. Arin stays on the open courtyard's side of the black iron railing and walks parallel to the black iron railing, never touching or crossing it and ends on that side. Reverse angle from the arcade: the camera stands in the shade under the arches, behind the railing, and looks out across the open, sunlit courtyard toward him. Camera position: Under the arcade, behind the railing, looking out across the open courtyard. The camera stands in the arcade walkway and looks toward the open courtyard. The black iron railing stands between the camera and Arin; the open courtyard lies behind Arin. Arin is far from the camera: the railing is close to the lens, and Arin walks well beyond it, out in the open courtyard, small in the frame with his whole body visible.",
+        "screen_direction": "Seen from the wall side he now moves from screen right to screen left, with the iron railing between him and the camera and the open courtyard behind him.",
+        "sound": "Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut."
+      }
+    ],
+    "cut_frames": [
+      36
+    ],
+    "delivered_frames": 102,
+    "continues": true
+  },
+  "identity": {
+    "subject_id": "s1",
+    "sha256": "ad72b298e9b415348627a8e5480ef38dd5c17b3aaee2b1e863af7b1f8b12ba82"
+  },
+  "context": {
+    "sha256": "397350a722635a443516efd7801c568d2897d832cc47fd90c278a6d5b534cd9c"
+  },
+  "cut": {
+    "frame": 36,
+    "relation": "reverse",
+    "crosses_barrier": true,
+    "receives_predecessor": true
+  },
+  "sheet": {
+    "origin": "walk_around",
+    "tiles": [
+      {
+        "sha256": "7b9057ac307433b907fd41316660523de01f26cde2693b50b52b975ddfc4090e",
+        "angle": "shot1plate-qe/view-shot1"
+      },
+      {
+        "sha256": "0a62b7389d4e8f75b06d2d2ea29f6df3e25d4c017cea65168f93b5cb793c1275",
+        "angle": "orbit-s2-kl/view-000"
+      },
+      {
+        "sha256": "3cc86d17108e2f0a42c803811ce38a79d3e515665f207d7ec460b0ee844a7f37",
+        "angle": "orbit-s2-kl/view-025"
+      },
+      {
+        "sha256": "fad20788f4bbdb9386308cf9131ba24b850a988127d6a91034ee92027a990fbd",
+        "angle": "orbit-s2-kl/view-049"
+      },
+      {
+        "sha256": "540d78a7cc6c5f70e7f9f03d8d4f2d80450222c433e2fbf6516fb96878898b96",
+        "angle": "orbit-s2-kl/view-082"
+      },
+      {
+        "sha256": "046340c87d6cda214fa5b8eea9705fd4be2944b585c38af137ffd5974c7623df",
+        "angle": "orbit-s2-kl/view-115"
+      }
+    ]
+  },
+  "pin": {
+    "sha256": "0dfb2e488bb0e3c8c522bf99645ddec90c2813aa0c686bc823eb683975a49215",
+    "angle": "orbit-s2-kl/view-115"
+  }
+}

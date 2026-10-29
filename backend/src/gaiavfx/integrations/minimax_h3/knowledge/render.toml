@@ -1,0 +1,53 @@
+# MiniMax H3 render presets (ADR 0010): model files, sampling and delivery, as the research runs that won the
+# user's blind ranks used them (backend/tests/fixtures/parity). Research-only instrumentation nodes are not part
+# of this profile.
+schema = 1
+
+[models]
+unet = "minimax_h3_ref2va_pruned_int8_convrot.safetensors"
+unet_first_frame = "minimax_h3_fl2va_pruned_int8_convrot.safetensors"
+clip = "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors"
+video_vae = "minimax_h3_video_vae_fp16.safetensors"
+audio_vae = "minimax_h3_audio_vae_fp32.safetensors"
+
+[sampling]
+sampler = "res_multistep"
+steps = 20
+power = 2.0
+midpoint_shift = 1.0
+shift_video = 12.0
+shift_audio = 3.0
+
+[conditioning]
+ref_image_size = "match"
+audio_context_frames = 24
+
+[decode]
+tile_size = 512
+overlap = 64
+temporal_size = 64
+temporal_overlap = 8
+
+[delivery]
+width = 768
+height = 448
+
+[replacement]
+lora_loader = "GaiaH3LoraLoader"
+lora = "h3_character_swap_pro4500_1000.safetensors"
+lora_sha256 = "4b2a3f420ae804c0aa3422761ff84dbd1bf52eef6900ffab6d2e66df63cb4e79"
+lora_strength = 1.0
+lora_expected_skipped = 0
+sampler = "res_multistep"
+scheduler = "simple"
+steps = 20
+denoise = 1.0
+full_canvas = [896, 512]
+save_crf = 15.0
+[faceswap]
+# UntMods/FaceSwap_MiniMaxH3_REF2VA, revision b2a5823ca64bc78d91725fbfcc576095bfceb764.
+# Download provenance: calibration/recast-performance-2026-10/downloads-2026-10-09.json
+sha256 = "1e032cf519cc143f434e67516d8ad0aacf4c6e146315b2dcc3b1c2800470326d"
+lora_name = "SS_FaceSwap_MiniMax_H3_REF2VA.safetensors"
+strength = 1.0
+trigger = "Faceswap"

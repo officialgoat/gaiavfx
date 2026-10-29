@@ -1,0 +1,265 @@
+{
+ "arm": "SV-C2B",
+ "label": "r2-c2b-loc-s1",
+ "what": "arcade survey: five hard-cut views, the toward view at frame 36",
+ "intent": {
+  "label": "r2-c2b-loc-s1",
+  "graph_sha256": "28a744371e0bbba0908cb967b5f0f1352c69c661382d1ace10d8d92a77a87063",
+  "stage": "diffusion",
+  "max_seconds": 300,
+  "created": 1790706173.3048587,
+  "runner_sha256": "c876619281c650e904e231f9909449779c7bfc1d6d356c93b8a8c071cc896758",
+  "runtime_provenance_sha256": "be72e0e791ffdb836f4500cc9b25e73d40931bfab303c2e12993c683a047c5bb"
+ },
+ "graph": {
+  "model": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "minimax_h3_fl2va_pruned_int8_convrot.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "encoder": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+    "type": "minimax",
+    "device": "default"
+   }
+  },
+  "video_vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+   }
+  },
+  "audio_vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+   }
+  },
+  "audio_vae_guard": {
+   "class_type": "GaiaH3AudioVAE",
+   "inputs": {
+    "audio_vae": [
+     "audio_vae",
+     0
+    ]
+   }
+  },
+  "noise": {
+   "class_type": "RandomNoise",
+   "inputs": {
+    "noise_seed": 1
+   }
+  },
+  "fresh_model": {
+   "class_type": "GaiaScreenFreshModel",
+   "inputs": {
+    "model": [
+     "model",
+     0
+    ],
+    "run_id": "r2-c2b-loc-s1"
+   }
+  },
+  "shift": {
+   "class_type": "MiniMaxH3SigmaShift",
+   "inputs": {
+    "model": [
+     "fresh_model",
+     0
+    ],
+    "shift_video": 12.0,
+    "shift_audio": 3.0
+   }
+  },
+  "sampler": {
+   "class_type": "KSamplerSelect",
+   "inputs": {
+    "sampler_name": "res_multistep"
+   }
+  },
+  "first": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/courtyard2b/shot1plate-qe/view-shot1-768.png"
+   }
+  },
+  "conditioning": {
+   "class_type": "MiniMaxH3ImageToVideo",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "vae": [
+     "video_vae",
+     0
+    ],
+    "prompt": "subject_definitions:\n<Location 1> is the empty place in the first frame: a sunlit stone courtyard: an open arcade of pale stone columns and arches along a pale plaster wall, a black iron railing on a low plinth in front of the arcade, olive trees in terracotta pots, worn stone paving.\n\nsummary:\n[keyframe completion] 5 locked-off views of the same empty location, separated by hard cuts, for an environment reference sheet.\n\nretention_analysis:\n<Location 1> (appears in [Shot 1] through [Shot 5]): fully_preserved - The same walls, furniture, barrier, floor and light in every view. Only the camera position and direction change.\n\ndetailed_description:\nThe location is completely empty: no people and no animals, and nothing within it moves. Every shot is a locked-off static camera at eye level, the horizon level and centred, no camera movement of any kind, except the last, which looks straight down.\n[Shot 1] The first frame's view: from the open paving, looking at the black iron railing on its low plinth and the open arcade of pale stone columns and arches behind it, an olive tree in a terracotta pot.\n[Shot 2] At 00:01.000, hard cut: from the open paving further along the railing, looking back along it: the railing, its plinth and the arcade with its columns and arches run along the right side of the frame, the open sunlit paving along the left side.\n[Shot 3] At 00:02.000, hard cut: from the shade under the arcade, close behind the railing, looking straight out across the open courtyard at its far side.\n[Shot 4] At 00:03.000, hard cut: from the other end of the railing looking along it the other way: the railing and the arcade on the left, the open paving on the right.\n[Shot 5] At 00:04.000, hard cut to a straight-down view of the whole courtyard, like an architect's cutaway: the arcade along the top edge, the railing in front of it, the open paving below. Hold to the end. Each cut changes the camera instantly; the architecture stays fixed.\n\noverall_soundscape:\nA light breeze throughout.\n\nnon_diegetic_music:\nN/A",
+    "width": 768,
+    "height": 448,
+    "length": 124,
+    "first_frame": [
+     "first",
+     0
+    ]
+   }
+  },
+  "campaign_probe": {
+   "class_type": "GaiaCampaignModelProbe",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "label": "r2-c2b-loc-s1"
+   }
+  },
+  "guider": {
+   "class_type": "BasicGuider",
+   "inputs": {
+    "model": [
+     "campaign_probe",
+     0
+    ],
+    "conditioning": [
+     "conditioning",
+     0
+    ]
+   }
+  },
+  "sigmas": {
+   "class_type": "GaiaH3PowerShift",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "steps": 20,
+    "power": 2.0,
+    "midpoint_shift": 1.0
+   }
+  },
+  "sample": {
+   "class_type": "SamplerCustomAdvanced",
+   "inputs": {
+    "noise": [
+     "noise",
+     0
+    ],
+    "guider": [
+     "guider",
+     0
+    ],
+    "sampler": [
+     "sampler",
+     0
+    ],
+    "sigmas": [
+     "sigmas",
+     0
+    ],
+    "latent_image": [
+     "conditioning",
+     1
+    ]
+   }
+  },
+  "release": {
+   "class_type": "VRAM_Debug",
+   "inputs": {
+    "any_input": [
+     "sample",
+     0
+    ],
+    "empty_cache": true,
+    "gc_collect": true,
+    "unload_all_models": true
+   }
+  },
+  "decode_video": {
+   "class_type": "VAEDecodeTiled",
+   "inputs": {
+    "samples": [
+     "release",
+     0
+    ],
+    "vae": [
+     "video_vae",
+     0
+    ],
+    "tile_size": 512,
+    "overlap": 64,
+    "temporal_size": 64,
+    "temporal_overlap": 8
+   }
+  },
+  "decode_audio": {
+   "class_type": "VAEDecodeAudio",
+   "inputs": {
+    "samples": [
+     "release",
+     0
+    ],
+    "vae": [
+     "audio_vae_guard",
+     0
+    ]
+   }
+  },
+  "save_decoded": {
+   "class_type": "GaiaScreenSaveDecoded",
+   "inputs": {
+    "images": [
+     "decode_video",
+     0
+    ],
+    "audio": [
+     "decode_audio",
+     0
+    ],
+    "name": "campaign/r2-c2b-loc-s1/raw"
+   }
+  },
+  "video": {
+   "class_type": "CreateVideo",
+   "inputs": {
+    "images": [
+     "decode_video",
+     0
+    ],
+    "audio": [
+     "decode_audio",
+     0
+    ],
+    "fps": 24.0
+   }
+  },
+  "save_video": {
+   "class_type": "SaveVideo",
+   "inputs": {
+    "video": [
+     "video",
+     0
+    ],
+    "filename_prefix": "campaign/r2-c2b-loc-s1/delivered",
+    "format": "mp4",
+    "codec": "h264"
+   }
+  }
+ },
+ "files": [
+  {
+   "node": "first",
+   "input": "image",
+   "path": "assets/packs/courtyard2b/shot1plate-qe/view-shot1-768.png",
+   "sha256": "97171560563a4285749e39cb067c9514adad0f344e0225cada13ab53a6682322",
+   "bytes": 430346,
+   "pixels_sha256": "95bc71c153bbedb43ec3e1a10bcb9917e3b61af05c969db369b43e1c8aadf6db"
+  }
+ ],
+ "delivered_sha256": "6a2a66e0e93294c3f1f6572a8226a02acb98e68b4fc07230ccfc650df2b30f33"
+}

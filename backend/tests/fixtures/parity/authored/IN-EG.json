@@ -1,0 +1,24 @@
+{
+  "who": "Teo",
+  "looks": "curly hair, mustard corduroy jacket, dark trousers, shoes, tote bag",
+  "pronouns": "he",
+  "facing": "screen_left",
+  "plate": "the empty gallery seen from just behind the thin cable barrier along the painting wall",
+  "keep": "walls, windows, thin cable barrier and stanchions, floor",
+  "where": "on the polished floor beyond the thin cable",
+  "size": "half",
+  "distance_description": "mid-distance",
+  "along": "across the gallery",
+  "barrier": "the cable",
+  "feet_placement": "Both feet belong on the floor beyond the cable, between the cable and the window wall.",
+  "occlude": "Preserve the thin cable over his legs wherever they overlap.",
+  "behind": null,
+  "distance_to_barrier_m": null,
+  "seed": 2,
+  "view": {
+    "sha256": "d6a920689a9ff3a4c0d63117c7ceb87dae176d317378141f9da31556982aed48"
+  },
+  "subject": {
+    "sha256": "dcfc1e6b6ce69835daffae5752bb8bf4cf9064a58e97766a8ee505b38f835ebf"
+  }
+}

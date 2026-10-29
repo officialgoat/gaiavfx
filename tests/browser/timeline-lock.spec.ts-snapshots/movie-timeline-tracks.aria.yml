@@ -1,0 +1,35 @@
+- text: /Frames \d+ fps/
+- slider "Playhead": /\d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+ \d+/
+- text: Segment
+- button /Segment \d+/:
+  - strong: /Segment \d+/
+  - text: /courtyard \d+ f/
+- button /Segment \d+/:
+  - strong: /Segment \d+/
+  - text: /courtyard \d+ f · Continues/
+- text: Phases
+- 'button "Phase: Arin walks toward the iron railing."'
+- 'button "Phase: Arin walks toward the iron railing."'
+- text: Cuts
+- button "Cut f36 · Reverse · Reveals new area":
+  - strong: f36 Reverse
+  - text: ""
+- text: References
+- button "Arin · identity picture · whole segment"
+- button "Arin · identity picture · whole segment"
+- button "First-shot references · Place · Arcade courtyard · Text only":
+  - strong: Place · Arcade courtyard
+  - text: ""
+- text: Keyframes
+- button /Pin needed · cut \+ \d+ · f48/: /Pin needed · \+\d+/
+- text: State
+- 'button "satchel: over the left shoulder"'
+- 'button "satchel: over the left shoulder"'
+- text: Dialogue
+- 'button "Dialogue: Meet me beyond the arcade."'
+- 'button "Dialogue: Meet me beyond the arcade."'
+- text: Sound
+- button "Footsteps on stone; a soft courtyard breeze."
+- 'button "Event: A gate clicks shut."'
+- button "Footsteps on stone; a soft courtyard breeze."
+- 'button "Event: A gate clicks shut."'

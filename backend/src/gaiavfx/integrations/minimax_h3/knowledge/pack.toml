@@ -1,0 +1,16 @@
+# MiniMax H3 knowledge pack (ADR 0010). Research findings about this model land here as data.
+schema = 1
+integration = "minimax_h3"
+
+[presets]
+# The pinned frame is a MiniMaxH3AddGuide 12 frames (0.5 s) after the cut, without a picture slot: the position
+# tested on the arcade, hall and gallery reverses (29 Sep 2026).
+pin_offset_frames = 12
+
+[presets.views_sheet]
+columns = 3
+gap = 6
+gap_rgb = [128, 128, 128]
+
+[technique.views_and_pin]
+evidence = ["H3 Ref2VA int8, 768x448, 20 steps, pictures at ref_image_size=match, pin via AddGuide before the motion context"]

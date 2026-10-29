@@ -1,0 +1,87 @@
+{
+  "arm": "EG",
+  "seed": 5791,
+  "segment": {
+    "subjects": [
+      {
+        "id": "s1",
+        "name": "Teo",
+        "description": "Man in his twenties with curly dark hair, a mustard-yellow corduroy jacket, dark trousers and a canvas tote bag on his left shoulder",
+        "keeps": [
+          "yellow jacket",
+          "tote bag"
+        ]
+      }
+    ],
+    "place": {
+      "noun": "gallery",
+      "description": "A long museum gallery in soft daylight: large framed paintings on a pale grey wall on one side, tall bright windows on the other, a polished wooden floor.",
+      "landmarks": "the painting wall with its framed paintings, the low cable barrier on stanchions, the wall of tall windows, the benches and the polished wooden floor"
+    },
+    "shots": [
+      {
+        "description": "Teo continues walking steadily along the gallery in his mustard-yellow corduroy jacket, tote bag on his shoulder, his stride unbroken from the previous shot. The camera is on the window side of the gallery, level with Teo's path. Framed paintings line the wall behind him. Teo occupies the mid-ground, roughly waist-up in frame, crossing the gallery's full width. Side-view tracking shot at walking pace. Camera position: On the window side of the gallery, level with him; the framed paintings behind him.",
+        "screen_direction": "He walks from screen left to screen right.",
+        "sound": "Footsteps on a wooden floor, the hush of a large room; the sound continues across the cut."
+      },
+      {
+        "description": "Teo continues walking steadily along the gallery in his mustard-yellow corduroy jacket, tote bag on his shoulder, his stride unbroken. New shot from the opposite side of the gallery. The camera now stands on the painting-wall side, looking across Teo's path toward the window-side wall. Framed paintings line the wall directly behind the camera, out of frame. A low railing or bench crosses the near foreground. The window-side wall and its daylight fill the background behind Teo. Teo occupies the mid-ground, roughly waist-up in frame, crossing the gallery's full width. Side-view tracking shot at walking pace from the opposite side of the gallery, looking across Teo's path toward the window wall. Camera position: On the painting-wall side of the gallery, level with him; the window-side wall and daylight behind him.",
+        "screen_direction": "He walks from screen right to screen left.",
+        "sound": "Footsteps on a wooden floor, the hush of a large room; the sound continues across the cut."
+      }
+    ],
+    "cut_frames": [
+      12
+    ],
+    "delivered_frames": 102,
+    "continues": true
+  },
+  "identity": {
+    "subject_id": "s1",
+    "sha256": "c797f182c22a5582a4b1d4c29ccc2162550ed07cdac59eb3013650dc7e4f0e86"
+  },
+  "context": {
+    "sha256": "43575af22fb161b87e47ac704b3d5332c0fdc287b15fca09f265e86c42f0ed90"
+  },
+  "cut": {
+    "frame": 12,
+    "relation": "reverse",
+    "crosses_barrier": true,
+    "receives_predecessor": true
+  },
+  "sheet": {
+    "origin": "survey",
+    "tiles": [
+      {
+        "blank": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "sha256": "18cb307ce6e0b2e55c7a44e8ab11d0218c0cf1e01fe9f7171d659629e9937207",
+        "angle": "loc-s2-kl/view-012"
+      },
+      {
+        "sha256": "d6a920689a9ff3a4c0d63117c7ceb87dae176d317378141f9da31556982aed48",
+        "angle": "loc-s2-kl/view-036"
+      },
+      {
+        "sha256": "98715939446bc5c3368d3c479a01fe1e5ec448906c9bd725a4f2bbebf18550ff",
+        "angle": "loc-s2-kl/view-060"
+      },
+      {
+        "sha256": "ddb8ca7c5f51c9fc12ca5ebb23ece4414e931a45b2cbf24230e517d808dc54c2",
+        "angle": "loc-s2-kl/view-084"
+      },
+      {
+        "sha256": "2e97b266a2c4dc2c44b3478f45daf3c66c619e20ab5676dce3bf65bf5f269d8c",
+        "angle": "loc-s2-kl/view-110"
+      }
+    ]
+  },
+  "pin": {
+    "sha256": "ba5488963b2efd1ecdd7cfab8b1dc0ce20d641c5f5bd622cd45175ed0bcc877e",
+    "angle": "loc-s2-kl/view-110"
+  }
+}

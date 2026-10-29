@@ -1,0 +1,12 @@
+# Tested hard-cut survey wording from the four SV parity fixtures (ADR 0010).
+schema = 1
+
+[sections]
+definition = "<Location 1> is the empty place in the first frame: {what}."
+summary = "[keyframe completion] {count} locked-off views of the same empty location, separated by hard cuts, for an environment reference sheet."
+retention = "<Location 1> (appears in [Shot 1] through [Shot {count}]): fully_preserved - The same walls, furniture, barrier, floor and light in every view. Only the camera position and direction change."
+production = "The location is completely empty: no people and no animals, and nothing within it moves. Every shot is a locked-off static camera at eye level, the horizon level and centred, no camera movement of any kind, except the last, which looks straight down."
+first_shot = "[Shot 1] The first frame's view: {view}"
+cut_shot = "[Shot {number}] At {timecode}, hard cut: {view}."
+overhead_shot = "[Shot {number}] At {timecode}, hard cut to {view}. Hold to the end. Each cut changes the camera instantly; the architecture stays fixed."
+music = "N/A"

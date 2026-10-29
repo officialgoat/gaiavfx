@@ -1,0 +1,39 @@
+# A set seeded from a take (ADR 0019 §4): the ComfyUI job's settings. A seed's job carries the values it started with
+# in its snapshot; a change here applies to new seeds only.
+schema = 1
+
+# Frames DA3 multiview sees at once. R1 ran Base on 8 views of a place; a take's shot is sampled evenly to this many.
+frames = 12
+
+# SAM 3.1 as the people analysis runs it (integrations/person_analysis/knowledge/render.toml), every person at once:
+# people are excluded observations, so the mask is their union.
+[people]
+checkpoint = "sam3.1_multiplex_fp16.safetensors"
+concept = "person"
+threshold = 0.5
+max_objects = 0  # 0 is SAM3_VideoTrack's own cap (64)
+
+# Depth Anything 3 Base, multiview (R1's settings): per-frame depth and confidence, world-to-camera poses and
+# pixel intrinsics, consistent across the frames.
+[geometry]
+model = "depth_anything_3_base.safetensors"
+resolution = 504
+ref_view = "saddle_balanced"
+pose_method = "cam_dec"
+
+# The reconstruction gate (engine_workers/worldbuilder_splat/frames.py Gate), provisional: calibrated on 22 clips
+# (calibration/worldbuilder-2026-10/take-gate.md): splat-rendered static, pan, dolly and truck moves, twelve app
+# takes of the shack, a take with a cut and three research orbits.
+[gate]
+overlap = 0.2      # an edge: this share of a frame's trusted surface seen unoccluded by the other frame
+agreement = 0.3    # and its patches, carried through the depth, correlating this well (coarse scale)
+spacing = 4
+patch = 3
+min_texture = 6.0  # grey levels; flat patches are not compared
+min_angle = 1.0    # degrees between the two cameras' rays for a point to show parallax
+coverage = 0.6667  # the largest joined group of frames must hold this share of them
+parallax = 0.2     # the median edge must show parallax on this share of its points
+min_trust = 0.3    # this share of the pixels must be static surface outside people
+stride = 8
+people_margin = 6  # pixels grown around SAM's people masks
+edge_ratio = 0.08  # a depth jump this large to a neighbour marks a depth edge

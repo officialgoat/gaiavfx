@@ -1,0 +1,53 @@
+# MiniMax H3 prompt wording (ADR 0010), from h3-prompt-11 and the winning research arms
+# (backend/tests/fixtures/parity). Authored direction supplies the content; clauses frame it once in v11's order.
+# An unauthored cast lists bound subjects on shot 1 only, as in the research arms and captured agent directions.
+# An authored cast lists exactly its subjects; an empty cast emits no cast clause.
+# Speech times in shot 1 include motion-context frames; later shots use time since their cut (v3 through v11).
+schema = 1
+
+[sections]
+summary_continuation = "[reference generation + video continuation] Follow the authored timed direction below with the defined reference contributions."
+summary_fresh = "[reference generation] Follow the authored timed direction below with the defined reference contributions."
+no_definitions = "No reference subjects."
+no_retention = "Follow the authored direction."
+soundscape = "Follow only the sound explicitly authored in the direction above."
+music = "N/A"
+
+[lines]
+subject_definition = "{label} is {name}, {description}. Source: <Picture {p}>. <Picture {p}> supplies identity only."
+sheet_definition = "<Picture {p}> is a reference sheet of this one {noun} in {count} panels separated by grey {separators}: {count} photographs of the same empty {noun} {origin}. The panels are alternative views of one place, not one picture; nobody is in them."
+subject_retention = "{label} (appears in {shots}): fully_preserved - Preserve the reference contributions defined above."
+sheet_retention = "<Picture {p}> (appears in {shots}): weak_reference - Preserve the layout and look of the {noun} from the sheet: {landmarks}. Never show the grid, the grey {separators} or several panels of the sheet. {only} remains the only person."
+identity_use = "Use <Picture {p}> for identity, outfit only. Preserve {name}'s {keeps}; the background follows the scene."
+single_take = "Single continuous take: one uninterrupted shot from start to finish. Do not introduce internal cuts, cutaways, montage or a change of scene. Perform only the action and camera movement specified for this shot."
+continuation = "Continue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat."
+production = "Production context: {description}"
+subject_line = "{label}: {description}."
+shot_open = "[Shot {i}]"
+cut_open = "At {timecode}, the shot cuts."
+identities_clause = "This shot follows the referenced identities of {labels}."
+state_clause = "Current state: {states}"
+state_item = "{label} {attribute}: {value}."
+screen_direction_clause = "Screen direction: {screen_direction}"
+place_clause = "The {noun} after the cut is the one in <Picture {p}>."
+sound_clause = "Sound: {sound}"
+phase_clause = "From {start}s to {end}s: {description}"
+event_clause = "At {seconds} seconds into this shot, {description}"
+cast_clause = "Subjects in frame: {labels}."
+speech_clause = "{label} (S{k}) says at {seconds} seconds into the shot{delivery}: <d>[{language}] {text}</d>"
+speech_offscreen_clause = "{label} (S{k}) says in an off-screen voiceover at {seconds} seconds into the shot{delivery}: <d>[{language}] {text}</d> while the corresponding on-screen character's lips remain closed."
+
+[words]
+list_separator = ", "
+list_last = " and "
+identity_item = "identity"
+separators_plain = "lines"
+separators_blank = "areas"
+origin_walk_around = "from one walk around it"
+origin_survey = "from different places in it"
+# Renders of the set the place is built as (ADR 0019 §3): photographs from different places in it, as a survey's;
+# no other wording is tested until the film-cut comparison.
+origin_set = "from different places in it"
+numbers = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
+subject_label = "<Subject {n}>"
+speech_delivery = ", {delivery}"

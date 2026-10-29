@@ -1,0 +1,15 @@
+stride = 4
+scan_chunk_frames = 1200
+max_upload_bytes = 100000000
+suggest_min = 0.5
+# Provisional: the lead sets tau on the excerpt.
+tau = 0.45
+min_faces = 2
+min_face_px = 40
+
+[detector]
+adaptive_threshold = 3.0
+min_scene_len = 5
+window_width = 2
+min_content_val = 15.0
+downscale = 4

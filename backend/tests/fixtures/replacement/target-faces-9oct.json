@@ -1,0 +1,87 @@
+{
+ "schema": 1,
+ "measured": "2026-10-09",
+ "method": "InsightFace buffalo_l (detection + recognition), CPU, det_size 640, detection threshold lowered to 0.1 to list every detection; EXIF-transposed RGB; scores and face box heights in pixels, best first (CS084: top 5 of 69).",
+ "labels_by": "the lead, by eye",
+ "reading": "Best detection score >= 0.7 separates the two human targets (0.881, 0.885) from the robot (0.525) and the stylised fox (0.331). The scan's default 0.5 threshold keeps the robot's 0.525 detection, so the human-face rule applies its own threshold. Four pictures only.",
+ "targets": {
+  "CS005.png": {
+   "label": "non-human (stylised fox)",
+   "size": [
+    768,
+    1024
+   ],
+   "faces": [
+    [
+     0.331,
+     257
+    ]
+   ],
+   "sha256": "a3ae57f0f36fa6f5b375a10b62930bf032ed0d6d33a4e893bccd0ae3e3663e46"
+  },
+  "CS010.png": {
+   "label": "human",
+   "size": [
+    768,
+    1024
+   ],
+   "faces": [
+    [
+     0.881,
+     97
+    ]
+   ],
+   "sha256": "3f429185dbaba3d6454bd14d43aea65a62760fb49d876d49888f7b3aa64e52f9"
+  },
+  "CS079.png": {
+   "label": "human (Nell turnaround: front and side)",
+   "size": [
+    768,
+    1024
+   ],
+   "faces": [
+    [
+     0.885,
+     102
+    ],
+    [
+     0.77,
+     94
+    ]
+   ],
+   "front_side_cosine": 0.49,
+   "sha256": "36f16e7fccfb92eb3582e970f8b2937399b742b306dd732dc89c63d7f4562fbf"
+  },
+  "CS084.png": {
+   "label": "non-human (robot Pax turnaround with face close-ups)",
+   "size": [
+    1024,
+    1024
+   ],
+   "faces": [
+    [
+     0.525,
+     55
+    ],
+    [
+     0.491,
+     13
+    ],
+    [
+     0.475,
+     17
+    ],
+    [
+     0.41,
+     13
+    ],
+    [
+     0.386,
+     12
+    ]
+   ],
+   "detections_total": 69,
+   "sha256": "b7a054dedacac48f2a6f2002de23785199513a38c5833073b8c928f2e5c9dcee"
+  }
+ }
+}

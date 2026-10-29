@@ -1,0 +1,438 @@
+{
+ "rows": [
+  {
+   "label": "Segment",
+   "box": [
+    0,
+    30,
+    1728,
+    66
+   ]
+  },
+  {
+   "label": "Phases",
+   "box": [
+    0,
+    96,
+    1728,
+    43
+   ]
+  },
+  {
+   "label": "Cuts",
+   "box": [
+    0,
+    139,
+    1728,
+    52
+   ]
+  },
+  {
+   "label": "References",
+   "box": [
+    0,
+    191,
+    1728,
+    70
+   ]
+  },
+  {
+   "label": "Keyframes",
+   "box": [
+    0,
+    261,
+    1728,
+    43
+   ]
+  },
+  {
+   "label": "State",
+   "box": [
+    0,
+    304,
+    1728,
+    43
+   ]
+  },
+  {
+   "label": "Dialogue",
+   "box": [
+    0,
+    347,
+    1728,
+    43
+   ]
+  },
+  {
+   "label": "Sound",
+   "box": [
+    0,
+    390,
+    1728,
+    70
+   ]
+  }
+ ],
+ "items": [
+  {
+   "label": "Segment 01",
+   "frame": "0",
+   "className": "track-item segment-item",
+   "box": [
+    102,
+    35,
+    800,
+    55
+   ]
+  },
+  {
+   "label": "Segment 02",
+   "frame": "120",
+   "className": "track-item segment-item",
+   "box": [
+    905,
+    35,
+    800,
+    55
+   ]
+  },
+  {
+   "label": "Phase: Arin walks toward the iron railing.",
+   "frame": "0",
+   "className": "track-item phase-item",
+   "box": [
+    102,
+    101,
+    800,
+    32
+   ]
+  },
+  {
+   "label": "Phase: Arin walks toward the iron railing.",
+   "frame": "120",
+   "className": "track-item phase-item",
+   "box": [
+    905,
+    101,
+    800,
+    32
+   ]
+  },
+  {
+   "label": "Cut f36 · Reverse · Reveals new area",
+   "frame": "156",
+   "className": "track-item cut-item",
+   "box": [
+    1146,
+    144,
+    188,
+    41
+   ]
+  },
+  {
+   "label": "Arin · identity picture · whole segment",
+   "frame": "0",
+   "className": "track-item picture-item",
+   "box": [
+    102,
+    196,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "Arin · identity picture · whole segment",
+   "frame": "120",
+   "className": "track-item picture-item",
+   "box": [
+    905,
+    196,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "First-shot references · Place · Arcade courtyard · Text only",
+   "frame": "120",
+   "className": "track-item place-item",
+   "box": [
+    905,
+    226,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "Pin needed · cut + 12 · f48",
+   "frame": "168",
+   "className": "track-item keyframe-item pin-needed",
+   "box": [
+    1221,
+    266,
+    105,
+    25
+   ]
+  },
+  {
+   "label": "satchel: over the left shoulder",
+   "frame": "0",
+   "className": "track-item state-item",
+   "box": [
+    102,
+    309,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "satchel: over the left shoulder",
+   "frame": "120",
+   "className": "track-item state-item",
+   "box": [
+    905,
+    309,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "Dialogue: Meet me beyond the arcade.",
+   "frame": "60",
+   "className": "track-item dialogue-item",
+   "box": [
+    504,
+    352,
+    174,
+    32
+   ]
+  },
+  {
+   "label": "Dialogue: Meet me beyond the arcade.",
+   "frame": "180",
+   "className": "track-item dialogue-item",
+   "box": [
+    1307,
+    352,
+    174,
+    32
+   ]
+  },
+  {
+   "label": "Footsteps on stone; a soft courtyard breeze.",
+   "frame": "0",
+   "className": "track-item sound-item",
+   "box": [
+    102,
+    395,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "Event: A gate clicks shut.",
+   "frame": "70",
+   "className": "track-item sound-item sound-event",
+   "box": [
+    571,
+    425,
+    146,
+    25
+   ]
+  },
+  {
+   "label": "Footsteps on stone; a soft courtyard breeze.",
+   "frame": "120",
+   "className": "track-item sound-item",
+   "box": [
+    905,
+    395,
+    800,
+    25
+   ]
+  },
+  {
+   "label": "Event: A gate clicks shut.",
+   "frame": "190",
+   "className": "track-item sound-item sound-event",
+   "box": [
+    1374,
+    425,
+    146,
+    25
+   ]
+  }
+ ],
+ "ticks": [
+  [
+   "00",
+   102
+  ],
+  [
+   "06",
+   142
+  ],
+  [
+   "12",
+   182
+  ],
+  [
+   "18",
+   222
+  ],
+  [
+   "24",
+   263
+  ],
+  [
+   "30",
+   303
+  ],
+  [
+   "36",
+   343
+  ],
+  [
+   "42",
+   383
+  ],
+  [
+   "48",
+   423
+  ],
+  [
+   "54",
+   463
+  ],
+  [
+   "60",
+   504
+  ],
+  [
+   "66",
+   544
+  ],
+  [
+   "72",
+   584
+  ],
+  [
+   "78",
+   624
+  ],
+  [
+   "84",
+   664
+  ],
+  [
+   "90",
+   704
+  ],
+  [
+   "96",
+   745
+  ],
+  [
+   "102",
+   785
+  ],
+  [
+   "108",
+   825
+  ],
+  [
+   "114",
+   865
+  ],
+  [
+   "120",
+   905
+  ],
+  [
+   "126",
+   945
+  ],
+  [
+   "132",
+   986
+  ],
+  [
+   "138",
+   1026
+  ],
+  [
+   "144",
+   1066
+  ],
+  [
+   "150",
+   1106
+  ],
+  [
+   "156",
+   1146
+  ],
+  [
+   "162",
+   1186
+  ],
+  [
+   "168",
+   1227
+  ],
+  [
+   "174",
+   1267
+  ],
+  [
+   "180",
+   1307
+  ],
+  [
+   "186",
+   1347
+  ],
+  [
+   "192",
+   1387
+  ],
+  [
+   "198",
+   1427
+  ],
+  [
+   "204",
+   1467
+  ],
+  [
+   "210",
+   1508
+  ],
+  [
+   "216",
+   1548
+  ],
+  [
+   "222",
+   1588
+  ],
+  [
+   "228",
+   1628
+  ],
+  [
+   "234",
+   1668
+  ],
+  [
+   "240",
+   1708
+  ]
+ ],
+ "playhead": [
+  102,
+  23,
+  1,
+  437
+ ],
+ "scrollLeft": 0
+}

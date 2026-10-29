@@ -1,0 +1,47 @@
+# The Worldbuilder engines (ADR 0018 §4), in the schema of the closed engine registry (ADR 0015, schema 2).
+#
+# `worldbuilder` fits and renders a set's Gaussian splat with gsplat in its own environment. Its home is linked to the
+# engine environment, configured separately under the engines root.
+# The tasks keep their state in the operation's scratch folder (`scratch/splat/<name>`): a splat's training state is a
+# folder, and the next round extends it.
+schema = 2
+
+[engines.worldbuilder]
+home = "worldbuilder"
+environment = "Scripts/python.exe"
+worker = "worldbuilder.py"
+packages = { torch = "2.4.1+cu124", gsplat = "1.5.3+pt24cu124", plyfile = "1.1.3", numpy = "1.26.4" }
+# Lays out a version's atlas from Library files, retracts keyframes and carves the map again: numpy on the CPU, the
+# research's model-free code until it is ported into the sets module (ADR 0018 §4).
+[engines.worldbuilder.tasks.atlas_prepare]
+gpu = false
+# A set seeded from a take (ADR 0019 §4): the reconstruction gate on the take's DA3 geometry and, if it holds, the
+# pinhole keyframes, levelled, and their map. numpy on the CPU.
+[engines.worldbuilder.tasks.atlas_from_frames]
+gpu = false
+# The research rebuilt and extended splats of about 0.4-0.6 M gaussians at 1024x576 on the 4090 in about 2-3 minutes;
+# the estimate leaves room for the held-out renders that measure them.
+[engines.worldbuilder.tasks.splat_init_atlas]
+gpu = true
+vram_gb = 8
+[engines.worldbuilder.tasks.splat_extend]
+gpu = true
+vram_gb = 8
+[engines.worldbuilder.tasks.splat_atlas_metrics]
+gpu = true
+vram_gb = 6
+# Pictures of a set's cameras for a place's angles (ADR 0019 §3): a few renders of an accepted version.
+[engines.worldbuilder.tasks.render_views]
+gpu = true
+vram_gb = 4
+# Filling a stage's unseen space (ADR 0020 §4): a round's plan and memory videos, its stills and their consolidation
+# run on the CPU (numpy, the research's map and memory, ffmpeg for the videos); the probes' depth is a splat render.
+[engines.worldbuilder.tasks.fill_explore]
+gpu = false
+[engines.worldbuilder.tasks.fill_paths]
+gpu = true
+vram_gb = 4
+[engines.worldbuilder.tasks.fill_stills]
+gpu = false
+[engines.worldbuilder.tasks.fill_consolidate]
+gpu = false

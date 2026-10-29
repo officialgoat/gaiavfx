@@ -1,0 +1,141 @@
+{
+ "schema": 1,
+ "source": "Validation library .cache/recast-perf-batch3/app-validation (10 October 2026); in-loop face checks of every close-up take",
+ "verdicts": "User reviews: 058 versions A-D all accepted (10 October); 061 final-retake versions A-C all rejected for identity (11 October), the draft too (10 October)",
+ "close_up_rule": "face height at least 0.7 of the frame ([faceswap] close_up_min_face_fraction)",
+ "takes": [
+  {
+   "shot": "058",
+   "window": [
+    7569,
+    7642
+   ],
+   "round": 0,
+   "arcface_target": 0.4052,
+   "residual_source": -0.0435,
+   "user": "accept"
+  },
+  {
+   "shot": "058",
+   "window": [
+    7569,
+    7642
+   ],
+   "round": 0,
+   "arcface_target": 0.3729,
+   "residual_source": -0.0321,
+   "user": "accept"
+  },
+  {
+   "shot": "058",
+   "window": [
+    7569,
+    7642
+   ],
+   "round": 1,
+   "arcface_target": 0.417,
+   "residual_source": -0.0284,
+   "user": "accept"
+  },
+  {
+   "shot": "058",
+   "window": [
+    7620,
+    7679
+   ],
+   "round": 0,
+   "arcface_target": 0.4043,
+   "residual_source": -0.0165,
+   "user": "accept"
+  },
+  {
+   "shot": "058",
+   "window": [
+    7620,
+    7679
+   ],
+   "round": 0,
+   "arcface_target": 0.3921,
+   "residual_source": -0.0221,
+   "user": "accept"
+  },
+  {
+   "shot": "058",
+   "window": [
+    7620,
+    7679
+   ],
+   "round": 1,
+   "arcface_target": 0.3822,
+   "residual_source": -0.0247,
+   "user": "accept"
+  },
+  {
+   "shot": "061",
+   "window": [
+    7829,
+    7883
+   ],
+   "round": 0,
+   "arcface_target": 0.2919,
+   "residual_source": 0.2317,
+   "user": "reject"
+  },
+  {
+   "shot": "061",
+   "window": [
+    7829,
+    7883
+   ],
+   "round": 0,
+   "arcface_target": 0.3048,
+   "residual_source": 0.2383,
+   "user": "reject"
+  },
+  {
+   "shot": "061",
+   "window": [
+    7829,
+    7883
+   ],
+   "round": 1,
+   "arcface_target": 0.3106,
+   "residual_source": 0.2228,
+   "user": "reject"
+  },
+  {
+   "shot": "061",
+   "window": [
+    7778,
+    7851
+   ],
+   "round": 0,
+   "arcface_target": 0.1039,
+   "residual_source": 0.6037,
+   "user": "reject"
+  },
+  {
+   "shot": "061",
+   "window": [
+    7778,
+    7851
+   ],
+   "round": 0,
+   "arcface_target": 0.3376,
+   "residual_source": 0.238,
+   "user": "reject"
+  },
+  {
+   "shot": "061",
+   "window": [
+    7778,
+    7851
+   ],
+   "round": 1,
+   "arcface_target": 0.4214,
+   "residual_source": 0.016,
+   "user": "reject"
+  }
+ ],
+ "reading": "058 accepted takes 0.37-0.42; 061's second window, in every rejected version, 0.29-0.34 (one first-window take 0.42, which the window-2 failure outvotes). Wider shots read lower for accepted takes (006 0.18-0.26, 053 0.28, 056 0.39), so the bound applies to close-ups only."
+}

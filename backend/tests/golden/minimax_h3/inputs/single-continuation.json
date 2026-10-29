@@ -1,0 +1,53 @@
+{
+  "segment": {
+    "subjects": [
+      {
+        "id": "mara",
+        "name": "Mara",
+        "description": "Adult woman with short wavy brown hair and an ochre raincoat",
+        "keeps": [
+          "clothing"
+        ],
+        "identity_asset": "mara-asset"
+      }
+    ],
+    "place": {
+      "noun": "place",
+      "description": "A misty harbour at dusk: a wet wooden pier with a dark railing.",
+      "landmarks": ""
+    },
+    "style": "",
+    "shots": [
+      {
+        "description": "Mara walks steadily along the wet pier, the railing on her left.",
+        "screen_direction": "",
+        "sound": "",
+        "cast": [
+          "mara"
+        ]
+      }
+    ],
+    "cut_frames": [],
+    "delivered_frames": 120,
+    "continues": true
+  },
+  "context_frames": 22,
+  "keyframes": [],
+  "sheet": null,
+  "source": {
+    "fixture": "single-continuation",
+    "reference": "h3-prompt-11",
+    "dropped": [
+      "restrictions, required_outcome, camera.purpose, review_required: planning and review fields excluded by v11.",
+      "Phase, cut, event and speech ids/names and locked flags: record identity and editing policy, not prose.",
+      "direction and story_context: replaced by setting and style in v6.",
+      "Document sound and music: empty; the prompt sections use fixed wording.",
+      "width, height, steps, seed, loras, model_state, render_mode, final_audio: render settings, not direction.",
+      "guides, utterances, source_observation, continuity states, manual_prompt: empty or obsolete features.",
+      "Subject kind, speakers, reference/association ids and contribution review metadata: identity binding is represented by identity_asset and keeps.",
+      "Camera defaults, inheritance flags, default_overrides, profile, prompt_version, manual_binding_fingerprint: old recipe configuration.",
+      "Terminal subject-description period: sentence closure is supplied by the wording template; action, staging and camera sentences are closed in this data.",
+      "Free-form identity instruction 'Preserve Mara's identity and clothing.': represented as keeps=[clothing]; the research identity template adds the background sentence (approved drift)."
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "what": "a sunlit stone courtyard: an open arcade of pale stone columns and arches along a pale plaster wall, a black iron railing on a low plinth in front of the arcade, olive trees in terracotta pots, worn stone paving",
+  "sound": "A light breeze throughout.",
+  "first_view": "from the open paving, looking at the black iron railing on its low plinth and the open arcade of pale stone columns and arches behind it, an olive tree in a terracotta pot.",
+  "views": [
+    [
+      "angle-2",
+      "from the open paving further along the railing, looking back along it: the railing, its plinth and the arcade with its columns and arches run along the right side of the frame, the open sunlit paving along the left side"
+    ],
+    [
+      "angle-3",
+      "from the shade under the arcade, close behind the railing, looking straight out across the open courtyard at its far side"
+    ],
+    [
+      "angle-4",
+      "from the other end of the railing looking along it the other way: the railing and the arcade on the left, the open paving on the right"
+    ]
+  ],
+  "overhead": "a straight-down view of the whole courtyard, like an architect's cutaway: the arcade along the top edge, the railing in front of it, the open paving below",
+  "first_angle_id": "opening",
+  "seed": 1,
+  "first_frame": {
+    "sha256": "97171560563a4285749e39cb067c9514adad0f344e0225cada13ab53a6682322"
+  }
+}

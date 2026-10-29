@@ -1,0 +1,290 @@
+{
+ "schema": 1,
+ "purpose": "Calibration evidence for residual_source (ADR 0011 section 6): window medians of the face check, read against the user's blind verdicts of 9 October 2026 on the Tears of Steel recast trial and Batch 1.",
+ "verdicts": "calibration/data/recast-performance-rankings-2026-10-09.json",
+ "previous": "backend/tests/fixtures/replacement/calibration-6oct.json",
+ "observation": "Every window the user judged as replaced is at most 0.323 (058 D 0.323/0.229, 058 C 0.219/0.297, all 056 renders at most 0.06). Every non-negative window the user judged as a leak or hybrid is at least 0.341 (058 B window 2 0.341, 061 w1 hybrids 0.345/0.349); photographic-negative copies read 0.36-0.39 and are failed by inverted_copy instead. The 6 October evidence (pass at most 0.25, fail at least 0.43) still holds. One film: the tighter fail bound should be re-checked on the next film.",
+ "thresholds": {
+  "residual_source": {
+   "pass_at_most": 0.3,
+   "fail_at_least": 0.34,
+   "between": "unsupported"
+  }
+ },
+ "rows": [
+  {
+   "source": "trial 058 version A (draft)",
+   "windows": [
+    0.712,
+    0.672
+   ],
+   "user": "unusable: identity barely changed"
+  },
+  {
+   "source": "trial 058 version B",
+   "windows": [
+    0.529,
+    0.341
+   ],
+   "user": "unusable: face is still the male reference"
+  },
+  {
+   "source": "trial 058 version C",
+   "windows": [
+    0.219,
+    0.297
+   ],
+   "user": "usable (second)"
+  },
+  {
+   "source": "trial 058 version D",
+   "windows": [
+    0.323,
+    0.229
+   ],
+   "user": "usable (best face change)"
+  },
+  {
+   "source": "trial 061 version A (draft)",
+   "windows": [
+    0.171,
+    0.59
+   ],
+   "user": "unusable: source face leaks"
+  },
+  {
+   "source": "trial 061 version B",
+   "windows": [
+    0.739,
+    0.545
+   ],
+   "user": "unusable: identity changes mid clip"
+  },
+  {
+   "source": "trial 061 version C",
+   "windows": [
+    0.322,
+    0.763
+   ],
+   "user": "unusable: identity changes mid clip"
+  },
+  {
+   "source": "trial 061 version D",
+   "windows": [
+    0.168,
+    0.722
+   ],
+   "user": "unusable: identity changes mid clip"
+  },
+  {
+   "source": "batch 1 rp1-056w0-a-prime-s271828",
+   "windows": [
+    -0.006
+   ],
+   "user": "identity usable (replacement worked; expression judged separately)"
+  },
+  {
+   "source": "batch 1 rp1-056w0-a-prime-s314159",
+   "windows": [
+    -0.051
+   ],
+   "user": "identity usable (replacement worked; expression judged separately)"
+  },
+  {
+   "source": "batch 1 rp1-056w0-a-s271828",
+   "windows": [
+    -0.002
+   ],
+   "user": "identity usable (replacement worked; expression judged separately)"
+  },
+  {
+   "source": "batch 1 rp1-056w0-t1a-split-s271828",
+   "windows": [
+    0.036
+   ],
+   "user": "identity usable (replacement worked; expression judged separately)"
+  },
+  {
+   "source": "batch 1 rp1-056w0-t1a-split-s314159",
+   "windows": [
+    -0.009
+   ],
+   "user": "identity usable (replacement worked; expression judged separately)"
+  },
+  {
+   "source": "batch 1 rp1-056w0-t1d-rgb-s271828",
+   "windows": [
+    0.055
+   ],
+   "user": "identity usable (replacement worked; expression judged separately)"
+  },
+  {
+   "source": "batch 1 rp1-058w0-a-prime-s271828",
+   "windows": [
+    0.698
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w0-a-prime-s314159",
+   "windows": [
+    0.371
+   ],
+   "user": "unusable: photographic-negative copy (inversion check)"
+  },
+  {
+   "source": "batch 1 rp1-058w0-a-s271828",
+   "windows": [
+    0.708
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w0-split-control-s271828",
+   "windows": [
+    0.698
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w0-t1a-split-s271828",
+   "windows": [
+    0.975
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w0-t1a-split-s314159",
+   "windows": [
+    0.385
+   ],
+   "user": "unusable: photographic-negative copy (inversion check)"
+  },
+  {
+   "source": "batch 1 rp1-058w0-t1b-audio-lock-s271828",
+   "windows": [
+    0.709
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w0-t1b-audio-lock-s314159",
+   "windows": [
+    0.375
+   ],
+   "user": "unusable: photographic-negative copy (inversion check)"
+  },
+  {
+   "source": "batch 1 rp1-058w0-t1d-rgb-s271828",
+   "windows": [
+    0.974
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w1-a-prime-s271828",
+   "windows": [
+    0.695
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w1-a-prime-s314159",
+   "windows": [
+    0.667
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w1-t1a-split-s271828",
+   "windows": [
+    0.965
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w1-t1a-split-s314159",
+   "windows": [
+    0.36
+   ],
+   "user": "unusable: photographic-negative copy (inversion check)"
+  },
+  {
+   "source": "batch 1 rp1-058w1-t1b-audio-lock-s271828",
+   "windows": [
+    0.702
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w1-t1b-audio-lock-s314159",
+   "windows": [
+    0.699
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-058w1-t1d-rgb-s271828",
+   "windows": [
+    0.965
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-a-prime-s271828",
+   "windows": [
+    0.548
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-a-prime-s314159",
+   "windows": [
+    0.345
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-a-s271828",
+   "windows": [
+    0.57
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-t1a-split-s271828",
+   "windows": [
+    0.969
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-t1a-split-s314159",
+   "windows": [
+    0.365
+   ],
+   "user": "unusable: photographic-negative copy (inversion check)"
+  },
+  {
+   "source": "batch 1 rp1-061w1-t1b-audio-lock-s271828",
+   "windows": [
+    0.563
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-t1b-audio-lock-s314159",
+   "windows": [
+    0.349
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  },
+  {
+   "source": "batch 1 rp1-061w1-t1d-rgb-s271828",
+   "windows": [
+    0.887
+   ],
+   "user": "unusable: source actor not replaced or a hybrid"
+  }
+ ]
+}

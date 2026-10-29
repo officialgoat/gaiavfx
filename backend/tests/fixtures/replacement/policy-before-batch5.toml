@@ -1,0 +1,197 @@
+schema = 1
+
+[tone_anchor]
+smooth_frames = 9
+gain_min = 0.7
+gain_max = 1.4
+min_agreeing_fraction = 0.03
+min_pixels = 2000
+dilate_fraction = 0.04
+evidence = "calibration/RECAST_CHAIN_DRIFT_2026-10-11.md"
+note = "On 006, delivered window offsets of -10.8 to -30.9 became -0.9 to +1.1, with the last window overshooting to +6.1."
+
+[frame_rates]
+max = 30
+tested = ["24"]
+developing = ["24000/1001", "25"]
+experimental = ["30000/1001", "30"]
+
+[loop]
+max_rounds = 3
+renders = 4
+renders_per_round = [2, 1, 1]
+take_rule = "all"
+identity_margin_min = 0.1
+feather = 24
+safety = 8
+dilate = 3
+
+[analysis]
+# Ignore small or fleeting SAM person detections when protecting unselected people.
+min_bystander_area_fraction = 0.005
+min_bystander_presence = 0.25
+min_face_height_fraction = 0.06
+min_face_frames_fraction = 0.25
+
+[mouth]
+# Quiet-mouth facts come from the source performer's own lips (106-point inner-lip gap over
+# face height); film soundtracks rarely fall silent, so audio silence is not used.
+closed_aperture_at_most = 0.004
+min_face_height_px = 120
+quiet_min_coverage = 0.8
+silent_min_frames = 12
+evidence = "backend/tests/fixtures/replacement/mouth-closure-9oct.json"
+note = "9 October Tears of Steel trial windows: 0.004 marks visibly sealed lips on close-ups; faces near 100 px sit on the noise floor; 12 frames skip closures between words."
+
+[faceswap]
+close_up_min_face_fraction = 0.7
+# Batch 5 (11 October): in-loop target likeness on close-ups; 058 accepted 0.37-0.42, 061's rejected window 0.29-0.34.
+close_up_likeness_fail_at_most = 0.35
+likeness_evidence = "backend/tests/fixtures/replacement/likeness-11oct.json"
+evidence = "calibration/RECAST_PERFORMANCE_BATCH3_2026-10-10.md"
+note = "Batch 3: FaceSwap stacked on CharacterSwap ranked first on 058 at the seed that worked (both windows usable), the face sheet alone second; FaceSwap alone was unusable everywhere; the other seed failed every arm. Median InsightFace face-box height over native 1920x800 frames in mouth-closure-9oct.json: 006 0.12-0.14, 056 w0 0.50, 059 0.65, 058 0.93-0.94, 061 0.94-0.95. The 0.7 threshold admits only tested 058/061-type framings; evidence remains limited to one film."
+
+[first_arm]
+# Baseline v2 follow-up batch:
+# calibration/community-2026-09/followups/character-replacement-suite-2026-10.md
+# Crop + masked inversion removed seams and the duplicate source figure on the fixtures.
+# Trade-off for review: the user's earlier observation that RGB preserves scene lighting better.
+treatment = "inverted"
+# calibration/RECAST_PERFORMANCE_BATCH2_2026-10-09.md:
+# The user's verdicts: the lock won 3 of 4 usable 058 takes.
+audio_lock = "speaking"
+# Same mouth-closure evidence as [mouth]: 12 frames skip closures between words.
+speaking_min_open_frames = 12
+
+[[calibration]]
+check = "residual_source"
+pass_at_most = 0.30
+fail_at_least = 0.34
+evidence = "backend/tests/fixtures/replacement/calibration-9oct.json"
+note = "9 October user verdicts on the recast trial and Batch 1: replaced windows at most 0.323; leaks and hybrids at least 0.341 (7 October: at most 0.25 against at least 0.43). One film so far."
+
+[[calibration]]
+check = "inverted_copy"
+pass_at_least = 0.0
+fail_at_most = -0.5
+evidence = "backend/tests/fixtures/replacement/inversion-9oct.json"
+note = "9 October: photographic-negative copies of the inverted guide correlate -0.96 to -0.99 with the source luma inside the performer mask; every other render +0.23 or more."
+
+[[calibration]]
+check = "background_geometry"
+pass_scale_delta_at_most = 0.02
+fail_scale_delta_at_least = 0.05
+pass_shift_at_most = 8.0
+fail_shift_at_least = 24.0
+unsupported_advice = "retry"
+evidence = "backend/tests/fixtures/replacement/geometry-7oct.json"
+note = "7 October v2 crop batch and 6 October framing failures; absolute scale deviation and median shift in crop-canvas pixels."
+
+[[escalation]]
+on = "likeness"
+checks = ["arcface_target", "residual_source", "inverted_copy"]
+# Only calibrated failures spend renders; ArcFace target likeness remains uncalibrated.
+fires_on = ["fail"]
+to = "treatment"
+
+[[escalation]]
+on = "likeness"
+checks = ["arcface_target", "residual_source", "inverted_copy"]
+fires_on = ["fail"]
+to = "faceswap"
+
+[[escalation]]
+on = "likeness"
+checks = ["arcface_target", "residual_source", "inverted_copy"]
+fires_on = ["fail"]
+to = "seed"
+
+[[escalation]]
+on = "geometry"
+checks = ["background_geometry", "letterbox_difference"]
+# The geometry tolerance flagged the known seam failure in research; allow its advisory retry.
+fires_on = ["fail", "retry"]
+to = "framing"
+
+[[escalation]]
+on = "mouth"
+checks = ["mouth_aperture"]
+# No calibrated mouth threshold yet.
+fires_on = ["fail"]
+to = "seed"
+
+[[technique]]
+id = "replacement_reference"
+applies_to = { treatment = ["rgb", "inverted"], grouping = ["single", "joint"], framing = ["crop", "pair", "active", "full"] }
+title = "Reference-only replacement with grounded wording"
+status = "default"
+evidence = ["calibration/community-2026-09/followups/character-replacement-baseline-v2.md"]
+limitations = "Six-section wording awaits the format comparison; no calibrated automatic quality verdict."
+
+[[technique]]
+id = "replacement_crop"
+applies_to = { treatment = ["rgb", "inverted"], grouping = ["single", "joint"], framing = ["crop", "pair"] }
+title = "Whole-person crop and geometry check"
+status = "developing"
+evidence = ["backend/tests/test_person_crop.py"]
+limitations = "Rectangle compositing and crop edge behaviour remain unqualified."
+
+[[technique]]
+id = "replacement_inversion"
+applies_to = { treatment = ["inverted"], grouping = ["single", "joint"], framing = ["crop", "pair", "active", "full"] }
+title = "Binary masked RGB inversion for hard likeness"
+status = "default"
+evidence = ["calibration/community-2026-09/followups/replacement-verdicts-2026-10-07.json"]
+limitations = "Default inversion trades scene-lighting fidelity for stronger replacement; similarity threshold remains unset."
+
+[[technique]]
+id = "replacement_joint"
+applies_to = { treatment = ["rgb", "inverted"], grouping = ["joint"], framing = ["crop", "pair", "active", "full"] }
+title = "Joint two-picture replacement"
+status = "default"
+evidence = ["calibration/community-2026-09/followups/character-replacement-baseline-v2.md"]
+limitations = "At most two performers in a single shot."
+
+[[technique]]
+id = "replacement_split_pathways"
+applies_to = { treatment = ["rgb", "inverted"], grouping = ["single", "joint"], framing = ["crop", "pair", "active", "full"] }
+title = "Split vision and appearance pathways"
+status = "experimental"
+evidence = ["calibration/community-2026-09/followups/character-replacement-baseline-v2.md"]
+limitations = "Not available in the product lowering."
+
+[[technique]]
+id = "replacement_erasure"
+applies_to = { treatment = ["rgb", "inverted"], grouping = ["single", "joint"], framing = ["crop", "pair", "active", "full"] }
+title = "Gray and feathered erasure"
+status = "retired"
+evidence = ["calibration/community-2026-09/followups/character-replacement-baseline-v2.md"]
+limitations = "Retired by the user after the replacement suite review."
+
+[head]
+min_coverage = 0.5
+min_face_height_px = 48
+expand = 1.8
+smoothing_window = 4
+up_shift = 0.1
+canvas_sides = [512, 640]
+min_scale = 1.0
+mask_dilate_px = 12
+mask_feather_px = 16
+treatment = "rgb"
+
+[[technique]]
+id = "head_pass"
+title = "Head pass on a settled version"
+status = "developing"
+evidence = ["calibration/0013-head-pass.md"]
+limitations = "One render and one round; quality awaits GPU validation and human review."
+[technique.applies_to]
+treatment = ["rgb"]
+grouping = ["single"]
+framing = ["head"]
+
+[target_face]
+min_det_score = 0.7
+evidence = "backend/tests/fixtures/replacement/target-faces-9oct.json"
+note = "Best buffalo_l detection scores: humans 0.881 and 0.885; robot 0.525; stylised fox 0.331. Four pictures only."

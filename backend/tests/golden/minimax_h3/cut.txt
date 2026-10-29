@@ -1,0 +1,20 @@
+subject_definitions:
+No reference subjects.
+
+summary:
+[reference generation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+Follow the authored direction.
+
+detailed_description:
+Production context: A misty harbour at dusk: a wet wooden pier with a dark railing.
+Mara: Adult woman with short wavy brown hair and an ochre raincoat.
+[Shot 1] Mara walks steadily along the wet pier, the railing on her left. Side-view tracking shot. Subjects in frame: Mara.
+[Shot 2] At 00:01.500, the shot cuts. Mara keeps walking; she is small in the frame at the railing. Wide static reverse angle from the water. Camera position: Out on the water, looking back at the pier. Screen direction: Seen from the water, she walks from screen right to screen left. Subjects in frame: Mara.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

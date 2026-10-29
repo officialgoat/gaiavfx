@@ -1,0 +1,10 @@
+# The set build's frozen rules (ADR 0018 §4). A build's jobs carry the values they started with in their snapshots;
+# a change here applies to new builds only.
+schema = 1
+
+# A repair fits the splat again from every current keyframe with the research's final settings (S-r6x, R6, 26 Oct):
+# 6000 steps and no seam mask. H8 rebuilt so through the app's engine path came within 0.05 dB of the research's
+# held-out PSNR (calibration/worldbuilder-2026-10/engine-smoke.md).
+[rebuild]
+steps = 6000
+seam_mask_deg = 0

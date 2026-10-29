@@ -1,0 +1,5 @@
+schema = 1
+checkpoint = "sam3.1_multiplex_fp16.safetensors"
+category = "checkpoints"
+max_instances = 4
+threshold = 0.5

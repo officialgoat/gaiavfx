@@ -1,0 +1,215 @@
+{
+ "arm": "IN-KV",
+ "label": "r1-street-front-ins-s2",
+ "what": "street front pin (KV): Lena facing the camera",
+ "intent": {
+  "label": "r1-street-front-ins-s2",
+  "graph_sha256": "4545ceccb02cad0c8bafc47e272df7e725ed6decd9f105ba59e0ee8c9ea1e587",
+  "stage": "diffusion",
+  "max_seconds": 300,
+  "created": 1790705957.1939032,
+  "runner_sha256": "c876619281c650e904e231f9909449779c7bfc1d6d356c93b8a8c071cc896758",
+  "runtime_provenance_sha256": "be72e0e791ffdb836f4500cc9b25e73d40931bfab303c2e12993c683a047c5bb"
+ },
+ "graph": {
+  "model": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "lora_0": {
+   "class_type": "LoraLoaderModelOnly",
+   "inputs": {
+    "model": [
+     "model",
+     0
+    ],
+    "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  "encoder": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  "vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_vae.safetensors"
+   }
+  },
+  "shift": {
+   "class_type": "ModelSamplingAuraFlow",
+   "inputs": {
+    "model": [
+     "lora_0",
+     0
+    ],
+    "shift": 3.1
+   }
+  },
+  "image_1": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/street/loc-kl-src-kl/view-084.png"
+   }
+  },
+  "scaled_1": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_1",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "image_2": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/people/lena-left-grey-s3/lena-left.png"
+   }
+  },
+  "scaled_2": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_2",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "positive": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "Edit image 1, an empty city pavement seen from ahead, looking back along it. Preserve its camera position, perspective, framing, the shop fronts and the cafe's red awning on the right, the kerb and the road on the left and lighting.\n\nInsert exactly one person: Lena from image 2. Use image 2 only for her identity, dark bob haircut, red wool coat and black shoulder bag. Exclude its grey background.\n\nPlace Lena on the pavement a little right of the centre of the frame, between the cafe chairs and the kerb. She faces the camera and walks straight toward it, mid-stride: her face, chest and leading foot point at the camera. She is approximately one half of the image height from head to feet, and her full body fits inside the frame.\n\nMatch the plate's perspective, light and ground-contact shadows. Keep every existing feature in place: the shop fronts, the awning, the cafe chairs, the kerb, the road markings and the parked cars. The only person is Lena. Add no other figures, reflections of people or background pedestrians. Output one photographic frame.",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "negative": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "latent": {
+   "class_type": "EmptySD3LatentImage",
+   "inputs": {
+    "width": 1344,
+    "height": 752,
+    "batch_size": 1
+   }
+  },
+  "sample": {
+   "class_type": "KSampler",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "seed": 2,
+    "steps": 4,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "positive": [
+     "positive",
+     0
+    ],
+    "negative": [
+     "negative",
+     0
+    ],
+    "latent_image": [
+     "latent",
+     0
+    ],
+    "denoise": 1.0
+   }
+  },
+  "decode": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "sample",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "save": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "decode",
+     0
+    ],
+    "filename_prefix": "campaign/r1-street-front-ins-s2/asset"
+   }
+  }
+ },
+ "files": [
+  {
+   "node": "image_1",
+   "input": "image",
+   "path": "assets/packs/street/loc-kl-src-kl/view-084.png",
+   "sha256": "893f4753cbba60d1f0ad6152f57dade6d4a72fd0de4b0c5be9cd3a1cb444d023",
+   "bytes": 1804210,
+   "pixels_sha256": "96fda07187b3fc6106357dfcb3dafdd1fd99f153f5f59bea710a4277d5493440"
+  },
+  {
+   "node": "image_2",
+   "input": "image",
+   "path": "assets/packs/people/lena-left-grey-s3/lena-left.png",
+   "sha256": "63db607922b075681112ccf9295d927993e49981720a482a7f9ead3fee4d800c",
+   "bytes": 681588,
+   "pixels_sha256": "878d9730387d9d089fc2c04aa8de948e93eedc0b66b53c2898fc45b28cc07674"
+  }
+ ],
+ "delivered_sha256": null
+}

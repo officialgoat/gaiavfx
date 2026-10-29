@@ -1,0 +1,61 @@
+{
+  "segment": {
+    "subjects": [
+      {
+        "id": "arin",
+        "name": "Arin",
+        "description": "Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder",
+        "keeps": [
+          "plaid shirt",
+          "satchel"
+        ],
+        "identity_asset": "arin-asset"
+      }
+    ],
+    "place": {
+      "noun": "place",
+      "description": "A sunlit stone courtyard: a pale plaster wall, a black iron railing on a low stone ledge in front of the wall, olive trees in terracotta pots, a worn stone floor.",
+      "landmarks": ""
+    },
+    "style": "",
+    "shots": [
+      {
+        "description": "Arin keeps walking from left to right along the railing in the same side-view tracking shot, framing and light.",
+        "screen_direction": "Screen left to screen right, as before.",
+        "sound": "Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut.",
+        "cast": [
+          "arin"
+        ]
+      },
+      {
+        "description": "Arin keeps walking at the same steady pace, mid-stride as the shot begins. Reverse angle from the wall side: the camera stands against the pale plaster wall behind the iron railing and looks out across the open, sunlit courtyard toward him; the railing runs across the foreground. Camera position: At the wall, behind the iron railing, looking out across the open courtyard.",
+        "screen_direction": "Seen from the wall side he now moves from screen right to screen left, with the iron railing between him and the camera and the open courtyard behind him.",
+        "sound": "Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut.",
+        "cast": []
+      }
+    ],
+    "cut_frames": [
+      36
+    ],
+    "delivered_frames": 120,
+    "continues": true
+  },
+  "context_frames": 22,
+  "keyframes": [],
+  "sheet": null,
+  "source": {
+    "fixture": "lab-courtyard-rich",
+    "reference": "h3-prompt-11",
+    "dropped": [
+      "restrictions, required_outcome, camera.purpose, review_required: planning and review fields excluded by v11.",
+      "Phase, cut, event and speech ids/names and locked flags: record identity and editing policy, not prose.",
+      "direction and story_context: replaced by setting and style in v6.",
+      "Document sound and music: empty; the prompt sections use fixed wording.",
+      "width, height, steps, seed, loras, model_state, render_mode, final_audio: render settings, not direction.",
+      "guides, utterances, source_observation, continuity states, manual_prompt: empty or obsolete features.",
+      "Subject kind, speakers, reference/association ids and contribution review metadata: identity binding is represented by identity_asset and keeps.",
+      "Camera defaults, inheritance flags, default_overrides, profile, prompt_version, manual_binding_fingerprint: old recipe configuration.",
+      "Terminal subject-description period: sentence closure is supplied by the wording template; action, staging and camera sentences are closed in this data."
+    ]
+  }
+}

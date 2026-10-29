@@ -1,0 +1,156 @@
+schema = 2
+
+[[tag]]
+id = "wrong_direction"
+label = "walks the wrong way"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "wrong_side"
+label = "a landmark or the subject is on the wrong side"
+applies_to = ["segment_takes", "angle_views", "insertion"]
+
+[[tag]]
+id = "markers_visible"
+label = "sheet markers or labels leak into the image"
+applies_to = ["segment_takes", "angle_views", "insertion", "plate", "sheet"]
+
+[[tag]]
+id = "layout_inconsistent"
+label = "the place does not match the other shots"
+applies_to = ["segment_takes", "angle_views", "plate"]
+
+[[tag]]
+id = "position_reset"
+label = "the subject's position jumps at the cut"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "placement"
+label = "too close to or too far from a barrier or wall"
+applies_to = ["segment_takes", "insertion"]
+
+[[tag]]
+id = "duplicate_subject"
+label = "the subject appears twice"
+applies_to = ["segment_takes", "insertion"]
+
+[[tag]]
+id = "extra_cut"
+label = "an unwanted cut"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "pre_cut_disturbed"
+label = "the part before the cut changed"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "detail_drift"
+label = "details change within the take"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "penetration"
+label = "the subject passes through a barrier"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "barrier_changed"
+label = "a railing or wall changes its shape, side or construction"
+applies_to = ["segment_takes", "angle_views", "plate"]
+
+[[tag]]
+id = "material_changed"
+label = "a material or landmark is replaced"
+applies_to = ["segment_takes", "angle_views", "plate"]
+
+[[tag]]
+id = "mirrored"
+label = "the architecture is mirrored"
+applies_to = ["segment_takes", "angle_views", "plate"]
+
+[[tag]]
+id = "invented"
+label = "shows architecture the place never had"
+applies_to = ["angle_views", "plate"]
+
+[[tag]]
+id = "colour_shift"
+label = "the colours or light of the place change"
+applies_to = ["segment_takes", "angle_views", "insertion", "plate"]
+
+[[tag]]
+id = "camera_motion"
+label = "the camera moves differently from the direction"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "framing"
+label = "the shot size or angle differs from the direction"
+applies_to = ["segment_takes", "angle_views"]
+
+[[tag]]
+id = "extra_people"
+label = "a person who is not in the cast appears"
+applies_to = ["segment_takes", "angle_views", "insertion", "plate"]
+
+[[tag]]
+id = "not_continuing"
+label = "the first shot does not continue the reference"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "identity_drift"
+label = "face, wardrobe or build differ from the identity picture"
+applies_to = ["segment_takes", "insertion"]
+
+[[tag]]
+id = "wrong_facing"
+label = "the subject faces the wrong way"
+applies_to = ["segment_takes", "insertion"]
+
+[[tag]]
+id = "ground_contact"
+label = "the subject does not stand on the ground"
+applies_to = ["insertion"]
+
+[[tag]]
+id = "cut_timing"
+label = "the cut lands early or late"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "audio_wrong"
+label = "the sound drops, steps or does not match"
+applies_to = ["segment_takes"]
+
+[[tag]]
+id = "source_identity_leaks"
+label = "source identity leaks through"
+applies_to = ["character_replacement"]
+
+[[tag]]
+id = "invented_figure"
+label = "an invented figure appears"
+applies_to = ["character_replacement"]
+
+[[tag]]
+id = "seam_visible"
+label = "the composite seam is visible"
+applies_to = ["character_replacement"]
+
+[[tag]]
+id = "mouth_drift"
+label = "mouth performance drifts"
+applies_to = ["character_replacement"]
+
+[[tag]]
+id = "letterbox_painted"
+label = "the letterbox is painted"
+applies_to = ["character_replacement"]
+
+[[tag]]
+id = "framing_drift"
+label = "the background framing drifts"
+applies_to = ["character_replacement"]

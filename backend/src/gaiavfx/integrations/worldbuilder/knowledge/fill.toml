@@ -1,0 +1,47 @@
+# Filling a stage's unseen space (ADR 0020 §4). A build freezes this file with its request; a change here applies to
+# new builds only. The numbers are R5's (calibration/worldbuilder-2026-10/r5-rules.json) unless a line says
+# otherwise.
+schema = 1
+
+# How far one build fills. The user's reach, 27 October: "around the shot", two rounds and at most six probe renders.
+# A round's gain is the explored floor or the horizon seen, whichever grew more (ADR 0020 §4).
+[rounds]
+rounds = 2
+renders = 6
+area_gain_min = 0.1
+closure_max = 0.9
+rounds_without_acceptance = 2
+frames = 73          # a probe's length: about three seconds at 24 fps, R4/R5's
+extend_steps = 1500  # S-inc: the splat extended this many steps a round
+
+# Where a round's probes stand and look (engine_workers/worldbuilder_splat/fill.py Rules; the CPU spike,
+# calibration/worldbuilder-2026-10/fill-spike.md).
+[plan]
+probes = 3
+min_known = 0.4
+min_protected = 0.25
+min_reveal = 0.1
+turns = [15.0, 30.0, 45.0, 60.0]
+near = 0.25
+reveal = 0.2
+steps = [0.25, 0.6]
+margin = 1.5
+grid = [32, 18]
+
+# A still's geometric acceptance; trajectory frames supervise the splat where their protected pixels agree.
+[accept]
+residual_max = 0.05
+contradiction_max = 0.1
+anchor_psnr_min = 22.0
+trajectory = [24, 48]
+agree = 0.08
+
+# A still's geometry (ComfyUI 8188): MoGe-2 at the probe's own field of view, and SAM 3.1's window and water, which
+# carry reflections, never geometry (R5).
+[still]
+moge = "moge_2_vitl_normal_fp16.safetensors"
+resolution_level = 9
+sam = "sam3.1_multiplex_fp16.safetensors"
+glass = ["window", "water"]
+threshold = 0.4
+refine_iterations = 2

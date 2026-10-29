@@ -1,0 +1,451 @@
+{
+  "schemaVersion": 2,
+  "title": "Design System: GAIAVFX",
+  "extensions": {
+    "colorMeta": {
+      "bg": {
+        "role": "neutral",
+        "displayName": "Dark · Workspace background"
+      },
+      "light-bg": {
+        "role": "neutral",
+        "displayName": "Light · Workspace background"
+      },
+      "panel": {
+        "role": "neutral",
+        "displayName": "Dark · Work-area panel"
+      },
+      "light-panel": {
+        "role": "neutral",
+        "displayName": "Light · Work-area panel"
+      },
+      "raised": {
+        "role": "neutral",
+        "displayName": "Dark · Raised control surface"
+      },
+      "light-raised": {
+        "role": "neutral",
+        "displayName": "Light · Raised control surface"
+      },
+      "hover": {
+        "role": "neutral",
+        "displayName": "Dark · Hover surface"
+      },
+      "light-hover": {
+        "role": "neutral",
+        "displayName": "Light · Hover surface"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Dark · Fine divider"
+      },
+      "light-line": {
+        "role": "neutral",
+        "displayName": "Light · Fine divider"
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Dark · Working text"
+      },
+      "light-text": {
+        "role": "neutral",
+        "displayName": "Light · Working text"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Dark · Supporting text"
+      },
+      "light-muted": {
+        "role": "neutral",
+        "displayName": "Light · Supporting text"
+      },
+      "subtle": {
+        "role": "neutral",
+        "displayName": "Dark · Quiet metadata"
+      },
+      "light-subtle": {
+        "role": "neutral",
+        "displayName": "Light · Quiet metadata"
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Dark · Selection and focus accent"
+      },
+      "light-accent": {
+        "role": "primary",
+        "displayName": "Light · Selection and focus accent"
+      },
+      "action": {
+        "role": "primary",
+        "displayName": "Dark · Primary action"
+      },
+      "light-action": {
+        "role": "primary",
+        "displayName": "Light · Primary action"
+      },
+      "action-hover": {
+        "role": "primary",
+        "displayName": "Dark · Primary action hover"
+      },
+      "light-action-hover": {
+        "role": "primary",
+        "displayName": "Light · Primary action hover"
+      },
+      "selected": {
+        "role": "primary",
+        "displayName": "Dark · Selection surface"
+      },
+      "light-selected": {
+        "role": "primary",
+        "displayName": "Light · Selection surface"
+      },
+      "image-matte": {
+        "role": "neutral",
+        "displayName": "Dark · Media matte"
+      },
+      "light-image-matte": {
+        "role": "neutral",
+        "displayName": "Light · Media matte"
+      },
+      "wave": {
+        "role": "secondary",
+        "displayName": "Dark · Dialogue waveform"
+      },
+      "light-wave": {
+        "role": "secondary",
+        "displayName": "Light · Dialogue waveform"
+      },
+      "wave-bg": {
+        "role": "secondary",
+        "displayName": "Dark · Dialogue track surface"
+      },
+      "light-wave-bg": {
+        "role": "secondary",
+        "displayName": "Light · Dialogue track surface"
+      },
+      "wave2": {
+        "role": "secondary",
+        "displayName": "Dark · Ambience waveform"
+      },
+      "light-wave2": {
+        "role": "secondary",
+        "displayName": "Light · Ambience waveform"
+      },
+      "wave2-bg": {
+        "role": "secondary",
+        "displayName": "Dark · Ambience track surface"
+      },
+      "light-wave2-bg": {
+        "role": "secondary",
+        "displayName": "Light · Ambience track surface"
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Dark · Error text"
+      },
+      "light-danger": {
+        "role": "secondary",
+        "displayName": "Light · Error text"
+      },
+      "on-action": {
+        "role": "neutral",
+        "displayName": "White primary-action text"
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Welcome and collection headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Content titles; sheet headings have a local override."
+      },
+      "section-title": {
+        "displayName": "Section title",
+        "purpose": "Semibold settings and empty-state headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Root type size and paragraph/textarea line-height; working controls use explicit smaller roles."
+      },
+      "label": {
+        "displayName": "Working label",
+        "purpose": "Primary working controls, names, and field labels."
+      },
+      "action-label": {
+        "displayName": "Action label",
+        "purpose": "Medium-weight buttons and disclosure headings."
+      },
+      "secondary-label": {
+        "displayName": "Secondary label",
+        "purpose": "Reference roles, take status, duration, and ruler values."
+      },
+      "timecode": {
+        "displayName": "Timecode",
+        "purpose": "Tabular sequence output; numeric feature is carried by the component CSS."
+      },
+      "generation-control": {
+        "displayName": "Generation control",
+        "purpose": "Profile and generation-setting fields use 13px; narrow settings retain their local 12px override."
+      },
+      "generation-action": {
+        "displayName": "Generation action",
+        "purpose": "Medium-weight 13px label for the live Generation Desk primary action."
+      },
+      "generation-title": {
+        "displayName": "Generation Desk title",
+        "purpose": "19px desk heading with its compact counterpart below the review-drawer breakpoint."
+      },
+      "generation-title-compact": {
+        "displayName": "Compact Generation Desk title",
+        "purpose": "17px desk heading at or below 1050px."
+      },
+      "recipe-title": {
+        "displayName": "Recipe title",
+        "purpose": "Editable 21px recipe heading; the 780px compact layout uses an 18px local override."
+      }
+    },
+    "shadows": [
+      {
+        "name": "temporary-surface-dark",
+        "value": "0 8px 24px #0005",
+        "purpose": "Shared dark-mode shadow for unpinned navigation rollout, tooltips, sheets, and drawers."
+      },
+      {
+        "name": "temporary-surface-light",
+        "value": "0 8px 24px #2028211a",
+        "purpose": "Shared light-mode counterpart; ordinary panels remain flat."
+      }
+    ],
+    "motion": [
+      {
+        "name": "button-state",
+        "value": "background-color 120ms ease, color 120ms ease",
+        "purpose": "Shared button state transitions."
+      },
+      {
+        "name": "rail-width",
+        "value": "width 190ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Rail expands over content from 48px to 184px."
+      },
+      {
+        "name": "rail-shadow",
+        "value": "box-shadow 190ms ease",
+        "purpose": "Shadow appears with temporary navigation rollout."
+      },
+      {
+        "name": "rail-label",
+        "value": "opacity 100ms",
+        "purpose": "Expanded navigation labels fade in."
+      },
+      {
+        "name": "rail-pointer-dwell",
+        "value": "160ms",
+        "purpose": "Delay before pointer entry opens the rail; keyboard focus is immediate."
+      },
+      {
+        "name": "tooltip-delay",
+        "value": "350ms",
+        "purpose": "Radix tooltip provider delay."
+      },
+      {
+        "name": "sheet-entry",
+        "value": "180ms cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Settings and Jobs sheet enters from a 24px horizontal offset."
+      },
+      {
+        "name": "viewer-caption",
+        "value": "opacity 150ms",
+        "purpose": "Optional image caption appears on viewer hover."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none; transition: none; scroll-behavior: auto",
+        "purpose": "Global override under prefers-reduced-motion: reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "media-drawer-max-width",
+        "value": "1100px"
+      },
+      {
+        "name": "inspector-drawer-max-width",
+        "value": "780px"
+      },
+      {
+        "name": "large-workspace-min-width",
+        "value": "1600px"
+      },
+      {
+        "name": "short-window-max-height",
+        "value": "730px"
+      },
+      {
+        "name": "generation-wide-min-width",
+        "value": "1800px"
+      },
+      {
+        "name": "generation-condensed-max-width",
+        "value": "1400px"
+      },
+      {
+        "name": "generation-library-drawer-max-width",
+        "value": "1250px"
+      },
+      {
+        "name": "generation-review-drawer-max-width",
+        "value": "1050px"
+      },
+      {
+        "name": "generation-compact-max-width",
+        "value": "780px"
+      },
+      {
+        "name": "designer-short-window-max-height",
+        "value": "740px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary library and movie actions. The historical Generation Desk example uses a larger 13px, 40px-high variant; only the legacy demo generation action remains disabled.",
+      "html": "<button class=\"ds-primary\">Create library</button>",
+      "css": ".ds-primary{font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:5px;cursor:pointer;transition:background-color 120ms ease,color 120ms ease;min-height:38px;padding:8px 14px;border:0;background:var(--action,#2c64b8);color:#fff}.ds-primary:hover:not(:disabled){background:var(--action-hover,#3472cf)}.ds-primary:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}.ds-primary:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-primary{transition:none;animation:none}}"
+    },
+    {
+      "name": "Generate take button",
+      "kind": "button",
+      "refersTo": "button-generate",
+      "description": "Historical 13px/40px Generate take snippet. The production preview CTA uses its inherited local 12px/30px treatment. A confirmed unavailable profile shows Set up generation; a pending capability check disables submission. Compact layouts expose Write action beside it.",
+      "html": "<button class=\"ds-generate\">Generate take</button>",
+      "css": ".ds-generate{font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:5px;cursor:pointer;transition:background-color 120ms ease,color 120ms ease;min-height:40px;min-width:165px;padding:8px 14px;border:0;background:var(--action,#2c64b8);color:#fff}.ds-generate:hover:not(:disabled){background:var(--action-hover,#3472cf)}.ds-generate:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}.ds-generate:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-generate{transition:none;animation:none}}@media(max-width:780px){.ds-generate{min-width:145px}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supporting actions such as retry and opening the library folder.",
+      "html": "<button class=\"ds-secondary\">Try again</button>",
+      "css": ".ds-secondary{font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:5px;cursor:pointer;transition:background-color 120ms ease,color 120ms ease;min-height:34px;border:1px solid var(--line,#353a42);padding:6px 12px;background:var(--raised,#292d33);color:var(--text,#eff1f5)}.ds-secondary:hover{background:var(--hover,#30363e)}.ds-secondary:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}.ds-secondary:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-secondary{transition:none;animation:none}}"
+    },
+    {
+      "name": "Text button",
+      "kind": "button",
+      "refersTo": "button-text",
+      "description": "Quiet supporting actions such as clearing media filters. Video-guide alignment uses this quiet action to apply a displayed suggestion explicitly.",
+      "html": "<button class=\"ds-text-button\">Clear filters</button>",
+      "css": ".ds-text-button{font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:5px;cursor:pointer;transition:background-color 120ms ease,color 120ms ease;padding:6px 8px;border:0;background:none;color:var(--muted,#a6afba)}.ds-text-button:hover{background:var(--hover,#30363e);color:var(--text,#eff1f5)}.ds-text-button:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}.ds-text-button:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-text-button{transition:none;animation:none}}"
+    },
+    {
+      "name": "Icon button",
+      "kind": "button",
+      "refersTo": "button-icon",
+      "description": "Compact accessible controls; runtime IconButton adds a Radix tooltip after 350ms. Generation reference-card actions use a 26px square variant.",
+      "html": "<button class=\"ds-icon-button\" aria-label=\"Close panel\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M18 6 6 18\"/><path d=\"m6 6 12 12\"/></svg></button>",
+      "css": ".ds-icon-button{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;padding:0;border:0;border-radius:4px;background:none;color:var(--muted,#a6afba);cursor:pointer;transition:background-color 120ms ease,color 120ms ease}.ds-icon-button:hover,.ds-icon-button[aria-pressed=\"true\"]{background:var(--hover,#30363e);color:var(--accent,#9abcf7)}.ds-icon-button:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}.ds-icon-button:disabled{cursor:not-allowed;opacity:.5}@media(prefers-reduced-motion:reduce){.ds-icon-button{transition:none;animation:none}}"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Shared field surface and focus treatment, shown with the library-name entry.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-library-name\">Library name</label><input class=\"ds-input\" id=\"ds-library-name\" value=\"My film library\" maxlength=\"120\" required>",
+      "css": ".ds-field-label{display:block;margin-bottom:10px;font-family:Inter,system-ui,sans-serif;font-size:12px;color:var(--text,#eff1f5)}.ds-input{font-family:Inter,system-ui,sans-serif;font-size:14px;font-weight:400;color:var(--text,#eff1f5);border:1px solid var(--line,#353a42);border-radius:5px;background:var(--bg,#1b1d21);padding:9px 10px;min-width:0;accent-color:var(--action,#2c64b8);caret-color:var(--accent,#9abcf7)}.ds-input::placeholder{color:var(--muted,#a6afba)}.ds-input:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}"
+    },
+    {
+      "name": "Expanded navigation item",
+      "kind": "nav",
+      "refersTo": "nav-item",
+      "description": "Selected creative workspace row in the expanded rail. The runtime rail handles dwell, focus, overlay, and pinning.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Creative workspaces\"><button class=\"ds-nav-item\" aria-current=\"page\"><svg width=\"19\" height=\"19\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" rx=\"2.18\"/><path d=\"M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5\"/></svg><span>Video</span></button></nav>",
+      "css": ".ds-nav{width:176px;background:var(--panel,#22252a)}.ds-nav-item{width:100%;height:40px;min-height:40px;display:flex;align-items:center;gap:15px;padding:0 10px;white-space:nowrap;border:0;border-radius:5px;background:none;color:var(--muted,#a6afba);font-family:Inter,system-ui,sans-serif;font-size:12px;text-align:left;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}.ds-nav-item>svg{flex:0 0 19px}.ds-nav-item:hover{background:var(--hover,#30363e);color:var(--text,#eff1f5)}.ds-nav-item[aria-current=\"page\"]{background:var(--selected,#2a3850);color:var(--accent,#9abcf7)}.ds-nav-item:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-nav-item{transition:none}}"
+    },
+    {
+      "name": "Demo tag",
+      "kind": "chip",
+      "refersTo": "demo-tag",
+      "description": "Quiet, noninteractive identification of sample content; its small type is not the working-label scale.",
+      "html": "<span class=\"ds-demo-tag\">Demo</span>",
+      "css": ".ds-demo-tag{display:inline-block;font-family:Inter,system-ui,sans-serif;font-size:10px;line-height:18px;padding:0 6px;border:1px solid var(--line,#353a42);border-radius:4px;color:var(--muted,#a6afba);font-weight:400;white-space:nowrap}"
+    },
+    {
+      "name": "Theme choice card",
+      "kind": "card",
+      "refersTo": "theme-choice",
+      "description": "Settings appearance choice, shown in its selected dark state with the implemented preview swatch.",
+      "html": "<button class=\"ds-theme-choice\" aria-pressed=\"true\"><span class=\"ds-theme-preview\" aria-hidden=\"true\"><span></span><span></span><span></span></span><span>Dark</span><svg width=\"15\" height=\"15\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m20 6-11 11-5-5\"/></svg></button>",
+      "css": ".ds-theme-choice{padding:10px;border:1px solid var(--line,#353a42);border-radius:6px;width:145px;text-align:left;display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:400;color:var(--text,#eff1f5);background:none;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}.ds-theme-choice[aria-pressed=\"true\"]{border-color:var(--accent,#9abcf7);background:var(--selected,#2a3850)}.ds-theme-preview{width:100%;height:66px;background:#181b20;border-radius:3px;display:grid;grid-template-columns:12px 1fr 25px;gap:3px;padding:4px}.ds-theme-preview span{background:#333943;border-radius:1px}.ds-theme-preview span:nth-child(2){background:#49535c}.ds-theme-choice:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-theme-choice{transition:none}}"
+    },
+    {
+      "name": "Section disclosure",
+      "kind": "custom",
+      "refersTo": "section-disclosure",
+      "description": "Supporting controls expose detail progressively. Authoring discloses the overall brief, focus/stability, appearance plans and linked values; review discloses assistant observation effort, observations with uncertainties and actual source media, frozen-request differences, manual quality review and measured evidence. Runtime React owns expansion.",
+      "html": "<button class=\"ds-disclosure\" aria-expanded=\"true\"><span>References</span><span class=\"ds-disclosure-count\">3</span><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></button>",
+      "css": ".ds-disclosure{display:flex;align-items:center;gap:7px;padding:0;min-height:25px;width:100%;text-align:left;font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:500;border:0;background:none;color:var(--text,#eff1f5);cursor:pointer;transition:background-color 120ms ease,color 120ms ease}.ds-disclosure>svg:last-child{margin-left:auto;color:var(--muted,#a6afba)}.ds-disclosure[aria-expanded=\"false\"]>svg:last-child{transform:rotate(-90deg)}.ds-disclosure-count{font-size:12px;font-weight:400;font-variant-numeric:tabular-nums;color:var(--muted,#a6afba)}.ds-disclosure:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}@media(prefers-reduced-motion:reduce){.ds-disclosure{transition:none}}"
+    },
+    {
+      "name": "Sequence timecode",
+      "kind": "custom",
+      "refersTo": "timecode",
+      "description": "Legacy demo sequence output in hours, minutes, seconds, and frames at 24 fps. Persistent Movies reports selected durations and prepared join timing separately.",
+      "html": "<output class=\"ds-timecode\" aria-label=\"Current sequence time\">00:00:12:08</output>",
+      "css": ".ds-timecode{font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:.025em;color:var(--accent,#9abcf7)}"
+    },
+    {
+      "name": "Movie segment tile",
+      "kind": "custom",
+      "description": "Historical segment-strip example: the production editor now uses viewport-bounded Picture blocks and linked output audio. The accent border selects the segment being edited; duration, awaiting-take, and stale-source text describe its selected media independently. Predecessor links carry a Continues label.",
+      "html": "<button class=\"ds-segment\" aria-label=\"Select segment 1: Arrival\" aria-pressed=\"true\"><span class=\"ds-segment-thumbnail\"><span class=\"ds-segment-empty\"><svg width=\"21\" height=\"21\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"2\" y=\"2\" width=\"20\" height=\"20\" rx=\"2.18\"/><path d=\"M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5\"/></svg><span>No selected take</span></span></span><strong class=\"ds-segment-name\">1. Arrival</strong><span class=\"ds-segment-state\">Awaiting a take</span></button>",
+      "css": ".ds-segment{width:178px;display:flex;flex-direction:column;margin:0 5px;padding:0;border:1px solid var(--line,#353a42);border-radius:4px;overflow:hidden;background:var(--bg,#1b1d21);color:var(--text,#eff1f5);font-family:Inter,system-ui,sans-serif;text-align:left;cursor:pointer;transition:background-color 120ms ease,color 120ms ease}.ds-segment[aria-pressed=\"true\"]{border-color:var(--accent,#9abcf7);background:var(--selected,#2a3850)}.ds-segment:hover{background:var(--hover,#30363e)}.ds-segment:focus-visible{outline:2px solid var(--accent,#9abcf7);outline-offset:3px}.ds-segment-thumbnail{height:64px;width:100%;overflow:hidden;background:var(--image-matte,#121417)}.ds-segment-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:5px;color:#eff1f5;font-size:11px}.ds-segment-name{padding:5px 7px 1px;font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.ds-segment-state{padding:0 7px 5px;font-size:11px;color:var(--muted,#a6afba)}@media(prefers-reduced-motion:reduce){.ds-segment{transition:none}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Editing Suite / Dailies Desk",
+    "overview": "Compact editing-suite workspace with local Inter, docked panels, restrained graphite and mineral-white themes. DESIGN.md and frontend styles define the maintained design system.",
+    "keyCharacteristics": [
+      "Media-led density with restrained chrome.",
+      "One Inter family and small-radius controls.",
+      "Dark and light themes with the same hierarchy and interactions.",
+      "Progressive disclosure with visible keyboard focus.",
+      "Explicit distinctions between preview, selection, and demo content."
+    ],
+    "rules": [
+      {
+        "name": "The Working Label Rule",
+        "body": "Preserve the 12px shared working-label role, intentional 13px Generation Desk controls, and 11px secondary metadata; do not use the Demo tag size as the default interface scale.",
+        "section": "typography"
+      },
+      {
+        "name": "The Stable Review Rule",
+        "body": "Temporary rail expansion must not move the viewer or timeline; only explicit pinning reserves the wider navigation space.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve the confirmed Editing Suite / Dailies Desk direction and both theme mappings.",
+      "Do keep media dominant and expose supporting complexity through shared panels and disclosures.",
+      "Do preserve visible keyboard focus, modal focus ownership, and reduced-motion behavior.",
+      "Do keep generation availability and validation outside the composer's scrolling fields.",
+      "Do distinguish previewed candidates, selected takes, and synthetic demo content.",
+      "Do keep Used in this segment visible independently of preview and preference, and show the recorded sources beside join playback.",
+      "Do keep reference bindings, frame anchors, ordered LoRAs, and recorded requests visually distinct.",
+      "Do label human observations and quality assessments separately from measured evidence and recorded requests.",
+      "Do label assistant observations and uncertainties and keep their actual source media inspectable beside the suggestion.",
+      "Do retain prompt and provenance records with authored raster assets.",
+      "Do keep nested dialogs in opening order, return keyboard focus to their persistent opener, and show operation errors inside the active form or media action."
+    ],
+    "donts": [
+      "Don't widen the resting navigation rail or shift the timeline during temporary rollout.",
+      "Don't duplicate resting controls or metadata merely to fill available space.",
+      "Don't replace readable working labels with the smaller Demo tag type size.",
+      "Don't imply that a non-menu control opens a menu or that disabled generation is available.",
+      "Don't treat this implemented-world record as exact-pixel approval or proof of inference, persistent editing, or export."
+    ]
+  }
+}

@@ -1,0 +1,358 @@
+<div class="timeline-heading">
+<span>Timeline <span class="muted">· MOVIE TITLE</span>
+</span>
+<span class="timeline-fps">24 fps</span>
+</div>
+<div class="timeline-tools">
+<button type="button" class="icon-button" aria-pressed="true" title="Select tool (V)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-mouse-pointer-2" aria-hidden="true">
+<path d="M4.037 4.688a.495.495 0 0 1 .651-.651l16 6.5a.5.5 0 0 1-.063.947l-6.124 1.58a2 2 0 0 0-1.438 1.435l-1.579 6.126a.5.5 0 0 1-.947.063z">
+</path>
+</svg>
+<span class="sr-only">Select tool</span>
+</button>
+<button type="button" class="icon-button" aria-pressed="false" title="Razor tool (C)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors" aria-hidden="true">
+<circle cx="6" cy="6" r="3">
+</circle>
+<path d="M8.12 8.12 12 12">
+</path>
+<path d="M20 4 8.12 15.88">
+</path>
+<circle cx="6" cy="18" r="3">
+</circle>
+<path d="M14.8 14.8 20 20">
+</path>
+</svg>
+<span class="sr-only">Razor tool</span>
+</button>
+<button class="icon-button" aria-label="Go to start">
+<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-skip-back" aria-hidden="true">
+<path d="M17.971 4.285A2 2 0 0 1 21 6v12a2 2 0 0 1-3.029 1.715l-9.997-5.998a2 2 0 0 1-.003-3.432z">
+</path>
+<path d="M3 20V4">
+</path>
+</svg>
+</button>
+<output class="timecode">00:00:00:00</output>
+<span class="tool-spacer">
+</span>
+<button type="button" class="icon-button" aria-pressed="true" title="Snap to markers (S)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-magnet" aria-hidden="true">
+<path d="m12 15 4 4">
+</path>
+<path d="M2.352 10.648a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.029-6.029a1 1 0 1 1 3 3l-6.029 6.029a1.205 1.205 0 0 0 0 1.704l2.296 2.296a1.205 1.205 0 0 0 1.704 0l6.365-6.367A1 1 0 0 0 8.716 4.282z">
+</path>
+<path d="m5 8 4 4">
+</path>
+</svg>
+<span class="sr-only">Snap to markers</span>
+</button>
+<button type="button" class="icon-button" title="Fit timeline (\)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan" aria-hidden="true">
+<path d="M3 7V5a2 2 0 0 1 2-2h2">
+</path>
+<path d="M17 3h2a2 2 0 0 1 2 2v2">
+</path>
+<path d="M21 17v2a2 2 0 0 1-2 2h-2">
+</path>
+<path d="M7 21H5a2 2 0 0 1-2-2v-2">
+</path>
+</svg>
+<span class="sr-only">Fit timeline</span>
+</button>
+<button type="button" class="icon-button" title="Zoom out (-)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus" aria-hidden="true">
+<path d="M5 12h14">
+</path>
+</svg>
+<span class="sr-only">Zoom out</span>
+</button>
+<label class="timeline-zoom">
+<span class="sr-only">Timeline zoom</span>
+<input min="0.5" max="12" step="0.1" type="range" value="1">
+</label>
+<button type="button" class="icon-button" title="Zoom in (+)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus" aria-hidden="true">
+<path d="M5 12h14">
+</path>
+<path d="M12 5v14">
+</path>
+</svg>
+<span class="sr-only">Zoom in</span>
+</button>
+</div>
+<div class="context-area timeline-context">
+<div class="timeline-scroll">
+<div class="timeline-canvas" style="width: 780px; --frame-step: 32.9px;">
+<div class="timeline-ruler">
+<div class="track-label">Frames <small>24 fps</small>
+</div>
+<div class="ruler-scale" role="slider" aria-label="Playhead" aria-valuemin="0" aria-valuemax="239" aria-valuenow="0" aria-valuetext="00:00:00:00" tabindex="0">
+<span style="left: 0px;">00</span>
+<span style="left: 32.9px;">12</span>
+<span style="left: 65.8px;">24</span>
+<span style="left: 98.7px;">36</span>
+<span style="left: 131.6px;">48</span>
+<span style="left: 164.5px;">60</span>
+<span style="left: 197.4px;">72</span>
+<span style="left: 230.3px;">84</span>
+<span style="left: 263.2px;">96</span>
+<span style="left: 296.1px;">108</span>
+<span style="left: 329px;">120</span>
+<span style="left: 361.9px;">132</span>
+<span style="left: 394.8px;">144</span>
+<span style="left: 427.7px;">156</span>
+<span style="left: 460.6px;">168</span>
+<span style="left: 493.5px;">180</span>
+<span style="left: 526.4px;">192</span>
+<span style="left: 559.3px;">204</span>
+<span style="left: 592.2px;">216</span>
+<span style="left: 625.1px;">228</span>
+<span style="left: 658px;">240</span>
+</div>
+</div>
+<div class="track-row" data-row="segment">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-film" aria-hidden="true">
+<rect width="18" height="18" x="3" y="3" rx="2">
+</rect>
+<path d="M7 3v18">
+</path>
+<path d="M3 7.5h4">
+</path>
+<path d="M3 12h18">
+</path>
+<path d="M3 16.5h4">
+</path>
+<path d="M17 3v18">
+</path>
+<path d="M17 7.5h4">
+</path>
+<path d="M17 16.5h4">
+</path>
+</svg>Segment</div>
+<div class="track-lane">
+<div class="track-position " style="left: 0px; width: 326px;">
+<div class="context-area ">
+<button aria-label="Segment 01" title="Segment 01" aria-pressed="false" class="track-item segment-item" data-frame="0">
+<strong>Segment 01</strong>
+<span>courtyard</span>
+<small>120 f</small>
+</button>
+</div>
+</div>
+<div class="track-position " style="left: 329px; width: 326px;">
+<div class="context-area ">
+<button aria-label="Segment 02" title="Segment 02" aria-pressed="false" class="track-item segment-item" data-frame="120">
+<strong>Segment 02</strong>
+<span>courtyard</span>
+<small>120 f · Continues</small>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="phases">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layers lucide-layers-3" aria-hidden="true">
+<path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z">
+</path>
+<path d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12">
+</path>
+<path d="M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17">
+</path>
+</svg>Phases</div>
+<div class="track-lane">
+<div class="track-position " style="left: 0px; width: 326px;">
+<div class="context-area ">
+<button aria-label="Phase: Arin walks toward the iron railing." title="Phase: Arin walks toward the iron railing." aria-pressed="false" class="track-item phase-item" data-frame="0">Phase: Arin walks toward the iron railing.</button>
+</div>
+</div>
+<div class="track-position " style="left: 329px; width: 326px;">
+<div class="context-area ">
+<button aria-label="Phase: Arin walks toward the iron railing." title="Phase: Arin walks toward the iron railing." aria-pressed="false" class="track-item phase-item" data-frame="120">Phase: Arin walks toward the iron railing.</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="cuts">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scissors" aria-hidden="true">
+<circle cx="6" cy="6" r="3">
+</circle>
+<path d="M8.12 8.12 12 12">
+</path>
+<path d="M20 4 8.12 15.88">
+</path>
+<circle cx="6" cy="18" r="3">
+</circle>
+<path d="M14.8 14.8 20 20">
+</path>
+</svg>Cuts</div>
+<div class="track-lane">
+<div class="track-position track-marker" style="left: 427.7px;">
+<div class="context-area ">
+<button aria-label="Cut f36 · Reverse · Reveals new area" title="Cut f36 · Reverse · Reveals new area" aria-pressed="false" class="track-item cut-item" data-frame="156">
+<span class="cut-stem">
+</span>
+<strong>f36 Reverse</strong>
+<span class="coverage-chip" data-coverage="new">Reveals new area</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="picture" style="min-height: 70px;">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-image" aria-hidden="true">
+<rect width="18" height="18" x="3" y="3" rx="2" ry="2">
+</rect>
+<circle cx="9" cy="9" r="2">
+</circle>
+<path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21">
+</path>
+</svg>References</div>
+<div class="track-lane">
+<div class="track-position " style="left: 0px; width: 326px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Arin · identity picture · whole segment" title="Arin · identity picture · whole segment" aria-pressed="false" class="track-item picture-item" data-frame="0">Arin · identity picture · whole segment</button>
+</div>
+</div>
+<div class="track-position " style="left: 329px; width: 326px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Arin · identity picture · whole segment" title="Arin · identity picture · whole segment" aria-pressed="false" class="track-item picture-item" data-frame="120">Arin · identity picture · whole segment</button>
+</div>
+</div>
+<div class="track-position " style="left: 329px; width: 326px; top: 35px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="First-shot references · Place · Arcade courtyard · Text only" title="First-shot references · Place · Arcade courtyard · Text only" aria-pressed="false" class="track-item place-item" data-frame="120">
+<strong>Place · Arcade courtyard</strong>
+<small>Text only</small>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="keyframes" style="min-height: 43px;">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-diamond" aria-hidden="true">
+<path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z">
+</path>
+</svg>Keyframes</div>
+<div class="track-lane">
+<div class="track-position track-marker" style="left: 460.6px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Pin needed · cut + 12 · f48" title="Pin needed · cut + 12 · f48" aria-pressed="false" class="track-item keyframe-item pin-needed" data-frame="168">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-diamond" aria-hidden="true">
+<path d="M2.7 10.3a2.41 2.41 0 0 0 0 3.41l7.59 7.59a2.41 2.41 0 0 0 3.41 0l7.59-7.59a2.41 2.41 0 0 0 0-3.41l-7.59-7.59a2.41 2.41 0 0 0-3.41 0Z">
+</path>
+</svg>
+<span>Pin needed · +12</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="state" style="min-height: 43px;">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-list-checks" aria-hidden="true">
+<path d="M13 5h8">
+</path>
+<path d="M13 12h8">
+</path>
+<path d="M13 19h8">
+</path>
+<path d="m3 17 2 2 4-4">
+</path>
+<path d="m3 7 2 2 4-4">
+</path>
+</svg>State</div>
+<div class="track-lane">
+<div class="track-position " style="left: 0px; width: 326px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="satchel: over the left shoulder" title="satchel: over the left shoulder" aria-pressed="false" class="track-item state-item" data-frame="0">satchel: over the left shoulder</button>
+</div>
+</div>
+<div class="track-position " style="left: 329px; width: 326px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="satchel: over the left shoulder" title="satchel: over the left shoulder" aria-pressed="false" class="track-item state-item" data-frame="120">satchel: over the left shoulder</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="dialogue">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-message-square" aria-hidden="true">
+<path d="M22 17a2 2 0 0 1-2 2H6.828a2 2 0 0 0-1.414.586l-2.202 2.202A.71.71 0 0 1 2 21.286V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2z">
+</path>
+</svg>Dialogue</div>
+<div class="track-lane">
+<div class="track-position track-marker" style="left: 164.5px; max-width: 326px;">
+<div class="context-area ">
+<button aria-label="Dialogue: Meet me beyond the arcade." title="Dialogue: Meet me beyond the arcade." aria-pressed="false" class="track-item dialogue-item" data-frame="60">
+<span>“Meet me beyond the arcade.”</span>
+</button>
+</div>
+</div>
+<div class="track-position track-marker" style="left: 493.5px;">
+<div class="context-area ">
+<button aria-label="Dialogue: Meet me beyond the arcade." title="Dialogue: Meet me beyond the arcade." aria-pressed="false" class="track-item dialogue-item" data-frame="180">
+<span>“Meet me beyond the arcade.”</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<div class="track-row" data-row="sound" style="min-height: 70px;">
+<div class="track-label">
+<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-audio-lines" aria-hidden="true">
+<path d="M2 10v3">
+</path>
+<path d="M6 6v11">
+</path>
+<path d="M10 3v18">
+</path>
+<path d="M14 8v7">
+</path>
+<path d="M18 5v13">
+</path>
+<path d="M22 10v3">
+</path>
+</svg>Sound</div>
+<div class="track-lane">
+<div class="track-position " style="left: 0px; width: 326px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Footsteps on stone; a soft courtyard breeze." title="Footsteps on stone; a soft courtyard breeze." aria-pressed="false" class="track-item sound-item" data-frame="0">Footsteps on stone; a soft courtyard breeze.</button>
+</div>
+</div>
+<div class="track-position track-marker" style="left: 191.917px; max-width: 326px; top: 35px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Event: A gate clicks shut." title="Event: A gate clicks shut." aria-pressed="false" class="track-item sound-item sound-event" data-frame="70">Event: A gate clicks shut.</button>
+</div>
+</div>
+<div class="track-position " style="left: 329px; width: 326px; top: 5px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Footsteps on stone; a soft courtyard breeze." title="Footsteps on stone; a soft courtyard breeze." aria-pressed="false" class="track-item sound-item" data-frame="120">Footsteps on stone; a soft courtyard breeze.</button>
+</div>
+</div>
+<div class="track-position track-marker" style="left: 520.917px; top: 35px; bottom: auto; height: 25px;">
+<div class="context-area ">
+<button aria-label="Event: A gate clicks shut." title="Event: A gate clicks shut." aria-pressed="false" class="track-item sound-item sound-event" data-frame="190">Event: A gate clicks shut.</button>
+</div>
+</div>
+</div>
+</div>
+<div class="playhead-line" aria-hidden="true" style="left: 102px;">
+<span>
+</span>
+</div>
+</div>
+</div>
+</div>
+<div class="timeline-navigator">
+<span class="timeline-context-hint">Right-click an item for actions</span>
+<span>Segment 01</span>
+<input aria-label="Timeline scroll" min="0" max="0" type="range" value="0">
+<span>00:00:10:00</span>
+</div>

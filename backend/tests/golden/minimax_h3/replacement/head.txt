@@ -1,0 +1,22 @@
+subject_definitions:
+<Subject 1> is the character shown in <Picture 1>.
+<Subject 2> is the performer at screen left in <Video 1>.
+<Subject 3> is the person at screen right in <Video 1>.
+
+summary:
+[video editing] The target video is an edited version of <Video 1>. Replace <Subject 2> with <Subject 1>, including face and hair. Preserve the performance, head movement, gaze, blinks, mouth timing, camera and surroundings.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): attribute_transfer - The face and hair of <Subject 1> replace those of <Subject 2>. Do not reproduce reference-sheet labels, swatches or its background.
+<Subject 2> (appears in [Shot 1]): partially_preserved - The performance, head movement, gaze, blinks and mouth timing of <Subject 2> are preserved; its face and hair are replaced by <Subject 1>.
+<Subject 3> (appears in [Shot 1]): fully_preserved - Preserve the person at screen right.
+<Video 1> (camera and surroundings): fully_preserved - Preserve original framing.
+
+detailed_description:
+[Shot 1] <Subject 1> appears as the performer at screen left. Render natural scene colors.
+
+overall_soundscape:
+N/A
+
+non_diegetic_music:
+N/A

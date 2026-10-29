@@ -1,0 +1,30 @@
+schema = 1
+version = 1                      # the rule version; joins the proposal cache key
+audition_version = 1             # the audition picks' version (P5); attribution is unchanged by it
+[attribution]
+word_padding_s = 0.05
+in_shot_overlap_s = 0.3
+in_shot_min_similarity = 0.10
+margin = 0.02
+strict_similarity = 0.45
+min_profile_segments = 2
+min_embedding_s = 0.25
+evidence = "calibration/VOICE_EXPANSION_2026-10-19.md"
+note = "trial_voice.relabel: in-shot ≥0.10 and +0.02 over the next speaker; strict 0.45 anywhere (the user's ranking, 18 Oct)."
+[edges]
+hop_s = 0.01
+onset_s = 0.5
+decay_s = 0.8
+floor_db = 45.0
+gap_s = 0.08
+gap_below_peak_db = 35.0
+bridge_s = 0.15
+heels_s = 0.3
+evidence = "calibration/VOICE_V4_2026-10-20.md"
+note = "trial_voice.refine/onset/separated: bridge dips under 150 ms ('space'), trim a first word only on the heels of another speaker with no 80 ms silence (his 'I' at 384.65 s)."
+[timing]
+sample_rate = 48000
+[audition]
+count = 8                        # confirmed lines a voice audition plays
+min_lines = 3                    # confirmed lines a character needs before an audition starts
+min_seconds = 0.6                # the "shortest line" pick is at least this long

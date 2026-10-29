@@ -1,0 +1,21 @@
+subject_definitions:
+No reference subjects.
+
+summary:
+[reference generation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+Follow the authored direction.
+
+detailed_description:
+Production context: A misty harbour at dusk: a wet wooden pier with a dark railing.
+Mara: Adult woman with short wavy brown hair and an ochre raincoat.
+Tomas: Man in his forties with short grey hair and a navy sweater.
+[Shot 1] Mara and Tomas sit at the cafe table. Wide two-shot. Camera position: Beside the window. Subjects in frame: Mara, Tomas. Mara (S1) says at 0.500 seconds into the shot, quietly: <d>[English] You came back.</d>
+[Shot 2] At 00:02.500, the shot cuts. Tomas answers her. Over-the-shoulder shot on Tomas. Camera position: Behind Mara's right shoulder. Screen direction: Tomas faces screen left toward her. Subjects in frame: Tomas. Tomas (S2) says at 0.500 seconds into the shot: <d>[English] I said I would.</d> Mara (S1) says in an off-screen voiceover at 1.667 seconds into the shot: <d>[English] Then stay.</d> while the corresponding on-screen character's lips remain closed.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

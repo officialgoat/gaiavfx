@@ -1,0 +1,32 @@
+{
+  "colors": {
+    "forest": "#25352D",
+    "mist": "#DCE3CE",
+    "ivory": "#F6F3E9",
+    "sage": "#A8BFA5",
+    "charcoal": "#1C2221",
+    "terracotta": "#B9664C"
+  },
+  "schemes": {
+    "soft": [
+      "#DCE3CE",
+      "#25352D"
+    ],
+    "paper": [
+      "#F6F3E9",
+      "#25352D"
+    ],
+    "forest": [
+      "#25352D",
+      "#F6F3E9"
+    ],
+    "night": [
+      "#1C2221",
+      "#A8BFA5"
+    ],
+    "earth": [
+      "#B9664C",
+      "#F6F3E9"
+    ]
+  }
+}

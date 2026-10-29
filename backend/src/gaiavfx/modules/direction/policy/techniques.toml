@@ -1,0 +1,97 @@
+# The technique policy (ADR 0009). Rows are tried in order; the first matching row whose status is "default"
+# is recommended, the other matching rows are alternatives. Integrations may override a row's status and add
+# evidence in their knowledge pack; they cannot add predicates. The evidence is the user's blind ranks of
+# 29 Sep 2026 (calibration/data/rankings-2026-09-29.json, tallied by the maintained engine implementation).
+schema = 1
+
+[relation]
+# Suggesting a relation from two camera yaws. Only a suggestion: coordinates model no occlusion.
+same_direction_max_degrees = 45.0
+reverse_min_degrees = 135.0
+
+[[technique]]
+id = "text"
+title = "Direction text"
+coverage = ["continuing"]
+blocks = ["direction_text"]
+status = "default"
+evidence = ["arcade same side: text usable 23/24", "five more places same side: text usable 22/30"]
+
+[[technique]]
+id = "text_and_views"
+title = "Direction text with a views-only sheet"
+coverage = ["continuing"]
+fidelity = true
+blocks = ["direction_text", "place_views"]
+requires = ["place_views"]
+status = "option"
+evidence = [
+  "arcade same side: views-only sheet usable 23/24 and held the unseen far building across seeds",
+  "five more places same side: views-only sheet usable 16/30",
+]
+limitations = ["Never include a view that looks against the cut camera: a mirrored corridor view flipped the shot."]
+constraint = "Never a view that looks against the cut camera."
+
+[[technique]]
+id = "text_with_sides"
+title = "Direction text stating each landmark's side"
+coverage = ["established", "new"]
+relation = ["side"]
+side_facts = true
+blocks = ["direction_text", "side_facts_text"]
+requires = ["side_facts"]
+status = "experimental"
+evidence = [
+  "arcade toward: text naming the barrier's side usable 5/6",
+  "street and courtyard front: text without sides usable 0/6",
+  "retest R1: street front 4/4 (the mirrored side fixed), courtyard front 0/4 (walker too close to the railing)",
+]
+limitations = [
+  "Fixes which side each landmark is on, not the walker's distance to the barrier; state that too (retest R1).",
+]
+constraint = "Fixes landmark sides, not the walker's distance; state that too."
+
+[[technique]]
+id = "views_and_pin"
+title = "Views-only sheet with a pinned frame"
+coverage = ["established", "new"]
+blocks = ["direction_text", "place_views", "pinned_frame"]
+requires = ["approved_view", "approved_keyframe", "place_views"]
+status = "default"
+evidence = [
+  "arcade reverse: views-only sheet with a survey pin usable 6/6",
+  "hall and gallery reverses: views-only sheet with a survey pin usable 8/8",
+  "text alone on those reverses usable 2/6 and 3/8; any sheet without a pin 13/32",
+  "retest R1 street front: 4/4 with the side right; retest R2 same-side pin: 0/4 (placement)",
+]
+limitations = [
+  "The pinned frame must come from the new angle's own reviewed survey view; pins made from blockout photos failed 21 of 23.",
+  "The pinned frame fixes the walker exactly where it shows him: pins placed by wording ('just left of the posts', 'a short step from the railing') were too close in 8 of 8 takes. Place him at his distance from the barrier in the preceding shot.",
+  "Walker position at the cut and detail stability within a take are not solved; render several candidates.",
+]
+constraint = "The pin comes from the new angle's reviewed survey view and fixes the walker where it shows him."
+
+# A segment's opening shot (ADR 0019). Text scenes stay as they were; a views-only sheet from the first shot is
+# the user's explicit request (using a set for the scene) until the film-cut comparison has been ranked.
+[[technique]]
+id = "opening_text"
+title = "Direction text"
+shot = "opening"
+coverage = ["continuing", "established", "new"]
+blocks = ["direction_text"]
+status = "default"
+evidence = ["every single-take segment rendered before ADR 0019 used direction text alone"]
+
+[[technique]]
+id = "opening_views"
+title = "Direction text with a views-only sheet from the first shot"
+shot = "opening"
+coverage = ["established", "continuing"]
+blocks = ["direction_text", "place_views"]
+requires = ["approved_view", "place_views"]
+status = "option"
+limitations = [
+  "Not yet proven better than text alone.",
+  "Works for one character with a picture, or none.",
+]
+constraint = "Not yet proven better than text alone; one character with a picture, or none."

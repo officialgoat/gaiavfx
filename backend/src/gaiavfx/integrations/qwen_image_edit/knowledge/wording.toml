@@ -1,0 +1,26 @@
+schema = 1
+
+[templates]
+lateral = """Edit image 1, {plate}. Preserve its camera position, perspective, framing, {keep} and lighting.
+
+Insert exactly one person: {who} from image 2. Use image 2 only for {pos} identity, {looks} and {direction}-facing walking pose. Exclude its grey background.
+
+Place {who} {where}, in the {starting_half} half of the frame with room to walk toward screen {direction}. {Sub} is a {distance_description} figure, approximately {size} of the image height from head to feet. {Pos} full body fits inside the frame.
+
+{Pos} face, torso and leading step point toward the {edge} edge of the image, matching image 2. {Sub} walks {direction} {along}, parallel to {barrier}. {feet_placement} {occlude}
+
+Match the plate's perspective, light and ground-contact shadows. Keep every existing feature in place. The only person is {who}. Add no other figures, reflections of people or background pedestrians. Output one photographic frame."""
+front = """Edit image 1, {plate}. Preserve its camera position, perspective, framing, {keep} and lighting.
+
+Insert exactly one person: {who} from image 2. Use image 2 only for {pos} identity, {looks}. Exclude its grey background.
+
+Place {who} {where}. {Sub} faces the camera and walks straight toward it, mid-stride: {pos} face, chest and leading foot point at the camera. {Sub} is approximately {size} of the image height from head to feet, and {pos} full body fits inside the frame.
+
+Match the plate's perspective, light and ground-contact shadows. Keep every existing feature in place: {behind}. The only person is {who}. Add no other figures, reflections of people or background pedestrians. Output one photographic frame."""
+remove = "Remove the {whom} completely and fill in what was behind {obj}: {behind}. Keep everything else exactly the same: framing, perspective, light and colours. No people."
+
+[portrait]
+base = "Head-and-shoulders portrait photograph of the person from the reference images, {view}, calm neutral expression, lips closed. The same person with the same face, facial structure, hair and clothing as in the reference images. Plain light grey studio background, soft even light, sharp focus on the face, natural skin texture, photorealistic."
+front = "front view looking into the camera"
+three_quarter = "three-quarter view turned to the left"
+profile = "side profile view facing left"

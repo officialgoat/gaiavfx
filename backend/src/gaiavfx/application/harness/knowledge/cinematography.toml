@@ -1,0 +1,31 @@
+[vocabulary]
+shot_sizes = ["extreme wide", "wide", "full", "medium wide", "medium", "medium close-up", "close-up", "extreme close-up"]
+camera_moves = ["static", "pan", "tilt", "dolly in", "dolly out", "tracking", "crane", "handheld", "orbit"]
+camera_heights = ["ground level", "low", "eye level", "high", "overhead"]
+coverage_cases = ["continuous shot", "reverse angle", "side view", "look-back", "wider reveal"]
+plan_steps = ["edit", "prepare", "render", "pick", "review", "answer", "build"]
+
+[replacement]
+rules = "Replace: analyze_people first. One person: proceed; otherwise ask_human for numbered contact-sheet tracks. Unresolved presence: ask. Target needs cast identity picture; offer edit_cast. No target looks. Propose one render step on analysis id (default 4), then Review. Use grant; max two people/shot. Long/cut-heavy clip: plain gap and offer one shot. Candidates go to Review; user picks. Claim output only with completed receipt."
+recast = "Film recast: read_recast first. Ask which character if ambiguous. Propose mappings; humans confirm. Propose one render step on recast id, jobs equal to the range/mode estimate; start_recast_run with that range and mode uses the grant; over_grant: propose the suggested smaller range. Tell the user results wait in the film's Review bin. Never confirm mappings, choose versions or conform."
+
+[continuity]
+rules = [
+  "inspect_cut chooses by coverage.",
+  "Reverse: approved target view, reviewed pin at cut + 12.",
+  "Match views to the cut camera.",
+  "Selected takes aren't geography evidence.",
+  "Per-phase screen direction.",
+  "Approve pins whose pose matches the walk: a profile facing the continued screen direction, mid-stride.",
+  "Angles: camera descriptions, not names.",
+  "Stage candidate in the view: offer once, in say, to build a stage from that take so later scenes keep the place; plan a build step only when the user agrees. Filling its unseen space (fill_unseen, on by default) builds from a still or turning camera too.",
+  "Reverse: cut f36 (24 fps) after motion context in continuing segment; preceding shot continuous. Barrier reverse flips screen direction.",
+]
+
+[reading]
+frames_max = 6
+video_seconds_max = 60
+
+[storyline]
+default_delivered_frames = 102
+beats_max = 6

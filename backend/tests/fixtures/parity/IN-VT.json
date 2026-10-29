@@ -1,0 +1,215 @@
+{
+ "arm": "IN-VT",
+ "label": "r2-c2b-toward-ins-s2",
+ "what": "arcade toward pin (VT): too close to the railing by wording",
+ "intent": {
+  "label": "r2-c2b-toward-ins-s2",
+  "graph_sha256": "afc8cdb0ef8211db618875473a9b2757db1049c5623d09efc4377db6d34c910c",
+  "stage": "diffusion",
+  "max_seconds": 300,
+  "created": 1790706555.601493,
+  "runner_sha256": "c876619281c650e904e231f9909449779c7bfc1d6d356c93b8a8c071cc896758",
+  "runtime_provenance_sha256": "be72e0e791ffdb836f4500cc9b25e73d40931bfab303c2e12993c683a047c5bb"
+ },
+ "graph": {
+  "model": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "lora_0": {
+   "class_type": "LoraLoaderModelOnly",
+   "inputs": {
+    "model": [
+     "model",
+     0
+    ],
+    "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  "encoder": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  "vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_vae.safetensors"
+   }
+  },
+  "shift": {
+   "class_type": "ModelSamplingAuraFlow",
+   "inputs": {
+    "model": [
+     "lora_0",
+     0
+    ],
+    "shift": 3.1
+   }
+  },
+  "image_1": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/courtyard2b/loc-r2-kl/view-036.png"
+   }
+  },
+  "scaled_1": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_1",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "image_2": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/people/arin-left-grey-qe-s1/arin-left.png"
+   }
+  },
+  "scaled_2": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_2",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "positive": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "Edit image 1, an empty sunlit arcade courtyard seen from ahead, looking back along the railing. Preserve its camera position, perspective, framing, the railing and the arcade on the right, the open paving on the left and lighting.\n\nInsert exactly one person: Arin from image 2. Use image 2 only for his identity, hair, beard, plaid shirt, jeans, boots and satchel. Exclude its grey background.\n\nPlace Arin on the open paving in the middle of the frame, a short step left of the railing. He faces the camera and walks straight toward it, mid-stride: his face, chest and leading foot point at the camera. He is approximately one half of the image height from head to feet, and his full body fits inside the frame.\n\nMatch the plate's perspective, light and ground-contact shadows. Keep every existing feature in place: the railing and its plinth, the columns and arches of the arcade, the olive trees and the paving. The only person is Arin. Add no other figures, reflections of people or background pedestrians. Output one photographic frame.",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "negative": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "latent": {
+   "class_type": "EmptySD3LatentImage",
+   "inputs": {
+    "width": 1344,
+    "height": 752,
+    "batch_size": 1
+   }
+  },
+  "sample": {
+   "class_type": "KSampler",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "seed": 2,
+    "steps": 4,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "positive": [
+     "positive",
+     0
+    ],
+    "negative": [
+     "negative",
+     0
+    ],
+    "latent_image": [
+     "latent",
+     0
+    ],
+    "denoise": 1.0
+   }
+  },
+  "decode": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "sample",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "save": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "decode",
+     0
+    ],
+    "filename_prefix": "campaign/r2-c2b-toward-ins-s2/asset"
+   }
+  }
+ },
+ "files": [
+  {
+   "node": "image_1",
+   "input": "image",
+   "path": "assets/packs/courtyard2b/loc-r2-kl/view-036.png",
+   "sha256": "691a772106b3bf4e1953214ddce85b7a2239e3290c4d86e36ea72b1db5f45b7a",
+   "bytes": 1734853,
+   "pixels_sha256": "d52a034e9fac6dffc9403b42107f7b1b2f5fb032759f5619d7c18453bea44456"
+  },
+  {
+   "node": "image_2",
+   "input": "image",
+   "path": "assets/packs/people/arin-left-grey-qe-s1/arin-left.png",
+   "sha256": "6ec710abd818de104fe995c32ff32be7e94f7c473ed4d69fe10b88e2f59854f4",
+   "bytes": 733989,
+   "pixels_sha256": "ef671981d0c660ec936f4483edd6b3493be2bce0fd91b673c5f272ee709f76c8"
+  }
+ ],
+ "delivered_sha256": null
+}

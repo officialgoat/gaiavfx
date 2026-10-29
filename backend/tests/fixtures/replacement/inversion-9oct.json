@@ -1,0 +1,315 @@
+{
+ "schema": 1,
+ "purpose": "Calibration evidence for inverted_copy: Pearson correlation of the delivered composite's luma with the source's luma inside the performer mask, for every Batch 1 render and every trial window take (9 October 2026).",
+ "verdicts": "calibration/data/recast-performance-rankings-2026-10-09.json",
+ "observation": "The five renders the user flagged as inverted colour (photographic-negative copies of the inverted guide) read -0.96 to -0.99; every other render, replaced, leaked or hybrid, reads +0.23 or more (the lowest is the robot target in 059). The face check rated the negatives 0.36-0.39, between its bands.",
+ "thresholds": {
+  "inverted_copy": {
+   "pass_at_least": 0.0,
+   "fail_at_most": -0.5,
+   "between": "unsupported"
+  }
+ },
+ "rows": [
+  {
+   "source": "batch1 rp1-056w0-a-prime-s271828",
+   "luma_correlation": 0.4455,
+   "negative_copy": false,
+   "residual_source": -0.006
+  },
+  {
+   "source": "batch1 rp1-056w0-a-prime-s314159",
+   "luma_correlation": 0.4415,
+   "negative_copy": false,
+   "residual_source": -0.051
+  },
+  {
+   "source": "batch1 rp1-056w0-a-s271828",
+   "luma_correlation": 0.4463,
+   "negative_copy": false,
+   "residual_source": -0.002
+  },
+  {
+   "source": "batch1 rp1-056w0-t1a-split-s271828",
+   "luma_correlation": 0.4517,
+   "negative_copy": false,
+   "residual_source": 0.036
+  },
+  {
+   "source": "batch1 rp1-056w0-t1a-split-s314159",
+   "luma_correlation": 0.4508,
+   "negative_copy": false,
+   "residual_source": -0.009
+  },
+  {
+   "source": "batch1 rp1-056w0-t1d-rgb-s271828",
+   "luma_correlation": 0.4559,
+   "negative_copy": false,
+   "residual_source": 0.055
+  },
+  {
+   "source": "batch1 rp1-058w0-a-prime-s271828",
+   "luma_correlation": 0.857,
+   "negative_copy": false,
+   "residual_source": 0.698
+  },
+  {
+   "source": "batch1 rp1-058w0-a-prime-s314159",
+   "luma_correlation": -0.9928,
+   "negative_copy": true,
+   "residual_source": 0.371
+  },
+  {
+   "source": "batch1 rp1-058w0-a-s271828",
+   "luma_correlation": 0.8556,
+   "negative_copy": false,
+   "residual_source": 0.708
+  },
+  {
+   "source": "batch1 rp1-058w0-split-control-s271828",
+   "luma_correlation": 0.857,
+   "negative_copy": false,
+   "residual_source": 0.698
+  },
+  {
+   "source": "batch1 rp1-058w0-t1a-split-s271828",
+   "luma_correlation": 0.9943,
+   "negative_copy": false,
+   "residual_source": 0.975
+  },
+  {
+   "source": "batch1 rp1-058w0-t1a-split-s314159",
+   "luma_correlation": -0.9706,
+   "negative_copy": true,
+   "residual_source": 0.385
+  },
+  {
+   "source": "batch1 rp1-058w0-t1b-audio-lock-s271828",
+   "luma_correlation": 0.8553,
+   "negative_copy": false,
+   "residual_source": 0.709
+  },
+  {
+   "source": "batch1 rp1-058w0-t1b-audio-lock-s314159",
+   "luma_correlation": -0.9929,
+   "negative_copy": true,
+   "residual_source": 0.375
+  },
+  {
+   "source": "batch1 rp1-058w0-t1d-rgb-s271828",
+   "luma_correlation": 0.9944,
+   "negative_copy": false,
+   "residual_source": 0.974
+  },
+  {
+   "source": "batch1 rp1-058w1-a-prime-s271828",
+   "luma_correlation": 0.8679,
+   "negative_copy": false,
+   "residual_source": 0.695
+  },
+  {
+   "source": "batch1 rp1-058w1-a-prime-s314159",
+   "luma_correlation": 0.8796,
+   "negative_copy": false,
+   "residual_source": 0.667
+  },
+  {
+   "source": "batch1 rp1-058w1-t1a-split-s271828",
+   "luma_correlation": 0.994,
+   "negative_copy": false,
+   "residual_source": 0.965
+  },
+  {
+   "source": "batch1 rp1-058w1-t1a-split-s314159",
+   "luma_correlation": -0.967,
+   "negative_copy": true,
+   "residual_source": 0.36
+  },
+  {
+   "source": "batch1 rp1-058w1-t1b-audio-lock-s271828",
+   "luma_correlation": 0.8698,
+   "negative_copy": false,
+   "residual_source": 0.702
+  },
+  {
+   "source": "batch1 rp1-058w1-t1b-audio-lock-s314159",
+   "luma_correlation": 0.9035,
+   "negative_copy": false,
+   "residual_source": 0.699
+  },
+  {
+   "source": "batch1 rp1-058w1-t1d-rgb-s271828",
+   "luma_correlation": 0.9938,
+   "negative_copy": false,
+   "residual_source": 0.965
+  },
+  {
+   "source": "batch1 rp1-061w1-a-prime-s271828",
+   "luma_correlation": 0.7828,
+   "negative_copy": false,
+   "residual_source": 0.548
+  },
+  {
+   "source": "batch1 rp1-061w1-a-prime-s314159",
+   "luma_correlation": 0.7601,
+   "negative_copy": false,
+   "residual_source": 0.345
+  },
+  {
+   "source": "batch1 rp1-061w1-a-s271828",
+   "luma_correlation": 0.7874,
+   "negative_copy": false,
+   "residual_source": 0.57
+  },
+  {
+   "source": "batch1 rp1-061w1-t1a-split-s271828",
+   "luma_correlation": 0.9941,
+   "negative_copy": false,
+   "residual_source": 0.969
+  },
+  {
+   "source": "batch1 rp1-061w1-t1a-split-s314159",
+   "luma_correlation": -0.961,
+   "negative_copy": true,
+   "residual_source": 0.365
+  },
+  {
+   "source": "batch1 rp1-061w1-t1b-audio-lock-s271828",
+   "luma_correlation": 0.7789,
+   "negative_copy": false,
+   "residual_source": 0.563
+  },
+  {
+   "source": "batch1 rp1-061w1-t1b-audio-lock-s314159",
+   "luma_correlation": 0.7596,
+   "negative_copy": false,
+   "residual_source": 0.349
+  },
+  {
+   "source": "batch1 rp1-061w1-t1d-rgb-s271828",
+   "luma_correlation": 0.8444,
+   "negative_copy": false,
+   "residual_source": 0.887
+  },
+  {
+   "source": "trial 6b69535e:42797eac",
+   "luma_correlation": 0.4385,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 1312c3ed:d01f46ce",
+   "luma_correlation": 0.4716,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 6cb8805d:6f843a61",
+   "luma_correlation": 0.8846,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial fa6c0d8d:051d7982",
+   "luma_correlation": 0.9079,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 170cdabb:f3f50753",
+   "luma_correlation": 0.233,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 043ec218:40e174a1",
+   "luma_correlation": 0.7507,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial a3002c50:e28721d2",
+   "luma_correlation": 0.785,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 01443a50:3b4cc37b",
+   "luma_correlation": 0.7866,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 01443a50:5af63e7f",
+   "luma_correlation": 0.7507,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 01443a50:2cb46711",
+   "luma_correlation": 0.7499,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial c2fbab59:1f4dab13",
+   "luma_correlation": 0.7707,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial c2fbab59:f121aa0f",
+   "luma_correlation": 0.765,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial c2fbab59:b72f1d81",
+   "luma_correlation": 0.7277,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 31f7dc2b:990b3cf5",
+   "luma_correlation": 0.9071,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 31f7dc2b:499ed7b7",
+   "luma_correlation": 0.7553,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial 31f7dc2b:713eca4f",
+   "luma_correlation": 0.7388,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial a4cd103c:e1355279",
+   "luma_correlation": 0.7811,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial a4cd103c:a8b4398d",
+   "luma_correlation": 0.9109,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial a4cd103c:fdd57060",
+   "luma_correlation": 0.8994,
+   "negative_copy": false,
+   "residual_source": null
+  },
+  {
+   "source": "trial a4cd103c:b6ea491c",
+   "luma_correlation": 0.771,
+   "negative_copy": false,
+   "residual_source": null
+  }
+ ]
+}

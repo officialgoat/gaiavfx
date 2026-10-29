@@ -1,0 +1,22 @@
+subject_definitions:
+<Subject 1> is Lena, Woman with a dark bob haircut, a red wool coat and a black shoulder bag. Source: <Picture 1>. <Picture 1> supplies identity only.
+
+summary:
+[reference generation + video continuation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - Preserve the reference contributions defined above.
+
+detailed_description:
+Use <Picture 1> for identity, outfit only. Preserve Lena's identity, red coat and bag; the background follows the scene.
+Continue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat.
+Production context: A city sidewalk in soft overcast daylight: lit shop windows with displays and a cafe awning on one side, the street with passing cars and the buildings across it on the other.
+<Subject 1>: Woman with a dark bob haircut, a red wool coat and a black shoulder bag.
+[Shot 1] This shot follows the referenced identities of <Subject 1>. Lena keeps walking steadily along the sidewalk in her red coat, her bag on her shoulder, seen from the street side as the take continues. The kerb and street lie in the near foreground; the lit shop windows stand behind her in the background. She is mid-frame, full body visible, walking at a steady pace. Side-view tracking shot at walking pace, continuing the previous take. Camera position: At the kerb on the street side, level with her; the lit shop windows behind her. Screen direction: She walks from screen left to screen right. Sound: Footsteps on pavement, distant traffic; the sound continues across the cut. Subjects in frame: <Subject 1>.
+[Shot 2] At 00:01.417, the shot cuts. Lena keeps walking steadily along the sidewalk in her red coat, her bag on her shoulder, now seen from the shop side. The lit shop windows and their display cases stand close in the foreground on the near side of the frame; the street, kerb and passing traffic lie behind Lena in the background. She is mid-frame, full body visible, walking at a steady pace. Side-view tracking shot at walking pace from the shop side. Camera position: On the shop side of the sidewalk, level with her; the lit shop windows in the near foreground, the street behind her. Screen direction: She walks from screen right to screen left. Sound: Footsteps on pavement, distant traffic; the sound continues across the cut. This shot follows the referenced identities of <Subject 1>.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

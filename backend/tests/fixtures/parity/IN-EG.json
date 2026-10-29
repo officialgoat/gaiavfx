@@ -1,0 +1,215 @@
+{
+ "arm": "IN-EG",
+ "label": "rs4-gallery-loc-s2-kl-arin-s2",
+ "what": "gallery reverse pin (EG, QG): Teo walking left beyond the cable",
+ "intent": {
+  "label": "rs4-gallery-loc-s2-kl-arin-s2",
+  "graph_sha256": "9d24edf30e5be86b6b5f8a68b0af4af97139811bbd1aaf088b190d50dff6f43f",
+  "stage": "diffusion",
+  "max_seconds": 300,
+  "created": 1790635381.9478908,
+  "runner_sha256": "c876619281c650e904e231f9909449779c7bfc1d6d356c93b8a8c071cc896758",
+  "runtime_provenance_sha256": "be72e0e791ffdb836f4500cc9b25e73d40931bfab303c2e12993c683a047c5bb"
+ },
+ "graph": {
+  "model": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "lora_0": {
+   "class_type": "LoraLoaderModelOnly",
+   "inputs": {
+    "model": [
+     "model",
+     0
+    ],
+    "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  "encoder": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  "vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_vae.safetensors"
+   }
+  },
+  "shift": {
+   "class_type": "ModelSamplingAuraFlow",
+   "inputs": {
+    "model": [
+     "lora_0",
+     0
+    ],
+    "shift": 3.1
+   }
+  },
+  "image_1": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/gallery/loc-s2-kl/view-036.png"
+   }
+  },
+  "scaled_1": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_1",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "image_2": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/people/teo-left-grey-s1/teo-left.png"
+   }
+  },
+  "scaled_2": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_2",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "positive": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "Edit image 1, the empty gallery seen from just behind the thin cable barrier along the painting wall. Preserve its camera position, perspective, framing, walls, windows, thin cable barrier and stanchions, floor and lighting.\n\nInsert exactly one person: Teo from image 2. Use image 2 only for his identity, curly hair, mustard corduroy jacket, dark trousers, shoes, tote bag and left-facing walking pose. Exclude its grey background.\n\nPlace Teo on the polished floor beyond the thin cable, in the right half of the frame with room to walk toward screen left. He is a mid-distance figure, approximately half of the image height from head to feet. His full body fits inside the frame.\n\nHis face, torso and leading step point toward the LEFT edge of the image, matching image 2. He walks left across the gallery, parallel to the cable. Both feet belong on the floor beyond the cable, between the cable and the window wall. Preserve the thin cable over his legs wherever they overlap.\n\nMatch the plate's perspective, light and ground-contact shadows. Keep every existing feature in place. The only person is Teo. Add no other figures, reflections of people or background pedestrians. Output one photographic frame.",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "negative": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "latent": {
+   "class_type": "EmptySD3LatentImage",
+   "inputs": {
+    "width": 1344,
+    "height": 752,
+    "batch_size": 1
+   }
+  },
+  "sample": {
+   "class_type": "KSampler",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "seed": 2,
+    "steps": 4,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "positive": [
+     "positive",
+     0
+    ],
+    "negative": [
+     "negative",
+     0
+    ],
+    "latent_image": [
+     "latent",
+     0
+    ],
+    "denoise": 1.0
+   }
+  },
+  "decode": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "sample",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "save": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "decode",
+     0
+    ],
+    "filename_prefix": "campaign/rs4-gallery-loc-s2-kl-arin-s2/asset"
+   }
+  }
+ },
+ "files": [
+  {
+   "node": "image_1",
+   "input": "image",
+   "path": "assets/packs/gallery/loc-s2-kl/view-036.png",
+   "sha256": "d6a920689a9ff3a4c0d63117c7ceb87dae176d317378141f9da31556982aed48",
+   "bytes": 1272995,
+   "pixels_sha256": "91822e3b124ae91c4306f310a5676be7535ad91c220c3edadd50959393151ca9"
+  },
+  {
+   "node": "image_2",
+   "input": "image",
+   "path": "assets/packs/people/teo-left-grey-s1/teo-left.png",
+   "sha256": "dcfc1e6b6ce69835daffae5752bb8bf4cf9064a58e97766a8ee505b38f835ebf",
+   "bytes": 843815,
+   "pixels_sha256": "b2c120e585aa13cadd17021e34920832c3d9dab9ce46f3c38ab3f1b0f8de177b"
+  }
+ ],
+ "delivered_sha256": null
+}

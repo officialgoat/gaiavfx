@@ -1,0 +1,24 @@
+{
+  "who": "Arin",
+  "looks": "hair, beard, plaid shirt, jeans, boots, satchel",
+  "pronouns": "he",
+  "facing": "screen_left",
+  "plate": "the empty view from a hotel lounge through a floor-to-ceiling glass partition with thin black vertical frames onto the corridor",
+  "keep": "glass and black frames, lounge furniture, patterned carpet, corridor",
+  "where": "in the corridor beyond the glass",
+  "size": "one third",
+  "distance_description": "mid-distance",
+  "along": "along the corridor",
+  "barrier": "the glass",
+  "feet_placement": "Both feet belong on the corridor carpet beyond the glass, between the glass and the corridor's far wall.",
+  "occlude": "He is seen through the glass: the glass and its black frames stay in front of him, and the lounge furniture stays nearer the camera than he is.",
+  "behind": null,
+  "distance_to_barrier_m": null,
+  "seed": 2,
+  "view": {
+    "sha256": "2f38ee3edaee551e08f885580bc1bbd371115596bf5dffc6e3fc3aa9a2df96c6"
+  },
+  "subject": {
+    "sha256": "6ec710abd818de104fe995c32ff32be7e94f7c473ed4d69fe10b88e2f59854f4"
+  }
+}

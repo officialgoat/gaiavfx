@@ -1,0 +1,22 @@
+subject_definitions:
+<Subject 1> is Mara, Adult woman with short wavy brown hair and an ochre raincoat. Source: <Picture 1>. <Picture 1> supplies identity only.
+
+summary:
+[reference generation + video continuation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - Preserve the reference contributions defined above.
+
+detailed_description:
+Use <Picture 1> for identity, outfit only. Preserve Mara's identity and ochre raincoat; the background follows the scene.
+Continue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat.
+Production context: A misty harbour at dusk: a wet wooden pier with a dark railing, dark calm water, a lit ferry and harbour lights in the fog.
+<Subject 1>: Adult woman with short wavy brown hair and an ochre raincoat.
+[Shot 1] This shot follows the referenced identities of <Subject 1>. Mara keeps walking along the pier at the same steady pace. She is small in the frame at the railing, the pier lamps and fog behind her, the water moving gently in the foreground. Wide reverse angle from out on the water looking back across the pier. The railing crosses the foreground between camera and Mara. Mara walks from screen right to screen left, the railing on her left between her and the camera. Fog and pier lamps fill the background. Camera movement: static. Camera position: Out on the water, looking back across at the pier. Screen direction: Mara walks from screen right to screen left. Sound: Quiet footsteps on wet planks, water and distant harbour sounds; the sound continues across the cut. Subjects in frame: <Subject 1>.
+[Shot 2] At 00:01.917, the shot cuts. Mara keeps walking along the pier at the same steady pace, her ochre raincoat catching the last amber light of dusk. She crosses the frame from screen left to screen right. The railing is on her right, the open water and grey sky on her left. Side-view tracking shot at Mara's height. She is medium-large in the frame, filling roughly a third of the width. The pier deck and railing run parallel to the frame's horizontal axis, crossing the frame. Behind Mara: thick fog and the soft glow of distant pier lamp posts. In front of her: the pier continues into the mist. The water and grey dusk sky lie beyond the railing on her left. The camera tracks alongside her at a constant distance. Camera movement: truck right. Camera position: On the pier, at Mara's height, tracking alongside her from her left side. Screen direction: Mara walks from screen left to screen right. Sound: Quiet footsteps on wet planks, water and distant harbour sounds; the sound continues across the cut. Subjects in frame: <Subject 1>. This shot follows the referenced identities of <Subject 1>.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

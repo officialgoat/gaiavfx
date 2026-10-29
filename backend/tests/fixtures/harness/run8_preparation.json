@@ -1,0 +1,20 @@
+{
+  "source": "e2e-library-8 turns 51, 55-57; local-e12 plate-from-removal run 1 turn 7",
+  "insertion": {
+    "pronouns": "he",
+    "plate": "Empty courtyard seen from the arcade side, looking out over the cobblestone ground toward the open space; black iron railing in the foreground, arched colonnade and hanging lantern behind the camera; two potted olive trees; weathered light-colored walls; soft diffused daylight",
+    "keep": "black iron railing, cobblestone ground, arched colonnade, hanging lantern, two potted olive trees, weathered light-colored walls",
+    "where": "standing at the railing, one arm's length from the iron bars, facing the courtyard",
+    "along": "along the paving",
+    "barrier": "black iron railing",
+    "feet_placement": "on the cobblestone paving, just behind the railing",
+    "occlude": "none",
+    "behind": "none"
+  },
+  "finish": {
+    "step": 1,
+    "status": "done",
+    "note": "Insertion of Arin into Facing courtyard angle completed and approved. 1 insertion approved."
+  },
+  "repeat_plate_report": "The removal candidates are loaded in the Review workspace (operation 0e7434fc). Two candidates (A and B) passed prescreen. The place plate is currently set to candidate A (d56f7468) at the gate angle.\n\nPlease review and rank the candidates in the Review workspace. Once you've selected a clean empty-courtyard plate, I'll proceed to survey the reverse angle and continue preparing the cut."
+}

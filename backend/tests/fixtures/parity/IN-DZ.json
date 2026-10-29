@@ -1,0 +1,215 @@
+{
+ "arm": "IN-DZ",
+ "label": "rs4-courtyard2b-orbit-s2-kl-arin-s2",
+ "what": "arcade reverse pin (DZ, EA, ZC): Arin walking left",
+ "intent": {
+  "label": "rs4-courtyard2b-orbit-s2-kl-arin-s2",
+  "graph_sha256": "5524294a6b26e306b4cf78965bb2dadc25e3e2d5b8db46efa77783ee271f1b41",
+  "stage": "diffusion",
+  "max_seconds": 300,
+  "created": 1790557289.6520133,
+  "runner_sha256": "c876619281c650e904e231f9909449779c7bfc1d6d356c93b8a8c071cc896758",
+  "runtime_provenance_sha256": "be72e0e791ffdb836f4500cc9b25e73d40931bfab303c2e12993c683a047c5bb"
+ },
+ "graph": {
+  "model": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "qwen_image_edit_2511_fp8mixed.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "lora_0": {
+   "class_type": "LoraLoaderModelOnly",
+   "inputs": {
+    "model": [
+     "model",
+     0
+    ],
+    "lora_name": "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors",
+    "strength_model": 1.0
+   }
+  },
+  "encoder": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen_2.5_vl_7b_fp8_scaled.safetensors",
+    "type": "qwen_image",
+    "device": "default"
+   }
+  },
+  "vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "qwen_image_vae.safetensors"
+   }
+  },
+  "shift": {
+   "class_type": "ModelSamplingAuraFlow",
+   "inputs": {
+    "model": [
+     "lora_0",
+     0
+    ],
+    "shift": 3.1
+   }
+  },
+  "image_1": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/courtyard2b/orbit-s2-kl/view-115.png"
+   }
+  },
+  "scaled_1": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_1",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "image_2": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/people/arin-left-grey-qe-s1/arin-left.png"
+   }
+  },
+  "scaled_2": {
+   "class_type": "ImageScaleToTotalPixels",
+   "inputs": {
+    "image": [
+     "image_2",
+     0
+    ],
+    "upscale_method": "lanczos",
+    "megapixels": 1.0,
+    "resolution_steps": 16
+   }
+  },
+  "positive": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "Edit image 1, the empty view from under the arcade, behind the black iron railing, across the open courtyard. Preserve its camera position, perspective, framing, columns, railing, paving, olive trees, far buildings and lighting.\n\nInsert exactly one person: Arin from image 2. Use image 2 only for his identity, hair, beard, plaid shirt, jeans, boots, satchel and left-facing walking pose. Exclude its grey background.\n\nPlace Arin on the open paving beyond the railing, in the right half of the frame with room to walk toward screen left. He is a distant, small figure, approximately one fifth of the image height from head to feet. His full body fits inside the frame.\n\nHis face, torso and leading step point toward the LEFT edge of the image, matching image 2. He walks left across the courtyard, parallel to the railing. Both feet belong on the paving beyond the railing, between the railing and the far buildings. Preserve the foreground railing over his silhouette wherever they overlap; its bars occlude him.\n\nMatch the plate's perspective, light and ground-contact shadows. Keep every existing feature in place. The only person is Arin. Add no other figures, reflections of people or background pedestrians. Output one photographic frame.",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "negative": {
+   "class_type": "TextEncodeQwenImageEditPlus",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "prompt": "",
+    "vae": [
+     "vae",
+     0
+    ],
+    "image1": [
+     "scaled_1",
+     0
+    ],
+    "image2": [
+     "scaled_2",
+     0
+    ]
+   }
+  },
+  "latent": {
+   "class_type": "EmptySD3LatentImage",
+   "inputs": {
+    "width": 1344,
+    "height": 752,
+    "batch_size": 1
+   }
+  },
+  "sample": {
+   "class_type": "KSampler",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "seed": 2,
+    "steps": 4,
+    "cfg": 1.0,
+    "sampler_name": "euler",
+    "scheduler": "simple",
+    "positive": [
+     "positive",
+     0
+    ],
+    "negative": [
+     "negative",
+     0
+    ],
+    "latent_image": [
+     "latent",
+     0
+    ],
+    "denoise": 1.0
+   }
+  },
+  "decode": {
+   "class_type": "VAEDecode",
+   "inputs": {
+    "samples": [
+     "sample",
+     0
+    ],
+    "vae": [
+     "vae",
+     0
+    ]
+   }
+  },
+  "save": {
+   "class_type": "SaveImage",
+   "inputs": {
+    "images": [
+     "decode",
+     0
+    ],
+    "filename_prefix": "campaign/rs4-courtyard2b-orbit-s2-kl-arin-s2/asset"
+   }
+  }
+ },
+ "files": [
+  {
+   "node": "image_1",
+   "input": "image",
+   "path": "assets/packs/courtyard2b/orbit-s2-kl/view-115.png",
+   "sha256": "046340c87d6cda214fa5b8eea9705fd4be2944b585c38af137ffd5974c7623df",
+   "bytes": 1621599,
+   "pixels_sha256": "484cefbdbb30933153033712d24cb104a7511b3fcb5442eec4970578848a46a1"
+  },
+  {
+   "node": "image_2",
+   "input": "image",
+   "path": "assets/packs/people/arin-left-grey-qe-s1/arin-left.png",
+   "sha256": "6ec710abd818de104fe995c32ff32be7e94f7c473ed4d69fe10b88e2f59854f4",
+   "bytes": 733989,
+   "pixels_sha256": "ef671981d0c660ec936f4483edd6b3493be2bce0fd91b673c5f272ee709f76c8"
+  }
+ ],
+ "delivered_sha256": null
+}

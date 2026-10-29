@@ -1,0 +1,458 @@
+{
+ "arm": "DZ",
+ "label": "xr2-courtyard2b-wallside-s5821-dz15",
+ "what": "arcade reverse: views-only sheet + survey pin at cut+12",
+ "intent": {
+  "label": "xr2-courtyard2b-wallside-s5821-dz15",
+  "graph_sha256": "9efbfc261e24992012d0a6cdce82107251df876c812314d9ed9e6ca65a812493",
+  "stage": "diffusion",
+  "max_seconds": 480,
+  "created": 1790660713.2464879,
+  "runner_sha256": "c876619281c650e904e231f9909449779c7bfc1d6d356c93b8a8c071cc896758",
+  "runtime_provenance_sha256": "be72e0e791ffdb836f4500cc9b25e73d40931bfab303c2e12993c683a047c5bb"
+ },
+ "graph": {
+  "model": {
+   "class_type": "UNETLoader",
+   "inputs": {
+    "unet_name": "minimax_h3_ref2va_pruned_int8_convrot.safetensors",
+    "weight_dtype": "default"
+   }
+  },
+  "encoder": {
+   "class_type": "CLIPLoader",
+   "inputs": {
+    "clip_name": "qwen3vl_32b_minimax_h3_nvfp4_awq.safetensors",
+    "type": "minimax",
+    "device": "default"
+   }
+  },
+  "video_vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "minimax_h3_video_vae_fp16.safetensors"
+   }
+  },
+  "audio_vae": {
+   "class_type": "VAELoader",
+   "inputs": {
+    "vae_name": "minimax_h3_audio_vae_fp32.safetensors"
+   }
+  },
+  "audio_vae_guard": {
+   "class_type": "GaiaH3AudioVAE",
+   "inputs": {
+    "audio_vae": [
+     "audio_vae",
+     0
+    ]
+   }
+  },
+  "picture": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "overnight/full-body-motion.png"
+   }
+  },
+  "noise": {
+   "class_type": "RandomNoise",
+   "inputs": {
+    "noise_seed": 5821
+   }
+  },
+  "fresh_model": {
+   "class_type": "GaiaScreenFreshModel",
+   "inputs": {
+    "model": [
+     "model",
+     0
+    ],
+    "run_id": "xr2-courtyard2b-wallside-s5821-dz15"
+   }
+  },
+  "shift": {
+   "class_type": "MiniMaxH3SigmaShift",
+   "inputs": {
+    "model": [
+     "fresh_model",
+     0
+    ],
+    "shift_video": 12.0,
+    "shift_audio": 3.0
+   }
+  },
+  "sampler": {
+   "class_type": "KSamplerSelect",
+   "inputs": {
+    "sampler_name": "res_multistep"
+   }
+  },
+  "picture2": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/courtyard2b/card-views-only/sheet.png"
+   }
+  },
+  "conditioning": {
+   "class_type": "MiniMaxH3ReferenceToVideo",
+   "inputs": {
+    "clip": [
+     "encoder",
+     0
+    ],
+    "vae": [
+     "video_vae",
+     0
+    ],
+    "prompt": "subject_definitions:\n<Subject 1> is Arin, Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder. Source: <Picture 1>. <Picture 1> supplies identity only.\n<Picture 2> is a reference sheet of this one courtyard in six panels separated by grey lines: six photographs of the same empty courtyard from one walk around it. The panels are alternative views of one place, not one picture; nobody is in them.\n\nsummary:\n[reference generation + video continuation] Follow the authored timed direction below with the defined reference contributions.\n\nretention_analysis:\n<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - Preserve the reference contributions defined above.\n<Picture 2> (appears in [Shot 2]): weak_reference - Preserve the layout and look of the courtyard from the sheet: the arcade and its railing, the building across the courtyard and its windows, the trees in their pots and the paving. Never show the grid, the grey lines or several panels of the sheet. Arin remains the only person.\n\ndetailed_description:\nUse <Picture 1> for identity, outfit only. Preserve Arin's identity, plaid shirt and satchel; the background follows the scene.\nContinue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat.\nProduction context: A sunlit stone courtyard: a black iron railing in front of an open arcade of stone pillars and arches along a pale plaster wall, a shaded walkway under the arches, olive trees in terracotta pots, a worn stone floor.\n<Subject 1>: Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder.\n[Shot 1] This shot follows the referenced identities of <Subject 1>. Arin keeps walking from left to right along the railing in the same side-view tracking shot, framing and light. Screen direction: Screen left to screen right, as before. Sound: Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut. Subjects in frame: <Subject 1>.\n[Shot 2] At 00:02.417, the shot cuts. Arin keeps walking at the same steady pace, mid-stride as the shot begins. Arin stays on the open courtyard's side of the black iron railing and walks parallel to the black iron railing, never touching or crossing it and ends on that side. Reverse angle from the arcade: the camera stands in the shade under the arches, behind the railing, and looks out across the open, sunlit courtyard toward him. Camera position: Under the arcade, behind the railing, looking out across the open courtyard. The camera stands in the arcade walkway and looks toward the open courtyard. The black iron railing stands between the camera and Arin; the open courtyard lies behind Arin. Arin is far from the camera: the railing is close to the lens, and Arin walks well beyond it, out in the open courtyard, small in the frame with his whole body visible. Screen direction: Seen from the wall side he now moves from screen right to screen left, with the iron railing between him and the camera and the open courtyard behind him. The courtyard after the cut is the one in <Picture 2>. Sound: Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut. This shot follows the referenced identities of <Subject 1>.\n\noverall_soundscape:\nFollow only the sound explicitly authored in the direction above.\n\nnon_diegetic_music:\nN/A",
+    "width": 768,
+    "height": 448,
+    "length": 124,
+    "audio_vae": [
+     "audio_vae_guard",
+     0
+    ],
+    "ref_image_size": "match",
+    "ref_images.ref_image_0": [
+     "picture",
+     0
+    ],
+    "ref_images.ref_image_1": [
+     "picture2",
+     0
+    ]
+   }
+  },
+  "guide_image0": {
+   "class_type": "LoadImage",
+   "inputs": {
+    "image": "assets/packs/courtyard2b/orbit-s2-kl-arin-s2/guide-reverse-768.png"
+   }
+  },
+  "guide0": {
+   "class_type": "MiniMaxH3AddGuide",
+   "inputs": {
+    "positive": [
+     "conditioning",
+     0
+    ],
+    "latent": [
+     "conditioning",
+     1
+    ],
+    "vae": [
+     "video_vae",
+     0
+    ],
+    "image": [
+     "guide_image0",
+     0
+    ],
+    "frame_idx": 70
+   }
+  },
+  "load_context": {
+   "class_type": "MiniMaxH3MotionContextLoadLatent",
+   "inputs": {
+    "latent_path": "campaign/xl1-courtyard2b-shot1-s5811-shot1/context_00001.safetensors",
+    "clip_index": 1
+   }
+  },
+  "motion_context": {
+   "class_type": "MiniMaxH3MotionContext",
+   "inputs": {
+    "conditioning": [
+     "guide0",
+     0
+    ],
+    "latent": [
+     "conditioning",
+     1
+    ],
+    "vae": [
+     "video_vae",
+     0
+    ],
+    "audio_vae": [
+     "audio_vae_guard",
+     0
+    ],
+    "context_latent": [
+     "load_context",
+     0
+    ],
+    "context_length": "22",
+    "audio_context_length": 24
+   }
+  },
+  "campaign_probe": {
+   "class_type": "GaiaCampaignModelProbe",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "label": "xr2-courtyard2b-wallside-s5821-dz15"
+   }
+  },
+  "guider": {
+   "class_type": "BasicGuider",
+   "inputs": {
+    "model": [
+     "campaign_probe",
+     0
+    ],
+    "conditioning": [
+     "motion_context",
+     0
+    ]
+   }
+  },
+  "sigmas": {
+   "class_type": "GaiaH3PowerShift",
+   "inputs": {
+    "model": [
+     "shift",
+     0
+    ],
+    "steps": 20,
+    "power": 2.0,
+    "midpoint_shift": 1.0
+   }
+  },
+  "sample": {
+   "class_type": "SamplerCustomAdvanced",
+   "inputs": {
+    "noise": [
+     "noise",
+     0
+    ],
+    "guider": [
+     "guider",
+     0
+    ],
+    "sampler": [
+     "sampler",
+     0
+    ],
+    "sigmas": [
+     "sigmas",
+     0
+    ],
+    "latent_image": [
+     "conditioning",
+     1
+    ]
+   }
+  },
+  "save_context": {
+   "class_type": "MiniMaxH3MotionContextSaveLatent",
+   "inputs": {
+    "latent": [
+     "sample",
+     0
+    ],
+    "filename_prefix": "campaign/xr2-courtyard2b-wallside-s5821-dz15/context",
+    "clip_index": 1
+   }
+  },
+  "release_sampling_weights": {
+   "class_type": "VRAM_Debug",
+   "inputs": {
+    "any_input": [
+     "sample",
+     0
+    ],
+    "empty_cache": true,
+    "gc_collect": true,
+    "unload_all_models": true
+   }
+  },
+  "decode_video": {
+   "class_type": "VAEDecodeTiled",
+   "inputs": {
+    "samples": [
+     "release_sampling_weights",
+     0
+    ],
+    "vae": [
+     "video_vae",
+     0
+    ],
+    "tile_size": 512,
+    "overlap": 64,
+    "temporal_size": 64,
+    "temporal_overlap": 8
+   }
+  },
+  "decode_audio": {
+   "class_type": "VAEDecodeAudio",
+   "inputs": {
+    "samples": [
+     "release_sampling_weights",
+     0
+    ],
+    "vae": [
+     "audio_vae_guard",
+     0
+    ]
+   }
+  },
+  "save_decoded": {
+   "class_type": "GaiaScreenSaveDecoded",
+   "inputs": {
+    "images": [
+     "decode_video",
+     0
+    ],
+    "audio": [
+     "decode_audio",
+     0
+    ],
+    "name": "campaign/xr2-courtyard2b-wallside-s5821-dz15/raw"
+   }
+  },
+  "trim": {
+   "class_type": "GaiaH3ContinuityTrim",
+   "inputs": {
+    "images": [
+     "decode_video",
+     0
+    ],
+    "audio": [
+     "decode_audio",
+     0
+    ],
+    "trim_frames": 22,
+    "fps": 24.0
+   }
+  },
+  "trim_report": {
+   "class_type": "PreviewAny",
+   "inputs": {
+    "source": [
+     "trim",
+     2
+    ]
+   }
+  },
+  "video": {
+   "class_type": "CreateVideo",
+   "inputs": {
+    "images": [
+     "trim",
+     0
+    ],
+    "audio": [
+     "trim",
+     1
+    ],
+    "fps": 24.0
+   }
+  },
+  "save_video": {
+   "class_type": "SaveVideo",
+   "inputs": {
+    "video": [
+     "video",
+     0
+    ],
+    "filename_prefix": "campaign/xr2-courtyard2b-wallside-s5821-dz15/delivered",
+    "format": "mp4",
+    "codec": "h264"
+   }
+  }
+ },
+ "files": [
+  {
+   "node": "picture",
+   "input": "image",
+   "path": "overnight/full-body-motion.png",
+   "sha256": "ad72b298e9b415348627a8e5480ef38dd5c17b3aaee2b1e863af7b1f8b12ba82",
+   "bytes": 2395149,
+   "pixels_sha256": "4cb1606745f406c17bf6141dbc839a3cacb2c494905e4ed9648958f0d4a6413e"
+  },
+  {
+   "node": "picture2",
+   "input": "image",
+   "path": "assets/packs/courtyard2b/card-views-only/sheet.png",
+   "sha256": "2944e4ba95c18727f7664548556fb2b9d025c80ef6fb88dd4ab7b94f17ce7724",
+   "bytes": 9694177,
+   "sheet": {
+    "columns": 3,
+    "gap_rgb": [
+     128,
+     128,
+     128
+    ],
+    "tiles": [
+     {
+      "name": "shot1plate-qe/view-shot1",
+      "sha256": "7b9057ac307433b907fd41316660523de01f26cde2693b50b52b975ddfc4090e",
+      "size": [
+       1344,
+       784
+      ]
+     },
+     {
+      "name": "orbit-s2-kl/view-000",
+      "sha256": "0a62b7389d4e8f75b06d2d2ea29f6df3e25d4c017cea65168f93b5cb793c1275",
+      "size": [
+       1344,
+       752
+      ]
+     },
+     {
+      "name": "orbit-s2-kl/view-025",
+      "sha256": "3cc86d17108e2f0a42c803811ce38a79d3e515665f207d7ec460b0ee844a7f37",
+      "size": [
+       1344,
+       752
+      ]
+     },
+     {
+      "name": "orbit-s2-kl/view-049",
+      "sha256": "fad20788f4bbdb9386308cf9131ba24b850a988127d6a91034ee92027a990fbd",
+      "size": [
+       1344,
+       752
+      ]
+     },
+     {
+      "name": "orbit-s2-kl/view-082",
+      "sha256": "540d78a7cc6c5f70e7f9f03d8d4f2d80450222c433e2fbf6516fb96878898b96",
+      "size": [
+       1344,
+       752
+      ]
+     },
+     {
+      "name": "orbit-s2-kl/view-115",
+      "sha256": "046340c87d6cda214fa5b8eea9705fd4be2944b585c38af137ffd5974c7623df",
+      "size": [
+       1344,
+       752
+      ]
+     }
+    ],
+    "pixels_sha256": "48bcaea1bc0a8ed29d40b93c5dc14185eb2d907dbd9626a7d14b0d74ade0c06c"
+   }
+  },
+  {
+   "node": "guide_image0",
+   "input": "image",
+   "path": "assets/packs/courtyard2b/orbit-s2-kl-arin-s2/guide-reverse-768.png",
+   "sha256": "0dfb2e488bb0e3c8c522bf99645ddec90c2813aa0c686bc823eb683975a49215",
+   "bytes": 513395,
+   "pixels_sha256": "5da99e96523c02822c463976fdc273f00da0a2f9d891ef0de9bc63e94b845156"
+  },
+  {
+   "node": "load_context",
+   "input": "latent_path",
+   "path": "campaign/xl1-courtyard2b-shot1-s5811-shot1/context_00001.safetensors",
+   "sha256": "397350a722635a443516efd7801c568d2897d832cc47fd90c278a6d5b534cd9c",
+   "bytes": 2869976
+  }
+ ],
+ "delivered_sha256": "a049f0e8e6868be9137a3af5a7f3fc6a669a0e9cd1998b204fe3e58860f80d31"
+}

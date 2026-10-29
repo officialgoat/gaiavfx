@@ -1,0 +1,20 @@
+subject_definitions:
+<Subject 1> is the character shown in <Picture 1>, with shoulder-length wavy dark hair, a burgundy zip-front fleece over a dark shirt, navy cargo trousers and brown hiking shoes.
+<Subject 2> is the standing performer, shown in photographic-negative (inverted) colors in <Video 1>.
+
+summary:
+[video editing] The target video is an edited version of <Video 1>. Replace <Subject 2> with <Subject 1>, including face, hair, body and clothing. Preserve the source performance, movement, facial expression, mouth timing, camera and surroundings.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1]): attribute_transfer - The face, hair, body and clothing of <Subject 1> replace those of <Subject 2>. Keep those target features wherever visible. Do not reproduce reference-sheet labels, swatches or its background.
+<Subject 2> (appears in [Shot 1]): partially_preserved - The performance of <Subject 2> is preserved; its face, hair, body and clothing are replaced by <Subject 1>. The selected performer appears in photographic-negative colors in <Video 1>; use only their movement and structure and take their appearance from <Picture 1>.
+<Video 1> (camera and surroundings): fully_preserved - Preserve the yellow mug, tableware and furniture, original framing.
+
+detailed_description:
+[Shot 1] <Subject 1> appears as the standing performer. The replacement performer holds a yellow mug at chest height, looks toward the seated woman, releases one hand from the mug, and lowers that hand toward the chair. Render natural scene colors.
+
+overall_soundscape:
+N/A
+
+non_diegetic_music:
+N/A

@@ -1,0 +1,22 @@
+subject_definitions:
+<Subject 1> is Arin, Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder. Source: <Picture 1>. <Picture 1> supplies identity only.
+
+summary:
+[reference generation + video continuation] Follow the authored timed direction below with the defined reference contributions.
+
+retention_analysis:
+<Subject 1> (appears in [Shot 1], [Shot 2]): fully_preserved - Preserve the reference contributions defined above.
+
+detailed_description:
+Use <Picture 1> for identity, outfit only. Preserve Arin's identity, plaid shirt and satchel; the background follows the scene.
+Continue the supplied motion context: preserve its incoming pose, framing, lighting, camera direction and ongoing sound. Continue the unfinished action once before developing the next beat.
+Production context: A sunlit stone courtyard: a pale plaster wall, a black iron railing on a low stone ledge in front of the wall, olive trees in terracotta pots, a worn stone floor.
+<Subject 1>: Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder.
+[Shot 1] This shot follows the referenced identities of <Subject 1>. Arin keeps walking from left to right along the railing in the same side-view tracking shot, framing and light. Screen direction: Screen left to screen right, as before. Sound: Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut. Subjects in frame: <Subject 1>.
+[Shot 2] At 00:02.417, the shot cuts. Arin keeps walking at the same steady pace, mid-stride as the shot begins. Reverse angle from the wall side: the camera stands against the pale plaster wall behind the iron railing and looks out across the open, sunlit courtyard toward him; the railing runs across the foreground. Camera position: At the wall, behind the iron railing, looking out across the open courtyard. Screen direction: Seen from the wall side he now moves from screen right to screen left, with the iron railing between him and the camera and the open courtyard behind him. Sound: Footsteps on stone, a light breeze in the olive leaves; the sound continues across the cut. This shot follows the referenced identities of <Subject 1>.
+
+overall_soundscape:
+Follow only the sound explicitly authored in the direction above.
+
+non_diegetic_music:
+N/A

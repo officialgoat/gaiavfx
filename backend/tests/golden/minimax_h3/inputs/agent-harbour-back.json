@@ -1,0 +1,62 @@
+{
+  "segment": {
+    "subjects": [
+      {
+        "id": "mara",
+        "name": "Mara",
+        "description": "Adult woman with short wavy brown hair and an ochre raincoat",
+        "keeps": [
+          "ochre raincoat"
+        ],
+        "identity_asset": "mara-asset"
+      }
+    ],
+    "place": {
+      "noun": "place",
+      "description": "A misty harbour at dusk: a wet wooden pier with a dark railing, dark calm water, a lit ferry and harbour lights in the fog.",
+      "landmarks": ""
+    },
+    "style": "",
+    "shots": [
+      {
+        "description": "Mara keeps walking along the pier at the same steady pace. She is small in the frame at the railing, the pier lamps and fog behind her, the water moving gently in the foreground. Wide reverse angle from out on the water looking back across the pier. The railing crosses the foreground between camera and Mara. Mara walks from screen right to screen left, the railing on her left between her and the camera. Fog and pier lamps fill the background. Camera movement: static. Camera position: Out on the water, looking back across at the pier.",
+        "screen_direction": "Mara walks from screen right to screen left.",
+        "sound": "Quiet footsteps on wet planks, water and distant harbour sounds; the sound continues across the cut.",
+        "cast": [
+          "mara"
+        ]
+      },
+      {
+        "description": "Mara keeps walking along the pier at the same steady pace, her ochre raincoat catching the last amber light of dusk. She crosses the frame from screen left to screen right. The railing is on her right, the open water and grey sky on her left. Side-view tracking shot at Mara's height. She is medium-large in the frame, filling roughly a third of the width. The pier deck and railing run parallel to the frame's horizontal axis, crossing the frame. Behind Mara: thick fog and the soft glow of distant pier lamp posts. In front of her: the pier continues into the mist. The water and grey dusk sky lie beyond the railing on her left. The camera tracks alongside her at a constant distance. Camera movement: truck right. Camera position: On the pier, at Mara's height, tracking alongside her from her left side.",
+        "screen_direction": "Mara walks from screen left to screen right.",
+        "sound": "Quiet footsteps on wet planks, water and distant harbour sounds; the sound continues across the cut.",
+        "cast": [
+          "mara"
+        ]
+      }
+    ],
+    "cut_frames": [
+      24
+    ],
+    "delivered_frames": 120,
+    "continues": true
+  },
+  "context_frames": 22,
+  "keyframes": [],
+  "sheet": null,
+  "source": {
+    "fixture": "agent-harbour-back",
+    "reference": "h3-prompt-11",
+    "dropped": [
+      "restrictions, required_outcome, camera.purpose, review_required: planning and review fields excluded by v11.",
+      "Phase, cut, event and speech ids/names and locked flags: record identity and editing policy, not prose.",
+      "direction and story_context: replaced by setting and style in v6.",
+      "Document sound and music: empty; the prompt sections use fixed wording.",
+      "width, height, steps, seed, loras, model_state, render_mode, final_audio: render settings, not direction.",
+      "guides, utterances, source_observation, continuity states, manual_prompt: empty or obsolete features.",
+      "Subject kind, speakers, reference/association ids and contribution review metadata: identity binding is represented by identity_asset and keeps.",
+      "Camera defaults, inheritance flags, default_overrides, profile, prompt_version, manual_binding_fingerprint: old recipe configuration.",
+      "Terminal subject-description period: sentence closure is supplied by the wording template; action, staging and camera sentences are closed in this data."
+    ]
+  }
+}

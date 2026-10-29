@@ -1,0 +1,10 @@
+- button "Select tool" [pressed]
+- button "Razor tool"
+- button "Go to start"
+- status: /\d+:\d+:\d+:\d+/
+- button "Snap to markers" [pressed]
+- button "Fit timeline"
+- button "Zoom out"
+- text: Timeline zoom
+- slider "Timeline zoom": "1"
+- button "Zoom in"

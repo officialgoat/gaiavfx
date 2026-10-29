@@ -1,0 +1,778 @@
+# The expansion script as data (ADR 0016 §4): the lines the voice build's TTS generators voice, each generator only
+# the categories its allow list names (`[tasks.tts.generate.allow]` in voice.toml), `takes_per_line` takes each.
+# Generated from scripts/community_research/voice/expand_seed.py (`SPEECH`, then `NONVERBAL`, in that order and with
+# its ids); 129 lines. Nonverbal texts carry the stage directions the generators render.
+
+[[lines]]
+id = "neutral00"
+category = "neutral"
+kind = "speech"
+text = "I left the keys on the kitchen table this morning."
+
+[[lines]]
+id = "neutral01"
+category = "neutral"
+kind = "speech"
+text = "We should be there by nine if the roads are clear."
+
+[[lines]]
+id = "neutral02"
+category = "neutral"
+kind = "speech"
+text = "The station closes at midnight, so we have to hurry."
+
+[[lines]]
+id = "neutral03"
+category = "neutral"
+kind = "speech"
+text = "I think the power went out on the whole street."
+
+[[lines]]
+id = "neutral04"
+category = "neutral"
+kind = "speech"
+text = "She said she would call me back after the meeting."
+
+[[lines]]
+id = "neutral05"
+category = "neutral"
+kind = "speech"
+text = "Can you hand me the map from the glove box?"
+
+[[lines]]
+id = "neutral06"
+category = "neutral"
+kind = "speech"
+text = "It took us three days to fix the engine."
+
+[[lines]]
+id = "neutral07"
+category = "neutral"
+kind = "speech"
+text = "Nobody has lived in that house for years."
+
+[[lines]]
+id = "neutral08"
+category = "neutral"
+kind = "speech"
+text = "I'll wait for you by the north entrance."
+
+[[lines]]
+id = "neutral09"
+category = "neutral"
+kind = "speech"
+text = "The signal is weak down here, but I can hear you."
+
+[[lines]]
+id = "neutral10"
+category = "neutral"
+kind = "speech"
+text = "Tell me again what you saw last night."
+
+[[lines]]
+id = "neutral11"
+category = "neutral"
+kind = "speech"
+text = "We have enough water for two more days."
+
+[[lines]]
+id = "neutral12"
+category = "neutral"
+kind = "speech"
+text = "I didn't recognise you without the uniform."
+
+[[lines]]
+id = "neutral13"
+category = "neutral"
+kind = "speech"
+text = "The lab results came back this afternoon."
+
+[[lines]]
+id = "neutral14"
+category = "neutral"
+kind = "speech"
+text = "Turn left after the bridge and keep going."
+
+[[lines]]
+id = "neutral15"
+category = "neutral"
+kind = "speech"
+text = "I used to come here every summer with my father."
+
+[[lines]]
+id = "neutral16"
+category = "neutral"
+kind = "speech"
+text = "There's coffee in the pot if you want some."
+
+[[lines]]
+id = "neutral17"
+category = "neutral"
+kind = "speech"
+text = "The last train leaves in twenty minutes."
+
+[[lines]]
+id = "neutral18"
+category = "neutral"
+kind = "speech"
+text = "I never said that, and you know it."
+
+[[lines]]
+id = "neutral19"
+category = "neutral"
+kind = "speech"
+text = "Let's go over the plan one more time."
+
+[[lines]]
+id = "neutral20"
+category = "neutral"
+kind = "speech"
+text = "He asked about you yesterday."
+
+[[lines]]
+id = "neutral21"
+category = "neutral"
+kind = "speech"
+text = "The door was already open when I got here."
+
+[[lines]]
+id = "neutral22"
+category = "neutral"
+kind = "speech"
+text = "We can't stay here much longer."
+
+[[lines]]
+id = "neutral23"
+category = "neutral"
+kind = "speech"
+text = "I'm fine, really. It's just been a long day."
+
+[[lines]]
+id = "neutral24"
+category = "neutral"
+kind = "speech"
+text = "Do you remember the name of that street?"
+
+[[lines]]
+id = "neutral25"
+category = "neutral"
+kind = "speech"
+text = "This is the third time this week."
+
+[[lines]]
+id = "neutral26"
+category = "neutral"
+kind = "speech"
+text = "You should get some sleep before tomorrow."
+
+[[lines]]
+id = "neutral27"
+category = "neutral"
+kind = "speech"
+text = "I'll take the first watch tonight."
+
+[[lines]]
+id = "neutral28"
+category = "neutral"
+kind = "speech"
+text = "It's colder up here than I expected."
+
+[[lines]]
+id = "neutral29"
+category = "neutral"
+kind = "speech"
+text = "The numbers don't add up."
+
+[[lines]]
+id = "shout00"
+category = "shout"
+kind = "speech"
+text = "Get out of here, now!"
+
+[[lines]]
+id = "shout01"
+category = "shout"
+kind = "speech"
+text = "I told you to stop!"
+
+[[lines]]
+id = "shout02"
+category = "shout"
+kind = "speech"
+text = "Don't you dare walk away from me!"
+
+[[lines]]
+id = "shout03"
+category = "shout"
+kind = "speech"
+text = "Everybody down! Get down!"
+
+[[lines]]
+id = "shout04"
+category = "shout"
+kind = "speech"
+text = "Open the door! Open it!"
+
+[[lines]]
+id = "shout05"
+category = "shout"
+kind = "speech"
+text = "You lied to me! You lied!"
+
+[[lines]]
+id = "shout06"
+category = "shout"
+kind = "speech"
+text = "Run! Don't look back!"
+
+[[lines]]
+id = "shout07"
+category = "shout"
+kind = "speech"
+text = "Leave her alone!"
+
+[[lines]]
+id = "shout08"
+category = "shout"
+kind = "speech"
+text = "I said no! Are you deaf?"
+
+[[lines]]
+id = "shout09"
+category = "shout"
+kind = "speech"
+text = "Get away from the edge!"
+
+[[lines]]
+id = "shout10"
+category = "shout"
+kind = "speech"
+text = "This is your fault! All of it!"
+
+[[lines]]
+id = "shout11"
+category = "shout"
+kind = "speech"
+text = "Somebody help us! Over here!"
+
+[[lines]]
+id = "shout12"
+category = "shout"
+kind = "speech"
+text = "Shut it down! Shut it all down!"
+
+[[lines]]
+id = "shout13"
+category = "shout"
+kind = "speech"
+text = "Move! Move! Move!"
+
+[[lines]]
+id = "shout14"
+category = "shout"
+kind = "speech"
+text = "I don't care what they told you!"
+
+[[lines]]
+id = "shout15"
+category = "shout"
+kind = "speech"
+text = "Stop the car! Stop!"
+
+[[lines]]
+id = "shout16"
+category = "shout"
+kind = "speech"
+text = "Give it back to me!"
+
+[[lines]]
+id = "shout17"
+category = "shout"
+kind = "speech"
+text = "We're out of time! Go!"
+
+[[lines]]
+id = "whisper00"
+category = "whisper"
+kind = "speech"
+text = "Don't move. They can hear us."
+
+[[lines]]
+id = "whisper01"
+category = "whisper"
+kind = "speech"
+text = "Stay behind me and keep quiet."
+
+[[lines]]
+id = "whisper02"
+category = "whisper"
+kind = "speech"
+text = "I think someone is in the house."
+
+[[lines]]
+id = "whisper03"
+category = "whisper"
+kind = "speech"
+text = "Can you see them from there?"
+
+[[lines]]
+id = "whisper04"
+category = "whisper"
+kind = "speech"
+text = "Wait for my signal."
+
+[[lines]]
+id = "whisper05"
+category = "whisper"
+kind = "speech"
+text = "Not now. Later, when they're gone."
+
+[[lines]]
+id = "whisper06"
+category = "whisper"
+kind = "speech"
+text = "I have to tell you something, but you can't tell anyone."
+
+[[lines]]
+id = "whisper07"
+category = "whisper"
+kind = "speech"
+text = "Close your eyes. Breathe slowly."
+
+[[lines]]
+id = "whisper08"
+category = "whisper"
+kind = "speech"
+text = "It's right outside the door."
+
+[[lines]]
+id = "whisper09"
+category = "whisper"
+kind = "speech"
+text = "Shh, it's okay, I'm here."
+
+[[lines]]
+id = "whisper10"
+category = "whisper"
+kind = "speech"
+text = "We go on three."
+
+[[lines]]
+id = "whisper11"
+category = "whisper"
+kind = "speech"
+text = "Do you trust me?"
+
+[[lines]]
+id = "whisper12"
+category = "whisper"
+kind = "speech"
+text = "Keep your voice down."
+
+[[lines]]
+id = "whisper13"
+category = "whisper"
+kind = "speech"
+text = "They're coming up the stairs."
+
+[[lines]]
+id = "sad00"
+category = "sad"
+kind = "speech"
+text = "I'm sorry. I didn't mean for any of this to happen."
+
+[[lines]]
+id = "sad01"
+category = "sad"
+kind = "speech"
+text = "He's not coming back, is he?"
+
+[[lines]]
+id = "sad02"
+category = "sad"
+kind = "speech"
+text = "I tried. I really tried."
+
+[[lines]]
+id = "sad03"
+category = "sad"
+kind = "speech"
+text = "Why didn't you tell me sooner?"
+
+[[lines]]
+id = "sad04"
+category = "sad"
+kind = "speech"
+text = "I miss her every single day."
+
+[[lines]]
+id = "sad05"
+category = "sad"
+kind = "speech"
+text = "Please don't go. Not like this."
+
+[[lines]]
+id = "sad06"
+category = "sad"
+kind = "speech"
+text = "I don't know what to do anymore."
+
+[[lines]]
+id = "sad07"
+category = "sad"
+kind = "speech"
+text = "It should have been me."
+
+[[lines]]
+id = "sad08"
+category = "sad"
+kind = "speech"
+text = "We were supposed to grow old together."
+
+[[lines]]
+id = "sad09"
+category = "sad"
+kind = "speech"
+text = "I can't do this without you."
+
+[[lines]]
+id = "sad10"
+category = "sad"
+kind = "speech"
+text = "Just hold me for a minute."
+
+[[lines]]
+id = "sad11"
+category = "sad"
+kind = "speech"
+text = "I'm so tired of losing people."
+
+[[lines]]
+id = "sad12"
+category = "sad"
+kind = "speech"
+text = "You broke my heart."
+
+[[lines]]
+id = "sad13"
+category = "sad"
+kind = "speech"
+text = "I should have been there."
+
+[[lines]]
+id = "fear00"
+category = "fear"
+kind = "speech"
+text = "Please, please don't hurt me!"
+
+[[lines]]
+id = "fear01"
+category = "fear"
+kind = "speech"
+text = "What was that? Did you hear that?"
+
+[[lines]]
+id = "fear02"
+category = "fear"
+kind = "speech"
+text = "It's getting closer!"
+
+[[lines]]
+id = "fear03"
+category = "fear"
+kind = "speech"
+text = "I can't breathe, I can't breathe!"
+
+[[lines]]
+id = "fear04"
+category = "fear"
+kind = "speech"
+text = "Oh God, oh God, no!"
+
+[[lines]]
+id = "fear05"
+category = "fear"
+kind = "speech"
+text = "We're trapped. There's no way out."
+
+[[lines]]
+id = "fear06"
+category = "fear"
+kind = "speech"
+text = "Don't leave me here alone!"
+
+[[lines]]
+id = "fear07"
+category = "fear"
+kind = "speech"
+text = "Something is wrong. Something is very wrong."
+
+[[lines]]
+id = "fear08"
+category = "fear"
+kind = "speech"
+text = "Make it stop! Please make it stop!"
+
+[[lines]]
+id = "fear09"
+category = "fear"
+kind = "speech"
+text = "Where are you? Answer me!"
+
+[[lines]]
+id = "happy00"
+category = "happy"
+kind = "speech"
+text = "That's the funniest thing I've ever heard!"
+
+[[lines]]
+id = "happy01"
+category = "happy"
+kind = "speech"
+text = "We did it! We actually did it!"
+
+[[lines]]
+id = "happy02"
+category = "happy"
+kind = "speech"
+text = "Oh, you're kidding me, that's wonderful!"
+
+[[lines]]
+id = "happy03"
+category = "happy"
+kind = "speech"
+text = "Stop, stop, I can't stop laughing!"
+
+[[lines]]
+id = "happy04"
+category = "happy"
+kind = "speech"
+text = "I can't believe you remembered!"
+
+[[lines]]
+id = "happy05"
+category = "happy"
+kind = "speech"
+text = "This is the best day ever!"
+
+[[lines]]
+id = "happy06"
+category = "happy"
+kind = "speech"
+text = "Look at you! You look amazing!"
+
+[[lines]]
+id = "happy07"
+category = "happy"
+kind = "speech"
+text = "Come here, give me a hug!"
+
+[[lines]]
+id = "scream00"
+category = "scream"
+kind = "nonverbal"
+text = "Aaaaah!"
+
+[[lines]]
+id = "scream01"
+category = "scream"
+kind = "nonverbal"
+text = "No! No! Aaaah!"
+
+[[lines]]
+id = "scream02"
+category = "scream"
+kind = "nonverbal"
+text = "Help! Help me!"
+
+[[lines]]
+id = "scream03"
+category = "scream"
+kind = "nonverbal"
+text = "Aaaah! Get it off me!"
+
+[[lines]]
+id = "scream04"
+category = "scream"
+kind = "nonverbal"
+text = "Nooooo!"
+
+[[lines]]
+id = "scream05"
+category = "scream"
+kind = "nonverbal"
+text = "Aaaaaah! Somebody!"
+
+[[lines]]
+id = "sob00"
+category = "sob"
+kind = "nonverbal"
+text = "(sobbing) I can't... I can't..."
+
+[[lines]]
+id = "sob01"
+category = "sob"
+kind = "nonverbal"
+text = "(crying) Why? Why?"
+
+[[lines]]
+id = "sob02"
+category = "sob"
+kind = "nonverbal"
+text = "(sobbing)"
+
+[[lines]]
+id = "sob03"
+category = "sob"
+kind = "nonverbal"
+text = "(crying quietly) It's over."
+
+[[lines]]
+id = "sob04"
+category = "sob"
+kind = "nonverbal"
+text = "(weeping) Please..."
+
+[[lines]]
+id = "gasp00"
+category = "gasp"
+kind = "nonverbal"
+text = "(gasps)"
+
+[[lines]]
+id = "gasp01"
+category = "gasp"
+kind = "nonverbal"
+text = "(gasps) Oh no."
+
+[[lines]]
+id = "gasp02"
+category = "gasp"
+kind = "nonverbal"
+text = "(sharp gasp) What?"
+
+[[lines]]
+id = "gasp03"
+category = "gasp"
+kind = "nonverbal"
+text = "(gasping for air)"
+
+[[lines]]
+id = "pain00"
+category = "pain"
+kind = "nonverbal"
+text = "Ugh... argh!"
+
+[[lines]]
+id = "pain01"
+category = "pain"
+kind = "nonverbal"
+text = "Aah! My leg!"
+
+[[lines]]
+id = "pain02"
+category = "pain"
+kind = "nonverbal"
+text = "(groaning in pain)"
+
+[[lines]]
+id = "pain03"
+category = "pain"
+kind = "nonverbal"
+text = "Nnngh... it hurts."
+
+[[lines]]
+id = "pain04"
+category = "pain"
+kind = "nonverbal"
+text = "Argh! Stop!"
+
+[[lines]]
+id = "moan00"
+category = "moan"
+kind = "nonverbal"
+text = "(moaning softly)"
+
+[[lines]]
+id = "moan01"
+category = "moan"
+kind = "nonverbal"
+text = "Mmm... ohh."
+
+[[lines]]
+id = "moan02"
+category = "moan"
+kind = "nonverbal"
+text = "(low moan)"
+
+[[lines]]
+id = "moan03"
+category = "moan"
+kind = "nonverbal"
+text = "Ohhh..."
+
+[[lines]]
+id = "pant00"
+category = "pant"
+kind = "nonverbal"
+text = "(panting heavily)"
+
+[[lines]]
+id = "pant01"
+category = "pant"
+kind = "nonverbal"
+text = "(out of breath) Wait... wait."
+
+[[lines]]
+id = "pant02"
+category = "pant"
+kind = "nonverbal"
+text = "(breathing hard)"
+
+[[lines]]
+id = "sigh00"
+category = "sigh"
+kind = "nonverbal"
+text = "(sighs) Fine."
+
+[[lines]]
+id = "sigh01"
+category = "sigh"
+kind = "nonverbal"
+text = "(long sigh)"
+
+[[lines]]
+id = "sigh02"
+category = "sigh"
+kind = "nonverbal"
+text = "(sighs) Here we go again."
+
+[[lines]]
+id = "laugh00"
+category = "laugh"
+kind = "nonverbal"
+text = "(laughs)"
+
+[[lines]]
+id = "laugh01"
+category = "laugh"
+kind = "nonverbal"
+text = "Ha! Ha ha ha!"
+
+[[lines]]
+id = "laugh02"
+category = "laugh"
+kind = "nonverbal"
+text = "(giggles)"
+
+[[lines]]
+id = "laugh03"
+category = "laugh"
+kind = "nonverbal"
+text = "(laughing hard)"
+
+[[lines]]
+id = "laugh04"
+category = "laugh"
+kind = "nonverbal"
+text = "Hahaha, no way!"

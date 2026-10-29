@@ -1,0 +1,24 @@
+schema = 1
+
+[models]
+unet = "qwen_image_edit_2511_fp8mixed.safetensors"
+lora = "Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors"
+lora_strength = 1.0
+clip = "qwen_2.5_vl_7b_fp8_scaled.safetensors"
+clip_type = "qwen_image"
+vae = "qwen_image_vae.safetensors"
+
+[image]
+upscale_method = "lanczos"
+megapixels = 1.0
+resolution_steps = 16
+width = 1344
+height = 752
+
+[sampling]
+shift = 3.1
+sampler = "euler"
+scheduler = "simple"
+steps = 4
+cfg = 1.0
+denoise = 1.0

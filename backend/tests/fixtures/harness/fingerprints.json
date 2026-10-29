@@ -1,0 +1,19 @@
+{
+  "declare-relation": "c8f1439b66944b80",
+  "missing-coverage-prepares": "491891810a26e929",
+  "review-boundary": "c9fa36dd458a8cca",
+  "stale-revision-retries-once": "9249709b85f8fe59",
+  "interrupted-wait-resumes": "2dbe2942906bbfd1",
+  "budget-exhaustion": "7f081311184c5a05",
+  "plate-from-removal": "b892f4868116f42c",
+  "text-renders-never-selects": "14fdc55baa6b021b",
+  "provisional-pick-unblocks": "00f038603b5074ac",
+  "stale-sheet-reassembled": "92fa440855559f36",
+  "never-approves-in-prepare-chain": "9a4b4b25208e432b",
+  "drafts-structure-from-brief": "3958420cb0046e54",
+  "plan-propose-approve-execute": "b769b44fd0ea2fe4",
+  "plan-revise-and-render": "237185e2a42938f7",
+  "plan-reject": "9d3bf9f8dc4a0099",
+  "plan-mode-off-direct": "f8274d767d040e5c",
+  "plan-deviation-refused": "f26a393decb87c85"
+}

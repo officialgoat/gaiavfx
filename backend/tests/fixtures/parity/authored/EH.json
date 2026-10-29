@@ -1,0 +1,87 @@
+{
+  "arm": "EH",
+  "seed": 5951,
+  "segment": {
+    "subjects": [
+      {
+        "id": "s1",
+        "name": "Arin",
+        "description": "Man with dark curly hair and a beard, a red and navy plaid shirt, dark jeans, brown boots and a canvas satchel on his right shoulder",
+        "keeps": [
+          "plaid shirt",
+          "satchel"
+        ]
+      }
+    ],
+    "place": {
+      "noun": "place",
+      "description": "A bright hotel corridor with a patterned carpet; along one side a floor-to-ceiling glass partition in thin black frames separates it from a quiet lounge with armchairs, lamps and a bookcase.",
+      "landmarks": "the corridor with its patterned carpet, the glass partition in thin black frames, the lounge with its armchairs, lamps and bookcase, and the wooden doors on the corridor's far wall"
+    },
+    "shots": [
+      {
+        "description": "Arin keeps walking from left to right along the corridor in the same side-view tracking shot, framing and light.",
+        "screen_direction": "Screen left to screen right, as before.",
+        "sound": "Footsteps on carpet, soft hotel ambience; the sound continues across the cut."
+      },
+      {
+        "description": "Arin keeps walking at the same steady pace, mid-stride as the shot begins. Arin stays in the corridor on the far side of the glass partition and walks parallel to it, never touching or crossing it, and ends on that side. Reverse angle from the lounge: the camera stands in the lounge among the armchairs, behind the glass partition, and looks out through the glass at the corridor. Camera position: In the lounge, behind the glass partition, looking out at the corridor. The glass partition stands between the camera and Arin; the corridor and its far wall with doors lie behind Arin.",
+        "screen_direction": "Seen from the lounge he now moves from screen right to screen left, with the glass partition between him and the camera.",
+        "sound": "Footsteps on carpet, muffled through the glass, soft hotel ambience; the sound continues across the cut."
+      }
+    ],
+    "cut_frames": [
+      36
+    ],
+    "delivered_frames": 102,
+    "continues": true
+  },
+  "identity": {
+    "subject_id": "s1",
+    "sha256": "ad72b298e9b415348627a8e5480ef38dd5c17b3aaee2b1e863af7b1f8b12ba82"
+  },
+  "context": {
+    "sha256": "0faca18f41b76d43a64f0571fee6cb58d29085224d51a8a101e640ee6f2e3afa"
+  },
+  "cut": {
+    "frame": 36,
+    "relation": "reverse",
+    "crosses_barrier": true,
+    "receives_predecessor": true
+  },
+  "sheet": {
+    "origin": "survey",
+    "tiles": [
+      {
+        "blank": [
+          1024,
+          1024
+        ]
+      },
+      {
+        "sha256": "00d6320b4bbfb2ba0022cb018c989314582b32d939aade64c893c2dd634df36d",
+        "angle": "loc-s2-kl/view-012"
+      },
+      {
+        "sha256": "2f38ee3edaee551e08f885580bc1bbd371115596bf5dffc6e3fc3aa9a2df96c6",
+        "angle": "loc-s2-kl/view-036"
+      },
+      {
+        "sha256": "6c9a2b1888315d4dc1425d8a85b3d0ec850bcb1671d817c15a7ba76b13531500",
+        "angle": "loc-s2-kl/view-060"
+      },
+      {
+        "sha256": "a3ba01fc73744dbe260d2494423accfb74567debd8e955b473e2bb836e6ffe3d",
+        "angle": "loc-s2-kl/view-084"
+      },
+      {
+        "sha256": "58a0d0fca53bd3614e2c9422cc7000297a2e3187aea79866bcc4ba62f4c3fb44",
+        "angle": "loc-s2-kl/view-110"
+      }
+    ]
+  },
+  "pin": {
+    "sha256": "8a09f387a3d757f49588e1e05609f025216e6f6e9f90e582fd555db38b07b13b",
+    "angle": "loc-s2-kl/view-110"
+  }
+}

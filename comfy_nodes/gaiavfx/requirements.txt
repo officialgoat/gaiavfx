@@ -1,0 +1,3 @@
+# Optional: only the face scan and face check nodes need these packages.
+insightface
+onnxruntime

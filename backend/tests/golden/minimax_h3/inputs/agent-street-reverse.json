@@ -1,0 +1,61 @@
+{
+  "segment": {
+    "subjects": [
+      {
+        "id": "lena",
+        "name": "Lena",
+        "description": "Woman with a dark bob haircut, a red wool coat and a black shoulder bag",
+        "keeps": [
+          "red coat",
+          "bag"
+        ],
+        "identity_asset": "lena-asset"
+      }
+    ],
+    "place": {
+      "noun": "place",
+      "description": "A city sidewalk in soft overcast daylight: lit shop windows with displays and a cafe awning on one side, the street with passing cars and the buildings across it on the other.",
+      "landmarks": ""
+    },
+    "style": "",
+    "shots": [
+      {
+        "description": "Lena keeps walking steadily along the sidewalk in her red coat, her bag on her shoulder, seen from the street side as the take continues. The kerb and street lie in the near foreground; the lit shop windows stand behind her in the background. She is mid-frame, full body visible, walking at a steady pace. Side-view tracking shot at walking pace, continuing the previous take. Camera position: At the kerb on the street side, level with her; the lit shop windows behind her.",
+        "screen_direction": "She walks from screen left to screen right.",
+        "sound": "Footsteps on pavement, distant traffic; the sound continues across the cut.",
+        "cast": [
+          "lena"
+        ]
+      },
+      {
+        "description": "Lena keeps walking steadily along the sidewalk in her red coat, her bag on her shoulder, now seen from the shop side. The lit shop windows and their display cases stand close in the foreground on the near side of the frame; the street, kerb and passing traffic lie behind Lena in the background. She is mid-frame, full body visible, walking at a steady pace. Side-view tracking shot at walking pace from the shop side. Camera position: On the shop side of the sidewalk, level with her; the lit shop windows in the near foreground, the street behind her.",
+        "screen_direction": "She walks from screen right to screen left.",
+        "sound": "Footsteps on pavement, distant traffic; the sound continues across the cut.",
+        "cast": []
+      }
+    ],
+    "cut_frames": [
+      12
+    ],
+    "delivered_frames": 120,
+    "continues": true
+  },
+  "context_frames": 22,
+  "keyframes": [],
+  "sheet": null,
+  "source": {
+    "fixture": "agent-street-reverse",
+    "reference": "h3-prompt-11",
+    "dropped": [
+      "restrictions, required_outcome, camera.purpose, review_required: planning and review fields excluded by v11.",
+      "Phase, cut, event and speech ids/names and locked flags: record identity and editing policy, not prose.",
+      "direction and story_context: replaced by setting and style in v6.",
+      "Document sound and music: empty; the prompt sections use fixed wording.",
+      "width, height, steps, seed, loras, model_state, render_mode, final_audio: render settings, not direction.",
+      "guides, utterances, source_observation, continuity states, manual_prompt: empty or obsolete features.",
+      "Subject kind, speakers, reference/association ids and contribution review metadata: identity binding is represented by identity_asset and keeps.",
+      "Camera defaults, inheritance flags, default_overrides, profile, prompt_version, manual_binding_fingerprint: old recipe configuration.",
+      "Terminal subject-description period: sentence closure is supplied by the wording template; action, staging and camera sentences are closed in this data."
+    ]
+  }
+}

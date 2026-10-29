@@ -1,0 +1,23 @@
+# The fill probe (ADR 0020 §4): R4/R5's H3 I2VA memory probe, as the research submitted it (25 October; the parity
+# fixture backend/tests/fixtures/parity/FILL-R5-H10-P0.json). The reprojected memory is the Fun ControlNet's source,
+# its regenerate mask the region it may change, the splat's depth its control; the first frame is the memory of the
+# start camera. The research's probes all stepped; `turn` and `hold` reword only the camera's sentence.
+schema = 1
+
+[sampling]
+steps = 28
+strength = 1.0
+start_percent = 0.0
+end_percent = 1.0
+patch = "minimax_h3_fun_controlnet_union_2.0_pruned_int8_convrot.safetensors"
+
+[wording]
+reference = "For the target video, at 0.00 seconds into the target video, <Picture 1> (from [Shot 1]) is fully referenced."
+opening = "[Shot 1] Live-action, cinematic, photographic, in sharp focus throughout. The empty, still place begins exactly as Picture 1 shows it: the same viewpoint, framing, light and weather, with nothing in it moving."
+step = "The camera moves slowly and steadily a short distance through the place at eye level and comes to rest, so that nearby things pass in front of farther ones and parts of the place that were hidden come into view,"
+turn = "The camera pans slowly and steadily to the {side} without leaving its spot and comes to rest, so that parts of the place that were beside it come into view,"
+hold = "The camera stays perfectly still and the whole place stays in view, every part of it seen clearly,"
+continuity = "all belonging to the same place with the same materials, textures and light as Picture 1, with clean edges and no floating specks, holes, smears or ghosting. No people, vehicles or animals appear."
+place = "The place: {place}."
+sound = "The quiet ambient sound of the empty place continues steadily throughout."
+music = "N/A"

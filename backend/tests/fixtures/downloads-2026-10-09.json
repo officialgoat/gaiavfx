@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "approved": "User, 9 October 2026, plan-mode answer: SyncNet weights, FaceFusion bundle (HyperSwap plus the LivePortrait expression restorer), H3 FaceSwap LoRA, ExactAudioLock.",
+  "items": [
+    {
+      "name": "H3 FaceSwap LoRA (Batch 2 only; not used in Batch 1)",
+      "source": "https://huggingface.co/UntMods/FaceSwap_MiniMaxH3_REF2VA/resolve/b2a5823ca64bc78d91725fbfcc576095bfceb764/SS_FaceSwap_MiniMax_H3_REF2VA.safetensors",
+      "path": "models/loras/SS_FaceSwap_MiniMax_H3_REF2VA.safetensors",
+      "bytes": 65623904,
+      "sha256": "1e032cf519cc143f434e67516d8ad0aacf4c6e146315b2dcc3b1c2800470326d",
+      "license": "apache-2.0 (model card)"
+    },
+    {
+      "name": "ComfyUI-H3-ExactAudioLock (staged, not installed in a runtime)",
+      "source": "https://github.com/badgids/ComfyUI-H3-ExactAudioLock",
+      "commit": "559196913108ca9bb58abf6f1a3d06be369532e9",
+      "path": "models/loras/ComfyUI-H3-ExactAudioLock"
+    },
+    {
+      "name": "syncnet_python",
+      "source": "https://github.com/joonson/syncnet_python",
+      "commit": "907c0b579c2e2d83f0eae1b2ac9e720cde4e5623",
+      "path": "models/loras/syncnet"
+    },
+    {
+      "name": "SyncNet v2 weights",
+      "source": "http://www.robots.ox.ac.uk/~vgg/software/lipsync/data/syncnet_v2.model",
+      "path": "models/loras/syncnet_v2.model",
+      "bytes": 54573114,
+      "sha256": "961e8696f888fce4f3f3a6c3d5b3267cf5b343100b238e79b2659bff2c605442"
+    },
+    {
+      "name": "python_speech_features 0.6 (SyncNet's MFCC dependency, vendored with --target, no deps)",
+      "source": "https://pypi.org/project/python_speech_features/0.6/",
+      "path": "models/loras/vendor"
+    },
+    {
+      "name": "FaceFusion 3.9.1 (sidecar venv, Python 3.12, its requirements.txt pins)",
+      "source": "https://github.com/facefusion/facefusion",
+      "tag": "3.9.1",
+      "commit": "72470819a0373be3388b3929c8f8f311f418fc3c",
+      "path": "models/loras/facefusion"
+    }
+  ]
+}

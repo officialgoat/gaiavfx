@@ -1,0 +1,261 @@
+# The recast voice recipe as data (ADR 0016), settled by the user's rankings of 14-20 October 2026
+# (calibration/VOICE_CONVERSION_2026-10-14.md, VOICE_EXPANSION_2026-10-19.md, VOICE_V4_2026-10-20.md).
+# Each [tasks.<engine>.<task>] table is that engine task's static settings; `spec.settings(step)` hands a copy to the
+# job's params, and the spec's fingerprint joins every engine job's snapshot. Model-specific syntax (TTS tags, Applio
+# arguments) stays here and in the workers, never in the app.
+schema = 1
+
+[tasks.analysis.separate]
+method = "bandit"
+checkpoint = "models/bandit/checkpoint-eng.ckpt"
+chunk_seconds = 8.0
+hop_seconds = 1.0
+batch = 4
+sample_rate = 48000
+# Stereo float stems at the mix level, no normalisation; remainder = mix - dialogue, so the two rebuild the mix.
+stems = ["dialogue", "remainder"]
+channels = "source"
+
+[tasks.analysis.transcribe]
+model = "models/faster-whisper/models--Systran--faster-whisper-large-v3/snapshots/edaa852ec7e145841d8ffdb056a99866b5f0a478"
+compute_type = "float16"
+beam_size = 5
+vad_filter = false
+word_timestamps = true
+language = "en"
+word_padding_seconds = 0.05
+
+[tasks.analysis.speakers]
+embedding = "ecapa"
+sample_rate = 16000
+# Median speaking pitch by pyin on 16 kHz audio; the same method for source and target medians.
+pitch_method = "pyin"
+pitch_floor_hz = 60.0
+pitch_ceiling_hz = 800.0
+# frame_length 1024 at 16 kHz, as film_lines.py and trial_lines.py measured (librosa's default is 2048).
+pitch_frame_length = 1024
+min_voiced_frames = 5
+
+[tasks.analysis.tag]
+model = "ast"
+class = "Whispering"
+window_seconds = 1.0
+hop_seconds = 0.25
+min_probability = 0.25
+# Whispering must rank among the two most likely vocal classes of the window.
+top = 2
+min_span_seconds = 0.5
+
+[tasks.analysis.filter]
+min_seconds = 0.4
+max_seconds = 20.0
+max_silent_fraction = 0.6
+max_silent_run_seconds = 1.5
+silence_below_peak_db = 45.0
+silence_floor_db = -65.0
+max_cer = 0.35
+min_mos = 1.6
+identity_cap_speech = 0.35
+identity_cap_nonverbal = 0.20
+# A converted clip must move toward the target by at least this ECAPA gain over its source, and keep its delivery
+# (the same AST top class, or a vocal-class cosine of at least `delivery_cosine`).
+converted_gain = 0.05
+delivery_cosine = 0.8
+aliases = { gasp = "fear", pant = "fear", sigh = "moan" }
+nonverbal = ["scream", "sob", "gasp", "pain", "moan", "pant", "sigh", "laugh"]
+speechy = ["Speech", "Conversation", "Narration, monologue", "Whispering", "Shout", "Yell"]
+
+[tasks.analysis.filter.fits]
+scream = ["Screaming", "Shout", "Yell", "Battle cry", "Bellow"]
+sob = ["Crying, sobbing", "Whimper", "Wail, moan"]
+gasp = ["Gasp", "Breathing", "Pant", "Wheeze"]
+pain = ["Groan", "Grunt", "Wail, moan", "Screaming", "Whimper", "Shout", "Yell"]
+moan = ["Wail, moan", "Groan", "Sigh", "Humming", "Breathing"]
+pant = ["Pant", "Breathing", "Gasp", "Wheeze"]
+sigh = ["Sigh", "Breathing"]
+laugh = ["Laughter", "Giggle", "Snicker", "Belly laugh", "Chuckle, chortle"]
+shout = ["Shout", "Yell", "Bellow", "Speech", "Screaming"]
+whisper = ["Whispering", "Speech"]
+sad = ["Speech", "Crying, sobbing", "Whimper", "Conversation", "Narration, monologue"]
+happy = ["Speech", "Laughter", "Giggle", "Chuckle, chortle", "Conversation", "Narration, monologue"]
+
+# Identity thresholds were calibrated on the stand-in target's real category clips (EARS p011), scored like the
+# candidates: the 10th percentile of ECAPA cosine to the seed profile, and the AST classes her real clips showed.
+# A real target brings no screams of its own, so the app keeps these fixed. `seed15` came from a 14 s seed, `seed60`
+# from a 60 s seed; a seed up to `max_seed_seconds` uses the first set that admits it.
+[calibrations.seed15]
+max_seed_seconds = 30.0
+[calibrations.seed15.categories]
+scream = { p10 = 0.055, classes = ["Bellow", "Screaming"] }
+sob = { p10 = -0.005, classes = ["Gasp", "Sigh", "Snort"] }
+shout = { p10 = 0.112, classes = ["Bellow", "Conversation", "Gasp", "Narration, monologue", "Screaming", "Speech", "Whoop", "Yell"] }
+laugh = { p10 = 0.062, classes = ["Gasp", "Giggle", "Sigh", "Whimper"] }
+pain = { p10 = 0.323, classes = ["Gasp", "Groan", "Sigh", "Yell"] }
+moan = { p10 = 0.509, classes = ["Gasp", "Groan", "Grunt", "Sigh", "Whimper"] }
+fear = { p10 = 0.343, classes = ["Conversation", "Gasp", "Groan", "Narration, monologue", "Sigh", "Speech"] }
+whisper = { p10 = 0.106, classes = ["Gasp", "Sigh", "Speech", "Throat clearing", "Whispering"] }
+sad = { p10 = 0.641, classes = ["Gasp", "Narration, monologue", "Speech"] }
+happy = { p10 = 0.219, classes = ["Conversation", "Gasp", "Narration, monologue", "Sigh", "Speech"] }
+highpitch = { p10 = 0.449, classes = ["Conversation", "Gasp", "Grunt", "Narration, monologue", "Singing", "Speech"] }
+neutral = { p10 = 0.557, classes = ["Gasp", "Humming", "Narration, monologue", "Speech", "Throat clearing"] }
+
+[calibrations.seed60]
+max_seed_seconds = 1e9
+[calibrations.seed60.categories]
+scream = { p10 = 0.056, classes = ["Bellow", "Screaming"] }
+sob = { p10 = -0.029, classes = ["Gasp", "Sigh", "Snort"] }
+shout = { p10 = 0.135, classes = ["Bellow", "Conversation", "Gasp", "Narration, monologue", "Screaming", "Speech", "Whoop", "Yell"] }
+laugh = { p10 = 0.035, classes = ["Gasp", "Giggle", "Sigh", "Whimper"] }
+pain = { p10 = 0.348, classes = ["Gasp", "Groan", "Sigh", "Yell"] }
+moan = { p10 = 0.517, classes = ["Gasp", "Groan", "Grunt", "Sigh", "Whimper"] }
+fear = { p10 = 0.384, classes = ["Conversation", "Gasp", "Groan", "Narration, monologue", "Sigh", "Speech"] }
+whisper = { p10 = 0.104, classes = ["Gasp", "Sigh", "Speech", "Throat clearing", "Whispering"] }
+sad = { p10 = 0.653, classes = ["Gasp", "Narration, monologue", "Speech"] }
+happy = { p10 = 0.218, classes = ["Conversation", "Gasp", "Narration, monologue", "Sigh", "Speech"] }
+highpitch = { p10 = 0.48, classes = ["Conversation", "Gasp", "Grunt", "Narration, monologue", "Singing", "Speech"] }
+neutral = { p10 = 0.556, classes = ["Gasp", "Humming", "Narration, monologue", "Speech", "Throat clearing"] }
+
+[tasks.tts.generate]
+takes_per_line = 2
+# References come only from the seed (reference k*takes+take modulo the seed's clips).
+references = "seed"
+seed = "crc32(job id)"
+lufs = -36.0
+peak_db = -1.0
+higgs_max_tokens = { per_word = 25, base_words = 6, min = 300, max = 2048 }
+seed_retries = 2
+oom_retries = 3
+oom_wait_seconds = 120
+stall_seconds = 900
+
+[tasks.tts.generate.generators]
+higgs_audio_tts = { family = "higgs_audio_tts", task = "clon", package = "models/Higgs-Audio-v3-TTS-4B-GGUF/higgs-audio-v3-tts-4b-q8_0.gguf", session = { "higgs_audio_tts.reference_prefill_mode" = "exact" }, defaults = { temperature = 0.8, top_k = 30, top_p = 0.8 } }
+index_tts2 = { family = "index_tts2", task = "clon", package = "models/IndexTTS2.5-GGUF/index-tts2_5-q8_0.gguf", session = {}, defaults = { language = "en", temperature = 0.8, top_p = 0.8, top_k = 30, num_beams = 3, repetition_penalty = 10, max_tokens = 1500 } }
+voxcpm2 = { family = "voxcpm2", task = "tts", package = "models/VoxCPM2-GGUF/voxcpm2-q8_0.gguf", session = {}, defaults = { num_inference_steps = 10, guidance_scale = 2.0, retry_badcase = "true" } }
+omnivoice = { family = "omnivoice", task = "tts", package = "models/OmniVoice-GGUF/omnivoice-f16.gguf", session = {}, defaults = { num_inference_steps = 32, guidance_scale = 2.0 } }
+fish_audio = { family = "fish_audio", task = "clon", package = "models/Fish-Audio-S2-Pro-GGUF/fish-audio-s2-pro-q8_0.gguf", session = {}, defaults = { temperature = 0.8, top_p = 0.8, top_k = 30, max_tokens = 1024 } }
+maya1 = { family = "maya1", task = "tts", package = "models/Maya1-GGUF/maya1-orig.gguf", session = {}, defaults = { temperature = 0.4, top_p = 0.9, repetition_penalty = 1.1, max_tokens = 2048 } }
+
+# The generators the user ranked above the line per category (V3 material ranking, 19 October). Categories the page
+# did not show borrow the nearest one's list. IndexTTS (ranked usable for moan, pain and whisper) is left out until the
+# user's expressive library provides its emotion references: the research used EARS clips, which stay research-only.
+[tasks.tts.generate.allow]
+fear = ["fish_audio", "voxcpm2", "omnivoice", "maya1"]
+gasp = ["voxcpm2", "maya1", "fish_audio"]
+laugh = ["maya1", "fish_audio", "higgs_audio_tts", "omnivoice"]
+moan = ["fish_audio", "higgs_audio_tts", "voxcpm2"]
+pain = ["higgs_audio_tts", "voxcpm2"]
+scream = ["higgs_audio_tts"]
+shout = ["fish_audio", "voxcpm2", "maya1", "omnivoice"]
+sob = ["fish_audio", "maya1", "higgs_audio_tts", "voxcpm2"]
+whisper = ["voxcpm2", "higgs_audio_tts", "omnivoice", "fish_audio"]
+neutral = ["fish_audio", "voxcpm2", "higgs_audio_tts", "maya1"]
+sad = ["fish_audio", "maya1", "higgs_audio_tts", "voxcpm2"]
+happy = ["maya1", "fish_audio", "higgs_audio_tts", "omnivoice"]
+pant = ["voxcpm2", "maya1", "fish_audio"]
+sigh = ["fish_audio", "higgs_audio_tts", "voxcpm2"]
+
+[tasks.tts.superres]
+model = "universr_speech"
+family = "universr"
+package = "models/UniverSR-GGUF/universr-speech-orig.gguf"
+defaults = { num_inference_steps = 4, guidance_scale = 1.5, sampler_mode = "midpoint", seed = 42 }
+input_rates = [8000, 12000, 16000, 24000]
+# Lift everything natively below 44.1 kHz (Higgs and OmniVoice 24 kHz, IndexTTS 22.05 kHz) to 48 kHz.
+below_hz = 44100
+sample_rate = 48000
+
+[tasks.seedvc.finetune]
+version = "v1_44k_f0"
+checkpoint = "models/Plachta_Seed-VC/DiT_seed_v2_uvit_whisper_base_f0_44k_bigvgan_pruned_ft_ema_v2.pth"
+config = "models/Plachta_Seed-VC/config_dit_mel_seed_uvit_whisper_base_f0_44k.yml"
+steps = 600
+batch_size = 2
+learning_rate = 1e-5
+min_clip_seconds = 1.05
+max_clip_seconds = 25.0
+
+[tasks.seedvc.convert]
+version = "v1_44k_f0"
+steps = 50
+cfg = 0.7
+seed = 7
+fp16 = true
+max_reference_seconds = 25.0
+# One shift per source speaker, round(12*log2(target median / source median)), never per clip.
+shift = "per_speaker"
+
+[tasks.rvc.prepare]
+sample_rate = 48000
+cut = "Automatic"
+normalization = "none"
+noise_reduction = false
+f0_labels = "rmvpe"
+rmvpe_high_register = { enabled = true, mode = "true_pitch", f0_ceil = 1250 }
+embedder = "contentvec"
+
+[tasks.rvc.train]
+pretrained_g = "models/titan/G-f048k-TITAN-Medium.pth"
+pretrained_d = "models/titan/D-f048k-TITAN-Medium.pth"
+vocoder = "HiFi-GAN"
+batch_size = 8
+epochs = 200
+# Four chunks of 50 epochs (the user, 23 Oct): each relaunch costs about 2.2 min of start-up, so 25-epoch chunks spent
+# about 18 of the trial's 86 training minutes starting; a 50-epoch chunk runs about 19-20 min, over ADR 0015 §8's
+# soft 15-minute bound. Every chunk resumes the previous one's checkpoint (verified on the P5 trial's logs).
+chunk_epochs = 50
+save_only_latest = true
+
+[tasks.rvc.index]
+algorithm = "Auto"
+
+[tasks.rvc.convert]
+f0_method = "fcpe"
+index_rate = 0.3
+protect = 0.33
+volume_envelope = 0.0
+seed = 7
+split_audio = false
+
+# Pitch map (V4): inside `knee_semitones` above the source median, move by the median ratio; above it, bend smoothly
+# toward `ceiling_hz`. Below the median ratio applies unchanged: the low-side floor of the research hurt and is dropped.
+[tasks.rvc.convert.pitch_map]
+knee_semitones = 5.0
+ceiling_hz = 870.0
+unvoiced_spans = true
+
+[dataset]
+seed_copies = 3
+max_synthetic_minutes = 25.0
+max_category_share = 0.2
+sample_rate = 48000
+tts_lufs = -36.0
+
+# The voice build (ADR 0016 §4, P5): one shared `voice_build` operation per sample set and `version`. The expansion
+# script it voices is `expansion.toml`. Chunk sizes keep every engine job near ADR 0015 §8's bound of about 15 minutes
+# on the measured numbers (TTS ~948 takes in 45-90 min, the filter ~950 clips in 20-40 min).
+[build]
+version = 2                      # joins the voice_build content key; 2 (23 Oct): 4-10 s recordings kept whole
+sample_seconds = { min = 15.0, max = 60.0 }
+# The research's seed cut (expand_seed.py): whisper segments accumulated to at least `min`, cut with the pads, a clip
+# over `max` ends at its segment anyway, stopping at the sample length + 1 s.
+seed_clip_seconds = { min = 4.0, max = 10.0, pad_before = 0.1, pad_after = 0.15 }
+tts_lines_per_job = 60           # Maya1 (and any slow generator) splits by line_range
+superres_clips_per_job = 120
+convert_clips_per_job = 30
+filter_rows_per_job = 200
+library_piece_seconds = 12.0     # a library clip over analysis.filter.max_seconds is cut into pieces of at most this
+library_extensions = ["wav", "flac", "mp3", "m4a", "ogg", "aif", "aiff"]
+# Maya1 designs a voice from a description; the build derives it from the seed's median pitch (the first band whose
+# `below_hz` exceeds it; the last band is open-ended) and converts the takes into the target with the seed-tuned
+# Seed-VC, without a shift (the research's maya_vc).
+maya_voice = [
+  { below_hz = 150.0, text = "Realistic adult male voice with a natural accent. Clear, low-pitched voice." },
+  { below_hz = 180.0, text = "Realistic adult voice with a natural accent. Clear, mid-pitched voice." },
+  { below_hz = 250.0, text = "Realistic adult female voice with a natural accent. Clear, mid-pitched voice." },
+  { below_hz = 1e9,   text = "Realistic adult female voice with a natural accent. Clear, high-pitched voice." },
+]
+
+# The audition reel: per line the original, `between` seconds of silence, the converted line, `after` seconds.
+[audition]
+reel_gap_seconds = { between = 0.3, after = 0.6 }

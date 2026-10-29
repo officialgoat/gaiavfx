@@ -1,0 +1,60 @@
+# Local environments, caches and tools
+.local/
+.runtime/
+.cache/
+.venv/
+node_modules/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage*
+htmlcov/
+.env
+.env.*
+!.env.example
+
+# Builds and test output
+dist/
+build/
+release/
+*.egg-info/
+*.spec
+!tests/**/*.spec.ts
+test-results/
+playwright-report/
+.impeccable/review/
+*.log
+
+# Libraries, engine installations and generated data
+/library/
+/libraries/
+/data/
+/outputs/
+/engines/
+*.sqlite*
+*.db
+
+# Model weights are installed separately
+*.safetensors
+*.ckpt
+*.gguf
+*.onnx
+*.pt
+*.pth
+*.bin
+
+# Rendered media stays outside source control; fixtures and brand art are intentional
+*.mp4
+*.mov
+*.mkv
+*.webm
+*.avi
+*.wav
+*.mp3
+*.flac
+*.ogg
+!tests/fixtures/**
+!backend/tests/fixtures/**
+!assets/brand/**
