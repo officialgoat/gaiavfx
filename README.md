@@ -42,7 +42,7 @@ Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB R
 
 Leave additional space for ComfyUI, download archives, Python environments, generated media and the optional assistant (about 17.4 GB of model/projector files).
 
-On 29 October 2026, a fresh install using our CLI downloaded the official 2.0 GB portable archive, verified its SHA-256 and extracted it with Windows' built-in tar. Node installation took 40 s, including insightface and onnxruntime. Recast downloaded buffalo_l (196 MB, SHA verified) and reused other weights through `extra_model_paths.yaml`. Doctor reported core, image-edit and recast ready (146 checks ok); Stages still needed `engines install worldbuilder`.
+On 29 October 2026, a fresh install using our CLI downloaded the official 2.0 GB portable archive, verified its SHA-256 and extracted it with Windows' built-in tar. Node installation took 40 s, including insightface and onnxruntime. Recast downloaded buffalo_l (196 MB, SHA verified) and reused other weights through `extra_model_paths.yaml`. Doctor reported core, image-edit and recast ready (146 checks ok). `engines install worldbuilder` then provisioned the stage engine (Python 3.10, torch 2.4.1 cu124, gsplat 1.5.3; a CUDA gsplat rasterization ran on the RTX 4090), after which doctor and the in-app Setup check reported all four features ready. A fresh `git clone` followed by `install.ps1 -ComfyDir … -SkipModels -NonInteractive` completed and ended with the doctor summary.
 
 Real GPU smoke runs on that fresh ComfyUI:
 
