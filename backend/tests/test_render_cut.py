@@ -9,21 +9,10 @@ from test_direction_content import assemble_records, extended_document
 
 from gaiavfx.application.authored import import_segment, segment_records
 from gaiavfx.application.render_cut import start_render
-from gaiavfx.infrastructure.database import Database
-from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.service import OperationService
-from gaiavfx.modules.library.application import LibraryService
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
-
-
-@pytest.fixture
-def store(tmp_path):
-    LibraryService(tmp_path, Path(__file__).parents[1] / "migrations").create("Render")
-    db = Database(tmp_path)
-    yield db, DirectionService()
-    db.close()
 
 
 def document():
@@ -48,21 +37,6 @@ def add_cut(service, session, segment):
         crosses_barrier=False,
         relation_source="authored",
         receives_predecessor=True,
-    )
-
-
-@pytest.fixture
-def media(monkeypatch):
-    """Mock byte descriptors only; planning, Direction and Generation stores stay real."""
-    monkeypatch.setattr(MediaLibrary, "asset_info", lambda session, asset: {"sha256": asset})
-    monkeypatch.setattr(
-        MediaLibrary,
-        "artifact",
-        lambda session, artifact: {
-            "id": artifact,
-            "sha256": artifact,
-            "kind": "h3_context",
-        },
     )
 
 
@@ -297,8 +271,8 @@ def test_compiler_gaps_report_structure_without_rendering(store):
         assert OperationService().recent(session) == []
 
 
-def test_compiler_gaps_use_render_references_and_sheet_capability(store, monkeypatch):
-    from gaiavfx.application import direction_plans, render_cut
+def test_compiler_gaps_use_render_references_and_sheet_capability(store, sheets):
+    from gaiavfx.application import render_cut
 
     db, service = store
     with db.transaction() as session:
@@ -339,17 +313,7 @@ def test_compiler_gaps_use_render_references_and_sheet_capability(store, monkeyp
             row["revision"],
             content={**row["content"], "subjects": ["s1", subject["id"]]},
         )
-        # Only the sheet media lookup is substituted. Assembly, policy, shared reference
-        # lowering and H3's typed capability checks execute normally without inference.
-        monkeypatch.setattr(render_cut, "current_sheet", lambda *args: "sheet")
-        monkeypatch.setattr(
-            direction_plans,
-            "sheet_reference",
-            lambda *args: {"panels": 2, "blank_panels": 0, "origin": "survey", "tiles": []},
-        )
-        from gaiavfx.application import direction_plans
-
-        monkeypatch.setattr(direction_plans, "sheet_staleness", lambda *args: ())
+        sheets(panels=2)
         result = render_cut.compiler_gaps(session, cut["id"])
         assert "sheet_several_subjects" in {gap["code"] for gap in result}
         assert all(set(gap) == {"code", "message"} for gap in result)

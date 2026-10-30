@@ -27,3 +27,53 @@ def pytest_configure(config):
 def isolated_setup_file(tmp_path, monkeypatch):
     # The developer's own .runtime/setup.json must not seed the libraries tests create.
     monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
+
+
+@pytest.fixture
+def store(tmp_path):
+    """A migrated library with real Direction, Generation and Library rows; a file that needs another service
+    defines its own `store`."""
+    from gaiavfx.infrastructure.database import Database
+    from gaiavfx.modules.direction.service import DirectionService
+    from gaiavfx.modules.library.application import LibraryService
+
+    LibraryService(tmp_path, Path(__file__).parents[1] / "migrations").create("Tests")
+    db = Database(tmp_path)
+    yield db, DirectionService()
+    db.close()
+
+
+@pytest.fixture
+def media(monkeypatch):
+    """Mock byte descriptors only; planning, Direction and Generation stores stay real."""
+    from gaiavfx.modules.library.media_application import MediaLibrary
+
+    monkeypatch.setattr(MediaLibrary, "asset_info", lambda session, asset: {"sha256": asset})
+    monkeypatch.setattr(
+        MediaLibrary,
+        "artifact",
+        lambda session, artifact: {
+            "id": artifact,
+            "sha256": artifact,
+            "kind": "h3_context",
+        },
+    )
+
+
+@pytest.fixture
+def sheets(monkeypatch):
+    """Stand in for the sheet media lookups alone: each place's current sheet is `sheet`, fresh, with the given
+    panels. Assembly, binding judgments, lowering and H3's capability checks run for real."""
+    from gaiavfx.application import direction_plans, render_cut
+
+    def use(panels):
+        for module in (direction_plans, render_cut):
+            monkeypatch.setattr(module, "current_sheet", lambda *args: "sheet")
+        monkeypatch.setattr(direction_plans, "sheet_staleness", lambda *args: ())
+        monkeypatch.setattr(
+            direction_plans,
+            "sheet_reference",
+            lambda *args: {"tiles": [], "panels": panels, "blank_panels": 0, "origin": "survey"},
+        )
+
+    return use

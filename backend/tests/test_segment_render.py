@@ -13,10 +13,8 @@ from gaiavfx.application.render_cut import start_render
 from gaiavfx.direction_cli import _dispatch, parser
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
-
-store = fixtures.store
-media = fixtures.media
 
 
 def window(session, service, *, cuts=2, continues=True, different_places=False):
@@ -64,17 +62,9 @@ def pin_cuts(session, service, cuts):
 
 
 @pytest.mark.usefixtures("media")
-def test_two_cut_pins_share_one_sheet_at_the_first_needed_shot(store, monkeypatch):
-    from gaiavfx.application import direction_plans
-
+def test_two_cut_pins_share_one_sheet_at_the_first_needed_shot(store, sheets):
     db, service = store
-    monkeypatch.setattr(direction_plans, "current_sheet", lambda *a: "sheet")
-    monkeypatch.setattr(direction_plans, "sheet_staleness", lambda *a: ())
-    monkeypatch.setattr(
-        direction_plans,
-        "sheet_reference",
-        lambda *a: {"tiles": [], "panels": 3, "blank_panels": 0, "origin": "survey"},
-    )
+    sheets(panels=3)
     with db.transaction() as session:
         segment, cuts = window(session, service)
         pin_cuts(session, service, cuts)
@@ -155,13 +145,40 @@ def test_different_sheets_name_both_cuts_and_rollback(store):
         assert not any(c["id"] in refusal.message for c in cuts)
         assert "split the segment" in refusal.message
         before = service.read_segment(session, segment["id"])
-    with pytest.raises(ApplicationError, match="several_sheets"), db.transaction() as session:
+    with pytest.raises(ApplicationError) as error, db.transaction() as session:
         start_render(
             session, segment_id=segment["id"], seeds=[7], context_artifact="context", budget_limit=1
         )
+    assert error.value.status == 422
+    assert str(error.value).startswith("several_sheets:")
     with db.transaction() as session:
         assert OperationService().recent(session) == []
         assert service.read_segment(session, segment["id"]) == before
+
+
+@pytest.mark.usefixtures("media")
+def test_a_fresh_segment_renders_without_motion_context(store, monkeypatch):
+    db, service = store
+    monkeypatch.setattr(
+        MediaLibrary,
+        "artifact",
+        lambda *args: pytest.fail("a fresh segment must not load motion context"),
+    )
+    with db.transaction() as session:
+        segment, _ = window(session, service, cuts=1, continues=False)
+        rendered = start_render(
+            session, segment_id=segment["id"], seeds=[7], context_artifact="unused"
+        )
+    [job] = rendered["jobs"]
+    assert job["snapshot"]["context_frames"] == 0
+    assert set(job["inputs"]) == {"identity"}
+    assert not {"motion_context", "load_context", "trim"} & job["graph"].keys()
+    prompt = next(
+        n["inputs"]["prompt"]
+        for n in job["graph"].values()
+        if n["class_type"] == "MiniMaxH3ReferenceToVideo"
+    )
+    assert "[Shot 2] At 00:01.500, the shot cuts." in prompt
 
 
 @pytest.mark.parametrize("cut_count", [0, 2])

@@ -3,7 +3,6 @@
 from dataclasses import replace
 
 import pytest
-import test_direction_store as direction_fixtures
 from fastapi.testclient import TestClient
 from sqlalchemy import select
 from test_direction_store import make_cut
@@ -31,8 +30,6 @@ from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.prescreen import evaluate
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
-
-store = direction_fixtures.store
 
 WORDING = {
     "who": "Arin",

@@ -11,7 +11,7 @@ from wording_fixtures import GOLDEN, GRID, compile_fixture
 
 from gaiavfx.application import direction_plans
 from gaiavfx.application.continuation import set_continuation
-from gaiavfx.infrastructure.database import Database
+from gaiavfx.application.render_cut import start_render
 from gaiavfx.integrations.minimax_h3 import continuation as continuity
 from gaiavfx.integrations.minimax_h3.continuation import MASKED, PAIRED, ContinuationFacts
 from gaiavfx.integrations.minimax_h3.graph import build_graph, render_presets
@@ -19,6 +19,7 @@ from gaiavfx.integrations.minimax_h3.prompt import compile_prompt
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.direction.timebase import FrameGrid
 from gaiavfx.modules.library.application import LibraryService
+from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
 MIGRATIONS = Path(__file__).parents[1] / "migrations"
@@ -126,14 +127,6 @@ def test_a_choice_is_judged_only_on_the_fields_it_changes():
     )
 
 
-@pytest.fixture
-def store(tmp_path):
-    LibraryService(tmp_path, MIGRATIONS).create("Continuation")
-    db = Database(tmp_path)
-    yield db, DirectionService()
-    db.close()
-
-
 def two_segments(service, session):
     movie = service.create_movie(session, "Movie")
     subject = service.add_subject(
@@ -198,7 +191,32 @@ def test_the_handoff_is_a_revision_checked_edit_that_undo_returns_to_the_rule(st
         )
 
 
-def test_choices_the_rule_cannot_render_are_refused_with_the_reason(store, monkeypatch):
+def pin_a_cut(service, session, segment):
+    """A cut at the segment's second phase whose shot lowers an approved pinned keyframe."""
+    place = service.create_place(session, "Courtyard")
+    forward = service.add_angle(session, place["id"], "Forward")
+    closer = service.add_angle(session, place["id"], "Closer view")
+    cut = service.create_cut(
+        session,
+        segment["id"],
+        segment["revision"],
+        frame=48,
+        from_angle_id=forward["id"],
+        to_angle_id=closer["id"],
+        relation="same_direction",
+        crosses_barrier=False,
+        relation_source="authored",
+        receives_predecessor=True,
+    )
+    service.update_cut(session, cut["id"], cut["revision"], override_technique="views_and_pin")
+    evidence = service.record_evidence(session, closer["id"], "imported", "view")
+    service.approve_evidence(session, evidence["id"])
+    pin = service.record_keyframe(session, cut["id"], "pin", evidence["id"])
+    service.approve_keyframe(session, pin["id"])
+    return service.read_segment(session, segment["id"])
+
+
+def test_choices_the_rule_cannot_render_are_refused_with_the_reason(store):
     db, service = store
     with db.transaction() as session:
         first, second = two_segments(service, session)
@@ -209,15 +227,11 @@ def test_choices_the_rule_cannot_render_are_refused_with_the_reason(store, monke
             set_continuation(session, second["id"], second["revision"], context_frames=30)
         with pytest.raises(ApplicationError, match="Choose a continuation method"):
             set_continuation(session, second["id"], second["revision"])
-        pinned = replace(direction_plans.continuation_facts(session, second["id"])[1], guides=1)
-        monkeypatch.setattr(
-            "gaiavfx.application.continuation.continuation_facts",
-            lambda *args: (service.read_segment(session, second["id"]), pinned),
-        )
+        pinned = pin_a_cut(service, session, second)
         with pytest.raises(ApplicationError, match="pinned keyframe"):
-            set_continuation(session, second["id"], second["revision"], method=MASKED)
-        assert set_continuation(session, second["id"], second["revision"], method=PAIRED)
-        assert service.read_segment(session, second["id"])["revision"] == second["revision"] + 1
+            set_continuation(session, second["id"], pinned["revision"], method=MASKED)
+        assert set_continuation(session, second["id"], pinned["revision"], method=PAIRED)
+        assert service.read_segment(session, second["id"])["revision"] == pinned["revision"] + 1
 
 
 def test_direction_keeps_the_shape_and_drops_the_handoff_with_continuation(store):
@@ -441,43 +455,26 @@ def test_lowering_refuses_a_handoff_the_window_cannot_take():
         lowered(MASKED, 22, handoff=replace(rule, audio_context_frames=24))
 
 
-def test_a_render_records_its_handoff_and_lowers_it(monkeypatch):
-    from test_minimax_h3_parity import identity, plain_segment, render_setup
-
-    from gaiavfx.application import render_cut
-
-    render_setup(monkeypatch)
-    row = {
-        "id": "segment",
-        "movie_id": "movie",
-        "ordinal": 1,
-        "continues": True,
-        "revision": 4,
-        "phases": [],
-        "cuts": [],
-        "continuation_method": None,
-        "context_frames": 39,
-    }
-    monkeypatch.setattr(render_cut.direction, "read_segment", lambda *args: row)
-    monkeypatch.setattr(
-        render_cut.direction,
-        "assemble_segment",
-        lambda *args: (
-            plain_segment(continues=True, cut_frames=(), shots=plain_segment().shots[:1]),
-            (identity(),),
-        ),
-    )
+def test_a_render_records_its_handoff_and_lowers_it(store, monkeypatch):
+    db, service = store
     shape = {"video_shape": [1, 24, 22, 14, 24]}  # a 73-frame source take
     monkeypatch.setattr(
-        render_cut.MediaLibrary,
+        MediaLibrary,
         "artifact",
-        lambda *args: {"id": "context", "sha256": "c", "kind": "h3_context", "info": shape},
+        lambda session, artifact: {
+            "id": artifact,
+            "sha256": "c",
+            "kind": "h3_context",
+            "info": shape,
+        },
     )
-    monkeypatch.setattr(render_cut, "create_operation", lambda *args, **kwargs: kwargs)
-    operation = render_cut.start_render(
-        None, segment_id="segment", seeds=(7,), context_artifact="context"
-    )
-    [job] = operation["jobs"]
+    with db.transaction() as session:
+        _, second = two_segments(service, session)
+        row = service.update_segment(session, second["id"], second["revision"], context_frames=39)
+        operation = start_render(
+            session, segment_id=second["id"], seeds=[7], context_artifact="context"
+        )
+        [job] = operation["jobs"]
     evidence = {
         "method": MASKED,
         "chosen": False,
@@ -486,15 +483,17 @@ def test_a_render_records_its_handoff_and_lowers_it(monkeypatch):
         "audio_context_frames": 39,
         "audio_follows_picture": True,
     }
-    assert job.snapshot["continuation"] == operation["request"]["continuation"] == evidence
-    assert job.snapshot["context_frames"] == 39
-    assert job.snapshot["expect"]["frames"] == job.graph["conditioning"]["inputs"]["length"] - 39
-    assert job.graph["masked_context"]["inputs"]["context_length"] == 39
-    assert "motion_context" not in job.graph
-    row["continuation_method"] = PAIRED
-    operation = render_cut.start_render(
-        None, segment_id="segment", seeds=(7,), context_artifact="context"
-    )
-    [job] = operation["jobs"]
-    assert job.snapshot["continuation"]["audio_context_frames"] == AUDIO
-    assert job.graph["motion_context"]["inputs"]["context_length"] == "39"
+    assert job["snapshot"]["continuation"] == operation["request"]["continuation"] == evidence
+    assert job["snapshot"]["context_frames"] == 39
+    length = job["graph"]["conditioning"]["inputs"]["length"]
+    assert job["snapshot"]["expect"]["frames"] == length - 39
+    assert job["graph"]["masked_context"]["inputs"]["context_length"] == 39
+    assert "motion_context" not in job["graph"]
+    with db.transaction() as session:
+        set_continuation(session, second["id"], row["revision"], method=PAIRED)
+        operation = start_render(
+            session, segment_id=second["id"], seeds=[7], context_artifact="context"
+        )
+        [job] = operation["jobs"]
+    assert job["snapshot"]["continuation"]["audio_context_frames"] == AUDIO
+    assert job["graph"]["motion_context"]["inputs"]["context_length"] == "39"

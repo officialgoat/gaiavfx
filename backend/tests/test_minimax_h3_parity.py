@@ -10,13 +10,11 @@ import json
 import re
 from dataclasses import replace
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from parity_graph import node_of, signature
 from prompt_invariants import assert_prompt_invariants
 
-from gaiavfx.application import render_cut
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.graph import build_graph
 from gaiavfx.integrations.minimax_h3.prompt import (
@@ -37,8 +35,6 @@ from gaiavfx.modules.direction.segment import (
     Shot,
     Subject,
 )
-from gaiavfx.modules.direction.techniques import Block
-from gaiavfx.shared.errors import ApplicationError
 
 FIXTURES = Path(__file__).parent / "fixtures" / "parity"
 ARMS = ("DZ", "EH", "EG", "TC", "TW", "TS", "TP")
@@ -598,96 +594,3 @@ def test_wording_requires_identity_list_words(key):
         parse_wording(
             "\n".join(line for line in text.splitlines() if not line.startswith(f"{key} ="))
         )
-
-
-def render_setup(monkeypatch):
-    """Isolate storage and planning while exercising the actual render compiler and graph."""
-    from gaiavfx.application import direction_plans
-
-    monkeypatch.setattr(direction_plans, "direction", render_cut.direction)
-    choice = SimpleNamespace(
-        ready=True, blocks=(Block.DIRECTION_TEXT,), technique_id="text", title="Text"
-    )
-    monkeypatch.setattr(
-        direction_plans,
-        "plan_for_cut",
-        lambda *args: SimpleNamespace(recommended=choice, cut_id="cut", bindings=()),
-    )
-    # The segment's first shot is planned too (ADR 0019 §1); here it adds nothing to the window.
-    monkeypatch.setattr(direction_plans, "plan_for_opening", lambda *args: None)
-    monkeypatch.setattr(
-        render_cut.direction,
-        "read_cut",
-        lambda *args: {
-            "frame": 36,
-            "to_angle_id": "angle",
-            "movie_id": "movie",
-            "segment_id": "segment",
-        },
-    )
-    monkeypatch.setattr(render_cut.direction, "read_angle", lambda *args: {"place_id": "pier"})
-    monkeypatch.setattr(
-        render_cut.direction,
-        "read_segment",
-        lambda *args: {
-            "movie_id": "movie",
-            "continues": False,
-            "revision": 1,
-            "phases": [],
-            "cuts": [{"id": "cut", "frame": 36, "to_angle_id": "angle"}],
-        },
-    )
-    monkeypatch.setattr(render_cut.direction, "read_subject", lambda *args: {"revision": 1})
-    # A cut's sheet binding reads its suitability judgments (none here).
-    monkeypatch.setattr(render_cut.direction, "suitability", lambda *args: ())
-    monkeypatch.setattr(render_cut.MediaLibrary, "asset_info", lambda *args: {"sha256": "hash"})
-
-
-def test_start_render_translates_capability_gaps_to_422(monkeypatch):
-    render_setup(monkeypatch)
-    monkeypatch.setattr(
-        render_cut.direction,
-        "assemble_segment",
-        lambda *args: (
-            plain_segment(),
-            (identity(), place_sheet("sheet-a"), place_sheet("sheet-b")),
-        ),
-    )
-    with pytest.raises(ApplicationError) as error:
-        render_cut.start_render(
-            None,
-            cut_id="cut",
-            seeds=(7,),
-        )
-    assert error.value.status == 422
-    assert str(error.value).startswith("several_sheets:")
-
-
-def test_start_render_fresh_segment_uses_no_context(monkeypatch):
-    render_setup(monkeypatch)
-    monkeypatch.setattr(
-        render_cut.MediaLibrary, "asset_info", lambda *args: {"sha256": "portrait-hash"}
-    )
-    monkeypatch.setattr(
-        render_cut.MediaLibrary,
-        "artifact",
-        lambda *args: pytest.fail("a fresh segment must not load motion context"),
-    )
-    monkeypatch.setattr(render_cut, "create_operation", lambda *args, **kwargs: kwargs["jobs"])
-    monkeypatch.setattr(
-        render_cut.direction, "assemble_segment", lambda *args: (plain_segment(), (identity(),))
-    )
-    jobs = render_cut.start_render(
-        None,
-        cut_id="cut",
-        seeds=(7,),
-        context_artifact="unused",
-    )
-    assert len(jobs) == 1
-    assert jobs[0].snapshot["context_frames"] == 0
-    assert set(jobs[0].inputs) == {"portrait"}
-    assert not {"motion_context", "load_context", "trim"} & jobs[0].graph.keys()
-    assert (
-        "[Shot 2] At 00:01.500, the shot cuts."
-        in node_of(jobs[0].graph, "MiniMaxH3ReferenceToVideo")["inputs"]["prompt"]
-    )

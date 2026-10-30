@@ -1,25 +1,11 @@
 """Stored Direction facts drive the pure planner and preserve review boundaries."""
 
-from pathlib import Path
-
 import pytest
 from sqlalchemy import func, select
 
 from gaiavfx.application.direction_plans import plan_for_cut, plan_to_dict
-from gaiavfx.infrastructure.database import Database
 from gaiavfx.modules.direction.persistence import CutRecord, PlaceRecord
-from gaiavfx.modules.direction.service import DirectionService
-from gaiavfx.modules.library.application import LibraryService
 from gaiavfx.shared.errors import ApplicationError
-
-
-@pytest.fixture
-def store(tmp_path):
-    migrations = Path(__file__).parents[1] / "migrations"
-    LibraryService(tmp_path, migrations).create("Direction")
-    db = Database(tmp_path)
-    yield db, DirectionService()
-    db.close()
 
 
 def make_segment(service, session, movie_id=None):
