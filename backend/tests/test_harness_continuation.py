@@ -113,6 +113,32 @@ def test_the_handoff_is_offered_when_asked_and_null_returns_it_to_the_rule(world
     assert stored(work, second["id"])[:2] == (None, 39)
 
 
+def test_the_default_length_follows_the_default_and_an_unchanged_choice_changes_nothing(world):
+    work, setup = world
+    _, second = continuing_pair(work, setup)
+    asked = replace(context_for(work, setup), latest_user_message=ASKED)
+
+    def set_context(frames):
+        return run(
+            EditSegment(),
+            asked,
+            {
+                "op": "set",
+                "segment_id": second["id"],
+                "expected_revision": stored(work, second["id"])[2],
+                "context_frames": frames,
+            },
+        )
+
+    assert set_context(39).ok
+    # Gaia stores the default as the UI does: null, so the join follows the default again.
+    back = set_context(22)
+    assert back.ok, back.discrepancy
+    assert stored(work, second["id"])[:2] == (None, None)
+    same = set_context(22)
+    assert not same.ok and "nothing changed" in same.discrepancy
+
+
 def test_a_handoff_the_segment_cannot_take_is_refused_with_the_reason(world):
     work, setup = world
     first, second = continuing_pair(work, setup)

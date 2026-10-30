@@ -56,9 +56,7 @@ def insertion_facts(session, cut):
     segment = direction.read_segment(session, cut["segment_id"])
     before = [p for p in segment["phases"] if p["start_frame"] < cut["frame"]]
     previous = max(before, key=lambda p: p["start_frame"], default=None)
-    if previous is None and segment["continues"] and segment["ordinal"] > 0:
-        movie = direction.read_movie(session, segment["movie_id"])
-        predecessor = movie["segments"][segment["ordinal"] - 1]
+    if previous is None and (predecessor := direction.predecessor(session, segment)):
         previous = max(predecessor["phases"], key=lambda p: p["start_frame"], default=None)
     facing = continuity_facing(
         previous["content"].get("screen_direction", "") if previous else "",

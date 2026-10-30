@@ -302,6 +302,17 @@ def _continues(value):
 _HANDOFF = ("continuation_method", "context_frames")
 
 
+def predecessor_ordinal(segment) -> int | None:
+    """The ordinal of the segment a continuing segment takes over from: the one before it. None when it
+    continues nothing."""
+    return segment["ordinal"] - 1 if segment["continues"] and segment["ordinal"] > 0 else None
+
+
+def last_angle(segment) -> str | None:
+    """The angle a segment ends on: its last cut's, else the angle it opens on (None when it names none)."""
+    return segment["cuts"][-1]["to_angle_id"] if segment["cuts"] else segment["opening_angle_id"]
+
+
 def _handoff(continuation_method, context_frames):
     """Shape only: the integration owns the method names, the context grid and when each qualifies."""
     if continuation_method is not None and not (
@@ -590,6 +601,13 @@ class DirectionService:
             "phases": self.phases(session, segment_id),
             "cuts": self.cuts(session, segment_id),
         }
+
+    def predecessor(self, session, segment):
+        """The segment `segment` continues, read whole; None when it continues nothing."""
+        ordinal = predecessor_ordinal(segment)
+        if ordinal is None:
+            return None
+        return self.read_segment(session, self._segments(session, segment["movie_id"])[ordinal].id)
 
     def _sync_opening(self, session, segment_id):
         """With cuts, the first cut's from_angle_id is the opening angle (ADR 0019 §1): every cut command ends by
@@ -2336,13 +2354,8 @@ class DirectionService:
             return None
         target = _get(session, AngleRecord, angle_id)
         place_evidence = self._place_evidence(session, target.place_id, inactive_view_assets)
-        previous = None
-        if segment["continues"] and segment["ordinal"] > 0:
-            before = self._segments(session, segment["movie_id"])[segment["ordinal"] - 1]
-            before = self.read_segment(session, before.id)
-            previous = (
-                before["cuts"][-1]["to_angle_id"] if before["cuts"] else before["opening_angle_id"]
-            )
+        before = self.predecessor(session, segment)
+        previous = last_angle(before) if before else None
         bindings = {
             row.id: self.reference_binding(session, "view", row.id)
             for row in place_evidence

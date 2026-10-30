@@ -299,7 +299,7 @@ class EditSegment(TransactionTool):
         at: int | None = Field(default=None, ge=0)
         ordinal: int | None = Field(default=None, ge=0)
         # docs/CONTINUATION.md: null returns a field to the rule; omitted leaves it.
-        continuation_method: Literal["paired", "masked"] | None = None
+        continuation_method: Literal[handoff.METHODS] | None = None
         context_frames: int | None = Field(default=None, gt=0, strict=True)
 
     def narrow(self, context):
@@ -366,6 +366,7 @@ class EditSegment(TransactionTool):
                 at=value.at,
                 **handoff.added(value),
             )
+            handoff.judge(session, row["id"])
         else:
             segment = segment_in_scope(session, context, value.segment_id)
             if value.op == "set":

@@ -69,6 +69,8 @@ def test_the_grid_converts_windows_to_latent_steps_and_back():
 def test_the_rule_prefers_masked_on_the_same_shot_and_paired_across_cuts():
     assert continuity.recommend(facts()) == (MASKED, continuity.SAME_SHOT)
     assert continuity.recommend(facts(cuts=1)) == (PAIRED, continuity.ACROSS_CUTS)
+    # A new angle at the join is a cut too: the masked prefix would carry the old direction across it.
+    assert continuity.recommend(facts(angle_changes=True)) == (PAIRED, continuity.ACROSS_CUTS)
     assert "9 of 11" in continuity.ACROSS_CUTS and "6 of 11" in continuity.ACROSS_CUTS
     method, reason = continuity.recommend(facts(guides=1))
     assert method == PAIRED and "pinned keyframe" in reason and reason.endswith("recommendation.")
@@ -309,6 +311,54 @@ def test_a_split_join_follows_the_rule_while_the_left_half_keeps_its_choice(stor
         assert (right["continuation_method"], right["context_frames"]) == (None, None)
 
 
+def test_the_default_context_is_stored_as_null_and_an_unchanged_choice_writes_nothing(store):
+    db, service = store
+    with db.transaction() as session:
+        _, second = two_segments(service, session)
+        before = len(service.receipts(session, second["movie_id"]))
+        # The default already applies: no receipt records a change that did not happen.
+        assert (
+            set_continuation(session, second["id"], second["revision"], context_frames=22) is None
+        )
+        chosen = set_continuation(session, second["id"], second["revision"], context_frames=39)
+        back = set_continuation(session, second["id"], chosen["revision"], context_frames=22)
+        assert back["context_frames"] is None
+        assert back["receipt"]["before"]["context_frames"] == 39
+        unchanged = set_continuation(
+            session, second["id"], back["revision"], method=None, context_frames=None
+        )
+        assert unchanged is None
+        assert len(service.receipts(session, second["movie_id"])) == before + 2
+
+
+def test_a_new_angle_at_the_join_is_a_cut(store):
+    db, service = store
+    with db.transaction() as session:
+        first, second = two_segments(service, session)
+        place = service.create_place(session, "Courtyard")
+        wide, close = (service.add_angle(session, place["id"], n)["id"] for n in ("Wide", "Close"))
+
+        def opens_on(segment, angle):
+            row = service.read_segment(session, segment["id"])
+            service.update_segment(session, row["id"], row["revision"], opening_angle_id=angle)
+
+        def rule():
+            handoff = direction_plans.plan_for_segment(session, second["id"]).continuation
+            return handoff.recommended, handoff.reason
+
+        assert rule() == (MASKED, continuity.SAME_SHOT)  # neither names an angle
+        # As coverage reads it, a named opening after a predecessor that names none is another angle.
+        opens_on(second, close)
+        assert rule() == (PAIRED, continuity.ACROSS_CUTS)
+        opens_on(first, close)
+        assert rule() == (MASKED, continuity.SAME_SHOT)
+        opens_on(first, wide)
+        assert rule() == (PAIRED, continuity.ACROSS_CUTS)
+        row = service.read_segment(session, second["id"])
+        assert service.predecessor(session, row)["id"] == first["id"]
+        assert service.predecessor(session, service.read_segment(session, first["id"])) is None
+
+
 def test_the_plan_shows_the_handoff_and_its_recommendation(store):
     db, service = store
     with db.transaction() as session:
@@ -366,6 +416,11 @@ def test_the_api_sets_refuses_and_reports_the_handoff(tmp_path):
         )
         assert not_continuing.status_code == 422
         assert "Only a continuing segment" in not_continuing.json()["detail"]
+        unchanged = client.patch(
+            url, json={"expected_revision": body["revision"], "method": "masked"}
+        )
+        assert unchanged.status_code == 422
+        assert unchanged.json()["detail"] == "The segment already hands over that way."
         plan = client.get(f"/api/direction/segments/{second['id']}/plan").json()
         assert plan["continuation"]["method"] == "masked"
         assert plan["continuation"]["explicit_method"] == "masked"

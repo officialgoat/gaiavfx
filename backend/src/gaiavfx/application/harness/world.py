@@ -6,6 +6,7 @@ from gaiavfx.application.direction_plans import plan_for_cut, plan_for_segment, 
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.harness.preparation import PREPARATION, REVIEWED, VIEW_KINDS
 from gaiavfx.application.prepare_references import current_sheet
+from gaiavfx.modules.direction.service import predecessor_ordinal
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
@@ -240,8 +241,8 @@ def world_state(session, movie_id, scope_kind, scope_id, autonomy):
     for segment in segments[:LIST]:
         state.segment_plans[segment["id"]] = plan_to_dict(plan_for_segment(session, segment["id"]))
         summary = fields(segment, "id", "ordinal", "revision", "delivered_frames", "continues")
-        if segment["continues"] and segment["ordinal"] > 0:
-            predecessor = movie["segments"][segment["ordinal"] - 1]
+        if (ordinal := predecessor_ordinal(segment)) is not None:
+            predecessor = movie["segments"][ordinal]
             selected = selection_state(session, movie_id, predecessor["id"])["current"]
             summary["predecessor"] = {
                 "id": predecessor["id"],

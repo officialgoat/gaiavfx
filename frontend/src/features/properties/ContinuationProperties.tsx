@@ -29,16 +29,16 @@ export function ContinuationProperties({
     const method = (String(form.get("method")) || null) as
       "paired" | "masked" | null;
     const typed = String(form.get("context"));
-    // The default length is stored as null: typing it, or clearing the field, follows the default again.
-    const context =
-      typed === "" || Number(typed) === plan.default_context
-        ? null
-        : Number(typed);
+    // A cleared field follows the default again. Python stores the default length as null, so a length the join
+    // already carries changes nothing and is not sent.
+    const context = typed === "" ? null : Number(typed);
+    const contextChanged =
+      context === null
+        ? segment.context_frames !== null
+        : context !== plan.context_frames;
     const changes = {
       ...(method !== explicit ? { method } : {}),
-      ...(context !== segment.context_frames
-        ? { context_frames: context }
-        : {}),
+      ...(contextChanged ? { context_frames: context } : {}),
     };
     if (!Object.keys(changes).length) return;
     void d.perform(

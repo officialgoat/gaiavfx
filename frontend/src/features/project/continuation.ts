@@ -7,31 +7,34 @@ import {
 import type { DirectController } from "./use-direction";
 
 // A continuation's handoff (docs/CONTINUATION.md). Python resolves the method, the lengths a join can carry and the
-// recommendation; these edits only name a choice, and the API refuses one that cannot render, saying why.
+// recommendation, and stores the default length as null; these edits only name a choice, and the API refuses one
+// that cannot render, saying why. A choice the join already makes is not sent: it would change nothing.
 
-/** The default length is stored as null, so dragging back to it follows the default again. */
-export function setContext(
+/** Dragging back to the default length follows the default again. */
+export async function setContext(
   d: DirectController,
   segment: Segment,
   plan: Continuation,
   frames: number,
 ) {
+  if (frames === plan.context_frames) return undefined;
   return d.perform(
     () =>
       direction.setContinuation(segment.id, {
         expected_revision: segment.revision,
-        context_frames: frames === plan.default_context ? null : frames,
+        context_frames: frames,
       }),
     `Continuation context: ${frames} frames`,
   );
 }
 
 /** Null follows the research rule again. */
-export function setHandoff(
+export async function setHandoff(
   d: DirectController,
   segment: Segment,
   method: "paired" | "masked" | null,
 ) {
+  if (method === segment.continuation_method) return undefined;
   return d.perform(
     () =>
       direction.setContinuation(segment.id, {

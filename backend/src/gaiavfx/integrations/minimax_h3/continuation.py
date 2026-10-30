@@ -42,6 +42,9 @@ class ContinuationFacts:
     cuts: int  # cuts inside the segment's window
     guides: int  # timed or anchor guides (pinned keyframes) the window lowers or plans to
     source_frames: int | None = None  # the source take's model window, once a take is selected
+    angle_changes: bool = (
+        False  # it opens on another angle than its predecessor ends on: a cut at the join
+    )
 
 
 @dataclass(frozen=True)
@@ -81,7 +84,7 @@ def masked_problem(facts: ContinuationFacts) -> str | None:
 
 
 def recommend(facts: ContinuationFacts) -> tuple[str, str]:
-    if facts.cuts:
+    if facts.cuts or facts.angle_changes:
         return PAIRED, ACROSS_CUTS
     if problem := masked_problem(facts):
         return PAIRED, f"{problem} Paired latents remain the recommendation."

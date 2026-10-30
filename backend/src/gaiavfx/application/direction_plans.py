@@ -9,6 +9,9 @@ from enum import Enum
 
 from sqlalchemy.orm import Session
 
+from gaiavfx.application import continuation as join
+from gaiavfx.application.continuation import DEFAULT_INTEGRATION, INTEGRATIONS
+from gaiavfx.application.continuation import provider as _provider
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.prepare_references import (
     current_sheet,
@@ -18,12 +21,9 @@ from gaiavfx.application.prepare_references import (
     sheet_staleness,
 )
 from gaiavfx.application.scene_place import PlaceStatus, place_status
-from gaiavfx.application.selected_takes import current_take
 from gaiavfx.application.set_seed import segment_seed
 from gaiavfx.application.sheet_recipes import sheet_reference
-from gaiavfx.integrations import minimax_h3
-from gaiavfx.integrations.minimax_h3 import continuation as continuity
-from gaiavfx.integrations.minimax_h3.continuation import ContinuationFacts, Handoff
+from gaiavfx.integrations.minimax_h3.continuation import Handoff
 from gaiavfx.integrations.minimax_h3.prompt import compile_prompt, gaps
 from gaiavfx.modules.direction.application import default_policy
 from gaiavfx.modules.direction.planning import (
@@ -36,19 +36,8 @@ from gaiavfx.modules.direction.planning import (
 )
 from gaiavfx.modules.direction.segment import Keyframe, Picture, PictureRole
 from gaiavfx.modules.direction.techniques import Block
-from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
-
-DEFAULT_INTEGRATION = "minimax_h3"
-INTEGRATIONS = {DEFAULT_INTEGRATION: minimax_h3}
-
-
-def _provider(integration):
-    provider = INTEGRATIONS.get(integration)
-    if provider is None:
-        raise ApplicationError(f"Unknown direction integration: {integration}", 422)
-    return provider
 
 
 def sheet_binding(session, place_id, asset_id, recipe, judgments=()):
@@ -335,10 +324,12 @@ def segment_render_inputs(
         )
         missing_source = None
         try:
-            artifact, source = continuation_input(session, row, context_artifact)
+            artifact, source = join.source(session, row, context_artifact)
         except ApplicationError as exc:
             missing_source = SegmentRefusal("continuation_source", str(exc))
-        handoff = _handoff(row, shots, keyframes, artifact, integration)
+        handoff = join.resolve(
+            session, row, pins=_planned_pins(shots), artifact=artifact, integration=integration
+        )
         handoff_refusals = [SegmentRefusal(*r) for r in (handoff.refusals if handoff else ())]
         if not refusals and not handoff_refusals:
             grid = INTEGRATIONS[integration].capabilities().frame_grid
@@ -357,7 +348,7 @@ def segment_render_inputs(
             refusals.append(missing_source)
     else:
         # The continuation row still says how this join would hand over, while the structure is refused.
-        handoff = _handoff(row, shots, (), None, integration)
+        handoff = join.resolve(session, row, pins=_planned_pins(shots), integration=integration)
     shaping = [shot.plan for shot in shots if _shapes_window(shot)]
     techniques = {p.recommended.technique_id for p in shaping if p.recommended}
     technique = (
@@ -388,42 +379,18 @@ def segment_render_inputs(
     return plan, segment, pictures, keyframes, artifact, source
 
 
-def _continuation_facts(row, shots, keyframes, artifact, grid):
-    planned = sum(
+def _planned_pins(shots):
+    """The window's planned pinned keyframes; lowering binds exactly one approved pin to each."""
+    return sum(
         1 for s in shots if s.plan.recommended and Block.PINNED_FRAME in s.plan.recommended.blocks
     )
-    return ContinuationFacts(
-        continues=row["continues"],
-        cuts=len(row["cuts"]),
-        guides=max(planned, len(keyframes)),
-        source_frames=continuity.source_frames(artifact.get("info"), grid) if artifact else None,
-    )
 
 
-def _handoff(row, shots, keyframes, artifact, integration):
-    if not row["continues"]:
-        return None
-    grid = INTEGRATIONS[integration].capabilities().frame_grid
-    return continuity.resolve(
-        _continuation_facts(row, shots, keyframes, artifact, grid),
-        method=row["continuation_method"],
-        context_frames=row["context_frames"],
-        grid=grid,
-    )
-
-
-def continuation_facts(session, segment_id, integration=DEFAULT_INTEGRATION):
-    """What the continuation rule reads about a segment, without lowering its window."""
-    _provider(integration)
-    row = direction.read_segment(session, segment_id)
-    opening = plan_for_opening(session, segment_id, integration)
+def planned_pins(session, row, integration=DEFAULT_INTEGRATION):
+    """`_planned_pins` for a segment whose window is not being lowered: its shots are planned here."""
+    opening = plan_for_opening(session, row["id"], integration)
     plans = tuple(plan_for_cut(session, cut["id"], integration) for cut in row["cuts"])
-    try:
-        artifact, _ = continuation_input(session, row)
-    except ApplicationError:
-        artifact = None  # no selected take yet: the render plan checks the source
-    grid = INTEGRATIONS[integration].capabilities().frame_grid
-    return row, _continuation_facts(row, _shots(row, opening, plans), (), artifact, grid)
+    return _planned_pins(_shots(row, opening, plans))
 
 
 direction = DIRECTION
@@ -484,44 +451,3 @@ def cut_references(session, cut, segment, choice, pictures, sheet_asset, *, stri
     return shot_references(
         session, shot, segment, choice, pictures, sheet_asset, strict=strict, bindings=bindings
     )
-
-
-def continuation_input(session, segment_row, context_artifact=None):
-    artifact = None
-    movie_id = segment_row["movie_id"]
-    context_source = None
-    if segment_row["continues"]:
-        if context_artifact:
-            context_source = {"kind": "artifact"}
-        else:
-            ordinal = segment_row["ordinal"]
-            if ordinal == 0:
-                raise ApplicationError(
-                    "The first segment has no predecessor; give --context-artifact.", 422
-                )
-            predecessor = direction.read_movie(session, movie_id)["segments"][ordinal - 1]
-            selection = current_take(session, movie_id, predecessor["id"])
-            if selection is None:
-                raise ApplicationError(f"Select a take of segment {ordinal} first.", 422)
-            # The take Program marks "Changed since this take" no longer matches its segment
-            # (a split, an edit, a replaced pin): its motion context would continue the old one.
-            if selection["stale"]:
-                raise ApplicationError(f"Select a current take of segment {ordinal} first.", 422)
-            candidate = OperationService().candidate(session, selection["candidate_id"])
-            context_artifact = candidate["artifact_id"]
-            if context_artifact is None:
-                raise ApplicationError(
-                    f"The selected take of segment {ordinal} captured no continuation context.", 422
-                )
-            context_source = {
-                "kind": "selection",
-                "segment_id": predecessor["id"],
-                "selection_id": selection["id"],
-                "candidate_id": candidate["id"],
-                "authority": selection["authority"],
-                "basis": selection["basis"],
-            }
-        artifact = MediaLibrary.artifact(session, context_artifact)
-        if artifact["kind"] != "h3_context":
-            raise ApplicationError("The continuation artifact must be H3 context.", 422)
-    return artifact, context_source

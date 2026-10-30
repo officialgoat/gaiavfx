@@ -119,11 +119,8 @@ def require_segment_continuity(
         raise ApplicationError(" ".join(problems), 422)
     # Phases can be authored before their cut in separate commands. Once the first
     # cut exists, its entire incoming shot must preserve the predecessor's motion.
-    if not cuts or not segment["continues"] or segment["ordinal"] == 0:
+    if not cuts or not (previous := direction.predecessor(session, segment)):
         return
-    previous = direction.read_movie(session, segment["movie_id"])["segments"][
-        segment["ordinal"] - 1
-    ]
     if not previous["phases"]:
         return
     expected = previous["phases"][-1]["content"].get("screen_direction", "")

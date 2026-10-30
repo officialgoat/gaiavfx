@@ -22,7 +22,7 @@ from fake_comfy import FakeComfy
 from gaiavfx.application.authored import import_segment
 from gaiavfx.application.operations import OperationRunner
 from gaiavfx.application.workspace import Workspace
-from gaiavfx.modules.direction.service import DirectionService
+from gaiavfx.modules.direction.service import DirectionService, last_angle
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.application import LibraryService
@@ -1613,6 +1613,15 @@ def prepare_segment_fixture(task, work, setup):
                 and r["after"]["record"]["id"] == setup["cut_id"]
             )
             direction.undo(session, receipt["id"])
+            # An uncut continuation of the same shot opens where its predecessor ends; a new angle at the join
+            # is a cut, which the rule hands over by paired latents (docs/CONTINUATION.md).
+            segment = direction.read_segment(session, segment["id"])
+            direction.update_segment(
+                session,
+                segment["id"],
+                segment["revision"],
+                opening_angle_id=last_angle(direction.predecessor(session, segment)),
+            )
         else:
             direction.add_phase(
                 session,

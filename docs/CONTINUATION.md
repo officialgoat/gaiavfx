@@ -26,7 +26,9 @@ Levelled latents and Silver history are research methods only; they are not offe
 The rule is a hint the user sees, never a silent switch. A segment whose method is `null` follows it:
 
 1. **The window cuts to another angle: paired latents.** Across cuts, paired latents crossed the line on 9 of 11
-   renders and masked handoff on 6 of 11. The masked prefix carries the old walking direction past the cut.
+   renders and masked handoff on 6 of 11. The masked prefix carries the old walking direction past the cut. A
+   segment that opens on another angle than its predecessor ends on cuts at the join, and counts the same way. As
+   coverage reads it, a named opening angle after a predecessor that names none is another angle.
 2. **The window continues the same shot and masked handoff qualifies: masked handoff.** It kept the smallest joins
    and the most faithful context in the continuity campaign.
 3. **Otherwise: paired latents.**
@@ -70,12 +72,19 @@ method, the context, the audio window, whether it was chosen and what the rule r
   the join. Drag its leading edge, or use the arrow keys and Home/End, to pick a length; Escape cancels a drag.
   Right-click the band, the segment or the Segment menu for **Handoff method** and **Context length**.
 - **Properties.** The method, the context, the audio window and the rule's reason, with a method select and a
-  numeric context field. Clearing the field, or entering the default, follows the default again.
+  numeric context field. Clearing the field, or entering the default, follows the default again: Python stores the
+  default length as null for every caller, so a choice the join already makes writes no receipt.
 - **Gaia.** `edit_segment` (set) and `draft_storyline` accept `continuation_method` and `context_frames` when
   the request names the handoff. Otherwise Gaia leaves the rule in charge; its world view names the
-  recommendation for each continuing segment.
+  recommendation for each continuing segment. A drafted segment's choice is judged once its cuts and pins exist,
+  in the same transaction.
 - **API.** `PATCH /api/direction/segments/{id}/continuation` with `expected_revision`, `method` and/or
-  `context_frames`. The edit is revision-checked, and Undo and Redo go through its receipt.
+  `context_frames`. The edit is revision-checked, and Undo and Redo go through its receipt. A choice the join
+  already makes is refused (422), since it would change nothing.
+
+[application/continuation.py](../backend/src/gaiavfx/application/continuation.py) is the Join: it finds the
+predecessor and the take it hands over, gathers the facts the rule reads, stores and judges a choice, and resolves
+the handoff the plan, Properties, Gaia and the run evidence report.
 
 ## Measured
 

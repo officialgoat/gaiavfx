@@ -92,7 +92,7 @@ class StoryBeat(StrictModel):
     delivered_frames: int | None = Field(default=None, gt=0, strict=True)
     continues: bool
     # docs/CONTINUATION.md: omitted follows the rule (masked uncut, paired across cuts) and the default context.
-    continuation_method: Literal["paired", "masked"] | None = None
+    continuation_method: Literal[handoff.METHODS] | None = None
     context_frames: int | None = Field(default=None, gt=0, strict=True)
     style: str | None = Field(default=None, max_length=8000)
     phases: list[PhaseDraft] = Field(min_length=1, max_length=4)
@@ -279,6 +279,7 @@ class DraftStoryline(TransactionTool):
                         row = direction.read_segment(session, row["id"])
                         source, previous_frame = target, cut.frame
                 predecessor = source["id"] if source else predecessor if beat.continues else None
+                handoff.judge(session, row["id"])  # with its cuts and pins, inside this transaction
                 require_assemblable(session, row["id"], draft=True)
                 require_segment_continuity(
                     session, row["id"], context.latest_user_message, check_timing=True

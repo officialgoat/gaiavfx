@@ -1,17 +1,18 @@
 """A continuation's handoff for the segment tools (docs/CONTINUATION.md).
 
 The handoff follows the rule unless the user asks about it, so its fields are offered only then: the widest schemas
-stay inside their budget. Choices go through the same revision-checked command as the UI, so one the segment cannot
-render is refused with Python's reason; an explicit null returns a field to the rule.
+stay inside their budget. Choices go through the Join, as the UI's do, so one the segment cannot render is refused
+with Python's reason; an explicit null returns a field to the rule.
 """
 
 import re
 
-from gaiavfx.application.continuation import (
-    context_lengths,
-    require_new_choice,
-    set_continuation,
-)
+from gaiavfx.application.continuation import METHODS, grid, judge, set_continuation, stored
+
+__all__ = [
+    "METHODS",
+    "judge",
+]  # the segment tools read the method names and judge an added handoff here
 from gaiavfx.application.harness.tools.common import direction_receipt
 from gaiavfx.application.harness.world import direction
 from gaiavfx.shared.errors import ApplicationError
@@ -36,22 +37,15 @@ def offered(context):
 def schema():
     """Compact enums for the handoff fields; the grid names the lengths."""
     return {
-        "continuation_method": {"enum": ["paired", "masked", None]},
-        "context_frames": {"enum": [*context_lengths(), None]},
+        "continuation_method": {"enum": [*METHODS, None]},
+        "context_frames": {"enum": [*grid().context_lengths(), None]},
     }
 
 
 def added(value):
-    """A new segment's handoff fields, refused now when they cannot apply."""
-    require_new_choice(
-        continues=value.continues,
-        method=value.continuation_method,
-        context_frames=value.context_frames,
-    )
-    return {
-        "continuation_method": value.continuation_method,
-        "context_frames": value.context_frames,
-    }
+    """A new segment's handoff fields as Direction stores them; the Join judges them once its cuts exist."""
+    choice = stored({"method": value.continuation_method, "context_frames": value.context_frames})
+    return {"continuation_method": choice["method"], "context_frames": choice["context_frames"]}
 
 
 def update(session, value, segment, changes):
@@ -67,7 +61,11 @@ def update(session, value, segment, changes):
             session, value.segment_id, value.expected_revision, **changes
         )
         rows.append(row)
-    if choice:
-        row = set_continuation(session, value.segment_id, row["revision"], **choice)
+    if choice and (
+        chosen := set_continuation(session, value.segment_id, row["revision"], **choice)
+    ):
+        row = chosen
         rows.append(row)
+    if not rows:
+        raise ApplicationError("The segment already has that handoff; nothing changed.", 422)
     return row, [direction_receipt(r) for r in rows]

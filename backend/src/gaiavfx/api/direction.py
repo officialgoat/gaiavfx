@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.application import set_scenes, set_seed, sets
 from gaiavfx.application.authored import segment_to_dict
-from gaiavfx.application.continuation import set_continuation
+from gaiavfx.application.continuation import METHODS, set_continuation
 from gaiavfx.application.direction_plans import (
     DEFAULT_INTEGRATION,
     plan_for_cut,
@@ -288,7 +288,7 @@ class SegmentPatch(DirectionRevisionInput):
 class SegmentContinuationPatch(DirectionRevisionInput):
     """A continuing segment's handoff (docs/CONTINUATION.md). Only the fields sent change; null follows the rule."""
 
-    method: Literal["paired", "masked"] | None = None
+    method: Literal[METHODS] | None = None
     context_frames: int | None = Field(default=None, strict=True)
 
 
@@ -625,7 +625,7 @@ class ContinuationPlanDTO(BaseModel):
 
     method: str  # what the segment renders with
     explicit_method: str | None  # the choice made; null follows the rule
-    recommended: Literal["paired", "masked"]
+    recommended: Literal[METHODS]
     reason: str  # why the rule recommends it, in words
     masked_problem: str | None  # why masked handoff does not qualify here
     context_frames: int
@@ -774,15 +774,15 @@ def direction_router(workspace, authenticate):
     )
     def set_segment_continuation(segment_id: str, body: SegmentContinuationPatch):
         with workspace.db.transaction() as session:
-            return segment_dto(
+            row = set_continuation(
                 session,
-                set_continuation(
-                    session,
-                    segment_id,
-                    body.expected_revision,
-                    **body.model_dump(exclude_unset=True, exclude={"expected_revision"}),
-                ),
+                segment_id,
+                body.expected_revision,
+                **body.model_dump(exclude_unset=True, exclude={"expected_revision"}),
             )
+            if row is None:
+                raise ApplicationError("The segment already hands over that way.", 422)
+            return segment_dto(session, row)
 
     @router.get("/segments/{segment_id}/use-set", response_model=UseSetPreviewDTO)
     def use_set_preview(
