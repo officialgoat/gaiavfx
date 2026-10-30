@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-from test_direction_store import store as direction_store
 from test_production_api import AUTH, setup
 
 from gaiavfx.application.selected_takes import selection_state
@@ -13,8 +12,6 @@ from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
-
-store = direction_store
 
 
 def seed(service, session):
