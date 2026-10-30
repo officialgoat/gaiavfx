@@ -7,31 +7,24 @@ from pydantic import Field, model_validator
 from gaiavfx.application.harness.actions import inlined
 from gaiavfx.application.harness.knowledge import load
 from gaiavfx.application.harness.tools import handoff
-from gaiavfx.application.harness.tools.authoring import (
-    MOTION,
-    require_assemblable,
-    require_different_angles,
-    require_motion_direction,
-    require_shot,
-)
 from gaiavfx.application.harness.tools.common import (
     TransactionTool,
     candidates,
-    direction_receipt,
     edited,
     granted,
     revision,
     scoped,
 )
 from gaiavfx.application.harness.tools.cut_angles import angle, barrier_hint
-from gaiavfx.application.harness.tools.cut_continuity import (
-    require_cut_timing,
-    require_lateral_shot,
-    require_predecessor,
-    require_segment_continuity,
-)
-from gaiavfx.application.harness.tools.edits import PhaseDraft, PlaceText
 from gaiavfx.application.harness.tools.request_rules import count_refusal, missing_cut_refusal
+from gaiavfx.application.harness.tools.segment_authoring import (
+    CASTING,
+    CutDraft,
+    PhaseDraft,
+    PlaceText,
+    add_segment,
+    offer,
+)
 from gaiavfx.application.harness.world import direction, fields
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
@@ -120,7 +113,7 @@ class StoryBeat(StrictModel):
 
 class DraftStoryline(TransactionTool):
     name = "draft_storyline"
-    description = load()["prompts"]["draft"]["description"]
+    description = load()["prompts"]["draft"]["description"] + " " + CASTING
 
     class Input(StrictModel):
         expected_revision: int = Field(ge=1, strict=True)
@@ -135,22 +128,8 @@ class DraftStoryline(TransactionTool):
         for alias in ("place_id", "from_angle"):
             beat.pop(alias)
         beat["cuts"]["items"]["properties"]["from_angle"]["minLength"] = 1
-        if handoff.asked(context):
-            beat |= handoff.schema()
-        else:
-            for name in ("continuation_method", "context_frames"):
-                beat.pop(name)
-        phase = beat["phases"]["items"]
-        phase.setdefault("required", []).append("screen_direction")
-        if MOTION.search(context.latest_user_message):
-            phase["properties"]["screen_direction"] = {"type": "string", "minLength": 1}
-        # A beat may have no cast. With a cast, each beat still names its own (possibly none);
-        # with no cast to name, subject_ids is left out (never an empty enum).
-        if context.state.cast:
-            beat["subject_ids"]["items"] = {"enum": [s["id"] for s in context.state.cast]}
-            beats["required"].append("subject_ids")
-        else:
-            beat.pop("subject_ids")
+        # With a cast, each beat still names its own (possibly none).
+        offer(beat, beats["required"], context, handoff_fields=True)
         return schema
 
     def execute(self, session, context, value):
@@ -172,51 +151,7 @@ class DraftStoryline(TransactionTool):
             try:
                 if index == 0:
                     revision(current, value.expected_revision, "Movie", self.name)
-                require_predecessor(beat.continues, len(current["segments"]), current["segments"])
-                for subject_id in beat.subject_ids:
-                    scoped(context.state.cast, subject_id, "Subject")
-                if beat.phases[0].start_frame != 0:
-                    raise ApplicationError("The first phase must start at 0.", 422)
-                for phase in beat.phases:
-                    require_motion_direction(phase.model_dump())
-                phases = [
-                    (p.start_frame, p.model_dump(exclude={"start_frame"})) for p in beat.phases
-                ]
-                for cut in beat.cuts:
-                    require_cut_timing(
-                        {
-                            "continues": beat.continues,
-                            "delivered_frames": beat.delivered_frames
-                            or DEFAULTS["default_delivered_frames"],
-                        },
-                        cut.frame,
-                        [{"id": str(c.frame), "frame": c.frame} for c in beat.cuts],
-                    )
-                    require_shot(cut.shot)
-                    require_lateral_shot(
-                        {"description": cut.shot, "screen_direction": cut.screen_direction},
-                        cut.model_dump(),
-                        context.latest_user_message,
-                    )
-                    if not cut.screen_direction.strip():
-                        raise ApplicationError("Each cut needs shot and screen_direction.", 422)
-                    existing = next(
-                        (content for frame, content in phases if frame == cut.frame), {}
-                    )
-                    phases = [(frame, content) for frame, content in phases if frame != cut.frame]
-                    phases.append(
-                        (
-                            cut.frame,
-                            {
-                                "description": cut.shot,
-                                "screen_direction": cut.screen_direction,
-                                "sound": existing.get("sound", ""),
-                            },
-                        )
-                    )
-                phases.sort(key=lambda p: p[0])
-                source, place = None, None
-                resolved = {}
+                source, chain, cuts, hints, resolved = None, None, [], [], {}
                 if beat.cuts or beat.from_angle:
                     place = beat_place(context, beat, index)
                     inherited = (
@@ -230,60 +165,50 @@ class DraftStoryline(TransactionTool):
                         "from_angle",
                     )
                     resolved[source["id"]] = source
-                content = {"subjects": beat.subject_ids, "place": beat.place.model_dump()}
-                if beat.style is not None:
-                    content["style"] = beat.style
-                row = direction.add_segment(
-                    session,
-                    context.movie_id,
-                    current["revision"],
-                    content=content,
-                    delivered_frames=beat.delivered_frames or DEFAULTS["default_delivered_frames"],
-                    continues=beat.continues,
-                    phases=phases,
-                    **handoff.added(beat),
-                )
-                receipts.append(direction_receipt(row))
-                cut_ids = []
-                hints = []
-                if beat.cuts:
-                    previous_frame = 0
+                    chain = source
                     for cut in beat.cuts:
-                        requested = angle(place, cut.from_angle or source["id"], "from_angle")
-                        if requested["id"] != source["id"]:
+                        requested = angle(place, cut.from_angle or chain["id"], "from_angle")
+                        if requested["id"] != chain["id"]:
                             raise ApplicationError(
-                                f"Chained cut from_angle {requested['name']} ({requested['id']}) must equal the previous cut's to_angle {source['name']} ({source['id']}).",
+                                f"Chained cut from_angle {requested['name']} ({requested['id']}) must equal the previous cut's to_angle {chain['name']} ({chain['id']}).",
                                 422,
                             )
                         target = angle(place, cut.to_angle, "to_angle")
                         if hint := barrier_hint(direction.read_place(session, place["id"]), target):
                             hints.append(hint)
-                        require_different_angles(source["id"], target["id"])
                         resolved[target["id"]] = target
-                        if cut.frame <= previous_frame:
-                            raise ApplicationError("Cuts must be in increasing frame order.", 422)
-                        created = direction.create_cut(
-                            session,
-                            row["id"],
-                            row["revision"],
-                            frame=cut.frame,
-                            from_angle_id=source["id"],
-                            to_angle_id=target["id"],
-                            relation=cut.relation,
-                            crosses_barrier=cut.crosses_barrier,
-                            relation_source="authored",
-                            receives_predecessor=True,
+                        shot = {"description": cut.shot, "screen_direction": cut.screen_direction}
+                        cuts.append(
+                            CutDraft(
+                                cut.frame,
+                                chain["id"],
+                                target["id"],
+                                cut.relation,
+                                cut.crosses_barrier,
+                                shot,
+                            )
                         )
-                        receipts.append(direction_receipt(created))
-                        cut_ids.append(created["id"])
-                        row = direction.read_segment(session, row["id"])
-                        source, previous_frame = target, cut.frame
-                predecessor = source["id"] if source else predecessor if beat.continues else None
-                handoff.judge(session, row["id"])  # with its cuts and pins, inside this transaction
-                require_assemblable(session, row["id"], draft=True)
-                require_segment_continuity(
-                    session, row["id"], context.latest_user_message, check_timing=True
+                        chain = target
+                row, beat_receipts = add_segment(
+                    session,
+                    context,
+                    current["revision"],
+                    subject_ids=beat.subject_ids,
+                    place=beat.place.model_dump(),
+                    style=beat.style,
+                    delivered_frames=beat.delivered_frames or DEFAULTS["default_delivered_frames"],
+                    continues=beat.continues,
+                    phases=[
+                        (p.start_frame, p.model_dump(exclude={"start_frame"})) for p in beat.phases
+                    ],
+                    cuts=cuts,
+                    continuation_method=beat.continuation_method,
+                    context_frames=beat.context_frames,
+                    draft=True,
                 )
+                receipts += beat_receipts
+                # Only a recorded final cut or an explicit beat source establishes an angle.
+                predecessor = chain["id"] if chain else predecessor if beat.continues else None
                 segments.append(
                     {
                         "id": row["id"],
@@ -291,7 +216,9 @@ class DraftStoryline(TransactionTool):
                         "revision": row["revision"],
                         "title": beat.title,
                         "phase_ids": [p["id"] for p in row["phases"]],
-                        "cut_ids": cut_ids,
+                        "cut_ids": [
+                            r["record_id"] for r in beat_receipts if r["command"] == "create_cut"
+                        ],
                         **({"hints": list(dict.fromkeys(hints))} if hints else {}),
                         "angles": [
                             fields(

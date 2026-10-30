@@ -13,7 +13,6 @@ from gaiavfx.application.harness.actions import (
 )
 from gaiavfx.application.harness.tools import handoff
 from gaiavfx.application.harness.tools.authoring import (
-    MOTION,
     phase_direction_schema,
     require_assemblable,
     require_different_angles,
@@ -36,29 +35,19 @@ from gaiavfx.application.harness.tools.insertion import InsertionInput, resolve_
 from gaiavfx.application.harness.tools.places import (
     EditPlace,  # noqa: F401 - public tool import retained
 )
+from gaiavfx.application.harness.tools.segment_authoring import (
+    CASTING,
+    CutDraft,
+    PhaseDraft,
+    PhaseText,
+    PlaceText,
+    add_cut,
+    add_segment,
+    offer,
+)
 from gaiavfx.application.harness.world import direction
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
-
-
-class PhaseText(StrictModel):
-    description: str = Field(max_length=8000)
-    screen_direction: str = Field(
-        default="",
-        max_length=8000,
-        description="Motion: left to right; empty if stationary.",
-    )
-    sound: str = Field(default="", max_length=8000)
-
-
-class PhaseDraft(PhaseText):
-    start_frame: int = Field(ge=0)
-
-
-class PlaceText(StrictModel):
-    noun: str
-    description: str = Field(max_length=8000)
-    landmarks: str = Field(default="", max_length=8000)
 
 
 def branches(model, specs):
@@ -157,7 +146,6 @@ class EditCut(TransactionTool):
         if value.op == "create":
             require(value, "segment_id", "frame", "from_angle_id", "to_angle_id", "phase")
             segment = segment_in_scope(session, context, value.segment_id)
-            previous_segment = segment
             source_id, target_id = resolve_angles(context, value.from_angle_id, value.to_angle_id)
             existing = next((c for c in segment["cuts"] if c["frame"] == value.frame), None)
             if existing:
@@ -178,40 +166,15 @@ class EditCut(TransactionTool):
                 raise ApplicationError(
                     "A known relation requires crosses_barrier; " + CROSSES_BARRIER_GUIDANCE, 422
                 )
-            require_cut_timing(segment, value.frame, segment["cuts"])
-            receipts = []
-            if not any(p["start_frame"] == value.frame for p in segment["phases"]):
-                require_motion_direction(value.phase.model_dump())
-                phase = direction.add_phase(
-                    session,
-                    value.segment_id,
-                    value.expected_revision,
-                    start_frame=value.frame,
-                    content=value.phase.model_dump(),
-                )
-                receipts.append(direction_receipt(phase))
-                segment = direction.read_segment(session, value.segment_id)
-            result = direction.create_cut(
-                session,
-                value.segment_id,
-                segment["revision"],
-                frame=value.frame,
-                from_angle_id=source_id,
-                to_angle_id=target_id,
-                relation=value.relation,
-                crosses_barrier=value.crosses_barrier,
-                relation_source="authored" if value.relation else "unknown",
-                receives_predecessor=True,
+            cut = CutDraft(
+                value.frame,
+                source_id,
+                target_id,
+                value.relation,
+                value.crosses_barrier,
+                value.phase.model_dump(),
             )
-            receipts.append(direction_receipt(result))
-            require_assemblable(session, value.segment_id)
-            require_segment_continuity(
-                session,
-                value.segment_id,
-                context.latest_user_message,
-                check_timing=True,
-                previous_segment=previous_segment,
-            )
+            result, receipts = add_cut(session, context, segment, value.expected_revision, cut)
             response = edited(context, result, structural=True, receipts=receipts)
             response.payload.update(cut_result(session, result))
             return response
@@ -281,9 +244,7 @@ class EditCut(TransactionTool):
 class EditSegment(TransactionTool):
     name = "edit_segment"
     description = (
-        "Add/move/remove: movie revision. Set: segment revision. Retains receipts. "
-        "People who appear are cast: add them with edit_cast first and name them in subject_ids; "
-        "leave the cast empty only when nobody appears."
+        "Add/move/remove: movie revision. Set: segment revision. Retains receipts. " + CASTING
     )
 
     class Input(StrictModel):
@@ -305,68 +266,49 @@ class EditSegment(TransactionTool):
     def narrow(self, context):
         if not granted(context, "edit"):
             return None
-        # A segment may have no cast. With no cast to name, subject_ids is left out (never an empty enum).
-        cast = ["subject_ids"] if context.state.cast else []
-        required = ["expected_revision", *cast, "place", "delivered_frames", "continues", "phases"]
-        specs = {"add": (required, [*required, "style", "at"])}
+        required = ["expected_revision", "subject_ids", "place", "delivered_frames", "continues"]
+        specs = {"add": ([*required, "phases"], [*required, "phases", "style", "at"])}
         ids = [s["id"] for s in context.state.segments]
         if ids:
             common = ["segment_id", "expected_revision"]
             settable = [*common, "place", "style", "delivered_frames", "continues"]
             specs |= {
-                "set": (common, [*settable, *handoff.offered(context)]),
+                "set": (common, [*settable, "continuation_method", "context_frames"]),
                 "move": ([*common, "ordinal"], [*common, "ordinal"]),
                 "remove": (common, common),
             }
         schema = inlined(branches(self.Input, specs))
         for branch in schema.get("oneOf", [schema]):
-            if "context_frames" in branch["properties"]:
-                branch["properties"] |= handoff.schema()
-            if "phases" in branch["properties"]:
-                phase = branch["properties"]["phases"]["anyOf"][0]["items"]
-                phase.setdefault("required", []).append("screen_direction")
-                if MOTION.search(context.latest_user_message):
-                    phase["properties"]["screen_direction"] = {"type": "string", "minLength": 1}
-            if "subject_ids" in branch["properties"]:
-                branch["properties"]["subject_ids"] = {
-                    "type": "array",
-                    "maxItems": 24,
-                    "items": {"enum": [s["id"] for s in context.state.cast]},
-                }
+            set_op = branch["properties"]["op"]["const"] == "set"
+            offer(branch["properties"], branch["required"], context, handoff_fields=set_op)
         return pin_existing(schema, "segment_id", ids) if ids else schema
 
     def execute(self, session, context, value):
         receipts = None  # a set with a handoff has two
         if value.op == "add":
             require(value, "place", "delivered_frames", "continues", "phases")
-            subject_ids = value.subject_ids or []
-            for subject in subject_ids:
-                scoped(context.state.cast, subject, "Subject")
             revision(
                 direction.read_movie(session, context.movie_id),
                 value.expected_revision,
                 "Movie",
                 self.name,
             )
-            if value.phases[0].start_frame != 0:
-                raise ApplicationError("The first phase must start at 0.", 422)
-            content = {"subjects": subject_ids, "place": value.place.model_dump()}
-            if value.style is not None:
-                content["style"] = value.style
-            row = direction.add_segment(
+            row, receipts = add_segment(
                 session,
-                context.movie_id,
+                context,
                 value.expected_revision,
-                content=content,
+                subject_ids=value.subject_ids or [],
+                place=value.place.model_dump(),
+                style=value.style,
                 delivered_frames=value.delivered_frames,
                 continues=value.continues,
                 phases=[
                     (p.start_frame, p.model_dump(exclude={"start_frame"})) for p in value.phases
                 ],
                 at=value.at,
-                **handoff.added(value),
+                continuation_method=value.continuation_method,
+                context_frames=value.context_frames,
             )
-            handoff.judge(session, row["id"])
         else:
             segment = segment_in_scope(session, context, value.segment_id)
             if value.op == "set":
@@ -405,7 +347,7 @@ class EditSegment(TransactionTool):
                     row = direction.remove_segment(
                         session, value.segment_id, value.expected_revision
                     )
-        if value.op in {"add", "set"}:
+        if value.op == "set":
             require_assemblable(session, row["id"])
             require_segment_continuity(session, row["id"], context.latest_user_message)
         return edited(context, row, structural=value.op != "set", receipts=receipts)

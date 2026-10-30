@@ -42,9 +42,9 @@ def schema():
     }
 
 
-def added(value):
+def added(method, context_frames):
     """A new segment's handoff fields as Direction stores them; the Join judges them once its cuts exist."""
-    choice = stored({"method": value.continuation_method, "context_frames": value.context_frames})
+    choice = stored({"method": method, "context_frames": context_frames})
     return {"continuation_method": choice["method"], "context_frames": choice["context_frames"]}
 
 

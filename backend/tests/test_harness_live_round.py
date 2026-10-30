@@ -373,7 +373,10 @@ def test_l4_all_structure_writes_validate_assembly_before_receipts(kernel, monke
             frame=36,
             from_angle_id=angles[0]["id"],
             to_angle_id=angles[1]["id"],
-            phase={"description": "Arin walks", "screen_direction": "right to left"},
+            phase={
+                "description": "Arin walks past the railing",
+                "screen_direction": "right to left",
+            },
         )
     else:
         tool = EditSegment()

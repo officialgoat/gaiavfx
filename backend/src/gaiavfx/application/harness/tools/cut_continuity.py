@@ -7,15 +7,6 @@ from gaiavfx.modules.direction.insertion import screen_facing
 from gaiavfx.shared.errors import ApplicationError
 
 
-def require_predecessor(continues, ordinal, segments):
-    if continues and not any(s["ordinal"] == ordinal - 1 for s in segments):
-        raise ApplicationError(
-            "continues: true has no predecessor. Use continues: false for the opening beat; "
-            "a continuing beat needs the previous segment.",
-            422,
-        )
-
-
 def require_cut_timing(segment, frame, cuts=(), cut_id=None):
     # These are editorial guardrails for the agreed 24 fps workflow, not a compiler grid.
     end = min(

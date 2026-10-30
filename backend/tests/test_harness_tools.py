@@ -326,7 +326,7 @@ def test_cut_add_atomic_two_receipts_and_existing_phase(world):
         "to_angle_id": setup["angles"][2],
         "relation": "reverse",
         "crosses_barrier": True,
-        "phase": {"description": "Reverse."},
+        "phase": {"description": "Arin beyond the railing, the courtyard behind him."},
     }
     stale = execute_edit(work, setup, tool, **(values | {"expected_revision": 9}))
     assert not stale.ok and "Segment revision is 1" in stale.discrepancy

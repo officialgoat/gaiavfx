@@ -14,10 +14,10 @@ from gaiavfx.application.harness.actions import (
     wire_compact,
 )
 from gaiavfx.application.harness.tools.cut_angles import barrier_hint
-from gaiavfx.application.harness.tools.cut_continuity import require_predecessor
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.edits import EditCut
 from gaiavfx.application.harness.world import direction
+from gaiavfx.modules.direction.service import predecessor_ordinal
 from gaiavfx.shared.errors import ApplicationError
 
 kernel = harness_support.kernel
@@ -189,11 +189,10 @@ def test_o13_first_beat_cannot_continue_without_predecessor(kernel):
         assert not direction.read_movie(session, kernel.movie["id"])["segments"]
 
 
-def test_o13_missing_previous_segment_is_not_replaced_by_an_earlier_one():
-    with pytest.raises(ApplicationError, match="no predecessor"):
-        require_predecessor(True, 2, [{"ordinal": 0}])
-    require_predecessor(True, 2, [{"ordinal": 1}])
-    require_predecessor(False, 2, [{"ordinal": 0}])
+def test_o13_a_continuing_segment_takes_over_from_the_one_just_before_it():
+    assert predecessor_ordinal({"continues": True, "ordinal": 2}) == 1
+    assert predecessor_ordinal({"continues": True, "ordinal": 0}) is None
+    assert predecessor_ordinal({"continues": False, "ordinal": 2}) is None
 
 
 def test_o13_corrected_record_and_append_with_predecessor_pass(kernel):
