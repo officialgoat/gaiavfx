@@ -453,15 +453,7 @@ export function makeCommands(
   );
   add("shortcuts", "Keyboard shortcuts…", () => a.dialog("shortcuts"));
   add("about", "About GAIAVFX", () => a.dialog("about"));
-  const later = "Coming in this build with Prepare and Review.";
-  disabled("prepare", "Prepare references…", later, "Mod+Shift+P");
-  disabled(
-    "render",
-    "Render segment…",
-    "Render planning and budget confirmation arrive with Prepare.",
-    "Mod+Enter",
-  );
-  disabled("review", "Open blind review…", later, "Mod+Shift+R");
+  // Prepare, Render, Review and Inspect bindings come from reviewCommands, which every workspace composes.
   disabled(
     "copy",
     "Copy",
@@ -484,11 +476,6 @@ export function makeCommands(
     "pin",
     "Add pin at playhead",
     "Prepare and review a pin before attaching it to a cut.",
-  );
-  disabled(
-    "bindings",
-    "Inspect bindings…",
-    "Reference binding inspection arrives with Prepare.",
   );
   disabled(
     "reference",

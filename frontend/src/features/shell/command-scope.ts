@@ -1,4 +1,4 @@
-import type { Command } from "./commands";
+import type { Command, MenuEntry } from "./commands";
 
 // ADR 0017 §11: commands are scoped to the open document. In a film, movie commands stay in their menus as disabled
 // stubs that say why, with no shortcut, so nothing can act on the movie loaded behind the film; recast commands exist
@@ -156,6 +156,17 @@ export function applyScope(
         scoped.set(id, { ...command, shortcut: undefined });
   }
   return scoped;
+}
+
+/** Menu ids no scope covers: every document's menus name only commands some document registers. */
+export function unscopedEntries(entries: MenuEntry[]): string[] {
+  return entries.flatMap((entry) =>
+    typeof entry === "string"
+      ? entry === "-" || scopeOf(entry)
+        ? []
+        : [entry]
+      : unscopedEntries(entry.children),
+  );
 }
 
 /** Ids no scope covers, and shortcuts two commands share: both are bugs the browser suite reports. */
