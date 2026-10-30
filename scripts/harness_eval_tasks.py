@@ -409,10 +409,7 @@ class Task:
             from harness_eval_outcomes import evaluate
 
             return evaluate(self, collect(work, setup, harness, recorder))[1]
-        if (
-            self.id
-            in {"hard-cut-at-frame-36", "narrative-reverse-storyline"} | CAST_IDS
-        ):
+        if self.id in OUTCOME_IDS:
             from harness_eval_outcome_state import collect
             from harness_eval_outcomes import evaluate
 
@@ -1056,22 +1053,6 @@ def check(task, work, setup, harness, recorder):
             require(
                 harness.payload(row)["jobs_reserved"] == task.criteria["reserved"],
                 "AgentStore job reservation differs",
-            )
-        if expected := task.criteria.get("continuation"):
-            segment = direction.read_segment(session, setup["segment_id"])
-            require(
-                (segment["continuation_method"], segment["context_frames"])
-                == (expected["method"], expected["context_frames"]),
-                "Direction handoff differs from the request and the rule",
-            )
-            says = [
-                t["action"]["input"]["text"]
-                for t in active
-                if t["state"] == "accepted" and (t["action"] or {}).get("tool") == "say"
-            ]
-            require(
-                bool(says) and expected.get("reason", "") in says[-1],
-                "The reply does not give the refusal's reason",
             )
         if task.id == "declare-relation":
             require(
@@ -2077,4 +2058,11 @@ CAST_TASKS = (
     ),
 )
 CAST_IDS = {task.id for task in CAST_TASKS}
+# Tasks one rubric judges, scripted and live alike (harness_eval_outcomes.evaluate, its definitions beside its
+# checks); the rest keep their scripted `check`.
+OUTCOME_IDS = (
+    {"hard-cut-at-frame-36", "narrative-reverse-storyline"}
+    | CAST_IDS
+    | {task.id for task in CONTINUATION_TASKS}
+)
 TASKS += CAST_TASKS
