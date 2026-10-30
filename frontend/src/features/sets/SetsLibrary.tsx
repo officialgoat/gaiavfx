@@ -80,8 +80,9 @@ export function SetsLibrary({ onOpen }: { onOpen: (set: SetSummary) => void }) {
         </p>
       ) : !list.data?.length ? (
         <p className="set-empty">
-          No stages yet. Import a stage bundle, or ask the agent to build a
-          place once stage building arrives.
+          No stages yet. Select a video take for a segment, then right-click the
+          segment and choose “Build a stage from this take…”. You can also
+          import a stage bundle.
         </p>
       ) : (
         <ul className="sets-grid">

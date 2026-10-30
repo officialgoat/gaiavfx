@@ -158,6 +158,48 @@ test.describe("Prepare and Review through real APIs and fake Comfy", () => {
     await expect(
       flow.getByRole("region", { name: "Sheet", exact: true }),
     ).toContainText("Assembled");
+    // A filmmaker can omit padding without changing the approved views or the
+    // earlier immutable sheet. This is real assembly, not simulated inference.
+    const original = await response.json();
+    await flow.getByRole("button", { name: /^Assemble sheet/ }).click();
+    const includeEmpty = assembly.getByLabel("Include empty panels");
+    await expect(includeEmpty).toBeChecked();
+    for (let i = 0; i < 3; i++) {
+      await includeEmpty.uncheck();
+      await expect(
+        assembly.getByText("Blank panel", { exact: true }),
+      ).toHaveCount(0);
+      await includeEmpty.check();
+      await expect(
+        assembly.getByText("Blank panel", { exact: true }),
+      ).toBeVisible();
+    }
+    await includeEmpty.uncheck();
+    const unpaddedStarted = page.waitForResponse(
+      (r) =>
+        r.url().endsWith("/api/production/sheets") &&
+        r.request().method() === "POST",
+    );
+    await assembly
+      .getByRole("button", { name: "Assemble sheet", exact: true })
+      .click();
+    const unpaddedResponse = await unpaddedStarted;
+    expect(unpaddedResponse.ok(), await unpaddedResponse.text()).toBeTruthy();
+    const unpadded = await unpaddedResponse.json();
+    expect(unpaddedResponse.request().postDataJSON().tiles).toEqual(
+      layout.tiles.filter((tile) => typeof tile === "string"),
+    );
+    expect(unpadded.id).not.toBe(original.id);
+    await data.finished(unpadded.id);
+    expect(
+      (await data.get<any>(`/api/production/operations/${original.id}`)).request
+        .tiles,
+    ).toEqual(original.request.tiles);
+    await page.reload();
+    expect(
+      (await data.get<any>(`/api/production/operations/${unpadded.id}`)).request
+        .tiles,
+    ).toEqual(unpadded.request.tiles);
   });
 
   test("blind tie ranking, synchronized playback, reveal, selection and stale take", async ({
@@ -469,7 +511,7 @@ test.describe("Prepare and Review through real APIs and fake Comfy", () => {
     expect(statuses).toEqual([201, 200]);
     expect(requests[0].request_key).toBe(requests[1].request_key);
     await expect(page.locator(".review-notice")).toContainText(
-      "Unchanged retries reuse this operation",
+      "Follow progress in Jobs",
     );
   });
 });

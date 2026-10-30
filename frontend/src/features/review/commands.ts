@@ -14,7 +14,27 @@ export function reviewCommands(
   operations: Operation[],
   workspace: string,
   go: (name: string) => void,
+  openSet: (id: string) => void,
 ): Command[] {
+  const builtSet = (operation: Operation) => {
+    if (typeof operation.request.set_id === "string")
+      return operation.request.set_id;
+    // A seed has no stage until it finishes; use this operation's immutable receipt, not the segment's newest seed.
+    for (const receipt of [...(operation.review ?? [])].reverse()) {
+      if (
+        receipt &&
+        typeof receipt === "object" &&
+        "decided_by" in receipt &&
+        receipt.decided_by === "set_seed" &&
+        "stage" in receipt &&
+        receipt.stage === "done" &&
+        "set_id" in receipt &&
+        typeof receipt.set_id === "string"
+      )
+        return receipt.set_id;
+    }
+    return null;
+  };
   const cut = () => d.getCut() ?? d.getSegment()?.cuts[0];
   const shot = () => preparationShot(d);
   const builtAsSet = () => !!shotPlace(d, shot()).place?.set_id;
@@ -243,18 +263,27 @@ export function reviewCommands(
     {
       id: "preparation.review",
       label: "Open review",
-      reason: (t) =>
-        busy() ??
-        (t.kind === "preparation" &&
-        operations.some(
-          (o) => o.id === t.id && ["succeeded", "partial"].includes(o.state),
-        )
-          ? undefined
-          : "Wait for the operation to finish."),
+      reason: (t) => {
+        const operation =
+          t.kind === "preparation"
+            ? operations.find((o) => o.id === t.id)
+            : undefined;
+        return (
+          busy() ??
+          (!operation || !["succeeded", "partial"].includes(operation.state)
+            ? "Wait for the operation to finish."
+            : operation.kind === "set_build" && !builtSet(operation)
+              ? "This build did not produce a stage to open."
+              : undefined)
+        );
+      },
       run: (t) => {
         if (t.kind === "preparation") {
           const o = operations.find((o) => o.id === t.id);
-          if (o) void r.openOperation(o);
+          if (o?.kind === "set_build") {
+            const id = builtSet(o);
+            if (id) openSet(id);
+          } else if (o) void r.openOperation(o);
         }
       },
     },

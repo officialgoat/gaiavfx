@@ -95,8 +95,9 @@ export function ProducerSheet({
           {r.busy ? "Starting…" : title}
         </button>
         <p className="muted">
-          A retry of unchanged settings reuses the existing operation. Results
-          wait for your review.
+          If submission fails, retrying unchanged settings reuses the same
+          operation. Submitting again after a job is accepted starts a new job.
+          Results wait for your review.
         </p>
       </form>
     </Sheet>

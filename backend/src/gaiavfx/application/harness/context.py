@@ -14,7 +14,10 @@ from gaiavfx.shared.errors import ApplicationError
 # The system prompt, whiteboard and current view bound genuinely bounded content, so they
 # stay fixed caps. History does not: it is whatever the window has left.
 SYSTEM_CEILING = 700
-HEAD_CEILING = 1800
+# A valid zero-cut movie with existing takes and a stage needs 1808 estimated
+# tokens for its narrowed catalog and instructions, even with an empty brief.
+# Keep a bounded 2k head; whole-window admission below still reserves history.
+HEAD_CEILING = 2048
 SCHEMA_CEILING = 4500
 BOARD_CEILING = 1500
 VIEW_CEILING = 2000

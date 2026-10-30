@@ -1,4 +1,5 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { direction } from "../../project/client";
 import { production } from "../../review/client";
 import { ProducerSheet } from "./ProducerSheet";
@@ -24,7 +25,14 @@ export function SheetProducer(props: ShotProducerProps) {
     queryKey: ["direction", "sheet-tiles", place.id],
     queryFn: () => production.sheetTiles(place.id),
   });
-  const tiles = sheetTiles.data?.tiles ?? [];
+  const [includeEmptyPanels, setIncludeEmptyPanels] = useState(true);
+  const suggestedTiles = sheetTiles.data?.tiles ?? [];
+  const hasEmptyPanels = suggestedTiles.some(
+    (tile) => typeof tile !== "string",
+  );
+  const tiles = includeEmptyPanels
+    ? suggestedTiles
+    : suggestedTiles.filter((tile) => typeof tile === "string");
   const views = tiles.flatMap((tile) =>
     typeof tile === "string" ? [evidence.find((e) => e.id === tile)] : [],
   );
@@ -46,9 +54,19 @@ export function SheetProducer(props: ShotProducerProps) {
     >
       <h3>New sheet layout</h3>
       <p>
-        All approved views, with blank panels where needed. Existing sheets keep
-        their arrangement.
+        All approved views. Omit empty panels to keep only the pictures in the
+        new sheet. Existing sheets stay unchanged.
       </p>
+      {hasEmptyPanels && (
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={includeEmptyPanels}
+            onChange={(event) => setIncludeEmptyPanels(event.target.checked)}
+          />
+          Include empty panels
+        </label>
+      )}
       {sheetTiles.isPending && <p role="status">Loading approved views…</p>}
       {sheetTiles.isError && (
         <p role="alert">

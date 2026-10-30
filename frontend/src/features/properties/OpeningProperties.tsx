@@ -38,7 +38,16 @@ export function OpeningProperties({
     event.preventDefault();
     d.clearError();
     const form = new FormData(event.currentTarget);
-    const technique = String(form.get("technique")) || null;
+    const rawTechnique = form.get("technique");
+    const technique =
+      typeof rawTechnique === "string" && rawTechnique ? rawTechnique : null;
+    if (
+      angle === (segment.opening_angle_id ?? "") &&
+      technique === segment.opening_technique
+    ) {
+      void d.perform(async () => {}, "First shot unchanged");
+      return;
+    }
     void d.perform(
       () =>
         direction.updateSegment(segment.id, {

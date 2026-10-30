@@ -602,9 +602,16 @@ def test_interrupted_stream_keeps_all_received_chunks(telemetry, tmp_path):
     assert attrs["langfuse.observation.level"]["stringValue"] == "ERROR"
 
 
-@pytest.mark.parametrize("answer", ['{"answer":"exact whitespace"}', '{"broken":'])
+@pytest.mark.parametrize(
+    ("answer", "finish_reason", "error_text"),
+    [
+        ('{"answer":"exact whitespace"}', "stop", None),
+        ('{"broken":', "stop", "invalid JSON"),
+        ('{"unfinished":', "length", "earlier completed actions remain"),
+    ],
+)
 def test_local_qwen_response_is_captured_before_json_validation(
-    telemetry, tmp_path, monkeypatch, answer
+    telemetry, tmp_path, monkeypatch, answer, finish_reason, error_text
 ):
     from unittest.mock import Mock
 
@@ -616,7 +623,7 @@ def test_local_qwen_response_is_captured_before_json_validation(
     response = {
         "choices": [
             {
-                "finish_reason": "stop",
+                "finish_reason": finish_reason,
                 "message": {"content": answer, "reasoning_content": "exposed thought"},
             }
         ],
@@ -649,10 +656,12 @@ def test_local_qwen_response_is_captured_before_json_validation(
         "assistant_projector": "fixture.gguf",
     }
     with telemetry.observe("local", root=True):
-        if answer.endswith(":"):
-            # Malformed JSON becomes the gateway's retryable error (the harness retries once).
-            with pytest.raises(ApplicationError, match="invalid JSON"):
+        if error_text:
+            # A failed response is not an undo of earlier successful tool calls.
+            with pytest.raises(ApplicationError, match=error_text) as error:
                 model.run(config, [], threading.Event(), tmp_path / "local.log", keep_alive=True)
+            if finish_reason == "length":
+                assert "recipe is unchanged" not in str(error.value)
         else:
             assert (
                 model.run(config, [], threading.Event(), tmp_path / "local.log", keep_alive=True)[

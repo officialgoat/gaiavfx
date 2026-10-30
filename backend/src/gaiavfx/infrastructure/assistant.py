@@ -358,7 +358,9 @@ class LocalAssistant:
                     choice = response_data["choices"][0]
                     if choice.get("finish_reason") == "length":
                         raise ApplicationError(
-                            "The assistant exhausted its output allowance before finishing. Increase the allowance or choose a shorter task; your recipe is unchanged."
+                            "The assistant exhausted its output allowance before finishing. "
+                            "This response was not applied; earlier completed actions remain. "
+                            "Increase the allowance or choose a shorter task."
                         )
                     raw = choice["message"].get("content") or ""
                     reasoning = choice["message"].get("reasoning_content") or ""

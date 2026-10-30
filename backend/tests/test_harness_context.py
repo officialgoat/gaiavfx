@@ -17,7 +17,11 @@ from gaiavfx.application.harness.context import (
     assemble,
     estimate,
 )
-from gaiavfx.application.harness.knowledge import cinematography_head, unsupported_head
+from gaiavfx.application.harness.knowledge import (
+    cinematography_head,
+    knowledge_head,
+    unsupported_head,
+)
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.prompt import SYSTEM, examples, system_prompt
 from gaiavfx.application.harness.scope import state_label
@@ -33,6 +37,63 @@ from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
+
+
+def test_authoring_with_existing_stage_and_takes_fits_context(world):
+    work, setup = world
+    harness = Harness(work.db, AgentStore(), None, work.settings)
+    row = harness.open(setup["movie_id"])
+    doc = AgentSession.model_validate(row["document"])
+    doc.plan_mode = False
+    base = harness.context(row, doc, [])
+    state = replace(
+        base.state,
+        segments=[{**segment, "cuts": []} for segment in base.state.segments],
+        plans={},
+        sets=[
+            {"id": "stage", "name": "Bridge", "version": "v2", "accepted": False, "open_issues": 0}
+        ],
+        operations=[
+            {
+                "id": "take",
+                "kind": "render",
+                "state": "succeeded",
+                "candidate_count": 1,
+                "review_set_id": "review",
+                "review_pending": False,
+                "ranked": True,
+                "segment_id": base.state.segments[0]["id"],
+            }
+        ],
+    )
+    ctx = replace(
+        base,
+        autonomy="off",
+        state=state,
+        latest_user_message="Author the next continuing segment. Do not replace or duplicate the cast.",
+    )
+    applicable = applicable_tools(ctx)
+    names = {tool.name for tool, _ in applicable}
+    assert {"edit_segment", "read_candidates", "read_set", "save_set_view", "link_set"} <= names
+    catalog = "\n".join(f"{tool.name}: {tool.describe(ctx)}" for tool, _ in applicable)
+    arguments = {
+        "system": system_prompt(ctx, applicable),
+        "brief": "",
+        "catalog": catalog,
+        "schema": action_schema(applicable),
+        "board": doc.board,
+        "view": render_view(state, "off", 0, 6, document=doc),
+        "messages": [{"role": "user", "content": ctx.latest_user_message}],
+        "context_size": 32768,
+        "output": 2400,
+        "knowledge": knowledge_head(ctx),
+    }
+    assembled = assemble(**arguments)
+    assert catalog in assembled.messages[0]["content"]
+    assert assembled.report["total_reserved"] <= 32768
+    # Raising a structural cap must not bypass the actual model-window admission.
+    with pytest.raises(ApplicationError, match="context cannot hold"):
+        assemble(**(arguments | {"context_size": 4096}))
 
 
 @pytest.mark.parametrize("message", ["", "Arin walks left to right; prepare the reverse cut."])

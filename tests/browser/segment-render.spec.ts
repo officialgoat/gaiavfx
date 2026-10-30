@@ -26,13 +26,80 @@ test("a zero-cut segment reviews and previews only its own render", () => {
     request: { segment_id: id },
     candidates: [{ id, asset_id: id, kind: "video" }],
   })) as unknown as S["OperationDTO"][];
-  reviewCommands(d, r, operations, "prepare", () => {})
+  reviewCommands(
+    d,
+    r,
+    operations,
+    "prepare",
+    () => {},
+    () => {},
+  )
     .find((c) => c.id === "review")!
     .run({ kind: "segment", id: "zero", segmentId: "zero" });
   expect(opened).toBe("zero");
   expect(
     directPreviews(operations, [], "zero").map((c) => c.candidate_id),
   ).toEqual(["zero"]);
+});
+
+test("stage jobs open their own built stage instead of a candidate review", () => {
+  const opened: string[] = [];
+  let candidateReviews = 0;
+  const d = {} as DirectController;
+  const r = {
+    openOperation: () => candidateReviews++,
+  } as unknown as ReviewController;
+  const operations = [
+    {
+      id: "seed",
+      kind: "set_build",
+      state: "succeeded",
+      request: { mode: "seed" },
+      review: [
+        { decided_by: "set_seed", stage: "done", set_id: "original-stage" },
+      ],
+    },
+    {
+      id: "rebuild",
+      kind: "set_build",
+      state: "succeeded",
+      request: { set_id: "rebuilt-stage" },
+    },
+    {
+      id: "refused",
+      kind: "set_build",
+      state: "partial",
+      request: { mode: "seed" },
+      review: [{ decided_by: "set_seed", stage: "refused" }],
+    },
+    {
+      id: "pending",
+      kind: "set_build",
+      state: "running",
+      request: { set_id: "pending-stage" },
+    },
+  ] as unknown as S["OperationDTO"][];
+  const command = reviewCommands(
+    d,
+    r,
+    operations,
+    "direct",
+    () => {},
+    (id) => opened.push(id),
+  ).find((c) => c.id === "preparation.review")!;
+  for (const id of ["seed", "rebuild"]) {
+    const target = { kind: "preparation" as const, id };
+    expect(command.reason?.(target)).toBeUndefined();
+    command.run(target);
+  }
+  expect(opened).toEqual(["original-stage", "rebuilt-stage"]);
+  expect(candidateReviews).toBe(0);
+  expect(command.reason?.({ kind: "preparation", id: "refused" })).toContain(
+    "did not produce",
+  );
+  expect(command.reason?.({ kind: "preparation", id: "pending" })).toContain(
+    "Wait",
+  );
 });
 
 // Usability B19 (T8-F2): render requirements and the Render menu name a cut as the timeline does, never by its id.

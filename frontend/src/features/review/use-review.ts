@@ -270,13 +270,13 @@ export function useReview(
   async function start(kind: Producer, body: ProducerBody) {
     const operation = await perform(
       () => production.start(kind, body),
-      "Operation ready in Jobs; retries reuse the same request",
+      "Operation ready in Jobs",
     );
     if (operation) {
       setLastOperation(operation.id);
       setProducer(null);
       setNotice(
-        `Operation ${operation.id.slice(0, 8)} · ${operation.state.replaceAll("_", " ")}. Unchanged retries reuse this operation.`,
+        `Operation ${operation.id.slice(0, 8)} · ${operation.state.replaceAll("_", " ")}. Follow progress in Jobs.`,
       );
     }
     return !!operation;

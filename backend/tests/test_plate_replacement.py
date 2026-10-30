@@ -18,7 +18,56 @@ from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
+kernel = harness_support.kernel
 direction = DirectionService(sheet_reader=sheet_reference)
+
+
+def test_zero_cut_opening_plate_replacement_has_movie_receipt_and_undo(kernel):
+    with kernel.db.transaction() as session:
+        movie = direction.create_movie(session, "Continuous bridge flight")
+        place = direction.create_place(session, "Bridge")
+        angle = direction.add_angle(session, place["id"], "River approach")
+        segment = direction.add_segment(
+            session,
+            movie["id"],
+            movie["revision"],
+            content={
+                "subjects": [],
+                "place": {
+                    "noun": "river",
+                    "description": "Bridge over the river.",
+                    "landmarks": "",
+                },
+            },
+            delivered_frames=120,
+            continues=False,
+        )
+        direction.update_segment(
+            session, segment["id"], segment["revision"], opening_angle_id=angle["id"]
+        )
+        old = direction.set_plate(session, place["id"], asset_id="old", angle_id=angle["id"])
+        assert direction.cuts(session, segment["id"]) == []
+        unrelated_receipts = direction.receipts(session, kernel.movie["id"])
+
+        changed = direction.approve_plate_replacement(
+            session,
+            place["id"],
+            old["revision"],
+            asset_id="new",
+            angle_id=angle["id"],
+            approved_by="user",
+        )
+        receipt = direction.receipts(session, movie["id"])[0]
+        assert receipt["command"] == "replace_plate"
+        assert receipt["target_id"] == movie["id"]
+        assert receipt["before"]["plate"]["asset_id"] == "old"
+        assert changed["plate_asset_id"] == "new"
+        assert direction.receipts(session, kernel.movie["id"]) == unrelated_receipts
+        direction.undo(session, receipt["id"])
+        restored = direction.read_place(session, place["id"])
+        assert restored["plate_asset_id"] == "old"
+        assert restored["plate_angle_id"] == angle["id"]
+        assert direction.cuts(session, segment["id"]) == []
 
 
 def binding_map(service, session, cut):

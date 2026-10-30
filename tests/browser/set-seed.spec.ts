@@ -114,6 +114,11 @@ test("Build a set from this take says what it builds, then the References row an
   test.setTimeout(360_000);
   const data = await withSelectedTake(request);
   await openMovie(page, data.movie.title);
+  // Prime the Library before a stage exists; completion must refresh this mounted/cached list.
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("button", { name: "Stages", exact: true }).click();
+  await expect(page.getByText("Loading stages…", { exact: true })).toBeHidden();
+  await page.getByRole("button", { name: "Direct", exact: true }).click();
   const segment = page.locator(".segment-item").nth(1);
   await segment.click({ button: "right" });
   await page
@@ -147,6 +152,28 @@ test("Build a set from this take says what it builds, then the References row an
   await dialog.getByLabel("Name").fill("Courtyard from its take");
   await dialog.getByRole("button", { name: "Build stage" }).click();
   await expect(dialog).toBeHidden();
+
+  await page.getByRole("button", { name: "Library", exact: true }).click();
+  await page.getByRole("button", { name: "Stages", exact: true }).click();
+  await expect(
+    page.getByRole("button", { name: /Courtyard from its take/ }),
+  ).toBeVisible({ timeout: 240_000 });
+  // The Jobs sheet must close and route to the actual stage, including after reopening it.
+  for (let i = 0; i < 3; i++) {
+    await page.getByRole("button", { name: "Jobs", exact: true }).click();
+    const jobs = page.getByRole("dialog", { name: "Jobs", exact: true });
+    await jobs
+      .getByRole("button", { name: "Open stage", exact: true })
+      .first()
+      .click();
+    await expect(jobs).toBeHidden();
+    await expect(
+      page.getByRole("main", { name: "Stage Courtyard from its take" }),
+    ).toBeVisible();
+    await page.getByRole("main", { name: "Stage Courtyard from its take" })
+      .getByRole("button", { name: "Stages", exact: true }).click();
+  }
+  await page.getByRole("button", { name: "Direct", exact: true }).click();
 
   // The new set has a chip of its own; the place's chip keeps the first shot's own state.
   const chip = page.getByRole("button", {

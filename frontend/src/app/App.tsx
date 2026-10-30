@@ -135,6 +135,7 @@ export function App() {
       /* The set opens without storage too. */
     }
     setWorkspace("set");
+    setPanel(null);
   };
   const closeSet = () => {
     setWorkbench.close();
@@ -215,8 +216,10 @@ export function App() {
   const settledBefore = useRef<string | null>(null);
   useEffect(() => {
     if (settled === null) return;
-    if (settledBefore.current !== null && settledBefore.current !== settled)
+    if (settledBefore.current !== null && settledBefore.current !== settled) {
       void queryClient.invalidateQueries({ queryKey: ["direction"] });
+      void queryClient.invalidateQueries({ queryKey: ["sets"] });
+    }
     settledBefore.current = settled;
   }, [settled, queryClient]);
   const create = useMutation({
@@ -311,6 +314,7 @@ export function App() {
     operations.data ?? [],
     workspace,
     openProductionWorkspace,
+    openSet,
   ))
     allCommands.set(command.id, command);
   for (const command of exportCommands(movieExport, () =>

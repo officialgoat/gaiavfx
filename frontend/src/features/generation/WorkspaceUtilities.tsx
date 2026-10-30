@@ -466,7 +466,9 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
               <CommandButton
                 id="preparation.review"
                 target={{ kind: "preparation", id: operation.id }}
-              />
+              >
+                {operation.kind === "set_build" ? "Open stage" : "Open review"}
+              </CommandButton>
             )}
           </article>
         );

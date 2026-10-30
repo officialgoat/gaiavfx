@@ -5,7 +5,7 @@ from __future__ import annotations
 from copy import deepcopy
 from datetime import datetime, timedelta
 
-from sqlalchemy import null, select, update
+from sqlalchemy import null, or_, select, update
 from sqlalchemy.orm import Session
 
 from gaiavfx.infrastructure.database import new_id, timestamp
@@ -1549,14 +1549,22 @@ class DirectionService:
             raise ApplicationError("Approve an initial plate before replacing it.", 409)
         movie_id = session.scalar(
             select(SegmentRecord.movie_id)
-            .join(CutRecord, CutRecord.segment_id == SegmentRecord.id)
-            .join(AngleRecord, AngleRecord.id == CutRecord.from_angle_id)
+            .outerjoin(CutRecord, CutRecord.segment_id == SegmentRecord.id)
+            .join(
+                AngleRecord,
+                or_(
+                    AngleRecord.id == SegmentRecord.opening_angle_id,
+                    AngleRecord.id == CutRecord.from_angle_id,
+                ),
+            )
             .where(AngleRecord.place_id == place_id)
             .order_by(SegmentRecord.created_at, SegmentRecord.id)
             .limit(1)
         )
         if movie_id is None:
-            raise ApplicationError("Plate replacement needs a movie cut for its undo history.", 409)
+            raise ApplicationError(
+                "Plate replacement needs a movie using this place for its undo history.", 409
+            )
         return self._replace_plate(session, place, asset_id, angle_id, movie_id)
 
     def _replace_plate(self, session, place, asset_id, angle_id, movie_id, undoes=None):
