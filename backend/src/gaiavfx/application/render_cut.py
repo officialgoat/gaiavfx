@@ -1,28 +1,13 @@
 """Lower a ready Direction segment to immutable H3 render jobs."""
 
 from gaiavfx.application.authored import segment_to_dict
-from gaiavfx.application.direction_plans import (
-    cut_references as _references,
-)
-from gaiavfx.application.direction_plans import (
-    plan_for_cut,
-    segment_render_inputs,
-)
+from gaiavfx.application.direction_plans import segment_render_inputs
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
-from gaiavfx.application.prepare_references import (
-    current_sheet,
-)
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import minimax_h3
-from gaiavfx.integrations.minimax_h3.graph import (
-    build_graph,
-    context_descriptor,
-    render_presets,
-)
-from gaiavfx.integrations.minimax_h3.prompt import compile_prompt, gaps
+from gaiavfx.integrations.minimax_h3.window import lower
 from gaiavfx.modules.direction.segment import PictureRole
-from gaiavfx.modules.direction.techniques import Block
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
@@ -38,36 +23,6 @@ def operations_for_asset(session, asset_id):
     """Use the Generation reader to follow a candidate's owning operation."""
     for candidate in operations.candidates_for_asset(session, asset_id):
         yield operations.operation(session, candidate["operation_id"])
-
-
-def compiler_gaps(session, cut_id):
-    """Report typed compiler capability gaps without compiling or exposing prompt text."""
-    cut = direction.read_cut(session, cut_id)
-    try:
-        segment, pictures = direction.assemble_segment(session, cut["segment_id"])
-    except ApplicationError as exc:
-        if exc.status != 422:
-            raise
-        return [{"code": "structure", "message": str(exc)}]
-    plan = plan_for_cut(session, cut_id)
-    choice = plan.recommended
-    place_id = direction.read_angle(session, cut["to_angle_id"])["place_id"]
-    sheet = (
-        current_sheet(session, place_id) if choice and Block.PLACE_VIEWS in choice.blocks else None
-    )
-    pictures, keyframes = _references(
-        session,
-        cut,
-        segment,
-        choice,
-        pictures,
-        sheet,
-        strict=False,
-        bindings=plan.bindings if choice and Block.PINNED_FRAME in choice.blocks else (),
-    )
-    return [
-        {"code": gap.code, "message": gap.message} for gap in gaps(segment, pictures, keyframes)
-    ]
 
 
 def start_render(
@@ -88,9 +43,10 @@ def start_render(
         segment_id = direction.read_cut(session, cut_id)["segment_id"]
     segment_row = direction.read_segment(session, segment_id)
     movie_id = segment_row["movie_id"]
-    plan, segment, pictures, keyframes, artifact, context_source = segment_render_inputs(
+    inputs_plan = segment_render_inputs(
         session, segment_id, integration, sheet_asset=sheet_asset, context_artifact=context_artifact
     )
+    plan, segment, artifact = inputs_plan.plan, inputs_plan.segment, inputs_plan.artifact
     if plan.refusals:
         refusal = plan.refusals[0]
         raise ApplicationError(f"{refusal.code}: {refusal.message}", refusal.status)
@@ -98,53 +54,22 @@ def start_render(
     context_artifact = artifact["id"] if artifact else None
     if not seeds or len(seeds) != len(set(seeds)):
         raise ApplicationError("Render seeds must be distinct.", 422)
-    grid = minimax_h3.capabilities().frame_grid
-    handoff = plan.continuation if segment.continues else None
-    try:
-        compiled = compile_prompt(
-            segment,
-            pictures,
-            tuple(keyframes),
-            grid,
-            handoff.context_frames if handoff else 0,
-        )
-    except ValueError as exc:
-        raise ApplicationError(str(exc), 422) from exc
-    # Run evidence: which handoff this take used, and whether it followed the rule.
-    continuation = (
-        {
-            "method": handoff.method,
-            "chosen": handoff.explicit_method is not None,
-            "recommended": handoff.recommended,
-            "context_frames": handoff.context_frames,
-            "audio_context_frames": handoff.audio_context_frames,
-            "audio_follows_picture": handoff.audio_follows_picture,
-        }
-        if handoff
-        else None
-    )
     jobs = []
-    delivery = render_presets().delivery
     for seed in seeds:
-        token = new_id()
-        prefix = f"gaiavfx/{token}"
-        files = {}
-        inputs = {}
-        for index, asset_id in enumerate(compiled.slots):
-            remote = f"{prefix}/picture_{index}.png"
-            files[asset_id] = remote
-            asset = MediaLibrary.asset_info(session, asset_id)
-            inputs[asset_id] = {"sha256": asset["sha256"], "remote_name": remote}
-        for index, (asset_id, _) in enumerate(compiled.keyframes):
-            remote = f"{prefix}/keyframe_{index}.png"
-            files[asset_id] = remote
-            asset = MediaLibrary.asset_info(session, asset_id)
-            inputs[asset_id] = {"sha256": asset["sha256"], "remote_name": remote}
+        prefix = f"gaiavfx/{new_id()}"
+        lowered = lower(inputs_plan.window, prefix=prefix, seed=seed)
+        inputs = {
+            asset_id: {
+                "sha256": MediaLibrary.asset_info(session, asset_id)["sha256"],
+                "remote_name": remote,
+            }
+            for asset_id, remote in lowered.files.items()
+        }
         if artifact:
             inputs[artifact["id"]] = {
                 "source": "artifact",
                 "sha256": artifact["sha256"],
-                "remote_name": f"{prefix}/context.safetensors",
+                "remote_name": lowered.context_file,
                 "directory": "output",
             }
         jobs.append(
@@ -154,31 +79,12 @@ def start_render(
                 "minimax_h3",
                 seed=seed,
                 inputs=inputs,
-                graph=build_graph(
-                    compiled,
-                    files=files,
-                    seed=seed,
-                    **delivery,
-                    fps=grid.fps,
-                    context_latent=f"{prefix}/context.safetensors" if segment.continues else None,
-                    output_prefix=prefix,
-                    capture_context=True,
-                    handoff=handoff,
-                ),
+                graph=lowered.graph,
                 snapshot={
                     "knowledge": knowledge_snapshot(minimax_h3),
                     "output_prefix": prefix,
-                    "capture_context": context_descriptor(prefix),
                     "technique": plan.technique_id,
-                    "context_frames": compiled.context_frames,
-                    "continuation": continuation,
-                    "expect": {
-                        "kind": "video",
-                        "frames": compiled.window_frames - compiled.context_frames,
-                        "fps": grid.fps,
-                        **delivery,
-                        "audio": True,
-                    },
+                    **lowered.snapshot,
                 },
             )
         )
@@ -199,8 +105,8 @@ def start_render(
         "seeds": seeds,
         **({"sheet_asset": sheet_asset} if sheet_asset is not None else {}),
         "context_artifact": context_artifact,
-        "context_source": context_source,
-        "continuation": continuation,
+        "context_source": inputs_plan.source,
+        "continuation": inputs_plan.window.continuation,
         "segment_revision": segment_row["revision"],
         "phase_revisions": {phase["id"]: phase["revision"] for phase in segment_row["phases"]},
         "subject_revisions": {
@@ -208,7 +114,7 @@ def start_render(
             for subject in segment.subjects
         },
         "segment": segment_to_dict(
-            segment, tuple(p for p in pictures if p.role is PictureRole.IDENTITY)
+            segment, tuple(p for p in inputs_plan.pictures if p.role is PictureRole.IDENTITY)
         ),
     }
     return create_operation(

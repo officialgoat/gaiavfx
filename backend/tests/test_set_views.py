@@ -164,7 +164,8 @@ def test_a_set_view_is_rendered_reviewed_and_bound_as_the_opening_sheet(shack):
     assert sheet["request"]["origin"] == "set"
     drain(runner(workspace))
     with workspace.db.transaction() as session:
-        plan, _, pictures, *_ = direction_plans.segment_render_inputs(session, s.segment["id"])
+        rendering = direction_plans.segment_render_inputs(session, s.segment["id"])
+    plan, pictures = rendering.plan, rendering.pictures
     assert plan.ready, plan.refusals
     assert plan.technique_id == "opening_views"
     (views,) = [p for p in pictures if p.role.value == "place_views"]

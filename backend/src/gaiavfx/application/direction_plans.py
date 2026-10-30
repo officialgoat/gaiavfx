@@ -24,7 +24,8 @@ from gaiavfx.application.scene_place import PlaceStatus, place_status
 from gaiavfx.application.set_seed import segment_seed
 from gaiavfx.application.sheet_recipes import sheet_reference
 from gaiavfx.integrations.minimax_h3.continuation import Handoff
-from gaiavfx.integrations.minimax_h3.prompt import compile_prompt, gaps
+from gaiavfx.integrations.minimax_h3.prompt import gaps
+from gaiavfx.integrations.minimax_h3.window import Window, compile_window
 from gaiavfx.modules.direction.application import default_policy
 from gaiavfx.modules.direction.planning import (
     Binding,
@@ -156,6 +157,7 @@ class SegmentRefusal:
     message: str
     cut_ids: tuple[str, ...] = ()
     status: int = 422
+    scope: str | None = None  # a capability gap's subject, such as `sheet_cast`
 
 
 @dataclass(frozen=True)
@@ -174,6 +176,19 @@ class SegmentPlan:
     )
     build_refusal: str | None = None  # why no set can be built from that take now
     continuation: Handoff | None = None  # a continuation's handoff and the rule's hint
+
+
+@dataclass(frozen=True)
+class SegmentRenderPlan:
+    """The plan a render reads, with the window it lowers. The window holds prompt text, so it stays beside the
+    plan the UI and the agent read, never inside it."""
+
+    plan: SegmentPlan
+    segment: object | None  # the assembled Segment, when its structure assembles
+    pictures: tuple
+    window: Window | None  # compiled once, only when nothing refuses the render
+    artifact: dict | None  # the motion context a continuation reads
+    source: dict | None  # where that context came from
 
 
 @dataclass(frozen=True)
@@ -210,7 +225,7 @@ def _shapes_window(shot: _Shot) -> bool:
 def plan_for_segment(session, segment_id, integration=DEFAULT_INTEGRATION, **inputs):
     """The segment's plan as the UI and the agent read it: the render's plan, and the set being built from the
     segment's take with why none can be built now (ADR 0019 §4), which rendering never reads."""
-    plan = segment_render_inputs(session, segment_id, integration, **inputs)[0]
+    plan = segment_render_inputs(session, segment_id, integration, **inputs).plan
     seed, build_refusal = segment_seed(session, direction.read_segment(session, segment_id))
     return replace(plan, seed=seed, build_refusal=build_refusal)
 
@@ -273,7 +288,7 @@ def segment_render_inputs(
                 "unused_sheet", "The segment's techniques do not use a views-only sheet."
             )
         )
-    segment, pictures, keyframes, artifact, source = None, (), (), None, None
+    segment, pictures, keyframes, artifact, source, window = None, (), (), None, None, None
     try:
         segment, pictures = direction.assemble_segment(session, segment_id)
     except ApplicationError as exc:
@@ -318,9 +333,9 @@ def segment_render_inputs(
             except ApplicationError as exc:
                 refusals.append(SegmentRefusal("cut_binding", f"{shot.label}: {exc}", shot.cut_ids))
         refusals.extend(
-            SegmentRefusal(g.code, g.message)
+            SegmentRefusal(g.code, g.message, scope=g.scope)
             for g in gaps(segment, pictures, keyframes)
-            if g.code != "several_sheets" or not any(r.code == g.code for r in refusals)
+            if not any(r.code == g.code for r in refusals)
         )
         missing_source = None
         try:
@@ -334,13 +349,7 @@ def segment_render_inputs(
         if not refusals and not handoff_refusals:
             grid = INTEGRATIONS[integration].capabilities().frame_grid
             try:
-                compile_prompt(
-                    segment,
-                    pictures,
-                    keyframes,
-                    grid,
-                    handoff.context_frames if handoff else 0,
-                )
+                window = compile_window(segment, pictures, keyframes, grid, handoff)
             except ValueError as exc:
                 refusals.append(SegmentRefusal("compiler", str(exc)))
         refusals.extend(handoff_refusals)
@@ -376,7 +385,9 @@ def segment_render_inputs(
         place_status(session, opening, refusals),
         continuation=handoff,
     )
-    return plan, segment, pictures, keyframes, artifact, source
+    return SegmentRenderPlan(
+        plan, segment, pictures, window if plan.ready else None, artifact, source
+    )
 
 
 def _planned_pins(shots):
@@ -444,10 +455,33 @@ def shot_references(session, shot, segment, choice, pictures, sheet_asset, *, st
     return pictures, tuple(keyframes)
 
 
-def cut_references(session, cut, segment, choice, pictures, sheet_asset, *, strict, bindings):
-    """`shot_references` for the shot after one cut."""
-    number = segment.cut_frames.index(cut["frame"]) + 2
-    shot = _Shot(cut["id"], "", cut["to_angle_id"], number, None, cut)
-    return shot_references(
-        session, shot, segment, choice, pictures, sheet_asset, strict=strict, bindings=bindings
+def cut_gaps(session, cut_id):
+    """A cut's typed capability gaps before it is ready, without compiling or exposing prompt text: inspection
+    lowers the shot after the cut leniently, with the place's current sheet, so a sheet's cast shows early."""
+    cut = direction.read_cut(session, cut_id)
+    try:
+        segment, pictures = direction.assemble_segment(session, cut["segment_id"])
+    except ApplicationError as exc:
+        if exc.status != 422:
+            raise
+        return [{"code": "structure", "message": str(exc)}]
+    plan = plan_for_cut(session, cut_id)
+    choice = plan.recommended
+    place_id = direction.read_angle(session, cut["to_angle_id"])["place_id"]
+    sheet = (
+        current_sheet(session, place_id) if choice and Block.PLACE_VIEWS in choice.blocks else None
     )
+    number = segment.cut_frames.index(cut["frame"]) + 2
+    pictures, keyframes = shot_references(
+        session,
+        _Shot(cut["id"], "", cut["to_angle_id"], number, plan, cut),
+        segment,
+        choice,
+        pictures,
+        sheet,
+        strict=False,
+        bindings=plan.bindings if choice and Block.PINNED_FRAME in choice.blocks else (),
+    )
+    return [
+        {"code": gap.code, "message": gap.message} for gap in gaps(segment, pictures, keyframes)
+    ]

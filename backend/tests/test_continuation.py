@@ -16,6 +16,7 @@ from gaiavfx.integrations.minimax_h3 import continuation as continuity
 from gaiavfx.integrations.minimax_h3.continuation import MASKED, PAIRED, ContinuationFacts
 from gaiavfx.integrations.minimax_h3.graph import build_graph, render_presets
 from gaiavfx.integrations.minimax_h3.prompt import compile_prompt
+from gaiavfx.integrations.minimax_h3.window import compile_window, lower
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.direction.timebase import FrameGrid
 from gaiavfx.modules.library.application import LibraryService
@@ -521,6 +522,34 @@ def test_lowering_refuses_a_handoff_the_window_cannot_take():
         lowered(MASKED, 22, handoff=replace(rule, method="levelled"))
     with pytest.raises(ValueError, match="ties the audio"):
         lowered(MASKED, 22, handoff=replace(rule, audio_context_frames=24))
+
+
+def test_a_window_takes_its_context_from_the_handoff_and_lowers_per_seed():
+    _, segment, pictures, _ = compile_fixture(GOLDEN / "inputs" / "single-continuation.json")
+    chosen = continuity.resolve(facts(), method=PAIRED, context_frames=39, grid=GRID)
+    window = compile_window(segment, pictures, (), GRID, chosen)
+    assert window.compiled.context_frames == 39
+    lowered = lower(window, prefix="gaiavfx/take", seed=7)
+    assert lowered.context_file == "gaiavfx/take/context.safetensors"
+    assert lowered.graph["load_context"]["inputs"]["latent_path"] == lowered.context_file
+    assert set(lowered.files.values()) == {
+        f"gaiavfx/take/picture_{i}.png" for i in range(len(window.compiled.slots))
+    }
+    assert lowered.snapshot["continuation"] == {
+        "method": PAIRED,
+        "chosen": True,
+        "recommended": MASKED,
+        "context_frames": 39,
+        "audio_context_frames": AUDIO,
+        "audio_follows_picture": False,
+    }
+    assert lowered.snapshot["expect"]["frames"] == window.compiled.window_frames - 39
+    # A handoff the window cannot take never lowers; nor does a continuation without one.
+    pinned = continuity.resolve(facts(guides=1), method=MASKED, context_frames=None, grid=GRID)
+    with pytest.raises(ValueError, match="pinned keyframe"):
+        compile_window(segment, pictures, (), GRID, pinned)
+    with pytest.raises(ValueError, match="hands over motion"):
+        compile_window(segment, pictures, (), GRID, None)
 
 
 def test_a_render_records_its_handoff_and_lowers_it(store, monkeypatch):

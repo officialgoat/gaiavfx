@@ -15,11 +15,13 @@ from gaiavfx.modules.direction.timebase import FrameGrid
 
 
 class CapabilityGap(ValueError):
-    """An integration cannot lower a construct; callers can plan from the stable code."""
+    """An integration cannot lower a construct; callers can plan from the stable code. `scope` says what the gap is
+    about for callers that word it for a producer: `sheet_cast` is who a place sheet can show."""
 
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, scope: str | None = None):
         self.code = code
         self.message = message
+        self.scope = scope
         super().__init__(message)
 
 

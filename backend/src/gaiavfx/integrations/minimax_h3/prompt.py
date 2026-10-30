@@ -157,6 +157,7 @@ def gaps(
             CapabilityGap(
                 "sheet_several_subjects",
                 "a place sheet with several subjects has no tested H3 wording",
+                "sheet_cast",
             )
         )
     if sheets and len(segment.subjects) == 1 and segment.subjects[0].id not in bound_ids:
@@ -164,6 +165,7 @@ def gaps(
             CapabilityGap(
                 "sheet_unbound_subject",
                 "a place sheet whose subject has no identity picture has no tested H3 wording",
+                "sheet_cast",
             )
         )
     if keyframes and not segment.continues:
