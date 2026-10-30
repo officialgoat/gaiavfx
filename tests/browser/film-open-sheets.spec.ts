@@ -690,7 +690,7 @@ test("a film with no recast asks before its analysis; Cancel creates nothing", a
   const ask = page.getByRole("dialog", { name: "Analyse this film?" });
   await expect(ask).toContainText(filmAsset.name);
   await expect(ask).toContainText("1:20 · 25 fps");
-  await expect(ask).toContainText("runs on the GPU through ComfyUI");
+  await expect(ask).toContainText("runs on the CPU inside ComfyUI");
   await ask.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(ask).toHaveCount(0);
   // Nothing was created, and the Open film sheet waits for another choice.
