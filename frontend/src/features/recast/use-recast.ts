@@ -4,6 +4,11 @@ import { headPassCharacterReason, headPassTargetReason } from "./commands";
 import { useComfyOffline } from "./comfy";
 import { ApiError } from "../../shared/api";
 import {
+  failureText,
+  useEditRunner,
+  type Wording,
+} from "../../shared/edit-runner";
+import {
   recasts,
   recastIntent,
   type Recast,
@@ -47,6 +52,14 @@ type EditStep = { kind: "edit"; id: string; summary: string };
 type Step = ChoiceStep | EditStep;
 /** The words of a stored entry without the "Undo: " or "Redo: " the service gave its inverse. */
 const bare = (summary: string) => summary.replace(/^(Undo|Redo): /, "");
+
+// Recast's conflicts already say to refresh; only a service without Recast gets other words.
+const RECAST_WORDING: Wording = {
+  failed: "The request failed. Try again.",
+  conflict: (message) => message,
+  unavailable: () =>
+    "Recast is not available in this service yet. Try again after the service is updated.",
+};
 
 export function useRecast(active: boolean) {
   const cache = useQueryClient();
@@ -103,9 +116,8 @@ export function useRecast(active: boolean) {
   const [conformOpen, setConformOpen] = useState(false);
   // The Voice step's sheet: it asks before the dialogue analysis, then shows its progress or result.
   const [voiceOpen, setVoiceOpen] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const locked = useRef(false);
-  const [error, setError] = useState("");
+  const runner = useEditRunner(id, RECAST_WORDING);
+  const busy = runner.busy;
   // The Library film waiting for the user's yes before its analysis starts, and the answer it waits for.
   const [asking, setAsking] = useState("");
   const ask = useRef<((yes: boolean) => void) | null>(null);
@@ -156,28 +168,13 @@ export function useRecast(active: boolean) {
             : headPassTargetReason(shot, value?.characters ?? []);
   const headPassContext = `${id}:${shot?.id}:${previewVersion?.id}`;
   const revision = { expected_revision: value?.revision ?? 0 };
-  const message = (e: unknown) =>
-    e instanceof ApiError && e.status === 501
-      ? "Recast is not available in this service yet. Try again after the service is updated."
-      : e instanceof Error
-        ? e.message
-        : "The request failed. Try again.";
+  const message = (e: unknown) => failureText(e, RECAST_WORDING);
   async function perform(call: () => Promise<unknown>) {
-    if (locked.current) return false;
-    locked.current = true;
-    setBusy(true);
-    setError("");
-    await cache.cancelQueries({ queryKey: ["recast", id] });
-    try {
-      await call();
-      return true;
-    } catch (e) {
-      setError(message(e));
-      return false;
-    } finally {
-      locked.current = false;
-      setBusy(false);
-    }
+    const outcome = await runner.run(call, {
+      // A poll that lands mid-edit would overwrite the edit's result.
+      before: () => cache.cancelQueries({ queryKey: ["recast", id] }),
+    });
+    return outcome.ok;
   }
   async function change(call: () => Promise<Recast>) {
     return perform(async () => {
@@ -687,7 +684,7 @@ export function useRecast(active: boolean) {
     voiceOpen,
     setVoiceOpen,
     busy,
-    error: error || (state.error ? message(state.error) : ""),
+    error: runner.error || (state.error ? message(state.error) : ""),
     listError: list.error ? message(list.error) : "",
     perform,
     change,
@@ -712,7 +709,7 @@ export function useRecast(active: boolean) {
     headPassPickerOpen: headPassPicker === headPassContext && !headPassReason,
     closeHeadPassPicker: () => setHeadPassPicker(""),
     startHeadPass: () => {
-      if (headPassReason || locked.current) return;
+      if (headPassReason || runner.locked()) return;
       if (headPassEligibleCharacters.length === 1)
         void headPass(headPassEligibleCharacters[0].id);
       else setHeadPassPicker(headPassContext);
@@ -732,7 +729,7 @@ export function useRecast(active: boolean) {
     /** Says what a change did, in the film's notice line (usability round 1, B8: merges and track moves). */
     announce: (text: string) => post(text),
     dismissNotice: () => post(""),
-    dismissError: () => setError(""),
+    dismissError: runner.clearError,
     close: () => {
       setId("");
       setShotId("");

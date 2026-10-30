@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useQueries,
   useQuery,
@@ -13,16 +13,16 @@ import {
 } from "./client";
 import { useEditor, type Target } from "../timeline/editor-state";
 import { useOpenDocument } from "../../app/open-document";
-import { ApiError } from "../../shared/api";
+import { retryAfterRefresh, useEditRunner } from "../../shared/edit-runner";
 
 export function useDirection(enabled: boolean) {
   const editor = useEditor();
   const openDocument = useOpenDocument((state) => state.document);
   const client = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const lock = useRef(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  const runner = useEditRunner(editor.movieId, {
+    failed: "The edit could not be saved.",
+    conflict: retryAfterRefresh,
+  });
   const [redoIds, setRedoIds] = useState<string[]>([]);
   const [removeCutId, setRemoveCutId] = useState<string | null>(null);
   const [splitRequest, setSplitRequest] = useState<{
@@ -40,7 +40,6 @@ export function useDirection(enabled: boolean) {
   }, [movies.data, editor.movieId, editor.chooseMovie]);
   useEffect(() => {
     setRedoIds([]);
-    setError("");
     setSplitRequest(null);
     setRemoveCutId(null);
   }, [editor.movieId]);
@@ -82,7 +81,7 @@ export function useDirection(enabled: boolean) {
       : "Split at a cut or a phase boundary";
   };
   const requestSplit = (segment: Segment, frame: number) => {
-    if (!busy && !splitReason(segment, frame))
+    if (!runner.busy && !splitReason(segment, frame))
       setSplitRequest({ segment, frame });
   };
   const plans = useQueries({
@@ -166,31 +165,15 @@ export function useDirection(enabled: boolean) {
     label: string,
     preserveRedo = false,
   ): Promise<T | undefined> {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const result = await action();
-      if (!preserveRedo) setRedoIds([]);
-      await refresh();
-      setNotice(label);
-      return result;
-    } catch (e) {
-      const message =
-        e instanceof Error ? e.message : "The edit could not be saved.";
-      // Only a stale revision is fixed by re-reading; a refused edit says why on its own.
-      setError(
-        e instanceof ApiError && e.status === 409
-          ? `${message} Review the refreshed details, then retry your edit.`
-          : message,
-      );
-      await refresh();
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
+    const outcome = await runner.run(action, {
+      notice: label,
+      done: async () => {
+        if (!preserveRedo) setRedoIds([]);
+        await refresh();
+      },
+      failed: refresh,
+    });
+    return outcome.ok ? outcome.value : undefined;
   }
   // The API owns revision guards and inverse commands; undoing the inverse is redo.
   const latest = receipts.data?.find(
@@ -232,8 +215,8 @@ export function useDirection(enabled: boolean) {
     splitRequest,
     removeCutId,
     requestRemoveCut: (id: string) => {
-      if (lock.current) return;
-      setError("");
+      if (runner.locked()) return;
+      runner.clearError();
       setRemoveCutId(id);
     },
     cancelRemoveCut: () => setRemoveCutId(null),
@@ -284,14 +267,16 @@ export function useDirection(enabled: boolean) {
     getSegment,
     getCut,
     getPhase,
-    busy,
-    error,
-    notice,
+    busy: runner.busy,
+    error: runner.error,
+    notice: runner.notice,
     perform,
+    /** Say something that is not an edit's outcome, in the same place an edit's notice shows. */
+    tell: runner.showNotice,
     undo,
     redo,
     refresh,
-    clearError: () => setError(""),
+    clearError: runner.clearError,
     readError:
       movie.error ??
       places.error ??

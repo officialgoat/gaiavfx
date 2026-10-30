@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { request } from "../../shared/api";
+import { useEditRunner } from "../../shared/edit-runner";
 import type { components } from "../../shared/api.generated";
 import type { DirectController } from "../project/use-direction";
 
@@ -25,9 +26,10 @@ export function useMovieExport(d: DirectController) {
   });
   const [confirmation, setConfirmation] = useState("");
   const [preview, setPreview] = useState({ movieId: "", assetId: "" });
-  const [error, setError] = useState({ movieId: "", text: "" });
-  const [busy, setBusy] = useState(false);
-  const lock = useRef(false);
+  const runner = useEditRunner(movieId, {
+    failed: "Export failed. Try again.",
+    conflict: (message) => message,
+  });
   const intent = useRef<{
     movieId: string;
     allow: boolean;
@@ -56,37 +58,25 @@ export function useMovieExport(d: DirectController) {
             : undefined;
 
   async function perform(action: () => Promise<unknown>) {
-    if (lock.current) return;
-    lock.current = true;
-    setBusy(true);
-    setError({ movieId, text: "" });
-    try {
-      await action();
-      await Promise.all([
-        client.invalidateQueries({ queryKey: ["movie-export", movieId] }),
-        client.invalidateQueries({ queryKey: ["operations"] }),
-        client.invalidateQueries({ queryKey: ["assets"] }),
-      ]);
-    } catch (e) {
-      setError({
-        movieId,
-        text: e instanceof Error ? e.message : "Export failed. Try again.",
-      });
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
+    await runner.run(action, {
+      done: () =>
+        Promise.all([
+          client.invalidateQueries({ queryKey: ["movie-export", movieId] }),
+          client.invalidateQueries({ queryKey: ["operations"] }),
+          client.invalidateQueries({ queryKey: ["assets"] }),
+        ]),
+    });
   }
   return {
     read,
     segments,
     latest,
     active,
-    busy,
+    busy: runner.busy,
     stale,
     allowStale,
     readyReason,
-    error: error.movieId === movieId ? error.text : "",
+    error: runner.error,
     previewId: preview.movieId === movieId ? preview.assetId : "",
     confirm: () => setConfirmation(allowStale ? "" : confirmationKey),
     preview: (assetId: string) => setPreview({ movieId, assetId }),

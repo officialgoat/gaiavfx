@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiError } from "../../shared/api";
+import { useEditRunner } from "../../shared/edit-runner";
 import { studio } from "../generation/client";
 import { recasts } from "../recast/client";
 import {
@@ -31,12 +31,10 @@ export function useChat(scope: ChatScope) {
   // Drafts, errors, history and the initial plan mode belong to one scope.
   const scopeKey = `${scope.kind}:${scopeId}`;
   const client = useQueryClient();
-  const [busy, setBusy] = useState(false);
-  const [failure, setFailure] = useState({ scope: scopeKey, message: "" });
-  const setError = (message: string) =>
-    setFailure({ scope: scopeKey, message });
-  const error = failure.scope === scopeKey ? failure.message : "";
-  const lock = useRef(false);
+  const runner = useEditRunner(scopeKey, {
+    failed: "Could not reach the conversation. Try again.",
+    conflict: () => "The session changed; review the plan again",
+  });
   const [history, setHistory] = useState({ scope: scopeKey, id: "" });
   const [drafts, setDrafts] = useState<Record<string, ChatDraft>>({});
   const draft = drafts[scopeKey] ?? emptyDraft;
@@ -211,34 +209,19 @@ export function useChat(scope: ChatScope) {
     });
   }
   async function perform(action: () => Promise<void>) {
-    if (lock.current) return false;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    try {
-      await action();
-      return true;
-    } catch (e) {
-      setError(
-        e instanceof ApiError && e.status === 409
-          ? "The session changed; review the plan again"
-          : e instanceof Error
-            ? e.message
-            : "Could not reach the conversation. Try again.",
-      );
-      if (id) {
-        try {
-          publish(await agent.state(id));
-        } catch {
-          /* Keep the original error and draft. */
+    const outcome = await runner.run(action, {
+      failed: async () => {
+        if (id) {
+          try {
+            publish(await agent.state(id));
+          } catch {
+            /* Keep the original error and draft. */
+          }
         }
-      }
-      void client.invalidateQueries({ queryKey: sessionsKey });
-      return false;
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
+        void client.invalidateQueries({ queryKey: sessionsKey });
+      },
+    });
+    return outcome.ok;
   }
   const open = () =>
     agent.open(
@@ -291,13 +274,14 @@ export function useChat(scope: ChatScope) {
     modelActivity,
     draft,
     setDraft,
-    busy,
+    busy: runner.busy,
     loading: !!scopeId && (sessions.isPending || (!!id && state.isPending)),
-    error: error || state.error?.message || sessions.error?.message || "",
+    error:
+      runner.error || state.error?.message || sessions.error?.message || "",
     planMode,
     running: session?.state === "running" || session?.state === "queued",
     refresh: () => {
-      setError("");
+      runner.clearError();
       void sessions.refetch();
       if (id) void state.refetch();
     },

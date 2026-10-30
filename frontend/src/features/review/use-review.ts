@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { frameRate } from "../../shared/frame-rate";
+import { retryAfterRefresh, useEditRunner } from "../../shared/edit-runner";
 import { direction } from "../project/client";
 import type { DirectController } from "../project/use-direction";
 import { preparationShot } from "../prepare/shot";
@@ -26,12 +27,13 @@ export function useReview(
   const [candidate, setCandidate] = useState("");
   const [draft, setDraft] = useState<Ranking | null>(null);
   const [revealed, setRevealed] = useState<Review | null>(null);
-  const [busy, setBusy] = useState(false);
-  const lock = useRef(false);
   const activeMovie = useRef(d.editor.movieId);
   activeMovie.current = d.editor.movieId;
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
+  // Review edits Direction rows too: a conflict gets Direction's advice, a refusal says why on its own.
+  const runner = useEditRunner(d.editor.movieId, {
+    failed: "The action could not be saved.",
+    conflict: retryAfterRefresh,
+  });
   const [rejectionOpen, setRejectionOpen] = useState(false);
   const [replacement, setReplacement] = useState<{
     candidateId: string;
@@ -123,33 +125,21 @@ export function useReview(
     action: () => Promise<T>,
     message: string,
   ): Promise<T | undefined> {
-    if (lock.current) return;
     const movie = activeMovie.current;
-    lock.current = true;
-    setBusy(true);
-    setError("");
-    setNotice("");
-    try {
-      const result = await action();
-      await Promise.all([
-        client.invalidateQueries({ queryKey: ["review"] }),
-        client.invalidateQueries({ queryKey: ["operations"] }),
-        d.refresh(),
-        client.invalidateQueries({ queryKey: ["chat"] }),
-      ]);
-      if (movie !== activeMovie.current) return undefined;
-      setNotice(message);
-      return result;
-    } catch (e) {
-      if (movie === activeMovie.current)
-        setError(
-          `${e instanceof Error ? e.message : "The action could not be saved."} Refresh and try again.`,
-        );
-      return undefined;
-    } finally {
-      lock.current = false;
-      setBusy(false);
-    }
+    const outcome = await runner.run(action, {
+      notice: message,
+      done: () =>
+        Promise.all([
+          client.invalidateQueries({ queryKey: ["review"] }),
+          client.invalidateQueries({ queryKey: ["operations"] }),
+          d.refresh(),
+          client.invalidateQueries({ queryKey: ["chat"] }),
+        ]),
+    });
+    // A result that lands after the user opened another movie belongs to nothing on screen.
+    return outcome.ok && movie === activeMovie.current
+      ? outcome.value
+      : undefined;
   }
   function activate(data: Review) {
     setReplacement(null);
@@ -275,7 +265,7 @@ export function useReview(
     if (operation) {
       setLastOperation(operation.id);
       setProducer(null);
-      setNotice(
+      runner.showNotice(
         `Operation ${operation.id.slice(0, 8)} · ${operation.state.replaceAll("_", " ")}. Follow progress in Jobs.`,
       );
     }
@@ -305,9 +295,9 @@ export function useReview(
       revealed?.revision === value?.revision && !value?.unranked.length
         ? revealed
         : null,
-    busy,
-    error,
-    notice,
+    busy: runner.busy,
+    error: runner.error,
+    notice: runner.notice,
     producer,
     setProducer,
     lastOperation,
@@ -336,7 +326,7 @@ export function useReview(
     refresh: async () => {
       const read = await review.refetch();
       if (read.data) setDraft(rankingDraft(read.data));
-      setError("");
+      runner.clearError();
     },
     reveal: async () => {
       if (!value) return;
