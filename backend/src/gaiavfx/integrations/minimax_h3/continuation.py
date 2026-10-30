@@ -60,15 +60,12 @@ class Handoff:
     refusals: tuple[tuple[str, str], ...] = ()  # (code, message) that block rendering
 
 
-def source_frames(info: dict | None) -> int | None:
-    """The model window of a saved paired latent: 5n+2 latent steps hold 17n+5 frames."""
+def source_frames(info: dict | None, grid: FrameGrid) -> int | None:
+    """The model window of a saved paired latent, read from its video latent's time axis."""
     shape = (info or {}).get("video_shape")
     if not isinstance(shape, list) or len(shape) != 5 or type(shape[2]) is not int:
         return None
-    steps = shape[2]
-    if steps < 2 or (steps - 2) % 5:
-        return None
-    return 5 + (steps - 2) // 5 * 17
+    return grid.window_of_latent(shape[2])
 
 
 def masked_problem(facts: ContinuationFacts) -> str | None:

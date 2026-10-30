@@ -343,13 +343,6 @@ def compile_replacement(
     )
 
 
-def latent_steps(frames: int) -> int:
-    """H3's 17n + 5 video frames occupy 5n + 2 latent steps."""
-    if type(frames) is not int or frames < 5 or (frames - 5) % 17:
-        raise ValueError("frames must be on the H3 video grid")
-    return 2 + 5 * ((frames - 5) // 17)
-
-
 def build_replacement_graph(
     compiled: CompiledReplacement,
     *,
@@ -478,7 +471,8 @@ def build_replacement_graph(
             context_frames=context,
         )
     if compiled.handoff != "none":
-        steps = latent_steps(capabilities().frame_grid.context_default)
+        grid = capabilities().frame_grid
+        steps = grid.latent_steps(grid.context_default)
         if compiled.handoff == "latent":
             source = add(
                 "load_prev",

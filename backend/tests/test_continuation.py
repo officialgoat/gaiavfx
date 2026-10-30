@@ -47,10 +47,23 @@ def test_h3_offers_four_context_lengths_on_its_window_grid():
 
 
 def test_a_saved_paired_latent_names_its_window():
-    assert continuity.source_frames({"video_shape": [1, 24, 22, 14, 24]}) == 73
-    assert continuity.source_frames({"video_shape": [1, 24, 12, 14, 24]}) == 39
+    assert continuity.source_frames({"video_shape": [1, 24, 22, 14, 24]}, GRID) == 73
+    assert continuity.source_frames({"video_shape": [1, 24, 12, 14, 24]}, GRID) == 39
     for info in (None, {}, {"video_shape": [1, 24, 21, 14, 24]}, {"video_shape": [1, 24]}):
-        assert continuity.source_frames(info) is None
+        assert continuity.source_frames(info, GRID) is None
+
+
+def test_the_grid_converts_windows_to_latent_steps_and_back():
+    for steps, frames in ((2, 5), (7, 22), (12, 39), (17, 56), (22, 73)):
+        assert GRID.latent_steps(frames) == steps
+        assert GRID.window_of_latent(steps) == frames
+    assert GRID.window_of_latent(21) is None and GRID.window_of_latent(1) is None
+    with pytest.raises(ValueError, match="whole window"):
+        GRID.latent_steps(30)
+    with pytest.raises(ValueError, match="no latent layout"):
+        FrameGrid(24, 5, 17, 22).latent_steps(22)
+    with pytest.raises(ValueError, match="latent layout"):
+        FrameGrid(24, 5, 17, 22, latent_base=2)
 
 
 def test_the_rule_prefers_masked_on_the_same_shot_and_paired_across_cuts():

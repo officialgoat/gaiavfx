@@ -18,10 +18,16 @@ class FrameGrid:
     max_window: int | None = None  # a hard limit, when the integration has one
     recommended_max_window: int | None = None  # display guidance, never a hard limit
     context_max: int | None = None  # the longest choosable context; None offers the default
+    latent_base: int | None = None  # latent steps of a length_base window; None: no layout
+    latent_step: int | None = None  # the latent steps each further length_step frames add
 
     def __post_init__(self):
         if self.fps <= 0 or self.length_step <= 0 or self.length_base < 1:
             raise ValueError("a frame grid needs a positive fps, step and base")
+        if (self.latent_base is None) != (self.latent_step is None) or (
+            self.latent_step is not None and (self.latent_base < 1 or self.latent_step < 1)
+        ):
+            raise ValueError("a latent layout needs a positive base and step")
         if self.max_window is not None and self.max_window < self.length_base:
             raise ValueError("the largest window is shorter than the smallest")
         if (
@@ -74,6 +80,24 @@ class FrameGrid:
             and (self.max_window is None or frames <= self.max_window)
             and (frames - self.length_base) % self.length_step == 0
         )
+
+    def latent_steps(self, frames: int) -> int:
+        """The latent steps a whole window of `frames` occupies."""
+        if self.latent_step is None:
+            raise ValueError("this grid declares no latent layout")
+        if type(frames) is not int or not self.valid_window(frames):
+            raise ValueError("frames must be a whole window on the grid")
+        steps = (frames - self.length_base) // self.length_step
+        return self.latent_base + steps * self.latent_step
+
+    def window_of_latent(self, steps: int) -> int | None:
+        """The window a latent of `steps` steps holds, or None when no whole window has that many."""
+        if self.latent_step is None:
+            raise ValueError("this grid declares no latent layout")
+        if type(steps) is not int or steps < self.latent_base:
+            return None
+        windows, rest = divmod(steps - self.latent_base, self.latent_step)
+        return None if rest else self.length_base + windows * self.length_step
 
     def window_for(self, delivered: int, context: int) -> int:
         """The smallest valid window holding `context` frames of context plus `delivered` frames."""

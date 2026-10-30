@@ -388,7 +388,7 @@ def segment_render_inputs(
     return plan, segment, pictures, keyframes, artifact, source
 
 
-def _continuation_facts(row, shots, keyframes, artifact):
+def _continuation_facts(row, shots, keyframes, artifact, grid):
     planned = sum(
         1 for s in shots if s.plan.recommended and Block.PINNED_FRAME in s.plan.recommended.blocks
     )
@@ -396,18 +396,19 @@ def _continuation_facts(row, shots, keyframes, artifact):
         continues=row["continues"],
         cuts=len(row["cuts"]),
         guides=max(planned, len(keyframes)),
-        source_frames=continuity.source_frames(artifact.get("info")) if artifact else None,
+        source_frames=continuity.source_frames(artifact.get("info"), grid) if artifact else None,
     )
 
 
 def _handoff(row, shots, keyframes, artifact, integration):
     if not row["continues"]:
         return None
+    grid = INTEGRATIONS[integration].capabilities().frame_grid
     return continuity.resolve(
-        _continuation_facts(row, shots, keyframes, artifact),
+        _continuation_facts(row, shots, keyframes, artifact, grid),
         method=row["continuation_method"],
         context_frames=row["context_frames"],
-        grid=INTEGRATIONS[integration].capabilities().frame_grid,
+        grid=grid,
     )
 
 
@@ -421,7 +422,8 @@ def continuation_facts(session, segment_id, integration=DEFAULT_INTEGRATION):
         artifact, _ = continuation_input(session, row)
     except ApplicationError:
         artifact = None  # no selected take yet: the render plan checks the source
-    return row, _continuation_facts(row, _shots(row, opening, plans), (), artifact)
+    grid = INTEGRATIONS[integration].capabilities().frame_grid
+    return row, _continuation_facts(row, _shots(row, opening, plans), (), artifact, grid)
 
 
 direction = DIRECTION
