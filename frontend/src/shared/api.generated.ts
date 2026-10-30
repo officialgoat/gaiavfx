@@ -5011,6 +5011,8 @@ export interface components {
       subjects: components["schemas"]["SubjectDTO"][];
       /** Segments */
       segments: components["schemas"]["SegmentDTO"][];
+      /** Fps */
+      fps: number;
     };
     /** MovieExportDTO */
     MovieExportDTO: {

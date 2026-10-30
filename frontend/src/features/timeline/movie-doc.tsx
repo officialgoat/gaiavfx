@@ -13,6 +13,7 @@ import type { DirectController } from "../project/use-direction";
 import { handoffWords, relationWords } from "../project/client";
 import { audioWords, ruleWords } from "../project/continuation";
 import { moveCut, movePhase, setContext } from "../project/edits";
+import { movieFps, splitBlocker } from "../project/movie-model";
 import { Sheet } from "../../shared/ui";
 import { RemoveCutDialog } from "./RemoveCutDialog";
 import { Timeline } from "./Timeline";
@@ -96,15 +97,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
       frame: start,
       length: s.delivered_frames,
       className: `segment-item${razor ? " razor-item" : ""}`,
-      reason:
-        razor && !legal.length
-          ? boundaries?.isError
-            ? "Split points could not be loaded. Refresh the movie and retry."
-            : !boundaries?.data
-              ? "Loading split points…"
-              : (boundaries.data[0]?.reason ??
-                "Add a cut or phase boundary inside this segment to split it.")
-          : undefined,
+      reason: razor ? splitBlocker(boundaries) : undefined,
       activate: razor
         ? (offset) => {
             const nearest = legal.reduce(
@@ -380,7 +373,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
   const selectedSegment = d.getSegment();
   return {
     title: d.movie.data?.title ?? "No movie",
-    fps: 24,
+    fps: movieFps(d.movie.data),
     duration: d.duration,
     rows,
     hint: razor

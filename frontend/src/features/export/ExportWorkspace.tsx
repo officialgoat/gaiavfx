@@ -6,6 +6,7 @@ import { ProjectPanel } from "../project/ProjectPanel";
 import type { DirectController } from "../project/use-direction";
 import { Dock } from "../shell/Dock";
 import { CommandButton, useCommands } from "../shell/Menus";
+import { movieFps } from "../project/movie-model";
 import { timecode } from "../timeline/editor-state";
 import type { MovieExportController } from "./use-export";
 import "./export.css";
@@ -23,7 +24,7 @@ function TakeThumbnail({ id }: { id: string }) {
   );
 }
 
-function ExportControls({ e }: { e: MovieExportController }) {
+function ExportControls({ e, fps }: { e: MovieExportController; fps: number }) {
   const { commands, target } = useCommands();
   const confirm = commands.get("export.confirm")!;
   const frames = e.segments.reduce((total, s) => total + s.frames, 0);
@@ -36,9 +37,9 @@ function ExportControls({ e }: { e: MovieExportController }) {
       </p>
       <dl>
         <dt>Duration</dt>
-        <dd>{timecode(frames)}</dd>
+        <dd>{timecode(frames, fps)}</dd>
         <dt>Frame rate</dt>
-        <dd>24 fps</dd>
+        <dd>{fps} fps</dd>
         <dt>Delivery</dt>
         <dd>MP4 · video and audio</dd>
       </dl>
@@ -126,6 +127,7 @@ export function ExportWorkspace({
   e: MovieExportController;
 }) {
   const firstTake = e.segments.find((s) => s.asset_id);
+  const fps = movieFps(d.movie.data);
   return (
     <Dock
       workspace="export"
@@ -200,13 +202,15 @@ export function ExportWorkspace({
                     </>
                   )}
                 </div>
-                <span className="export-duration">{timecode(s.frames)}</span>
+                <span className="export-duration">
+                  {timecode(s.frames, fps)}
+                </span>
               </li>
             ))}
           </ol>
         </section>
       }
-      inspector={<ExportControls e={e} />}
+      inspector={<ExportControls e={e} fps={fps} />}
     />
   );
 }

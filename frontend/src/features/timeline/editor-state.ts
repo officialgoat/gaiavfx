@@ -161,7 +161,7 @@ export const useEditor = create<EditorState>((set) => ({
     }),
 }));
 
-/** Timecode at the document's frame rate (24 fps for movies). */
-export function timecode(frame: number, fps = 24) {
+/** Timecode at the document's frame rate. */
+export function timecode(frame: number, fps: number) {
   return frameTimecode(Math.max(0, Math.floor(frame)), fps);
 }

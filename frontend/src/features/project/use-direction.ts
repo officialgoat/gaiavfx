@@ -12,6 +12,7 @@ import {
   type SegmentPlan,
 } from "./client";
 import { removeCut, splitSegment } from "./edits";
+import { splitBlocker } from "./movie-model";
 import { useEditor, type Target } from "../timeline/editor-state";
 import { useOpenDocument } from "../../app/open-document";
 import { retryAfterRefresh, useEditRunner } from "../../shared/edit-runner";
@@ -70,17 +71,10 @@ export function useDirection(enabled: boolean) {
     })),
   });
   const splitPointMap = new Map(segments.map((s, i) => [s.id, splitPoints[i]]));
-  const splitReason = (segment: Segment | undefined, frame: number) => {
-    if (!segment) return "Select a segment first.";
-    const query = splitPointMap.get(segment.id);
-    if (query?.isError)
-      return "Split points could not be loaded. Refresh the movie and retry.";
-    if (!query?.data) return "Loading split points…";
-    const point = query.data.find((p) => p.frame === frame);
-    return point
-      ? (point.reason ?? undefined)
-      : "Split at a cut or a phase boundary";
-  };
+  const splitReason = (segment: Segment | undefined, frame: number) =>
+    segment
+      ? splitBlocker(splitPointMap.get(segment.id), frame)
+      : "Select a segment first.";
   const requestSplit = (segment: Segment, frame: number) => {
     if (!runner.busy && !splitReason(segment, frame))
       setSplitRequest({ segment, frame });

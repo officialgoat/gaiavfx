@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { DirectController } from "../project/use-direction";
 import { relationWords, type Cut, type CutPlan } from "../project/client";
 import { saveCut, savePhase } from "../project/edits";
+import { movieFps, movieSeconds } from "../project/movie-model";
 import { formText, formValue } from "../../shared/form";
 import { studio } from "../generation/client";
 import { MediaMetadata, MediaProvenance } from "../generation/MediaDetails";
@@ -344,7 +345,7 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
             <dt>Duration</dt>
             <dd>
               {segment.delivered_frames} frames ·{" "}
-              {(segment.delivered_frames / 24).toFixed(2)} s
+              {movieSeconds(d.movie.data, segment.delivered_frames)} s
             </dd>
             <dt>Continuation</dt>
             <dd>
@@ -373,7 +374,11 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
           <p className="muted">
             Select a segment, phase, cut or reference to inspect it here.
           </p>
-          {d.movie.data && <p>{d.segments.length} segments · 24 fps</p>}
+          {d.movie.data && (
+            <p>
+              {d.segments.length} segments · {movieFps(d.movie.data)} fps
+            </p>
+          )}
         </>
       ) : null}
       {asset.data && (

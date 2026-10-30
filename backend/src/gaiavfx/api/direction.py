@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.application import set_scenes, set_seed, sets
 from gaiavfx.application.authored import segment_to_dict
-from gaiavfx.application.continuation import METHODS, set_continuation
+from gaiavfx.application.continuation import METHODS, grid, set_continuation
 from gaiavfx.application.direction_plans import (
     DEFAULT_INTEGRATION,
     plan_for_cut,
@@ -363,6 +363,7 @@ class SegmentDTO(RecordDTO):
 class MovieDetailDTO(DirectionMovieDTO):
     subjects: list[SubjectDTO]
     segments: list[SegmentDTO]
+    fps: int  # the frame rate segments are authored and delivered at, from the integration's grid
 
 
 class MovieCommandDTO(DirectionMovieDTO):
@@ -685,7 +686,10 @@ def direction_router(workspace, authenticate):
     def movie(movie_id: str):
         with workspace.db.transaction() as session:
             row = direction.read_movie(session, movie_id)
-            return row | {"segments": [segment_dto(session, seg) for seg in row["segments"]]}
+            return row | {
+                "segments": [segment_dto(session, seg) for seg in row["segments"]],
+                "fps": grid().fps,
+            }
 
     @router.patch("/movies/{movie_id}", response_model=MovieCommandDTO)
     def update_movie(movie_id: str, body: MoviePatch):

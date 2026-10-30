@@ -3,6 +3,7 @@ import { useOpenDocument } from "../../app/open-document";
 import { Sheet } from "../../shared/ui";
 import { RELATION_WORDS } from "../project/client";
 import * as edits from "../project/edits";
+import { movieFps } from "../project/movie-model";
 import { formChecked, formText, formValue } from "../../shared/form";
 import type { DirectController } from "../project/use-direction";
 import type { EditorDialog } from "./commands";
@@ -328,8 +329,8 @@ function DialogContent({
       {(dialog === "phase" || dialog === "cut") && (
         <>
           <p className="muted">
-            Segment {String((segment?.ordinal ?? 0) + 1).padStart(2, "0")} · 24
-            fps
+            Segment {String((segment?.ordinal ?? 0) + 1).padStart(2, "0")} ·{" "}
+            {movieFps(d.movie.data)} fps
           </p>
           <label>
             Delivered frame

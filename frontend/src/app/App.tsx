@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { studio } from "../features/generation/client";
+import { movieFps } from "../features/project/movie-model";
 import { LibraryPanel } from "../features/generation/MediaLibrary";
 import {
   ConnectionForm,
@@ -392,7 +393,10 @@ export function App() {
         <div className="studio-application">
           <header className="studio-titlebar">
             <div className="studio-brand">
-              <span className="brand-symbol brand-symbol-small" aria-hidden="true" />
+              <span
+                className="brand-symbol brand-symbol-small"
+                aria-hidden="true"
+              />
               GAIAVFX
             </div>
             {/* The page's one heading: the library and the open document. */}
@@ -642,7 +646,11 @@ export function App() {
             <main className="welcome">
               <div className="welcome-content">
                 <div className="welcome-symbol">
-                  <span className="brand-symbol" role="img" aria-label="GAIAVFX" />
+                  <span
+                    className="brand-symbol"
+                    role="img"
+                    aria-label="GAIAVFX"
+                  />
                 </div>
                 <h1>A home for your stories.</h1>
                 <p>
@@ -739,7 +747,7 @@ export function App() {
               {filmOpen && recast.value
                 ? `${recast.value.shots.length} shots · ${Number((recast.value.film.fps_num / recast.value.film.fps_den).toFixed(3))} fps`
                 : d.movie.data
-                  ? `${d.segments.length} segments · 24 fps`
+                  ? `${d.segments.length} segments · ${movieFps(d.movie.data)} fps`
                   : "GAIAVFX"}
             </span>
           </footer>
