@@ -11,6 +11,7 @@ import {
   type Segment,
   type SegmentPlan,
 } from "./client";
+import { removeCut, splitSegment } from "./edits";
 import { useEditor, type Target } from "../timeline/editor-state";
 import { useOpenDocument } from "../../app/open-document";
 import { retryAfterRefresh, useEditRunner } from "../../shared/edit-runner";
@@ -224,11 +225,7 @@ export function useDirection(enabled: boolean) {
       const cut = cuts.find((c) => c.id === removeCutId);
       const segment = segments.find((s) => s.id === cut?.segment_id);
       if (!cut || !segment) return;
-      const result = await perform(
-        () =>
-          direction.removeCut(cut.id, { expected_revision: segment.revision }),
-        "Cut removed. Undo restores it.",
-      );
+      const result = await removeCut({ perform }, segment, cut);
       if (result) {
         setRemoveCutId(null);
         editor.select({
@@ -242,14 +239,7 @@ export function useDirection(enabled: boolean) {
     confirmSplit: async () => {
       if (!splitRequest) return;
       const { segment, frame } = splitRequest;
-      const result = await perform(
-        () =>
-          direction.splitSegment(segment.id, {
-            expected_revision: segment.revision,
-            frame,
-          }),
-        "Segment split",
-      );
+      const result = await splitSegment({ perform }, segment, frame);
       setSplitRequest(null);
       if (result) {
         const next = result.segments[1];

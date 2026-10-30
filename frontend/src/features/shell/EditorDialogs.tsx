@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useOpenDocument } from "../../app/open-document";
 import { Sheet } from "../../shared/ui";
-import { direction, RELATION_WORDS } from "../project/client";
+import { RELATION_WORDS } from "../project/client";
+import * as edits from "../project/edits";
+import { formChecked, formText, formValue } from "../../shared/form";
 import type { DirectController } from "../project/use-direction";
 import type { EditorDialog } from "./commands";
 import { shortcutLabel, useCommands } from "./Menus";
@@ -165,52 +167,44 @@ function DialogContent({
       onSubmit={async (e) => {
         e.preventDefault();
         const data = new FormData(e.currentTarget);
-        const text = (name: string) => String(data.get(name) ?? "");
-        const frame = Number(data.get("frame"));
+        const text = (name: string) => formText(data, name);
+        const frame = Number(formValue(data, "frame"));
         let success: unknown;
         if (dialog === "movie") {
-          const result = await d.perform(
-            () => direction.createMovie({ title: text("title") }),
-            "Movie created",
-          );
+          const result = await edits.createMovie(d, text("title"));
           if (result) {
             d.editor.chooseMovie(result.id);
             useOpenDocument.getState().openMovie();
             success = result;
           }
         } else if (dialog === "segment" && d.movie.data) {
-          const result = await d.perform(
-            () =>
-              direction.createSegment(d.movie.data!.id, {
-                expected_revision: d.movie.data!.revision,
-                delivered_frames: Number(data.get("duration")),
-                continues: data.get("continues") === "on",
+          const result = await edits.createSegment(d, d.movie.data, {
+            delivered_frames: Number(formValue(data, "duration")),
+            continues: formChecked(data, "continues"),
+            content: {
+              subjects: cast,
+              place: {
+                noun: text("place"),
+                description: text("place"),
+                landmarks: "",
+              },
+              style: "",
+              events: [],
+              speech: [],
+              states: [],
+            },
+            phases: [
+              {
+                start_frame: 0,
                 content: {
-                  subjects: cast,
-                  place: {
-                    noun: text("place"),
-                    description: text("place"),
-                    landmarks: "",
-                  },
-                  style: "",
-                  events: [],
-                  speech: [],
-                  states: [],
+                  description: text("description"),
+                  screen_direction: "",
+                  sound: "",
+                  cast,
                 },
-                phases: [
-                  {
-                    start_frame: 0,
-                    content: {
-                      description: text("description"),
-                      screen_direction: "",
-                      sound: "",
-                      cast,
-                    },
-                  },
-                ],
-              }),
-            "Segment created",
-          );
+              },
+            ],
+          });
           if (result) {
             d.editor.select({
               kind: "segment",
@@ -220,20 +214,15 @@ function DialogContent({
             success = result;
           }
         } else if (dialog === "phase" && segment) {
-          const result = await d.perform(
-            () =>
-              direction.createPhase(segment.id, {
-                expected_revision: segment.revision,
-                start_frame: frame,
-                content: {
-                  description: text("description"),
-                  screen_direction: text("direction"),
-                  sound: text("sound"),
-                  cast: segment.content.subjects,
-                },
-              }),
-            "Phase created",
-          );
+          const result = await edits.createPhase(d, segment, {
+            start_frame: frame,
+            content: {
+              description: text("description"),
+              screen_direction: text("direction"),
+              sound: text("sound"),
+              cast: segment.content.subjects,
+            },
+          });
           if (result) {
             d.editor.select({
               kind: "phase",
@@ -243,25 +232,16 @@ function DialogContent({
             success = result;
           }
         } else if (dialog === "cut" && segment) {
-          const result = await d.perform(
-            () =>
-              direction.createCut({
-                expected_revision: segment.revision,
-                segment_id: segment.id,
-                frame,
-                from_angle_id: text("from"),
-                to_angle_id: text("to"),
-                relation: relation === "unknown" ? null : relation,
-                relation_source:
-                  relation === "unknown" ? "unknown" : "authored",
-                crosses_barrier:
-                  relation === "unknown" ? null : data.get("crosses") === "on",
-                receives_predecessor: data.get("predecessor") === "on",
-                side_facts: false,
-                fidelity: false,
-              }),
-            "Cut created",
-          );
+          const result = await edits.createCut(d, segment, {
+            frame,
+            from_angle_id: text("from"),
+            to_angle_id: text("to"),
+            relation,
+            crosses_barrier: formChecked(data, "crosses"),
+            receives_predecessor: formChecked(data, "predecessor"),
+            side_facts: false,
+            fidelity: false,
+          });
           if (result) {
             d.editor.select({
               kind: "cut",

@@ -1,12 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { DirectController } from "../project/use-direction";
-import {
-  direction,
-  relationWords,
-  type Cut,
-  type CutPlan,
-} from "../project/client";
+import { relationWords, type Cut, type CutPlan } from "../project/client";
+import { saveCut, savePhase } from "../project/edits";
+import { formText, formValue } from "../../shared/form";
 import { studio } from "../generation/client";
 import { MediaMetadata, MediaProvenance } from "../generation/MediaDetails";
 import { CommandButton } from "../shell/Menus";
@@ -42,17 +39,12 @@ function CutProperties({
     }
     setError("");
     const form = new FormData(e.currentTarget);
-    void d.perform(
-      () =>
-        direction.updateCut(cut.id, {
-          expected_revision: cut.revision,
-          from_angle_id: fromAngle,
-          to_angle_id: toAngle,
-          frame: Number(form.get("frame")),
-          override_technique: String(form.get("technique")) || null,
-        }),
-      "Cut saved",
-    );
+    void saveCut(d, cut, {
+      from_angle_id: fromAngle,
+      to_angle_id: toAngle,
+      frame: Number(formValue(form, "frame")),
+      override_technique: formValue(form, "technique"),
+    });
   }
   const choices = techniqueChoices(plan);
   return (
@@ -224,20 +216,11 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
             onSubmit={(e) => {
               e.preventDefault();
               const data = new FormData(e.currentTarget);
-              void d.perform(
-                () =>
-                  direction.updatePhase(phase.id, {
-                    expected_revision: phase.revision,
-                    start_frame: Number(data.get("frame")),
-                    content: {
-                      ...phase.content,
-                      description: String(data.get("description")),
-                      screen_direction: String(data.get("direction")),
-                      sound: String(data.get("sound")),
-                    },
-                  }),
-                "Phase saved",
-              );
+              void savePhase(d, phase, Number(formValue(data, "frame")), {
+                description: formText(data, "description"),
+                screen_direction: formText(data, "direction"),
+                sound: formText(data, "sound"),
+              });
             }}
           >
             <label>

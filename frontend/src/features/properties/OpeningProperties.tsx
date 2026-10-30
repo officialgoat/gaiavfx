@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import type { DirectController } from "../project/use-direction";
-import { direction, type Segment } from "../project/client";
+import type { Segment } from "../project/client";
+import { saveOpening } from "../project/edits";
+import { formValue } from "../../shared/form";
 import { CommandButton } from "../shell/Menus";
 import { ShotPlanSections, techniqueChoices } from "./ShotPlan";
 
@@ -38,29 +40,7 @@ export function OpeningProperties({
     event.preventDefault();
     d.clearError();
     const form = new FormData(event.currentTarget);
-    const rawTechnique = form.get("technique");
-    const technique =
-      typeof rawTechnique === "string" && rawTechnique ? rawTechnique : null;
-    if (
-      angle === (segment.opening_angle_id ?? "") &&
-      technique === segment.opening_technique
-    ) {
-      void d.perform(async () => {}, "First shot unchanged");
-      return;
-    }
-    void d.perform(
-      () =>
-        direction.updateSegment(segment.id, {
-          expected_revision: segment.revision,
-          ...(angle !== (segment.opening_angle_id ?? "")
-            ? { opening_angle_id: angle || null }
-            : {}),
-          ...(technique !== segment.opening_technique
-            ? { opening_technique: technique }
-            : {}),
-        }),
-      "First shot saved",
-    );
+    void saveOpening(d, segment, angle || null, formValue(form, "technique"));
   }
   return (
     <section className="property-section" aria-label="First shot">

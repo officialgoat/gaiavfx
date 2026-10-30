@@ -1,5 +1,5 @@
 import type { components } from "../../shared/api.generated";
-import { request } from "../../shared/api";
+import { route } from "../../shared/routes";
 
 export type Schema = components["schemas"];
 export type Movie = Schema["MovieDetailDTO"];
@@ -31,32 +31,43 @@ export const HANDOFF_WORDS: Record<string, [name: string, short: string]> = {
 export const handoffWords = (method: string, short = false) =>
   HANDOFF_WORDS[method]?.[short ? 1 : 0] ?? method;
 
-const read = <T>(path: string) => request<T>("/api/direction/" + path);
-const write = <T>(path: string, body: unknown, method = "POST") =>
-  request<T>("/api/direction/" + path, { method, body: JSON.stringify(body) });
+const D = "/api/direction";
 
+// Every route is typed from the generated contracts (shared/routes.ts): a renamed route or body fails `tsc`.
 export const direction = {
-  movies: () => read<Schema["DirectionMovieDTO"][]>("movies"),
-  movie: (id: string) => read<Movie>(`movies/${id}`),
+  movies: () => route("get", `${D}/movies`),
+  movie: (id: string) =>
+    route("get", `${D}/movies/{movie_id}`, { path: { movie_id: id } }),
   createMovie: (body: Schema["MovieInput"]) =>
-    write<Schema["MovieCommandDTO"]>("movies", body),
+    route("post", `${D}/movies`, { body }),
   updateMovie: (id: string, body: Schema["MoviePatch"]) =>
-    write<Schema["MovieCommandDTO"]>(`movies/${id}`, body, "PATCH"),
+    route("patch", `${D}/movies/{movie_id}`, { path: { movie_id: id }, body }),
   createSegment: (id: string, body: Schema["SegmentCreate"]) =>
-    write<Schema["SegmentCommandDTO"]>(`movies/${id}/segments`, body),
+    route("post", `${D}/movies/{movie_id}/segments`, {
+      path: { movie_id: id },
+      body,
+    }),
   updateSegment: (id: string, body: Schema["SegmentPatch"]) =>
-    write<Schema["SegmentCommandDTO"]>(`segments/${id}`, body, "PATCH"),
+    route("patch", `${D}/segments/{segment_id}`, {
+      path: { segment_id: id },
+      body,
+    }),
   /** A continuation's handoff (docs/CONTINUATION.md); null returns a field to the rule. Python refuses with why. */
   setContinuation: (id: string, body: Schema["SegmentContinuationPatch"]) =>
-    write<Schema["SegmentCommandDTO"]>(
-      `segments/${id}/continuation`,
+    route("patch", `${D}/segments/{segment_id}/continuation`, {
+      path: { segment_id: id },
       body,
-      "PATCH",
-    ),
+    }),
   removeSegment: (id: string, body: Schema["DirectionRevisionInput"]) =>
-    write<Schema["RemovedDTO"]>(`segments/${id}/remove`, body),
+    route("post", `${D}/segments/{segment_id}/remove`, {
+      path: { segment_id: id },
+      body,
+    }),
   moveSegment: (id: string, body: Schema["SegmentMove"]) =>
-    write<Schema["SegmentCommandDTO"]>(`segments/${id}/move`, body),
+    route("post", `${D}/segments/{segment_id}/move`, {
+      path: { segment_id: id },
+      body,
+    }),
   /** What using a set for this scene would change (ADR 0019 §5), before it does. */
   useSetPreview: (
     id: string,
@@ -67,76 +78,96 @@ export const direction = {
       angle_name?: string;
     },
   ) =>
-    read<Schema["UseSetPreviewDTO"]>(
-      `segments/${id}/use-set?${new URLSearchParams(
-        Object.entries(query).filter(([, v]) => v) as [string, string][],
-      )}`,
-    ),
+    route("get", `${D}/segments/{segment_id}/use-set`, {
+      path: { segment_id: id },
+      query,
+    }),
   useSet: (id: string, body: Schema["UseSetInput"]) =>
-    write<Schema["SegmentDTO"]>(`segments/${id}/use-set`, body),
+    route("post", `${D}/segments/{segment_id}/use-set`, {
+      path: { segment_id: id },
+      body,
+    }),
   // A set from a take (ADR 0019 §4): the preview reads Direction; the seed itself is a production operation.
   buildSetPreview: (id: string, shot: number, fillUnseen: boolean) =>
-    read<Schema["BuildSetPreviewDTO"]>(
-      `segments/${id}/build-set?shot=${shot}&fill_unseen=${fillUnseen}`,
-    ),
-  buildSet: (body: Schema["SetSeedInput"]) =>
-    request<Schema["OperationDTO"]>("/api/production/set-seeds", {
-      method: "POST",
-      body: JSON.stringify(body),
+    route("get", `${D}/segments/{segment_id}/build-set`, {
+      path: { segment_id: id },
+      query: { shot, fill_unseen: fillUnseen },
     }),
+  buildSet: (body: Schema["SetSeedInput"]) =>
+    route("post", "/api/production/set-seeds", { body }),
   retrySeed: (operationId: string) =>
-    request<Schema["OperationDTO"]>(
-      `/api/production/set-seeds/${encodeURIComponent(operationId)}/retry`,
-      { method: "POST", body: "{}" },
-    ),
+    route("post", "/api/production/set-seeds/{operation_id}/retry", {
+      path: { operation_id: operationId },
+    }),
   splitPoints: (id: string) =>
-    read<Schema["DirectionSplitPointDTO"][]>(`segments/${id}/split-points`),
+    route("get", `${D}/segments/{segment_id}/split-points`, {
+      path: { segment_id: id },
+    }),
   splitSegment: (id: string, body: Schema["DirectionSegmentSplitInput"]) =>
-    write<Schema["DirectionSegmentSplitCommandDTO"]>(
-      `segments/${id}/split`,
+    route("post", `${D}/segments/{segment_id}/split`, {
+      path: { segment_id: id },
       body,
-    ),
+    }),
   createPhase: (id: string, body: Schema["PhaseCreate"]) =>
-    write<Schema["PhaseCommandDTO"]>(`segments/${id}/phases`, body),
-  updatePhase: (id: string, body: Schema["PhasePatch"]) =>
-    write<Schema["PhaseCommandDTO"]>(`phases/${id}`, body, "PATCH"),
-  removePhase: (id: string, body: Schema["DirectionRevisionInput"]) =>
-    write<Schema["RemovedDTO"]>(`phases/${id}/remove`, body),
-  createCut: (body: Schema["CutCreate"]) =>
-    write<Schema["CutCommandDTO"]>("cuts", body),
-  updateCut: (id: string, body: Schema["CutPatch"]) =>
-    write<Schema["CutCommandDTO"]>(`cuts/${id}`, body, "PATCH"),
-  removeCut: (id: string, body: Schema["DirectionRevisionInput"]) =>
-    write<Schema["RemovedDTO"]>(`cuts/${id}/remove`, body),
-  segmentPlan: (id: string, context = "", sheet = "") => {
-    const params = new URLSearchParams();
-    if (context) params.set("context_artifact", context);
-    if (sheet) params.set("sheet_asset", sheet);
-    return read<SegmentPlan>(`segments/${id}/plan?${params}`);
-  },
-  plan: (id: string) => read<CutPlan>(`cuts/${id}/plan`),
-  suitability: (id: string, body: Schema["CutSuitabilityInput"]) =>
-    write<Schema["CutSuitabilityDTO"]>(`cuts/${id}/suitability`, body),
-  approveEvidence: (id: string) =>
-    write<Schema["EvidenceDTO"]>(`evidence/${id}/approve`, {}),
-  keyframes: (id: string) =>
-    read<Schema["KeyframeDTO"][]>(`cuts/${id}/keyframes`),
-  receipts: (id: string) => read<Receipt[]>(`movies/${id}/receipts?limit=100`),
-  undo: (id: string) => write<Schema["UndoDTO"]>(`receipts/${id}/undo`, {}),
-  places: () => read<Schema["PlaceDTO"][]>("places"),
-  angles: (id: string) => read<Schema["AngleDTO"][]>(`places/${id}/angles`),
-  updateAngle: (id: string, body: Schema["DirectionAngleTextPatch"]) =>
-    write<Schema["DirectionAngleTextCommandDTO"]>(
-      `angles/${id}`,
+    route("post", `${D}/segments/{segment_id}/phases`, {
+      path: { segment_id: id },
       body,
-      "PATCH",
-    ),
+    }),
+  updatePhase: (id: string, body: Schema["PhasePatch"]) =>
+    route("patch", `${D}/phases/{phase_id}`, { path: { phase_id: id }, body }),
+  removePhase: (id: string, body: Schema["DirectionRevisionInput"]) =>
+    route("post", `${D}/phases/{phase_id}/remove`, {
+      path: { phase_id: id },
+      body,
+    }),
+  createCut: (body: Schema["CutCreate"]) =>
+    route("post", `${D}/cuts`, { body }),
+  updateCut: (id: string, body: Schema["CutPatch"]) =>
+    route("patch", `${D}/cuts/{cut_id}`, { path: { cut_id: id }, body }),
+  removeCut: (id: string, body: Schema["DirectionRevisionInput"]) =>
+    route("post", `${D}/cuts/{cut_id}/remove`, { path: { cut_id: id }, body }),
+  segmentPlan: (id: string, context = "", sheet = "") =>
+    route("get", `${D}/segments/{segment_id}/plan`, {
+      path: { segment_id: id },
+      query: { context_artifact: context, sheet_asset: sheet },
+    }),
+  plan: (id: string) =>
+    route("get", `${D}/cuts/{cut_id}/plan`, { path: { cut_id: id } }),
+  suitability: (id: string, body: Schema["CutSuitabilityInput"]) =>
+    route("post", `${D}/cuts/{cut_id}/suitability`, {
+      path: { cut_id: id },
+      body,
+    }),
+  approveEvidence: (id: string) =>
+    route("post", `${D}/evidence/{evidence_id}/approve`, {
+      path: { evidence_id: id },
+    }),
+  keyframes: (id: string) =>
+    route("get", `${D}/cuts/{cut_id}/keyframes`, { path: { cut_id: id } }),
+  receipts: (id: string) =>
+    route("get", `${D}/movies/{movie_id}/receipts`, {
+      path: { movie_id: id },
+      query: { limit: 100 },
+    }),
+  undo: (id: string) =>
+    route("post", `${D}/receipts/{receipt_id}/undo`, {
+      path: { receipt_id: id },
+    }),
+  places: () => route("get", `${D}/places`),
+  angles: (id: string) =>
+    route("get", `${D}/places/{place_id}/angles`, { path: { place_id: id } }),
+  updatePlace: (id: string, body: Schema["DirectionPlaceTextPatch"]) =>
+    route("patch", `${D}/places/{place_id}`, { path: { place_id: id }, body }),
+  updateAngle: (id: string, body: Schema["DirectionAngleTextPatch"]) =>
+    route("patch", `${D}/angles/{angle_id}`, { path: { angle_id: id }, body }),
   evidence: (id: string) =>
-    read<Schema["EvidenceDTO"][]>(`angles/${id}/evidence`),
+    route("get", `${D}/angles/{angle_id}/evidence`, {
+      path: { angle_id: id },
+    }),
   selections: (movie: string, segment: string) =>
-    request<Schema["SelectionsDTO"]>(
-      `/api/production/selections?${new URLSearchParams({ movie_id: movie, segment_id: segment })}`,
-    ),
+    route("get", "/api/production/selections", {
+      query: { movie_id: movie, segment_id: segment },
+    }),
 };
 
 // A monitor receives only this projection. Review will supply it from the blind

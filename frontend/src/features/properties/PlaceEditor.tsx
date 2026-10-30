@@ -1,6 +1,7 @@
-import { request } from "../../shared/api";
 import type { DirectController } from "../project/use-direction";
 import type { Schema } from "../project/client";
+import { savePlace } from "../project/edits";
+import { formText } from "../../shared/form";
 
 export function PlaceEditor({
   place,
@@ -17,21 +18,11 @@ export function PlaceEditor({
         event.preventDefault();
         if (!d.movie.data) return;
         const form = new FormData(event.currentTarget);
-        const body: Schema["DirectionPlaceTextPatch"] = {
-          movie_id: d.movie.data.id,
-          expected_revision: place.revision,
-          description: String(form.get("description")),
-          sound: String(form.get("sound")),
-          overhead: String(form.get("overhead")),
-        };
-        void d.perform(
-          () =>
-            request<Schema["DirectionPlaceTextCommandDTO"]>(
-              `/api/direction/places/${place.id}`,
-              { method: "PATCH", body: JSON.stringify(body) },
-            ),
-          "Place saved",
-        );
+        void savePlace(d, d.movie.data.id, place, {
+          description: formText(form, "description"),
+          sound: formText(form, "sound"),
+          overhead: formText(form, "overhead"),
+        });
       }}
     >
       <p className="muted">

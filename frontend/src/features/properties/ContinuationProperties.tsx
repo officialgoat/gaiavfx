@@ -1,12 +1,13 @@
 import type { FormEvent } from "react";
 import type { DirectController } from "../project/use-direction";
 import {
-  direction,
   handoffWords,
   type Continuation,
   type Segment,
 } from "../project/client";
 import { audioWords, ruleWords } from "../project/continuation";
+import { saveContinuation } from "../project/edits";
+import { formNumber, formValue } from "../../shared/form";
 
 /** How a continuing segment hands over its predecessor's motion (docs/CONTINUATION.md): the method, the context
  * length, and the research rule's recommendation with its reason. Python decides what qualifies. */
@@ -26,12 +27,10 @@ export function ContinuationProperties({
     event.preventDefault();
     d.clearError();
     const form = new FormData(event.currentTarget);
-    const method = (String(form.get("method")) || null) as
-      "paired" | "masked" | null;
-    const typed = String(form.get("context"));
+    const method = formValue(form, "method") as "paired" | "masked" | null;
     // A cleared field follows the default again. Python stores the default length as null, so a length the join
     // already carries changes nothing and is not sent.
-    const context = typed === "" ? null : Number(typed);
+    const context = formNumber(form, "context");
     const contextChanged =
       context === null
         ? segment.context_frames !== null
@@ -40,15 +39,7 @@ export function ContinuationProperties({
       ...(method !== explicit ? { method } : {}),
       ...(contextChanged ? { context_frames: context } : {}),
     };
-    if (!Object.keys(changes).length) return;
-    void d.perform(
-      () =>
-        direction.setContinuation(segment.id, {
-          expected_revision: segment.revision,
-          ...changes,
-        }),
-      "Continuation saved",
-    );
+    void saveContinuation(d, segment, changes);
   }
   return (
     <section className="property-section" aria-label="Continuation">

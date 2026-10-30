@@ -1,5 +1,5 @@
-import { direction, handoffWords, RELATION_WORDS } from "../project/client";
-import { setContext, setHandoff } from "../project/continuation";
+import { handoffWords, RELATION_WORDS, type Relation } from "../project/client";
+import * as edits from "../project/edits";
 import type { DirectController } from "../project/use-direction";
 import type { Target } from "../timeline/editor-state";
 import type { DockLayout } from "../../shared/preferences";
@@ -58,17 +58,7 @@ export function makeCommands(
           ? "Open a movie first."
           : undefined,
     run: (t) => {
-      if (t.kind === "angle-edit")
-        void d.perform(
-          () =>
-            direction.updateAngle(t.id, {
-              movie_id: d.editor.movieId,
-              expected_revision: t.revision,
-              name: t.name,
-              description: t.description,
-            }),
-          "Angle saved",
-        );
+      if (t.kind === "angle-edit") void edits.saveAngle(d, d.editor.movieId, t);
     },
   });
   const add = (
@@ -97,14 +87,6 @@ export function makeCommands(
   const cut = (t: Target) => (!d.getCut(t) ? "Select a cut first." : undefined);
   const assetId = (t: Target) =>
     "assetId" in t ? t.assetId : t.kind === "asset" ? t.id : undefined;
-  const patchCut = (
-    t: Target,
-    patch: Parameters<typeof direction.updateCut>[1],
-  ) => {
-    const c = d.getCut(t);
-    if (c)
-      void d.perform(() => direction.updateCut(c.id, patch), "Cut updated");
-  };
   add("movie.new", "New movie…", () => a.dialog("movie"), "Mod+N");
   add("movie.open", "Open movie…", () => a.dialog("open"), "Mod+O");
   add("media.import", "Import media…", a.importMedia, "Mod+I");
@@ -198,19 +180,9 @@ export function makeCommands(
     (t) => {
       const s = d.getSegment(t),
         p = d.getPhase(t);
-      if (t.kind === "phase" && p && s)
-        void d.perform(
-          () => direction.removePhase(p.id, { expected_revision: s.revision }),
-          "Phase removed",
-        );
-      if (t.kind === "segment" && s)
-        void d.perform(
-          () =>
-            direction.removeSegment(s.id, {
-              expected_revision: d.movie.data!.revision,
-            }),
-          "Segment removed",
-        );
+      if (t.kind === "phase" && p && s) void edits.removePhase(d, s, p);
+      if (t.kind === "segment" && s && d.movie.data)
+        void edits.removeSegment(d, d.movie.data, s);
     },
     "Delete",
     (t) =>
@@ -228,20 +200,8 @@ export function makeCommands(
       (t) => {
         const c = d.getCut(t),
           p = d.getPhase(t);
-        if (c)
-          patchCut(t, {
-            expected_revision: c.revision,
-            frame: c.frame + delta,
-          });
-        else if (p)
-          void d.perform(
-            () =>
-              direction.updatePhase(p.id, {
-                expected_revision: p.revision,
-                start_frame: p.start_frame + delta,
-              }),
-            "Phase moved",
-          );
+        if (c) void edits.moveCut(d, c, c.frame + delta);
+        else if (p) void edits.movePhase(d, p, p.start_frame + delta);
       },
       key,
       (t) =>
@@ -254,14 +214,7 @@ export function makeCommands(
       label,
       (t) => {
         const c = d.getCut(t);
-        if (c)
-          patchCut(t, {
-            expected_revision: c.revision,
-            relation: value === "unknown" ? null : value,
-            relation_source: value === "unknown" ? "unknown" : "authored",
-            crosses_barrier:
-              value === "unknown" ? null : (c.crosses_barrier ?? false),
-          });
+        if (c) void edits.setRelation(d, c, value as Relation);
       },
       undefined,
       cut,
@@ -273,11 +226,7 @@ export function makeCommands(
       crosses ? "Camera crosses" : "Camera stays on this side",
       (t) => {
         const c = d.getCut(t);
-        if (c)
-          patchCut(t, {
-            expected_revision: c.revision,
-            crosses_barrier: crosses,
-          });
+        if (c) void edits.setBarrier(d, c, crosses);
       },
       undefined,
       (t) =>
@@ -289,11 +238,7 @@ export function makeCommands(
     "Automatic",
     (t) => {
       const c = d.getCut(t);
-      if (c)
-        patchCut(t, {
-          expected_revision: c.revision,
-          override_technique: null,
-        });
+      if (c) void edits.setTechnique(d, c, null);
     },
     undefined,
     cut,
@@ -311,11 +256,7 @@ export function makeCommands(
       choice.title,
       (t) => {
         const c = d.getCut(t);
-        if (c)
-          patchCut(t, {
-            expected_revision: c.revision,
-            override_technique: choice.technique_id,
-          });
+        if (c) void edits.setTechnique(d, c, choice.technique_id);
       },
       undefined,
       cut,
@@ -337,7 +278,7 @@ export function makeCommands(
       `Automatic · ${handoffWords(handoff.recommended)}`,
       (t) => {
         const h = handoffOf(t);
-        if (h && h.plan.explicit_method !== null) void setHandoff(d, h.s, null);
+        if (h) void edits.setHandoff(d, h.s, null);
       },
       undefined,
       continuing,
@@ -349,8 +290,7 @@ export function makeCommands(
         handoffWords(method),
         (t) => {
           const h = handoffOf(t);
-          if (h && h.plan.explicit_method !== method)
-            void setHandoff(d, h.s, method);
+          if (h) void edits.setHandoff(d, h.s, method);
         },
         undefined,
         (t) =>
@@ -366,8 +306,7 @@ export function makeCommands(
         `${frames} frames${frames === handoff.default_context ? " · default" : ""}`,
         (t) => {
           const h = handoffOf(t);
-          if (h && h.plan.context_frames !== frames)
-            void setContext(d, h.s, h.plan, frames);
+          if (h) void edits.setContext(d, h.s, h.plan, frames);
         },
         undefined,
         continuing,

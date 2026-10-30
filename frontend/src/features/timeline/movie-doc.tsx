@@ -10,8 +10,9 @@ import {
   Scissors,
 } from "lucide-react";
 import type { DirectController } from "../project/use-direction";
-import { direction, handoffWords, relationWords } from "../project/client";
-import { audioWords, ruleWords, setContext } from "../project/continuation";
+import { handoffWords, relationWords } from "../project/client";
+import { audioWords, ruleWords } from "../project/continuation";
+import { moveCut, movePhase, setContext } from "../project/edits";
 import { Sheet } from "../../shared/ui";
 import { RemoveCutDialog } from "./RemoveCutDialog";
 import { Timeline } from "./Timeline";
@@ -174,16 +175,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
         className: "phase-item",
         label: `Phase: ${p.content.description || "No direction yet"}`,
         snapFrames,
-        move: (f) => {
-          void d.perform(
-            () =>
-              direction.updatePhase(p.id, {
-                expected_revision: p.revision,
-                start_frame: f - start,
-              }),
-            "Phase moved",
-          );
-        },
+        move: (f) => void movePhase(d, p, f - start),
       }),
     );
     s.cuts.forEach((c) => {
@@ -222,16 +214,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
             <strong>f{c.frame}</strong>
           </>
         ),
-        move: (f) => {
-          void d.perform(
-            () =>
-              direction.updateCut(c.id, {
-                expected_revision: c.revision,
-                frame: f - start,
-              }),
-            "Cut moved; its shot direction and pin follow",
-          );
-        },
+        move: (f) => void moveCut(d, c, f - start),
         snapFrames,
       });
       if (offset !== undefined && offset !== null) {
