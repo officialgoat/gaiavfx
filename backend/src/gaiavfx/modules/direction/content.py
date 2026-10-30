@@ -14,6 +14,13 @@ from gaiavfx.modules.direction.segment import (
     Speech,
     State,
     Subject,
+    require_continues,
+    require_delivered_frames,
+    require_distinct,
+    require_frame,
+    require_in_cast,
+    require_named,
+    require_shot_cast,
 )
 
 SEGMENT_SCHEMA = 2
@@ -85,8 +92,7 @@ def segment_content(document: dict, schema: int) -> SegmentContent:
         raise ValueError("subjects must be a list")  # noqa: TRY004 - document errors are ValueError
     for subject_id in ids:
         _text(subject_id, "subjects id", nonempty=True)
-    if len(set(ids)) != len(ids):
-        raise ValueError("subjects contains a duplicate id")
+    require_distinct(ids, "subjects")
     place = document["place"]
     _object(place, {"noun", "description", "landmarks"}, "place")
     for key in place:
@@ -102,11 +108,9 @@ def segment_content(document: dict, schema: int) -> SegmentContent:
     )
     states = _timed(document, "states", State, {"at_frame", "subject_id", "attribute", "value"})
     for item in speech:
-        if item.speaker_id not in ids:
-            raise ValueError("speech.speaker_id must name one of segment.subjects")
+        require_named("speech.speaker_id", item.speaker_id, ids)
     for item in states:
-        if item.subject_id not in ids:
-            raise ValueError("states.subject_id must name one of segment.subjects")
+        require_named("states.subject_id", item.subject_id, ids)
     return SegmentContent(tuple(ids), PlaceText(**place), style, events, speech, states)
 
 
@@ -173,8 +177,7 @@ def phase_content(document: dict, schema: int) -> Shot:
         if not isinstance(document["cast"], list):
             raise ValueError("phase.cast must be a list")
         cast = tuple(_text(value, "phase.cast id", nonempty=True) for value in document["cast"])
-        if len(set(cast)) != len(cast):
-            raise ValueError("phase.cast contains a duplicate id")
+        require_distinct(cast, "phase.cast")
     return Shot(**{key: document[key] for key in prose}, cast=cast)
 
 
@@ -214,37 +217,32 @@ def assemble(
     subjects = []
     pictures = []
     for subject_id in authored.subject_ids:
-        if subject_id not in members:
-            raise ValueError(f"Subject {subject_id} is not in the movie's cast")
+        require_in_cast(subject_id, members)
         member = members[subject_id]
         subjects.append(Subject(member.id, member.name, member.description, member.keeps))
         if member.identity_asset_id:
             pictures.append(Picture(PictureRole.IDENTITY, member.identity_asset_id, member.id))
-    if type(delivered_frames) is not int or delivered_frames < 1:
-        raise ValueError("delivered_frames must be a positive integer")
-    if type(continues) is not bool:
-        raise ValueError("continues must be a boolean")
+    require_delivered_frames(delivered_frames)
+    require_continues(continues)
     if not phases:
         raise ValueError("A segment needs at least one phase")
     starts = [start for start, _, _ in phases]
     for frame in starts:
-        if type(frame) is not int or not 0 <= frame < delivered_frames:
-            raise ValueError(f"Phase frame {frame} lies outside the segment")
+        require_frame(frame, delivered_frames)
     if starts[0] != 0:
         raise ValueError(f"First phase starts at frame {starts[0]}; it must start at 0")
     if starts != sorted(set(starts)):
         raise ValueError(f"Phase frames must be strictly increasing: {starts}")
     for frame in cut_frames:
-        if type(frame) is not int or not 0 < frame < delivered_frames:
-            raise ValueError(f"Cut frame {frame} lies outside the segment")
+        require_frame(frame, delivered_frames, cut=True)
     missing_phases = sorted(set(cut_frames) - set(starts[1:]))
     if missing_phases:
         raise ValueError(f"Cut frames without phases: {missing_phases}")
     shots, later = [], []
     for index, (start, document, schema) in enumerate(phases):
         shot = phase_content(document, schema)
-        if shot.cast is not None and set(shot.cast) - set(authored.subject_ids):
-            raise ValueError("phase.cast must name only segment.subjects")
+        if shot.cast is not None:
+            require_shot_cast(shot.cast, authored.subject_ids)
         if start == 0 or start in cut_frames:
             shots.append(shot)
         else:

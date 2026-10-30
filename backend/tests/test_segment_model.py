@@ -57,7 +57,7 @@ def test_cast_can_be_unauthored_empty_or_named(cast):
 
 @pytest.mark.parametrize(
     ("cast", "message"),
-    [(("nobody",), "subjects in the segment"), (("mara", "mara"), "duplicate")],
+    [(("nobody",), "only segment.subjects"), (("mara", "mara"), "duplicate")],
 )
 def test_cast_requires_known_distinct_subjects(cast, message):
     with pytest.raises(ValueError, match=message):
@@ -69,7 +69,7 @@ def test_cast_requires_known_distinct_subjects(cast, message):
     [
         ({"shots": ()}, "one shot"),
         ({"cut_frames": (36,)}, "every shot"),
-        ({"subjects": (Subject("mara", "Mara", ""),) * 2}, "subject ids are unique"),
+        ({"subjects": (Subject("mara", "Mara", ""),) * 2}, "subjects contains a duplicate id"),
         (
             {"shots": (Shot("Walk.", "", ""),) * 3, "cut_frames": (60, 36)},
             "strictly increasing",
@@ -78,8 +78,8 @@ def test_cast_requires_known_distinct_subjects(cast, message):
             {"shots": (Shot("Walk.", "", ""),) * 3, "cut_frames": (36, 36)},
             "strictly increasing",
         ),
-        ({"shots": (Shot("Walk.", "", ""),) * 2, "cut_frames": (0,)}, "inside"),
-        ({"shots": (Shot("Walk.", "", ""),) * 2, "cut_frames": (120,)}, "inside"),
+        ({"shots": (Shot("Walk.", "", ""),) * 2, "cut_frames": (0,)}, "outside the segment"),
+        ({"shots": (Shot("Walk.", "", ""),) * 2, "cut_frames": (120,)}, "outside the segment"),
     ],
 )
 def test_existing_segment_rules_remain(changes, message):

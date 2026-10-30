@@ -81,6 +81,47 @@ def _nonempty(value, key):
         raise ValueError(f"{key} must be non-empty text")
 
 
+# Each authored-segment rule shared by a stored document (content.py), Direction's commands and the assembled
+# Segment, written once in the words the user and Gaia see.
+
+
+def require_delivered_frames(value):
+    if type(value) is not int or value < 1:
+        raise ValueError("delivered_frames must be a positive integer")
+
+
+def require_continues(value):
+    if type(value) is not bool:
+        raise ValueError("continues must be a boolean")
+
+
+def require_frame(value, delivered_frames, *, cut=False):
+    """A phase starts at frame 0 or later; a cut never at 0, where the segment's first shot opens."""
+    if type(value) is not int or not (1 if cut else 0) <= value < delivered_frames:
+        raise ValueError(f"{'Cut' if cut else 'Phase'} frame {value} lies outside the segment")
+
+
+def require_distinct(ids, label):
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"{label} contains a duplicate id")
+
+
+def require_in_cast(subject_id, cast_ids):
+    if subject_id not in cast_ids:
+        raise ValueError(f"Subject {subject_id} is not in the movie's cast")
+
+
+def require_shot_cast(cast, subject_ids):
+    require_distinct(cast, "phase.cast")
+    if set(cast) - set(subject_ids):
+        raise ValueError("phase.cast must name only segment.subjects")
+
+
+def require_named(label, subject_id, subject_ids):
+    if subject_id not in subject_ids:
+        raise ValueError(f"{label} must name one of segment.subjects")
+
+
 @dataclass(frozen=True)
 class Segment:
     subjects: tuple[Subject, ...]
@@ -103,19 +144,13 @@ class Segment:
             raise ValueError("every shot after the first begins at a cut")
         if list(self.cut_frames) != sorted(set(self.cut_frames)):
             raise ValueError("cuts are strictly increasing")
-        if self.cut_frames and not (
-            0 < self.cut_frames[0] and self.cut_frames[-1] < self.delivered_frames
-        ):
-            raise ValueError("cuts lie inside the segment")
-        if len({s.id for s in self.subjects}) != len(self.subjects):
-            raise ValueError("subject ids are unique")
+        for frame in self.cut_frames:
+            require_frame(frame, self.delivered_frames, cut=True)
+        require_distinct([s.id for s in self.subjects], "subjects")
         subject_ids = {s.id for s in self.subjects}
         for shot in self.shots:
             if shot.cast is not None:
-                if len(set(shot.cast)) != len(shot.cast):
-                    raise ValueError("a shot's cast has no duplicate subject ids")
-                if set(shot.cast) - subject_ids:
-                    raise ValueError("a shot's cast names only subjects in the segment")
+                require_shot_cast(shot.cast, subject_ids)
         previous_end = 0
         for phase in self.phases:
             if (
@@ -147,15 +182,13 @@ class Segment:
         for event in self.events:
             _nonempty(event.description, "event.description")
         for speech in self.speech:
-            if speech.speaker_id not in subject_ids:
-                raise ValueError("speech.speaker_id must name a subject in the segment")
+            require_named("speech.speaker_id", speech.speaker_id, subject_ids)
             _nonempty(speech.text, "speech.text")
             _nonempty(speech.language, "speech.language")
             if not isinstance(speech.delivery, str) or type(speech.off_screen) is not bool:
                 raise ValueError("speech.delivery must be text and speech.off_screen a boolean")
         for state in self.states:
-            if state.subject_id not in subject_ids:
-                raise ValueError("state.subject_id must name a subject in the segment")
+            require_named("states.subject_id", state.subject_id, subject_ids)
             _nonempty(state.attribute, "state.attribute")
             _nonempty(state.value, "state.value")
 

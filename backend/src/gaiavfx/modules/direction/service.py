@@ -33,6 +33,12 @@ from gaiavfx.modules.direction.persistence import (
     SuitabilityRecord,
 )
 from gaiavfx.modules.direction.planning import Available, Binding
+from gaiavfx.modules.direction.segment import (
+    require_continues,
+    require_delivered_frames,
+    require_frame,
+    require_in_cast,
+)
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -283,20 +289,15 @@ def _updated(session, row, expected, changes, movie_id, kind, undoes):
 
 
 def _frames(value):
-    if type(value) is not int or value < 1:
-        raise ApplicationError("delivered_frames must be a positive integer.", 422)
+    _validated(require_delivered_frames, value)
 
 
 def _frame(value, delivered, *, cut=False):
-    if type(value) is not int or not (1 if cut else 0) <= value < delivered:
-        raise ApplicationError(
-            f"{'Cut' if cut else 'Phase'} frame {value} lies outside the segment.", 422
-        )
+    _validated(lambda: require_frame(value, delivered, cut=cut))
 
 
 def _continues(value):
-    if type(value) is not bool:
-        raise ApplicationError("continues must be a boolean.", 422)
+    _validated(require_continues, value)
 
 
 _HANDOFF = ("continuation_method", "context_frames")
@@ -697,8 +698,7 @@ class DirectionService:
         content = _validated(authored.segment_content, document, authored.SEGMENT_SCHEMA)
         cast = {row["id"] for row in self.subjects(session, movie_id)}
         for subject_id in content.subject_ids:
-            if subject_id not in cast:
-                raise ApplicationError(f"Subject {subject_id} is not in the movie's cast.", 422)
+            _validated(require_in_cast, subject_id, cast)
 
     def create_movie(self, session, title):
         row = MovieRecord(**_new_record({"title": _title(title)}))
