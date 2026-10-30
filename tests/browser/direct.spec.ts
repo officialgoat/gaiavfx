@@ -259,7 +259,8 @@ test.describe("Direct on the real Direction and Library APIs", () => {
     await expect(page.getByRole("button", { name: /Cut f37/ })).toBeVisible();
     const pins = page.getByRole("button", { name: /Pin needed.*f49/ });
     await expect(pins).toBeVisible();
-    await expect(savedStatus).toContainText("Cut updated");
+    // A move by key says what a drag says: one edit, one notice.
+    await expect(savedStatus).toContainText("Cut moved");
     await page.keyboard.press("Control+z");
     await expect(cut).toBeVisible();
     await expect(savedStatus).toContainText("Change undone");

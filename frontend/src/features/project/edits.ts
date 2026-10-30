@@ -51,23 +51,19 @@ const changeCut = (
 
 export const moveCut = (d: Editor, cut: Cut, frame: number) =>
   changeCut(d, cut, { frame }, "Cut moved; its shot direction and pin follow");
+// The cut menu's relation, barrier and technique choices have always said "Cut updated".
 export const setRelation = (d: Editor, cut: Cut, relation: Relation) =>
   changeCut(
     d,
     cut,
     relationPatch(relation, cut.crosses_barrier),
-    "Relation set",
+    "Cut updated",
   );
 export const setBarrier = (d: Editor, cut: Cut, crosses: boolean) =>
-  changeCut(d, cut, { crosses_barrier: crosses }, "Barrier set");
+  changeCut(d, cut, { crosses_barrier: crosses }, "Cut updated");
 /** Null follows the plan's recommended technique again. */
 export const setTechnique = (d: Editor, cut: Cut, technique: string | null) =>
-  changeCut(
-    d,
-    cut,
-    { override_technique: technique },
-    technique ? "Technique chosen" : "Technique follows the plan",
-  );
+  changeCut(d, cut, { override_technique: technique }, "Cut updated");
 export const saveCut = (
   d: Editor,
   cut: Cut,
