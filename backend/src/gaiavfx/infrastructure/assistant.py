@@ -255,7 +255,8 @@ class LocalAssistant:
                 child = self.child
             try:
                 url = f"http://127.0.0.1:{port}"
-                deadline = time.monotonic() + 180
+                # A cold load right after a GPU render can need several minutes while ComfyUI releases memory.
+                deadline = time.monotonic() + 420
                 with httpx.Client(timeout=2) as probe:
                     while time.monotonic() < deadline:
                         if cancellation.is_set():
@@ -272,7 +273,7 @@ class LocalAssistant:
                         cancellation.wait(0.5)
                     else:
                         raise ApplicationError(
-                            "The local assistant did not become ready within three minutes."
+                            "The local assistant did not become ready within seven minutes."
                         )
                 body_messages = messages
                 if body_messages is None:

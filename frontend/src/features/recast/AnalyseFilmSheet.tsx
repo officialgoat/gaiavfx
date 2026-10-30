@@ -5,7 +5,7 @@ import { studio } from "../generation/client";
 import type { RecastController } from "./use-recast";
 
 /** Asks before a new film is analysed (ADR 0017 §1, the user at CP1): creating its recast starts the analysis, and
- * the face scan holds the GPU. Reopening a film that has a recast never asks. */
+ * the face scan holds ComfyUI's queue. Reopening a film that has a recast never asks. */
 export function AnalyseFilmSheet({ r }: { r: RecastController }) {
   const asset = useQuery({
     queryKey: ["asset", r.asking],
@@ -34,8 +34,8 @@ export function AnalyseFilmSheet({ r }: { r: RecastController }) {
           characters.
         </li>
         <li>
-          The face scan runs on the GPU through ComfyUI, in the background; you
-          can keep working meanwhile.
+          The face scan runs on the CPU inside ComfyUI, in the background, and
+          holds ComfyUI&rsquo;s queue meanwhile; you can keep working.
         </li>
         <li>
           Progress shows in the timeline&rsquo;s banner and in Jobs, and a

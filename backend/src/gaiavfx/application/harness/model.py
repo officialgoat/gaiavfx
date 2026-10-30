@@ -93,6 +93,10 @@ class AssistantModel:
     def begin(self, settings, cancelled):
         connection = connection_for(settings, "agent")
         local = connection["provider"] == "managed_local"
+        if local and not self.active:
+            # The first identity check hashes the model files, which takes a while: say so instead of
+            # leaving the chat on "unloaded" and "running tool".
+            self._state("loading")
         try:
             identity = json.dumps(
                 [

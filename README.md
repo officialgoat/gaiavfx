@@ -26,7 +26,7 @@ Voice conversion is experimental and requires manual engine setup.
 
 MiniMax H3 is the core video model. Every ComfyUI graph is built in Python by typed integrations and submitted through ComfyUI's API. The app maintains [one custom node pack](comfy_nodes/gaiavfx) with nine nodes and installs four pinned third-party packs. All model weights in the setup manifest are open weights, with the individual licence restrictions below.
 
-The supplied launchers run ComfyUI with `--disable-api-nodes`: no partner or API nodes and no cloud model APIs are needed. Gaia runs a local Qwen GGUF through llama.cpp, or any OpenAI-compatible **local** server configured in Settings. This is the setup for the ComfyUI “Open Source Higgsfield” challenge's **Open Weights Only** entry and **Built with MiniMax H3** bonus.
+The supplied launchers run ComfyUI with `--disable-api-nodes`: no partner or API nodes and no cloud model APIs are needed. Gaia runs a local Qwen GGUF through llama.cpp, or any OpenAI-compatible **local** server configured in Settings. GAIAVFX is our entry to the ComfyUI “Open Source Higgsfield” challenge for **Most Innovative** and the **Built with MiniMax H3** bonus, and it stays open weights only.
 
 ## Requirements and verified runs
 

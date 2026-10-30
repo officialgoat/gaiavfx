@@ -554,7 +554,7 @@ export function makeCommands(
   disabled(
     "reference",
     "Use as reference…",
-    "Reference authoring arrives with Prepare.",
+    "Make a reference from it with References › Prepare references… (Ctrl+Shift+P).",
   );
   disabled("rename", "Rename…", "This item cannot be renamed here yet.", "F2");
   disabled("bin", "Move to bin…", "Manage media collections in Library.");
