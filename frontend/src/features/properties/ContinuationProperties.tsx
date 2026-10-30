@@ -97,7 +97,7 @@ export function ContinuationProperties({
             max={lengths.at(-1)}
             step={lengths.length > 1 ? lengths[1] - lengths[0] : undefined}
             placeholder={`Default · ${plan.default_context}`}
-            defaultValue={plan.explicit_context ?? ""}
+            defaultValue={segment.context_frames ?? ""}
             aria-describedby={`context-lengths-${segment.id}`}
           />
         </label>
