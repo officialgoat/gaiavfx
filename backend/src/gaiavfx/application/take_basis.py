@@ -18,15 +18,8 @@ from gaiavfx.shared.errors import ApplicationError
 
 def record(session, row, keyframes) -> dict:
     """The basis a render of segment `row` records: `keyframes` are the pinned keyframes its window binds."""
-    return {
-        "segment_revision": row["revision"],
-        "phase_revisions": {phase["id"]: phase["revision"] for phase in row["phases"]},
-        "subject_revisions": _subject_revisions(session, row),
-        "cut_revisions": {cut["id"]: cut["revision"] for cut in row["cuts"]},
-        "opening_angle_id": row["opening_angle_id"],
-        # A keyframe's cut index counts shots from the opening: the shot after cut n is shot n + 1.
-        "pins": {row["cuts"][k.cut_index - 1]["id"]: k.asset_id for k in keyframes},
-    }
+    # A keyframe's cut index counts shots from the opening: the shot after cut n is shot n + 1.
+    return _basis(session, row, {row["cuts"][k.cut_index - 1]["id"]: k.asset_id for k in keyframes})
 
 
 def judge(session, segment_id):
@@ -41,9 +34,7 @@ def judge(session, segment_id):
         if "pins" not in request and now is not None:
             sent = {
                 asset_id
-                for job in operations.operation(session, candidate["operation_id"])[
-                    "jobs"
-                ]
+                for job in operations.operation(session, candidate["operation_id"])["jobs"]
                 if job["id"] == candidate["job_id"]
                 for asset_id in job["inputs"]
             }
@@ -68,23 +59,25 @@ def _current(session, segment_id):
         if exc.status != 404:
             raise
         return None
+    approved = {
+        cut["id"]: next(
+            (pin["asset_id"] for pin in direction.keyframes(session, cut["id"]) if pin["approved"]),
+            None,
+        )
+        for cut in row["cuts"]
+    }
+    return _basis(session, row, approved)
+
+
+def _basis(session, row, pins):
+    """What a take of segment `row` depends on, with the pin each cut binds."""
     return {
         "segment_revision": row["revision"],
         "phase_revisions": {phase["id"]: phase["revision"] for phase in row["phases"]},
         "subject_revisions": _subject_revisions(session, row),
         "cut_revisions": {cut["id"]: cut["revision"] for cut in row["cuts"]},
         "opening_angle_id": row["opening_angle_id"],
-        "pins": {
-            cut["id"]: next(
-                (
-                    pin["asset_id"]
-                    for pin in direction.keyframes(session, cut["id"])
-                    if pin["approved"]
-                ),
-                None,
-            )
-            for cut in row["cuts"]
-        },
+        "pins": pins,
     }
 
 
