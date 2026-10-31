@@ -1268,18 +1268,18 @@ def test_reference_retry_requires_human_mapping_and_keeps_seed(world, command, k
 
 
 def test_reference_start_exception_rolls_back_without_pausing_run(world, monkeypatch, caplog):
-    from gaiavfx.application import recast_feed
+    from gaiavfx.application import recast_derivatives
 
     state = run(world, world.ready())
     world.invoke(recast.feed)
     settle_reference(world, "face_portraits")
-    start = recast_feed.start_face_sheet
+    start = recast_derivatives.start_face_sheet
 
     def unavailable(*args, **kwargs):
         start(*args, **kwargs)
         raise ApplicationError("Cannot start sheet", 503)
 
-    monkeypatch.setattr(recast_feed, "start_face_sheet", unavailable)
+    monkeypatch.setattr(recast_derivatives, "start_face_sheet", unavailable)
     world.invoke(recast.feed)
     state = world.invoke(recast.recast_state, state["id"])
     assert state["run"]["state"] == "running" and state["run"]["reason"] is None

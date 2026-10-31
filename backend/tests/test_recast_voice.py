@@ -22,7 +22,7 @@ from test_recast_service import recast_template as recast_template  # noqa: PLC0
 from test_recast_service import world as world  # noqa: PLC0414 - shared fixture
 
 from gaiavfx.api.recast import RecastDTO, VoiceDTO
-from gaiavfx.application import recast, recast_edits, recast_lines, recast_voice
+from gaiavfx.application import recast, recast_derivatives, recast_edits, recast_lines, recast_voice
 from gaiavfx.application import recast_projection as p
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
 from gaiavfx.modules.library.assets import AssetRecord
@@ -296,7 +296,7 @@ def audition(world, state, character_id, build, *, outcome="succeeded", attempt=
     with world.db.transaction() as session:
         row = p.store.load(session, state["id"])
         stand = next(c for c in row["characters"] if c["id"] == character_id)
-        key = recast_voice._audition_key(row, stand, "hidden-artifact-" + build["id"], attempt)
+        key = recast_derivatives.audition_key(row, stand, "hidden-artifact-" + build["id"], attempt)
         operation = world.create_op(
             session,
             "voice_audition",
@@ -702,7 +702,8 @@ def test_approve_and_reject_need_a_waiting_audition(world, builds):
         row = p.store.load(session, state["id"])
         stand = next(c for c in row["characters"] if c["id"] == cid)
         audition_op = world.ops.for_request(
-            session, recast_voice._audition_key(row, stand, "hidden-artifact-" + build["id"], 1)
+            session,
+            recast_derivatives.audition_key(row, stand, "hidden-artifact-" + build["id"], 1),
         )
     builds.reels[audition_op["id"]] = "reel"
     state = invoke(world, recast_voice.approve_voice, state, cid)
@@ -785,12 +786,17 @@ def test_recast_voice_keeps_its_boundaries():
     for file in (SOURCE / "application").glob("recast*.py"):
         if file.name != "recast_voice.py":
             assert "start_voice_build(" not in file.read_text("utf-8"), file.name
-    # The feed reaches the build only through recast_voice, and starts an audition only through start_audition.
+    # The feed advances the voice model through recast_derivatives, which starts an audition only in start_audition
+    # and reaches the build and dialogue analysis modules at call time.
     feed_source = (SOURCE / "application" / "recast_feed.py").read_text("utf-8")
-    assert "start_audition(" in feed_source and "start_voice_audition(" not in feed_source
-    assert not any(
-        "voice_build" in name for name in imported_names(SOURCE / "application" / "recast_feed.py")
-    )
+    assert "feed_voices(" in feed_source and "start_voice_audition(" not in feed_source
+    derived = (SOURCE / "application" / "recast_derivatives.py").read_text("utf-8")
+    assert derived.count("start_voice_audition(") == 1 and "def start_audition(" in derived
+    for file in ("recast_feed.py", "recast_derivatives.py"):
+        assert not any(
+            "voice_build" in name or "dialogue_analysis" in name
+            for name in imported_names(SOURCE / "application" / file)
+        ), file
     # The shared dialogue analysis stays recast-free with its new stem helper (A34).
     assert not any(
         name.startswith(("gaiavfx.application.recast", "gaiavfx.modules.editing"))
@@ -939,7 +945,7 @@ def test_the_feed_follows_the_build_and_starts_the_audition_once(world, heard, v
     with world.db.transaction() as session:
         row = p.store.load(session, state["id"])
         stand = next(c for c in row["characters"] if c["id"] == a)
-        assert call["request_key"] == recast_voice._audition_key(row, stand, manifest, 1)
+        assert call["request_key"] == recast_derivatives.audition_key(row, stand, manifest, 1)
     assert [line["key"] for line in call["lines"]] == [KEYS[2], KEYS[0], KEYS[1]]
     shown = {
         line["segment_key"]: line
@@ -1218,7 +1224,10 @@ def test_blocked_names_what_build_voice_refuses(world, builds):
     state, cid = mara(world)
     state = invoke(world, recast_voice.set_voice, state, cid, asset_ids=["rec_a", "rec_b"])
     view = character(state, cid)["voice"]
-    assert (view["blocked"], view["reason"]) == (False, recast_voice.NOT_BUILT)  # the next step
+    assert (view["blocked"], view["reason"]) == (
+        False,
+        recast_derivatives.NOT_BUILT,
+    )  # the next step
     state = invoke(world, recast_voice.build_voice, state, cid, expressive_library="")
     succeed(world, build_operation(world, ["rec_a", "rec_b"])["id"])
     view = character(read(world, state), cid)["voice"]

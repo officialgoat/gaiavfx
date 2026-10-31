@@ -138,6 +138,12 @@ The picture a Character becomes, proposed by Gaia or confirmed by the user.
 **Face sheet**:
 A generated reference of a Target that becomes the effective Target once approved.
 
+**Voice model**:
+A voice built from a Character's recordings, auditioned on its lines and approved by the user.
+
+**Derivative**:
+What is made from a Character's chosen input and waits for the user's approval: its Face sheet or its Voice model.
+
 **Run**:
 A Recast's render pass over a frame range, in draft or final mode, within a budget.
 

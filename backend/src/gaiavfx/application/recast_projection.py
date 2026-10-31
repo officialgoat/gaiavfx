@@ -18,6 +18,7 @@ from gaiavfx.modules.direction.replacement import parse_replacement_policy
 from gaiavfx.modules.editing.recast.service import RecastService
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
 store = RecastService()
@@ -695,3 +696,11 @@ def render_seconds(operation):
                 return None
             total += elapsed
     return total / renders if renders else None
+
+
+def in_library(session, asset_id):
+    try:
+        MediaLibrary.asset_info(session, asset_id)
+    except ApplicationError:
+        return False
+    return True

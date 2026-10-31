@@ -7,42 +7,35 @@ The samples are the user's cast edits, journaled like a picture (recast_edits); 
 `build_voice` and `retry_voice` start one. Reading the state never starts anything. Changing or clearing the samples
 cancels the old samples' build only while it runs and no other confirmed character still uses those recordings.
 
-The audition (P5d) is started by the voice feed once a build succeeded and the character has enough confirmed lines
-(`start_audition`); approval is read back from the reel's `generated_voice` provenance (`approval_recorded`), so it
-survives an undo that restores the recordings even though undo leaves the feed's columns alone.
+The voice model itself is one of the character's derivatives (`recast_derivatives`): the build and audition evidence,
+the audition the feed starts once a build succeeded and the character has enough confirmed lines, and the approval,
+read back from the reel's `generated_voice` provenance, so it survives an undo that restores the recordings even
+though undo leaves the feed's columns alone.
 
-`recast` is imported at call time (it imports this module), and the build and dialogue analysis modules through
-`import_module`, so the test world can replace them through `sys.modules` (as `recast_lines` does with the dialogue
+`recast` is imported at call time (it imports this module), and the build module through
+`import_module`, so the test world can replace it through `sys.modules` (as `recast_lines` does with the dialogue
 analysis).
 Human only: the harness never imports the commands here (test_boundaries).
 """
 
 import json
-import statistics
 import time
-from fractions import Fraction
 from functools import cache
 from importlib import import_module
 
+from gaiavfx.application import recast_derivatives as derivatives
 from gaiavfx.application import recast_edits as journaling
-from gaiavfx.application import recast_lines as lining
-from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
-from gaiavfx.infrastructure.database import timestamp
 from gaiavfx.integrations.voice import expressive
 from gaiavfx.integrations.voice import spec as voice_spec
-from gaiavfx.modules.direction import dialogue as rule
 from gaiavfx.modules.direction.application import default_voice_policy
-from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.shared.errors import ApplicationError
 
 MAX_SAMPLES = 12
 AUDIO_ONLY = "Choose Library audio recordings for the voice."
 HIDDEN = "A hidden character has no voice built."
 PROPOSED = "Confirm the proposed recordings first."
-NOT_BUILT = "Build the voice to hear an audition."
 NOTHING_TO_RETRY = "Nothing to retry."
-PROVENANCE_MISSING = "Audition provenance is missing."
 # The audition could not start, or settled without a reel to review; the retry's own refusal names the cause.
 AUDITION_FAILED = (
     "The audition could not be made. Retry; if it fails again, the app log has the details."
@@ -51,10 +44,6 @@ AUDITION_FAILED = (
 
 def _build():
     return import_module("gaiavfx.application.voice_build")
-
-
-def _evidence():
-    return import_module("gaiavfx.application.dialogue_analysis")
 
 
 def _commands():
@@ -96,17 +85,6 @@ def _waiting_for_lines(label: str) -> str:
 # --- reading ----------------------------------------------------------------------------------------------------------
 
 
-def _assets(session, library, asset_ids) -> list[dict | None]:
-    """Each sample asset, or None for one no longer in the Library."""
-    found = []
-    for asset_id in asset_ids:
-        try:
-            found.append(library.get(session, asset_id))
-        except ApplicationError:
-            found.append(None)
-    return found
-
-
 def _seconds(asset: dict | None) -> float:
     return float((asset or {}).get("info", {}).get("duration") or 0.0) if asset else 0.0
 
@@ -114,73 +92,11 @@ def _seconds(asset: dict | None) -> float:
 def samples_seconds(session, library, asset_ids) -> float:
     """The recordings' total duration; refuses anything that is not a Library audio asset (422)."""
     total = 0.0
-    for asset in _assets(session, library, asset_ids):
+    for asset in derivatives.sample_assets(session, library, asset_ids):
         if asset is None or asset["kind"] != "audio":
             raise ApplicationError(AUDIO_ONLY, 422)
         total += _seconds(asset)
     return total
-
-
-def _shas(session, library, asset_ids) -> list[str] | None:
-    """The samples' content hashes in order (the build's key), or None when one left the Library."""
-    assets = _assets(session, library, asset_ids)
-    return None if any(a is None for a in assets) else [a["sha256"] for a in assets]
-
-
-def current_build(session, library, character) -> tuple[dict | None, int]:
-    """(the newest attempt of the shared build of the character's samples, its attempt); (None, 1) without one."""
-    shas = _shas(session, library, character["voice_asset_ids"] or [])
-    if not shas:
-        return None, 1
-    return _build().latest(session, shas)
-
-
-def _audition_key(recast, character, manifest_artifact_id, attempt):
-    return planning.key(recast["id"], character["id"], manifest_artifact_id, "audition", attempt)
-
-
-def current_audition(session, recast, character, manifest_artifact_id) -> tuple[dict | None, int]:
-    """(the newest audition of this character with this voice model, its attempt); (None, 1) without one."""
-    return attempts(
-        p.operations,
-        session,
-        lambda n: _audition_key(recast, character, manifest_artifact_id, n),
-    ).newest()
-
-
-def build_failed(build) -> bool:
-    """Whether the build reads failed on the card: settled without success, or a stopped stage awaiting its retry."""
-    return _build().build_view(build)["state"] == "failed"
-
-
-def manifest_of(build) -> dict | None:
-    """{"artifact_id", "sha256"} of a succeeded build's `voice_model` manifest; None otherwise."""
-    return _build().manifest_artifact(build)
-
-
-def audition_failed(audition) -> bool:
-    """A settled audition with no reel to review: failed, cancelled or partial, or succeeded without its reel."""
-    return audition["state"] in p.SETTLED and _build().audition_reel(audition) is None
-
-
-def approval_recorded(session, library, recast, character, audition, artifact_id) -> bool:
-    """Whether the audition's reel carries this character's `generated_voice` approval of this voice model. Approval
-    is read from this evidence, not only from the feed's column: an undo that brings the recordings back brings the
-    approval back too (undo never restores feed-owned columns). A rejection leaves no evidence."""
-    reel = _build().audition_reel(audition)
-    if not reel or not reel.get("asset_id"):
-        return False
-    try:
-        asset = library.get(session, reel["asset_id"])
-    except ApplicationError:
-        return False
-    return any(
-        entry.get("type") == "generated_voice"
-        and entry.get("recast_id") == recast["id"]
-        and entry.get("character_id") == character["id"]
-        and entry.get("voice_model_artifact_id") == artifact_id
-        for entry in asset.get("provenance") or ()
-    )
 
 
 def _settled_unsuccessful(operation) -> bool:
@@ -219,7 +135,7 @@ def voice_view(session, library, recast, character, lines_confirmed, expressive_
     asset_ids = character.get("voice_asset_ids") or []
     if not asset_ids:
         return None
-    assets = _assets(session, library, asset_ids)
+    assets = derivatives.sample_assets(session, library, asset_ids)
     samples = [
         {
             "asset_id": asset_id,
@@ -257,7 +173,9 @@ def voice_view(session, library, recast, character, lines_confirmed, expressive_
         elif build is not None:
             manifest = builds.manifest_artifact(build)
             if manifest:
-                audition, _ = current_audition(session, recast, character, manifest["artifact_id"])
+                audition, _ = derivatives.current_audition(
+                    session, recast, character, manifest["artifact_id"]
+                )
             if audition is not None:
                 view.update(_progress(builds.audition_view(audition)))
                 reel = builds.audition_reel(audition) if audition["state"] == "succeeded" else None
@@ -289,7 +207,7 @@ def _reason(character, seconds, build, audition, lines_confirmed):
     if character["hidden"]:
         return HIDDEN
     if build is None:
-        return NOT_BUILT
+        return derivatives.NOT_BUILT
     if build["state"] == "succeeded" and audition is None and lines_confirmed < _min_lines():
         return _waiting_for_lines(character["label"])
     return None
@@ -326,7 +244,7 @@ def _release(session, library, recast, character, new_ids=None):
         return
     if shared_elsewhere(session, recast["id"], old):
         return
-    if shas := _shas(session, library, old):
+    if shas := derivatives.sample_shas(session, library, old):
         _build().cancel_build(session, shas)
 
 
@@ -490,7 +408,7 @@ def build_voice(
     character = commands._character(recast, character_id)
     _buildable(session, library, character)
     builds = _build()
-    operation, attempt = current_build(session, library, character)
+    operation, attempt = derivatives.current_build(session, library, character)
     scan = expressive.scan(expressive_library)
     _remember(expressive_library, scan["digest"])
     if operation is None:
@@ -514,95 +432,6 @@ def build_voice(
     return commands.finish(session, library, recast)
 
 
-def _clip_spans(line, whisper_spans, rate: int) -> list[list[float]]:
-    """The film's whispered stretches inside a line, in seconds from the line's first sample."""
-    start, end = Fraction(int(line["start_sample"]), rate), Fraction(int(line["end_sample"]), rate)
-    spans = []
-    for a, b in whisper_spans or ():
-        low, high = max(start, Fraction(a)), min(end, Fraction(b))
-        if high > low:
-            spans.append([round(float(low - start), 6), round(float(high - start), 6)])
-    return spans
-
-
-def start_audition(session, library, recast, character, build, *, attempt, report=None):
-    """The audition of the built voice on up to `[audition] count` of the character's confirmed lines, picked by the
-    Direction rule (`audition_lines`): the feed starts attempt 1 after the build succeeded, `retry_voice` the next.
-    The build module gets plain data only: the lines' integer sample spans with their whispered stretches relative to
-    each clip, the dialogue stem, the voice's weights and index, the source median (the median pitch of all the
-    character's confirmed lines now) and the target median from the build's manifest. Returns the operation (with
-    `_created`), or None while the character has fewer than `[audition] min_lines` confirmed lines: the audition
-    waits for them (the view says so). 409 when no confirmed line has a measured pitch."""
-    builds = _build()
-    manifest = builds.manifest_artifact(build)
-    document = builds.voice_manifest(session, library, build["id"]) if manifest else None
-    if manifest is None or document is None:
-        raise ApplicationError(NOT_BUILT, 409)
-    policy = default_voice_policy().audition
-    current = lining.current_operation(session, library, recast)
-    operation = current[0]
-    # A confirmed line is always a stored decision: count those before computing every line (the feed asks on each
-    # pass while the audition waits for lines).
-    decided = sum(
-        row["state"] == "confirmed"
-        and row["character_id"] == character["id"]
-        and operation is not None
-        and row["dialogue_operation_id"] == operation["id"]
-        for row in recast.get("lines", [])
-    )
-    if decided < policy.min_lines:
-        return None
-    if report is None:
-        report = p.report_for(session, library, recast)
-    views = lining.line_views(session, library, recast, report, current)
-    confirmed = [
-        line
-        for line in views["lines"]
-        if line["state"] == "confirmed" and line["character_id"] == character["id"]
-    ]
-    if len(confirmed) < policy.min_lines:
-        return None
-    medians = [float(line["median_hz"]) for line in confirmed if line.get("median_hz") is not None]
-    if not medians:
-        raise ApplicationError(
-            f"None of {character['label']}'s confirmed lines has a measured pitch. "
-            "Confirm a spoken line, then retry.",
-            409,
-        )
-    evidence = _evidence()
-    dialogue = evidence.dialogue_report(session, library, operation["id"])
-    rate = int(views["sample_rate"])
-    picks = rule.audition_lines(
-        confirmed,
-        dialogue["envelope"],
-        count=policy.count,
-        min_seconds=policy.min_seconds,
-        sample_rate=rate,
-    )
-    return builds.start_voice_audition(
-        session,
-        library,
-        request_key=_audition_key(recast, character, manifest["artifact_id"], attempt),
-        stem=evidence.stem_artifact(operation),
-        lines=[
-            {
-                "key": line["segment_key"],
-                "start_sample": int(line["start_sample"]),
-                "end_sample": int(line["end_sample"]),
-                "whisper_spans": _clip_spans(line, dialogue["whisper_spans"], rate),
-            }
-            for line in picks
-        ],
-        weights=document["weights"],
-        index=document["index"],
-        source_median_hz=statistics.median(medians),
-        target_median_hz=float(document["target_median_hz"]),
-        sample_rate=rate,
-        voice_model=manifest["artifact_id"],
-        attempt=attempt,
-    )
-
-
 def _audition_retryable(character, manifest, audition) -> bool:
     """A succeeded build's audition can run again when it failed or was rejected, or when the feed could not start
     it (the character reads failed with no audition); never while one runs or after approval."""
@@ -613,7 +442,7 @@ def _audition_retryable(character, manifest, audition) -> bool:
         return state == "failed"
     if audition["state"] not in p.SETTLED:
         return False
-    return audition_failed(audition) or state == "rejected"
+    return derivatives.audition_failed(audition) or state == "rejected"
 
 
 def retry_voice(
@@ -627,7 +456,7 @@ def retry_voice(
     character = commands._character(recast, character_id)
     _buildable(session, library, character)
     builds = _build()
-    operation, attempt = current_build(session, library, character)
+    operation, attempt = derivatives.current_build(session, library, character)
     if operation is None:
         raise ApplicationError(NOTHING_TO_RETRY, 409)
     if operation["state"] == "awaiting_review" and builds.stopped_jobs(operation):
@@ -639,13 +468,13 @@ def retry_voice(
     elif operation["state"] == "succeeded":
         manifest = builds.manifest_artifact(operation)
         audition, tried = (
-            current_audition(session, recast, character, manifest["artifact_id"])
+            derivatives.current_audition(session, recast, character, manifest["artifact_id"])
             if manifest
             else (None, 1)
         )
         if not _audition_retryable(character, manifest, audition):
             raise ApplicationError(NOTHING_TO_RETRY, 409)
-        started = start_audition(
+        started = derivatives.start_audition(
             session,
             library,
             recast,
@@ -663,63 +492,20 @@ def retry_voice(
     return commands.finish(session, library, recast)
 
 
-def _reviewed(session, library, recast_id, character_id, expected_revision):
-    """The waiting audition: (commands, recast, character, build, audition, reel); refusals before any write."""
-    commands = _commands()
-    recast, _ = commands.load(session, library, recast_id, expected_revision)
-    character = commands._character(recast, character_id)
-    if character.get("voice_model_state") != "waiting":
-        raise ApplicationError("No voice audition is waiting for approval.", 409)
-    builds = _build()
-    build, _ = current_build(session, library, character)
-    manifest = builds.manifest_artifact(build) if build and build["state"] == "succeeded" else None
-    audition = (
-        current_audition(session, recast, character, manifest["artifact_id"])[0]
-        if manifest
-        else None
-    )
-    reel = builds.audition_reel(audition) if audition and audition["state"] == "succeeded" else None
-    if reel is None or not reel.get("asset_id"):
-        raise ApplicationError(PROVENANCE_MISSING, 409)
-    return commands, recast, character, build, manifest, audition, reel
-
-
 def approve_voice(session, library, recast_id, character_id, *, expected_revision):
     """Human only: the audition reel records the generated voice (`generated_voice` provenance); conform and line
     conversion use only an approved voice (ADR 0016 §7)."""
-    commands, recast, character, build, manifest, audition, reel = _reviewed(
-        session, library, recast_id, character_id, expected_revision
+    commands = _commands()
+    recast, _ = commands.load(session, library, recast_id, expected_revision)
+    derivatives.approve(
+        session, library, recast, commands._character(recast, character_id), "voice"
     )
-    request = audition.get("request") or {}
-    library.approve_derivative(
-        session,
-        reel["asset_id"],
-        character["voice_asset_ids"][0],
-        {
-            "type": "generated_voice",
-            "subject": "recast_voice",
-            "recast_id": recast_id,
-            "character_id": character_id,
-            "sample_assets": list(character["voice_asset_ids"]),
-            "voice_model_artifact_id": manifest["artifact_id"],
-            "build_operation": build["id"],
-            "audition_operation": audition["id"],
-            "source_median_hz": request.get("source_median_hz"),
-            "target_median_hz": request.get("target_median_hz"),
-            "lines": list(request.get("lines") or []),
-            "approved_by": "user",
-            "approved_at": timestamp(),
-            "recast_revision": recast["revision"] + 1,
-        },
-    )
-    character.update(voice_model_state="approved", voice_model_artifact_id=manifest["artifact_id"])
     return commands.finish(session, library, recast)
 
 
 def reject_voice(session, library, recast_id, character_id, *, expected_revision):
     """Human only: the audition is not this voice; `retry_voice` auditions again."""
-    commands, recast, character, *_rest = _reviewed(
-        session, library, recast_id, character_id, expected_revision
-    )
-    character["voice_model_state"] = "rejected"
+    commands = _commands()
+    recast, _ = commands.load(session, library, recast_id, expected_revision)
+    derivatives.reject(recast, commands._character(recast, character_id), "voice")
     return commands.finish(session, library, recast)

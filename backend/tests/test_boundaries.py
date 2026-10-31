@@ -665,15 +665,19 @@ def test_voice_build_does_not_depend_on_recasts():
             or ".persistence" in name
             for name in imports
         ), (file, imports)
-    # Only the human voice commands start a build or an audition; reading recasts and the feed never do.
-    for call in ("start_voice_build(", "start_voice_audition("):
+    # Only the human voice commands start a build; an audition starts from them or from the voice model's advance
+    # (`recast_derivatives`) once its build succeeded. Reading recasts never starts either.
+    for call, allowed in (
+        ("start_voice_build(", {"voice_build.py", "recast_voice.py"}),
+        ("start_voice_audition(", {"voice_build.py", "recast_derivatives.py"}),
+    ):
         starters = {
             path.name
             for path in (SOURCE / "application").rglob("*.py")
             if call in path.read_text("utf-8")
         }
         assert "voice_build.py" in starters, (call, starters)
-        assert starters <= {"voice_build.py", "recast_voice.py"}, (call, starters)
+        assert starters <= allowed, (call, starters)
 
 
 def test_harness_never_imports_recast_human_commands():

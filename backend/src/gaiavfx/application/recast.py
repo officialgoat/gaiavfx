@@ -5,17 +5,14 @@ import re
 from copy import deepcopy
 from statistics import median
 
+from gaiavfx.application import recast_derivatives as derivatives
 from gaiavfx.application import recast_edits as journaling
 from gaiavfx.application import recast_feed as feeding
 from gaiavfx.application import recast_lines as lining
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import recast_voice as voicing
-from gaiavfx.application.recast_feed import (
-    advance_reference,
-    cancel_reference,
-    reference_operations,
-)
+from gaiavfx.application.recast_derivatives import advance_reference, cancel_reference
 from gaiavfx.application.recast_run import seed_window_seconds
 from gaiavfx.application.target_faces import (
     TargetReportPending,
@@ -1167,44 +1164,11 @@ def face_path(session, library, recast_id, artifact_id):
 
 def approve_reference(session, library, recast_id, character_id, *, expected_revision):
     recast, _ = load(session, library, recast_id, expected_revision)
-    character = _character(recast, character_id)
-    if character.get("reference_state") != "waiting" or character["target_state"] != "confirmed":
-        raise ApplicationError("No face sheet is waiting for approval.", 409)
-    raw = character["target_asset_id"]
-    sheet = character["reference_asset_id"]
-    _, _, portraits, assembly = reference_operations(session, recast, character)
-    if (
-        not portraits
-        or not assembly
-        or not any(c["asset_id"] == sheet for c in assembly["candidates"])
-    ):
-        raise ApplicationError("Face sheet provenance is missing.", 409)
-    library.approve_derivative(
-        session,
-        sheet,
-        raw,
-        {
-            "type": "generated_reference",
-            "subject": "recast_target",
-            "recast_id": recast_id,
-            "character_id": character_id,
-            "source_asset": raw,
-            "portraits_operation": portraits["id"],
-            "sheet_operation": assembly["id"],
-            "approved_by": "user",
-            "approved_at": timestamp(),
-            "recast_revision": recast["revision"] + 1,
-        },
-    )
-    character["reference_state"] = "approved"
-    start_target_report(session, library, sheet)
+    derivatives.approve(session, library, recast, _character(recast, character_id), "reference")
     return finish(session, library, recast)
 
 
 def reject_reference(session, library, recast_id, character_id, *, expected_revision):
     recast, _ = load(session, library, recast_id, expected_revision)
-    character = _character(recast, character_id)
-    if character.get("reference_state") != "waiting" or character["target_state"] != "confirmed":
-        raise ApplicationError("No face sheet is waiting for approval.", 409)
-    character["reference_state"] = "rejected"
+    derivatives.reject(recast, _character(recast, character_id), "reference")
     return finish(session, library, recast)

@@ -2,19 +2,15 @@
 
 import logging
 from copy import deepcopy
-from hashlib import sha256
 
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application.recast_derivatives import feed_references, feed_voices
 from gaiavfx.application.target_faces import (
-    start_face_portraits,
-    start_face_sheet,
     start_target_report,
     target_report,
 )
 from gaiavfx.infrastructure.database import timestamp
-from gaiavfx.modules.generation.operations.attempts import attempts
-from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -166,7 +162,7 @@ def _feed_recast(session, library, recast_id):
         # not the run's: it keeps following the build the user asked for (the P5f trial: a run error stored since
         # 8 October left the built voice's audition unstarted, the card reading "making").
         before = deepcopy(recast["characters"])
-        queued = _feed_voices(session, library, recast, None)
+        queued = feed_voices(session, library, recast, None)
         # An unchanged error-paused recast is not written on every sweep.
         if recast["characters"] != before:
             p.store.save(session, recast)
@@ -189,8 +185,8 @@ def _feed_recast(session, library, recast_id):
     p.sync(recast, report)
     promote_drafts(session, recast, report)
     planning.refresh_all(session, library, recast, report)
-    queued |= _feed_references(session, library, recast)
-    queued |= _feed_voices(session, library, recast, report)
+    queued |= feed_references(session, library, recast)
+    queued |= feed_voices(session, library, recast, report)
     film_shots = {p.shot_id(s): s for s in report["shots"]}
     for shot in recast["shots"]:
         if not shot["window_replacement_ops"] or shot["assembly_op"]:
@@ -447,197 +443,4 @@ def feed(session, library):
                 run_state="paused", run_reason=f"Run error: {exc}", updated_at=timestamp()
             )
             p.store.save(session, recast)
-    return queued
-
-
-def reference_operations(session, recast, character):
-    """Recover the latest durable attempt without storing operation ids in Editing."""
-    asset = MediaLibrary.asset_info(session, character["target_asset_id"])
-    identity = (recast["id"], character["id"], asset["sha256"])
-    portraits, attempt = attempts(
-        p.operations, session, lambda n: planning.key(*identity, "portraits", n)
-    ).newest()
-    # The sheet of an attempt shares its portraits' number.
-    sheet = p.operations.for_request(session, planning.key(*identity, "sheet", attempt))
-    return identity, attempt, portraits, sheet
-
-
-def cancel_reference(session, recast, character):
-    if not character["target_asset_id"]:
-        return
-    _, _, portraits, sheet = reference_operations(session, recast, character)
-    for operation in (portraits, sheet):
-        if operation and operation["state"] not in p.SETTLED:
-            p.operations.request_cancel(session, operation["id"])
-
-
-def _failed(operation):
-    return operation and operation["state"] in p.SETTLED and operation["state"] != "succeeded"
-
-
-def _feed_reference(session, library, recast, character, *, retry_failed=False):
-    identity, attempt, portraits, sheet = reference_operations(session, recast, character)
-    retry = retry_failed and (_failed(portraits) or _failed(sheet))
-    if retry:
-        attempt += 1
-    elif retry_failed:
-        # Mapping again does not restart pending, approved or rejected work.
-        return False
-    if not portraits or retry:
-        report = target_report(session, library, character["target_asset_id"])
-        if retry:
-            # Same immutable target: reuse the attempt's face box if its report is being retried.
-            box = portraits["request"]["box"]
-        elif report and report["state"] == "face":
-            box = report["box"]
-        else:
-            return False
-        seed_key = planning.key(*identity, "portraits")
-        seed = int(sha256(seed_key.encode()).hexdigest()[:8], 16)
-        op = start_face_portraits(
-            session,
-            library,
-            character["target_asset_id"],
-            box,
-            seed=seed,
-            request_key=planning.key(*identity, "portraits", attempt),
-            attempt=attempt,
-        )
-        character.update(reference_state="making", reference_asset_id=None)
-        return op.get("_created", False)
-    if _failed(portraits) or _failed(sheet):
-        character["reference_state"] = "failed"
-    elif sheet:
-        if sheet["state"] == "succeeded":
-            if len(sheet["candidates"]) == 1:
-                character.update(
-                    reference_state="waiting", reference_asset_id=sheet["candidates"][0]["asset_id"]
-                )
-            else:
-                character["reference_state"] = "failed"
-        else:
-            character["reference_state"] = "making"
-    elif portraits["state"] == "succeeded":
-        if len(portraits["candidates"]) != 3:
-            character["reference_state"] = "failed"
-            return False
-        op = start_face_sheet(
-            session,
-            library,
-            character["target_asset_id"],
-            portraits["id"],
-            request_key=planning.key(*identity, "sheet", attempt),
-        )
-        character["reference_state"] = "making"
-        return op.get("_created", False)
-    else:
-        character["reference_state"] = "making"
-    return False
-
-
-def advance_reference(session, library, recast, character, *, retry_failed=False):
-    if character["target_state"] != "confirmed" or character["hidden"]:
-        return False
-    try:
-        with session.begin_nested():
-            return _feed_reference(session, library, recast, character, retry_failed=retry_failed)
-    except Exception:
-        logging.getLogger(__name__).exception(
-            "Target face sheet failed: %s", character["target_asset_id"]
-        )
-        # Plain aggregate data is not rolled back by the SQL savepoint.
-        character.update(reference_state="failed", reference_asset_id=None)
-        return False
-
-
-def _feed_references(session, library, recast):
-    queued = False
-    for character in recast["characters"]:
-        if character.get("reference_state") in {None, "making"}:
-            queued |= advance_reference(session, library, recast, character)
-    return queued
-
-
-def _voicing():
-    # recast_voice imports recast_edits, which imports this module: reach it at call time.
-    from gaiavfx.application import recast_voice
-
-    return recast_voice
-
-
-def _feed_voice(session, library, recast, character, report):
-    """The feed-owned voice columns from the evidence (ADR 0016 §4): the shared build's state, its manifest, the
-    audition (started here, once the build succeeded and enough lines are confirmed) and approval read from the reel's
-    provenance. Only `build_voice` and `retry_voice` ever start a build."""
-    voicing = _voicing()
-    build, _ = voicing.current_build(session, library, character)
-    if build is None:
-        # These recordings have no build: no model state, even when an undo restored them under another voice's
-        # approval (the feed-owned columns survive undo; Astra's P5 review).
-        character.update(voice_model_state=None, voice_model_artifact_id=None)
-        return False
-    if build["state"] != "succeeded":
-        character.update(
-            voice_model_state="failed" if voicing.build_failed(build) else "making",
-            voice_model_artifact_id=None,
-        )
-        return False
-    manifest = voicing.manifest_of(build)
-    if manifest is None:
-        character.update(voice_model_state="failed", voice_model_artifact_id=None)
-        return False
-    previous = character.get("voice_model_state")
-    same = character.get("voice_model_artifact_id") == manifest["artifact_id"]
-    character["voice_model_artifact_id"] = manifest["artifact_id"]
-    audition, attempt = voicing.current_audition(
-        session, recast, character, manifest["artifact_id"]
-    )
-    if audition is None:
-        if same and previous == "failed":
-            return False  # this voice's audition could not start; the human retry starts it again
-        started = voicing.start_audition(
-            session, library, recast, character, build, attempt=attempt, report=report
-        )
-        # Without enough confirmed lines nothing starts; the view says what the audition waits for.
-        character["voice_model_state"] = "making"
-        return bool(started and started.get("_created"))
-    if audition["state"] not in p.SETTLED:
-        state = "making"
-    elif voicing.audition_failed(audition):
-        state = "failed"
-    elif voicing.approval_recorded(
-        session, library, recast, character, audition, manifest["artifact_id"]
-    ):
-        state = "approved"
-    elif same and previous in {"approved", "rejected"}:
-        state = previous  # the human's decision on this voice persists; a rebuild's new manifest resets it
-    else:
-        state = "waiting"
-    character["voice_model_state"] = state
-    return False
-
-
-def advance_voice(session, library, recast, character, *, report=None):
-    """Advance one character's voice: a confirmed, visible voice with recordings. A failure is logged and reads
-    failed; it never pauses the recast."""
-    if (
-        character.get("voice_state") != "confirmed"
-        or character["hidden"]
-        or not character.get("voice_asset_ids")
-    ):
-        return False
-    try:
-        with session.begin_nested():
-            return _feed_voice(session, library, recast, character, report)
-    except Exception:
-        logging.getLogger(__name__).exception("Voice feed failed: %s", character["id"])
-        # Plain aggregate data is not rolled back by the SQL savepoint.
-        character["voice_model_state"] = "failed"
-        return False
-
-
-def _feed_voices(session, library, recast, report):
-    queued = False
-    for character in recast["characters"]:
-        queued |= advance_voice(session, library, recast, character, report=report)
     return queued

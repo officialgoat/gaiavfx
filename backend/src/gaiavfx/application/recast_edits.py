@@ -13,13 +13,6 @@ from dataclasses import dataclass
 from itertools import pairwise
 
 from gaiavfx.application import recast_projection as p
-from gaiavfx.application.recast_feed import (
-    advance_reference,
-    cancel_reference,
-    reference_operations,
-)
-from gaiavfx.application.target_faces import start_target_report
-from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
 # Journal collection -> the aggregate's list, a row's key, and the order the store loads rows in.
@@ -332,14 +325,6 @@ def _owners_match(restored, report, entry):
     return all(owners.get(track) == owner for track, owner in recorded.items())
 
 
-def _in_library(session, asset_id):
-    try:
-        MediaLibrary.asset_info(session, asset_id)
-    except ApplicationError:
-        return False
-    return True
-
-
 def _target_changes(session, current, entry):
     """Step 7's refusal, before any side effect: characters whose target the undo changes."""
     changed = []
@@ -349,48 +334,10 @@ def _target_changes(session, current, entry):
         now = current["characters"].get(character_id) or {}
         if all(image[k] == now.get(k) for k in REFERENCED):
             continue  # the restored label or proposer leaves the reference work as it stands
-        if image["target_asset_id"] and not _in_library(session, image["target_asset_id"]):
+        if image["target_asset_id"] and not p.in_library(session, image["target_asset_id"]):
             raise ApplicationError("The target picture is no longer in the Library.", 409)
         changed.append(character_id)
     return changed
-
-
-def _sheet_stands(session, recast, character, asset_id):
-    _identity, _attempt, _portraits, sheet = reference_operations(session, recast, character)
-    return bool(
-        sheet
-        and sheet["state"] == "succeeded"
-        and any(c["asset_id"] == asset_id for c in sheet["candidates"])
-    )
-
-
-def _reconcile(session, library, recast, current, entry, changed):
-    """Step 7's side effects: the reference work of each restored target, as the commands do."""
-    characters = {c["id"]: c for c in recast["characters"]}
-    for character_id in changed:
-        character = characters[character_id]
-        image = entry["before"]["characters"][character_id]
-        now = current["characters"].get(character_id)
-        if (
-            now
-            and now["target_asset_id"]
-            and now["target_asset_id"] != character["target_asset_id"]
-            # A picture gone from the Library leaves no reference work to find and cancel.
-            and _in_library(session, now["target_asset_id"])
-        ):
-            cancel_reference(session, recast, now)
-        character.update(reference_state=None, reference_asset_id=None)
-        if character["target_state"] == "confirmed":
-            start_target_report(session, library, character["target_asset_id"], retry_failed=True)
-            if image["reference_state"] in {"approved", "waiting", "rejected"} and _sheet_stands(
-                session, recast, character, image["reference_asset_id"]
-            ):
-                # The face sheet follows the target; the voice model's feed state is not the target's.
-                character.update({k: image[k] for k in ("reference_state", "reference_asset_id")})
-            else:
-                advance_reference(session, library, recast, character, retry_failed=True)
-        elif character["target_state"] == "proposed":
-            start_target_report(session, library, character["target_asset_id"])
 
 
 def overlapping_edges(lines):
@@ -417,6 +364,7 @@ def overlapping_edges(lines):
 def undo_edit(session, library, recast_id, edit_id, *, expected_revision):
     """Undo one cast edit, or redo one (undo of an undo entry). Every refusal comes before any write."""
     from gaiavfx.application import recast as commands  # recast imports this module
+    from gaiavfx.application import recast_derivatives as derivatives  # through recast_lines
 
     recast, report = commands.load(session, library, recast_id, expected_revision)
     journal = capture(recast, report)
@@ -446,7 +394,7 @@ def undo_edit(session, library, recast_id, edit_id, *, expected_revision):
     changed = _target_changes(session, journal.before, entry)
     for name, (field, _key, order) in COLLECTIONS.items():
         recast[field] = sorted(restored[name].values(), key=order)
-    _reconcile(session, library, recast, journal.before, entry, changed)
+    derivatives.reconcile(session, library, recast, journal.before, entry, changed)
     p.store.mark_undone(session, entry["id"])
     base = entry["summary"].removeprefix("Undo: ").removeprefix("Redo: ")
     kind = "redo" if entry["kind"] == "undo" else "undo"
