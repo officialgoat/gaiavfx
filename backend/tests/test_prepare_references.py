@@ -219,7 +219,9 @@ def test_removal_flow_review_approval_and_retry(removal_setup, kind):
         assert approved["plate_asset_id"] == fitted[0]["asset_id"]
         assert approved["plate_angle_id"] == base["angle_id"]
         assert approve_plate(session, candidate_id=fitted[0]["id"]) == approved
-        with pytest.raises(ApplicationError, match="movie cut for its undo history") as error:
+        with pytest.raises(
+            ApplicationError, match="movie using this place for its undo history"
+        ) as error:
             approve_plate(session, candidate_id=fitted[1]["id"])
         assert error.value.status == 409
         replay = start_removal(session, **args)
