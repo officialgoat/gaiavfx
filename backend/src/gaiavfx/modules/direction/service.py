@@ -245,7 +245,9 @@ def _receipt(session, movie_id, command, kind, target_id, before, after, undoes=
         session.flush()
         return _record(row)
     active["images"].append(image)
-    return {"id": active["id"], "created_at": timestamp(), **deepcopy(image)}
+    # The Receipt is recorded at its last command, which a command's returned receipt names too.
+    active["created_at"] = timestamp()
+    return {"id": active["id"], "created_at": active["created_at"], **deepcopy(image)}
 
 
 @dataclass(frozen=True)
@@ -2168,7 +2170,9 @@ class DirectionService:
                         "scope": scope,
                     },
                 }
-                session.add(ReceiptRecord(id=active["id"], created_at=timestamp(), **image))
+                session.add(
+                    ReceiptRecord(id=active["id"], created_at=active["created_at"], **image)
+                )
                 session.flush()
         finally:
             if outer is None:
