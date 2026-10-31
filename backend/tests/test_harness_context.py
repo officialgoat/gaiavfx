@@ -176,8 +176,7 @@ def test_budget_per_state(world, message):
             ),
         )
         for tool in DEFAULT_TOOLS
-        if tool.step_kind != "build"
-        and any(tool.narrow(ctx) is not None for ctx in states)
+        if tool.step_kind != "build" and any(tool.narrow(ctx) is not None for ctx in states)
     ]
     planning = replace(base, document=doc.model_copy(update={"plan_mode": True}))
     executing_doc = doc.model_copy(deep=True)

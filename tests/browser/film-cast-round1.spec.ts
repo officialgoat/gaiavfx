@@ -343,8 +343,7 @@ test("the film's Assets bin leaves out a replacement's process files", async ({
   ).toBeVisible();
   const pictures = queries.filter((q) => q.get("kind") === "image");
   expect(pictures.length).toBeGreaterThan(0);
-  for (const query of pictures)
-    expect(query.get("hide_process")).toBe("true");
+  for (const query of pictures) expect(query.get("hide_process")).toBe("true");
   await expectBlind(page);
 });
 
