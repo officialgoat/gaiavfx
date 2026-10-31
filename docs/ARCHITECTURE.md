@@ -25,8 +25,12 @@ Each of these concepts has one module, and its callers and tests go through that
 | Concept | Module | What it owns |
 |---|---|---|
 | Place text | `modules/direction/place_text.py` | The empty-place rule for a place's and an angle's text, enforced by Direction's commands. |
-| Direction journal | `modules/direction/journal.py` | Each command's before and after rows; Undo restores them and refuses when a later edit changed them. |
-| Shot references | `application/shot_references.py` | An opening's or a cut's views, pins and sheet, bound once and lowered into a render's pictures. |
+| Movie structure | `modules/direction/structure.py` | What a movie's rows must hold: nothing hangs on a removed row, and a segment's frames and cut chain hold. Commands check the rows they would leave; Undo the rows it would put back. |
+| Direction journal | `modules/direction/journal.py`, `DirectionService.authored` | The rows an authored intent changed, written as one Receipt; Undo restores them and refuses when a later edit changed them. |
+| Stale revision | `shared/errors.py` (`StaleRevision`) | A lost compare-and-set and the revision the record is at now, which the API returns and Gaia words once. |
+| Direction reading | `application/direction_reading.py` | The one configured Direction service and its sheet and set-view readers, which depend on modules only. |
+| Shot bindings | `DirectionService.shot_references`, `planning.Binding` | One shot's views, pins and chosen sheet, judged once for freshness and suitability; a binding words its own problem. |
+| Shot references | `application/shot_references.py` | An opening's or a cut's plan from its bindings, and the pictures a render lowers. |
 | Take basis | `application/take_basis.py` | What a take was rendered from, and why it is no longer current, for Program, Export and the Join. |
 | Movie read | `application/movie_read.py` | One read of a movie for the workspace: plans, pins, lanes, selections, receipts and undo targets. |
 | Attempts and outcome | `modules/generation/operations/attempts.py`, `outcome.py` | A producer's tries at one product, and why an operation stopped, as a kind. |
@@ -36,6 +40,10 @@ Each of these concepts has one module, and its callers and tests go through that
 | Run scope | `application/recast_run.py` | Which shots a Recast run renders, its reservation and its estimate. |
 | Shot work | `application/recast_take.py` | The seam through which Recast asks for analyses, replacements, bridges and assembly. |
 | Conversation record | `application/harness/conversation.py` | A session's turns, its saved document and its summary. |
+| Grant budget | `application/harness/budget.py` | What Gaia has reserved, the session's limit, the current step's allowance, and every "jobs left". |
+| Report checks | `application/harness/tools/report_checks.py` | The current human turn and what a check remembers in it, read from the turns; say and ask_human run through it. |
+| Turn context | `application/harness/turn_context.py` | What Gaia sees in a call, assembled once, with the narrower readings plan review and the view use. |
+| Turn request | `application/harness/request.py` | The tools offered, their schema and the assembled request, and the reply parsed against the offer. |
 | Plan proposal checker | `application/harness/tools/plan_check.py` | Completing and checking a proposed plan. |
 | Plan review | `application/harness/session.py` (`ReviewRef`, `Plan.current`) | What the user reviews to finish a step, and the step a plan is on. |
 | Tool admission | each tool's declaration (`application/harness/actions.py` `Tool`) | Which step kind, scope and overflow rank admit a tool; the registry derives its tables. |

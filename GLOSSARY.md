@@ -55,7 +55,8 @@ How a continuing Segment takes over its predecessor's take: the handoff method a
 _Avoid_: continuation handoff, transition
 
 **Receipt**:
-The record of one authored command, which Undo reverses while nothing has changed it since.
+The record of one authored intent (one command, or the commands of one edit such as a draft), which Undo reverses
+whole while nothing has changed it since.
 
 ## Generation and review
 
