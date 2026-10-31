@@ -1,10 +1,7 @@
-"""Compose Editing's selection read through the public Direction and Generation readers."""
+"""Compose Editing's selections with whether each take is still current (application/take_basis.py)."""
 
-from gaiavfx.modules.direction.service import DirectionService, revision_restored
+from gaiavfx.application import take_basis
 from gaiavfx.modules.editing.selections.service import SelectionService
-from gaiavfx.modules.editing.selections.staleness import changed_since_take
-from gaiavfx.modules.generation.operations.service import OperationService
-from gaiavfx.shared.errors import ApplicationError
 
 
 def selection_state(session, movie_id: str, segment_id: str) -> dict:
@@ -26,52 +23,10 @@ def current_take(session, movie_id: str, segment_id: str) -> dict | None:
 
 
 def _annotator(session, movie_id: str, segment_id: str):
-    direction = DirectionService()
-    revisions = None
-    try:
-        segment = direction.read_segment(session, segment_id)
-        subjects = {s["id"]: s["revision"] for s in direction.subjects(session, movie_id)}
-        revisions = {
-            "segment_revision": segment["revision"],
-            "phase_revisions": {p["id"]: p["revision"] for p in segment["phases"]},
-            "subject_revisions": {
-                identity: subjects.get(identity) for identity in segment["content"]["subjects"]
-            },
-        }
-    except ApplicationError as exc:
-        if exc.status != 404:
-            raise
-    operations = OperationService()
+    reasons = take_basis.judge(session, segment_id)
 
     def annotated(row):
-        candidate = operations.candidate(session, row["candidate_id"])
-        operation = operations.operation(session, candidate["operation_id"])
-        request = operation["request"]
-        reasons = changed_since_take(
-            request,
-            revisions,
-            segment_id=segment_id,
-            unchanged=lambda kind, identity, now, then: revision_restored(
-                session, kind, identity, now, then
-            ),
-        )
-        if revisions is not None:
-            inputs = {
-                asset_id
-                for job in operation["jobs"]
-                if job["id"] == candidate["job_id"]
-                for asset_id, value in job["inputs"].items()
-                if "/keyframe_" in value.get("remote_name", "")
-            }
-            for cut in segment["cuts"]:
-                pins = direction.keyframes(session, cut["id"])
-                current_assets = {pin["asset_id"] for pin in pins if pin["approved"]}
-                if any(
-                    pin["approved_at"] and pin["asset_id"] in inputs - current_assets
-                    for pin in pins
-                ):
-                    reasons.append("Pin replaced since this take.")
-                    break
-        return {**row, "stale": bool(reasons), "stale_reasons": reasons}
+        changed = reasons(row["candidate_id"])
+        return {**row, "stale": bool(changed), "stale_reasons": changed}
 
     return annotated

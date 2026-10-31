@@ -81,6 +81,7 @@ class SegmentRenderPlan:
     window: Window | None  # compiled once, only when nothing refuses the render
     artifact: dict | None  # the motion context a continuation reads
     source: dict | None  # where that context came from
+    keyframes: tuple = ()  # the pinned keyframes the window binds, which a take's basis records
 
 
 def _shapes_window(shot: references.Shot) -> bool:
@@ -238,7 +239,7 @@ def segment_render_inputs(session, segment_id, *, sheet_asset=None, context_arti
         continuation=handoff,
     )
     return SegmentRenderPlan(
-        plan, segment, pictures, window if plan.ready else None, artifact, source
+        plan, segment, pictures, window if plan.ready else None, artifact, source, keyframes
     )
 
 

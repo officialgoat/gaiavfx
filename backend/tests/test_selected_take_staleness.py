@@ -84,7 +84,16 @@ def test_selection_read_marks_changes_without_clearing(tmp_path, changed):
             status=200,
         )
         params = {"movie_id": movie["id"], "segment_id": segment["id"]}
+
+        def judged():
+            """Program's reasons, after checking Export judges the selected take the same way."""
+            current = get(client, "/api/production/selections", params)["current"]
+            exported = get(client, f"/api/export/movies/{movie['id']}")["segments"][0]
+            assert exported["stale_reasons"] == current["stale_reasons"]
+            return current["stale_reasons"]
+
         assert not get(client, "/api/production/selections", params)["current"]["stale"]
+        assert judged() == []
         path, body = {
             "segment": (
                 f"/api/direction/segments/{segment['id']}",
@@ -114,15 +123,20 @@ def test_selection_read_marks_changes_without_clearing(tmp_path, changed):
             assert len(state["history"]) == 1
             assert state["history"][0]["stale"]
 
+        assert judged()
         undone = post(
             client, f"/api/direction/receipts/{response.json()['receipt']['id']}/undo", status=200
         )
         state = get(client, "/api/production/selections", params)
         assert not state["current"]["stale"] and not state["history"][0]["stale"]
+        # Export reads an Undo as Program does: the take is current again.
+        assert judged() == []
         redone = post(client, f"/api/direction/receipts/{undone['id']}/undo", status=200)
         assert get(client, "/api/production/selections", params)["current"]["stale"]
+        assert judged()
         restored = post(client, f"/api/direction/receipts/{redone['id']}/undo", status=200)
         assert not get(client, "/api/production/selections", params)["current"]["stale"]
+        assert judged() == []
         # An ordinary command restoring the same value is still a new change.
         same = {key: restored["record"][key] for key in body if key != "expected_revision"}
         response = client.patch(

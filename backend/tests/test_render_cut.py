@@ -318,3 +318,71 @@ def test_compiler_gaps_use_render_references_and_sheet_capability(store, sheets)
         assert "sheet_several_subjects" in {gap["code"] for gap in result}
         assert all(set(gap) == {"code", "message"} for gap in result)
         assert OperationService().recent(session) == []
+
+
+@pytest.mark.usefixtures("media")
+@pytest.mark.parametrize("edit", ["cut", "opening"])
+def test_a_take_records_its_cuts_and_opening_and_an_edit_to_them_changes_it(store, edit):
+    """A take's basis covers its cuts and the angle it opens on: Program and Export call it changed after such an
+    edit, and current again once the edit is undone."""
+    from gaiavfx.application import take_basis
+    from gaiavfx.application.selected_takes import selection_state
+
+    db, service = store
+    operations = OperationService()
+    with db.transaction() as session:
+        movie = service.create_movie(session, "basis")
+        segment = import_segment(session, movie["id"], 1, document())
+        cut = add_cut(service, session, segment)
+        segment = service.read_segment(session, segment["id"])
+        render = start_render(
+            session, segment_id=segment["id"], seeds=[1], context_artifact="imported"
+        )
+        assert render["request"]["cut_revisions"] == {cut["id"]: cut["revision"]}
+        assert render["request"]["opening_angle_id"] == segment["opening_angle_id"]
+        assert render["request"]["pins"] == {}
+        candidate = operations.add_candidate(
+            session, render["jobs"][0]["id"], "take", "video", "video"
+        )
+        SelectionService().select(
+            session,
+            movie_id=movie["id"],
+            segment_id=segment["id"],
+            candidate_id=candidate["id"],
+            asset_id="take",
+            authority="user",
+            expected_revision=0,
+        )
+
+        def reasons():
+            program = selection_state(session, movie["id"], segment["id"])["current"]
+            # Export judges the selected take with the same function.
+            assert (
+                take_basis.judge(session, segment["id"])(candidate["id"])
+                == program["stale_reasons"]
+            )
+            return program["stale_reasons"]
+
+        assert reasons() == []
+        cut = service.read_cut(session, cut["id"])
+        if edit == "cut":
+            changed = service.update_cut(
+                session,
+                cut["id"],
+                cut["revision"],
+                relation="reverse",
+                crosses_barrier=False,
+                relation_source="authored",
+            )
+            expected = "Cuts changed since this take."
+        else:
+            place = service.read_angle(session, cut["from_angle_id"])["place_id"]
+            wide = service.add_angle(session, place, "Wide")
+            changed = service.update_cut(
+                session, cut["id"], cut["revision"], from_angle_id=wide["id"]
+            )
+            assert service.read_segment(session, segment["id"])["opening_angle_id"] == wide["id"]
+            expected = "Opening angle changed since this take."
+        assert expected in reasons()
+        service.undo(session, changed["receipt"]["id"])
+        assert reasons() == []

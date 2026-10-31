@@ -2,9 +2,9 @@
 
 import shutil
 
+from gaiavfx.application import take_basis
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.editing.selections.service import SelectionService
-from gaiavfx.modules.editing.selections.staleness import changed_since_take
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
@@ -12,29 +12,16 @@ from gaiavfx.shared.errors import ApplicationError
 
 def movie_export_state(session, library, movie_id):
     movie = DirectionService().read_movie(session, movie_id)
-    subjects = {s["id"]: s["revision"] for s in movie["subjects"]}
     segments = []
     for segment in movie["segments"]:
         selected = SelectionService().current(session, movie_id, segment["id"])
         # A provisional agent pick is never an editorial selection for export.
         selected = selected if selected and selected["authority"] == "user" else None
-        reasons = []
-        if selected:
-            # Inspect only this user-selected take, never selection history or
-            # unselected candidates. Editing owns the staleness rule.
-            operations = OperationService()
-            candidate = operations.candidate(session, selected["candidate_id"])
-            request = operations.request_snapshot(session, candidate["operation_id"])
-            reasons = changed_since_take(
-                request,
-                {
-                    "segment_revision": segment["revision"],
-                    "phase_revisions": {p["id"]: p["revision"] for p in segment["phases"]},
-                    "subject_revisions": {
-                        s: subjects.get(s) for s in segment["content"]["subjects"]
-                    },
-                },
-            )
+        # Only this user-selected take is judged, never selection history or unselected candidates, and the same
+        # way Program judges it.
+        reasons = (
+            take_basis.judge(session, segment["id"])(selected["candidate_id"]) if selected else []
+        )
         asset = library.get(session, selected["asset_id"]) if selected else None
         segments.append(
             {

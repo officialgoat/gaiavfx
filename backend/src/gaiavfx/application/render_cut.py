@@ -1,5 +1,6 @@
 """Lower a ready Direction segment to immutable H3 render jobs."""
 
+from gaiavfx.application import take_basis
 from gaiavfx.application.authored import segment_to_dict
 from gaiavfx.application.direction_plans import segment_render_inputs
 from gaiavfx.application.direction_reading import DIRECTION
@@ -106,12 +107,7 @@ def start_render(
         "context_artifact": context_artifact,
         "context_source": inputs_plan.source,
         "continuation": inputs_plan.window.continuation,
-        "segment_revision": segment_row["revision"],
-        "phase_revisions": {phase["id"]: phase["revision"] for phase in segment_row["phases"]},
-        "subject_revisions": {
-            subject.id: direction.read_subject(session, subject.id)["revision"]
-            for subject in segment.subjects
-        },
+        **take_basis.record(session, segment_row, inputs_plan.keyframes),
         "segment": segment_to_dict(
             segment, tuple(p for p in inputs_plan.pictures if p.role is PictureRole.IDENTITY)
         ),
