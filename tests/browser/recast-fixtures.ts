@@ -1043,6 +1043,8 @@ export async function mockRecast(
         updated_at: "2026-10-08T10:00:00Z",
         jobs: [],
         candidates: [],
+        settled: false,
+        failure: null,
       };
       return route.fulfill({ status: 201, json: operation });
     }

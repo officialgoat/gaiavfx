@@ -84,6 +84,16 @@ const operation = (
   updated_at: "2026-10-22T10:05:00Z",
   jobs: [],
   candidates: [],
+  // As Generation reads them from the state and the recorded errors.
+  settled: !["queued", "running"].includes(state),
+  failure:
+    state === "cancelled"
+      ? "cancelled"
+      : ["queued", "running", "succeeded"].includes(state)
+        ? null
+        : /WinError 1006/.test(error ?? "")
+          ? "unreachable"
+          : "other",
 });
 
 const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
