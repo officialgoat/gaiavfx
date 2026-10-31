@@ -6638,6 +6638,10 @@ export interface components {
       fix_ids: string[];
       /** Retryable */
       retryable: boolean;
+      /** Label */
+      label: string;
+      /** Message */
+      message?: string | null;
     };
     /** SetBuildInput */
     SetBuildInput: {
@@ -7114,6 +7118,8 @@ export interface components {
       created_at: string;
       /** Decided At */
       decided_at: string | null;
+      /** Addressed Issue Ids */
+      addressed_issue_ids: string[];
       /** Map Meta */
       map_meta: {
         [key: string]: unknown;

@@ -13,7 +13,7 @@ from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.sets.cameras import rigid
-from gaiavfx.modules.sets.service import SetStore
+from gaiavfx.modules.sets.service import SetStore, addressed_issue_ids
 from gaiavfx.shared.errors import ApplicationError
 
 STORE = SetStore()
@@ -117,6 +117,7 @@ def set_state(session, library, set_id: str, version_id: str | None = None) -> d
         "versions": [_version_summary(v) for v in row["versions"]],
         "version": {
             **_version_summary(shown),
+            "addressed_issue_ids": sorted(addressed_issue_ids(fixes, shown["operation_id"])),
             "map_meta": shown["map_meta"],
             "metrics": shown["metrics"],
             "has_map": bool(shown["map_artifact_id"]),
@@ -414,7 +415,7 @@ def build_view(session, set_id: str) -> dict | None:
         from gaiavfx.application import set_fill
 
         filling = set_fill.progress(operation)
-    return {
+    view = {
         "operation_id": operation["id"],
         "state": operation["state"],
         "base_version_id": operation["request"].get("base_version_id"),
@@ -435,6 +436,40 @@ def build_view(session, set_id: str) -> dict | None:
         # Retry build has failed fixes of this build to queue again
         "retryable": any(f["state"] == "failed" and f["operation_id"] == newest for f in fixes),
     }
+    return view | {"label": _build_label(view), "message": _build_message(session, set_id, view)}
+
+
+def _build_label(build) -> str:
+    """Where a running build is, in the workbench's words."""
+    if build["cancelling"]:
+        return "cancelling…"
+    if build["filling"]:
+        return build["filling"] + (" waiting for the GPU" if build["waiting"] else "")
+    if build["stage"] == "prepare":
+        return "preparing"
+    return "waiting for the GPU" if build["waiting"] else f"{round(build['progress'] * 100)}%"
+
+
+def _build_message(session, set_id, build) -> str | None:
+    """Why a build ended without a version, for the banner: Python's reason when it has one, else where it failed
+    and that the version it started from is unchanged."""
+    if build["state"] not in {"failed", "partial", "cancelled"}:
+        return None
+    base = next(
+        (v for v in STORE.get(session, set_id)["versions"] if v["id"] == build["base_version_id"]),
+        None,
+    )
+    kept = f" v{base['ordinal']} is unchanged." if base else ""
+    if build["state"] == "cancelled":
+        return f"The build was cancelled.{kept}"
+    if build["reason"]:
+        return build["reason"]
+    error = (build["error"] or "no reason given").rstrip(". \n")
+    if build["stage"] == "splat":
+        return (
+            f"The rebuild failed on the GPU: {error}.{kept} Try again once other GPU work is done."
+        )
+    return f"The build failed while preparing: {error}.{kept}"
 
 
 def _views_with_angles(session, views: list[dict]) -> list[dict]:

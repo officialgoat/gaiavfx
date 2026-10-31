@@ -25,9 +25,6 @@ export function nextOrdinal(state: SetState) {
   return Math.max(0, ...state.versions.map((v) => v.ordinal)) + 1;
 }
 
-const sentence = (text: string | null | undefined) =>
-  (text || "no reason given").replace(/[.\s]+$/, "");
-
 /** The toolbar's end: Run queued fixes, or the running build as a pill, or the finished one to review. */
 export function BuildControl({
   state,
@@ -47,15 +44,6 @@ export function BuildControl({
   if (build && BUILDING.has(build.state)) {
     const extra = ready.filter((f) => !build.fix_ids.includes(f.id)).length;
     const base = state.versions.find((v) => v.id === build.base_version_id);
-    const phase = build.cancelling
-      ? "cancelling…"
-      : build.filling
-        ? build.filling + (build.waiting ? " waiting for the GPU" : "")
-        : build.stage === "prepare"
-          ? "preparing"
-          : build.waiting
-            ? "waiting for the GPU"
-            : `${Math.round(build.progress * 100)}%`;
     return (
       <span className="set-build" role="status" aria-live="polite">
         <span
@@ -69,7 +57,7 @@ export function BuildControl({
                 : undefined
           }
         >
-          Building v{next} · {phase}
+          Building v{next} · {build.label}
           {extra > 0 && ` · +${extra} next`}
         </span>
         {!build.cancelling && (
@@ -172,18 +160,9 @@ export function BuildBanner({
   )
     return null;
   const base = state.versions.find((v) => v.id === build.base_version_id);
-  const kept = base ? ` v${base.ordinal} is unchanged.` : "";
-  const message =
-    build.state === "cancelled"
-      ? `The build was cancelled.${kept}`
-      : build.reason
-        ? build.reason
-        : build.stage === "splat"
-          ? `The rebuild failed on the GPU: ${sentence(build.error)}.${kept} Try again once other GPU work is done.`
-          : `The build failed while preparing: ${sentence(build.error)}.${kept}`;
   return (
     <div className="studio-error" role="alert">
-      <span>{message}</span>
+      <span>{build.message}</span>
       {build.retryable && base && (
         <button
           disabled={s.busy}
@@ -221,12 +200,7 @@ export function ReviewPanel({
   const version = state.version;
   const before = parent?.version ?? null;
   const addressed = state.issues.filter((issue) =>
-    state.fixes.some(
-      (f) =>
-        f.issue_id === issue.id &&
-        !!f.operation_id &&
-        f.operation_id === version.operation_id,
-    ),
+    version.addressed_issue_ids.includes(issue.id),
   );
   const stillOpen = state.issues.filter(
     (i) => i.status === "open" && !addressed.includes(i),

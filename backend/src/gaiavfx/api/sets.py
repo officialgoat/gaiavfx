@@ -101,6 +101,7 @@ class SetSplatDTO(BaseModel):
 
 
 class SetVersionDTO(SetVersionSummaryDTO):
+    addressed_issue_ids: list[str]  # the issues the build that wrote it addressed
     map_meta: dict
     metrics: dict
     has_map: bool
@@ -203,6 +204,8 @@ class SetBuildDTO(BaseModel):
     reason: str | None = None  # why a build ended without a version, in Python's words
     fix_ids: list[str]
     retryable: bool  # Retry build has failed fixes of this build to queue again
+    label: str  # where a running build is, in the workbench's words
+    message: str | None = None  # why a build ended without a version, for the banner
 
 
 class SetRunDTO(BaseModel):

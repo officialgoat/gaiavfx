@@ -53,6 +53,15 @@ def _text(value: str, limit: int) -> str:
     return " ".join(str(value or "").split())[:limit]
 
 
+def addressed_issue_ids(fixes, operation_id) -> set[str]:
+    """The issues a built version addressed: those of the fixes its build ran."""
+    return {
+        fix["issue_id"]
+        for fix in fixes
+        if operation_id and fix["operation_id"] == operation_id and fix["issue_id"]
+    }
+
+
 class SetStore:
     # ---------------------------------------------------------------- sets and versions
 
@@ -425,7 +434,7 @@ class SetStore:
             if version.operation_id
             else []
         )
-        addressed = {fix.issue_id for fix in fixes}
+        addressed = addressed_issue_ids(self.fixes(session, set_id), version.operation_id)
         others = looks_fixed - addressed
         for issue_id in others:
             issue = self._issue(session, set_id, issue_id)
