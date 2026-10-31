@@ -155,12 +155,11 @@ test("the Open film sheet hides generated videos until they are asked for", asyn
   await videos.getByLabel("Show generated videos").uncheck();
   await expect(generated).toHaveCount(0);
   expect(requests.some((q) => q.includes("imported_only=true"))).toBeTruthy();
-  // A replacement's process files are never offered as a film, generated videos shown or not.
+  // A replacement's process files are never offered as a film, generated videos shown or not: Python names them.
   expect(
-    requests.every((q) =>
-      new URLSearchParams(q.split("?")[1])
-        .get("exclude")
-        ?.includes("shot_assembly"),
+    requests.every(
+      (q) =>
+        new URLSearchParams(q.split("?")[1]).get("hide_process") === "true",
     ),
   ).toBeTruthy();
 });
