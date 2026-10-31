@@ -71,7 +71,8 @@ def test_storyline_refusals_roll_back_all_segments_receipts_and_board(kernel):
         movie = direction.read_movie(session, kernel.movie["id"])
         assert movie["revision"] == 2 and not movie["segments"]
     assert context.board.model_dump() == before
-    assert "beat 1" in tool.run(context, tool.Input(expected_revision=1, beats=beats)).discrepancy
+    stale = tool.run(context, tool.Input(expected_revision=1, beats=beats)).discrepancy
+    assert stale.startswith("Movie revision is 2. Call draft_storyline again")
     context.document.plan.grant.step_kinds = ["answer"]
     assert tool.narrow(context) is None
     assert (
@@ -80,8 +81,9 @@ def test_storyline_refusals_roll_back_all_segments_receipts_and_board(kernel):
     )
     context.document.plan_mode = False
     result = tool.run(context, tool.Input(expected_revision=2, beats=beats))
-    assert result.ok and len(result.receipts) == len(result.payload["segments"]) == 3
-    assert len(context.board.decisions) == 3
+    # Three segments, one draft: one Receipt, one board decision naming it.
+    assert result.ok and len(result.receipts) == 1 and len(result.payload["segments"]) == 3
+    assert len(context.board.decisions) == 1
     with kernel.db.transaction() as session:
         movie = direction.read_movie(session, kernel.movie["id"])
         assert len(movie["segments"]) == 3 and movie["revision"] == 5

@@ -88,10 +88,10 @@ def check_reading(task, work, setup, harness, recorder):
         if not drafts or not plan or not plan["grant"]:
             return [*reasons, "No approved storyline"]
         receipts = drafts[0]["receipts"]
+        # The draft is one authored intent: its three segments are one Receipt.
         require(
-            len(receipts) == 3
-            and all(r["kind"] == "direction_receipt" for r in receipts),
-            "Expected three direction receipts",
+            len(receipts) == 1 and receipts[0]["kind"] == "direction_receipt",
+            "Expected one direction receipt for the draft",
         )
         require(
             drafts[0]["ordinal"] > plan["grant"]["approved_turn"],
@@ -121,17 +121,11 @@ def check_reading(task, work, setup, harness, recorder):
             )
             for segment in segments:
                 service.assemble_segment(session, segment["id"])
-        if len(receipts) == 3:
+        if len(receipts) == 1:
             with work.db.transaction() as session:
-                service.undo(session, receipts[-1]["id"])
-            try:
-                with work.db.transaction() as session:
-                    service.undo(session, receipts[0]["id"])
-            except ApplicationError as exc:
-                require(exc.status == 409, "Wrong refusal for out-of-order undo")
-            else:
-                require(False, "First segment undo ignored later receipts")
-            with work.db.transaction() as session:
-                service.undo(session, receipts[1]["id"])
                 service.undo(session, receipts[0]["id"])
+                require(
+                    not service.read_movie(session, setup["movie_id"])["segments"],
+                    "One Undo of the draft left segments",
+                )
     return reasons

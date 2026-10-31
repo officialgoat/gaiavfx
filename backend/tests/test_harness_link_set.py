@@ -237,7 +237,8 @@ def test_link_set_refuses_a_stale_revision(shack):
             segment_id=segment["id"], expected_revision=segment["revision"] - 1, set_id=s.set_id
         ),
     )
-    assert not refused.ok and "stale" in refused.discrepancy.lower()
+    # A stale revision names the one the segment is at now.
+    assert not refused.ok and f"revision is {segment['revision']}" in refused.discrepancy
 
 
 def test_the_agent_aims_the_scene_angle_s_camera_and_then_prepares_its_first_shot(shack):

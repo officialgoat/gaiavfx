@@ -562,8 +562,9 @@ def evaluate(task, data):
         ]
         require(
             "draft_receipts",
+            # A draft is one authored intent: one Receipt however many segments it adds.
             data["undo_valid"]
-            and len(receipts) >= count
+            and bool(receipts)
             and all(t["receipts"] for t in edits)
             and all(
                 any(r["id"] in e["text"] for e in doc["board"]["decisions"])

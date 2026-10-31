@@ -169,5 +169,6 @@ def test_a_handoff_the_segment_cannot_take_is_refused_with_the_reason(world):
         },
     )
     assert both.ok, both.discrepancy
-    assert [r["command"] for r in both.receipts] == ["update_segment", "update_segment"]
+    # The set and its handoff are one authored intent: one Receipt.
+    assert [r["command"] for r in both.receipts] == ["update_segment"]
     assert stored(work, second["id"])[:2] == ("paired", None)
