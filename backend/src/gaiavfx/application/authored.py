@@ -101,40 +101,39 @@ def load_segment(path: Path | str | dict) -> dict:
 
 
 def import_segment(session, movie_id, expected_revision, data_or_path, *, at=None) -> dict:
-    """Import into one movie in the caller's transaction; cast identities are never overwritten."""
+    """Import into one movie in the caller's transaction, as one authored intent: the new cast members and the
+    segment are one Receipt. Cast identities are never overwritten."""
     data = load_segment(data_or_path)
     revision = expected_revision
-    receipts = []
-    for member in data["cast"]:
-        try:
-            existing = direction.read_subject(session, member["id"])
-        except ApplicationError as exc:
-            if exc.status != 404:
-                raise
-            existing = None
-        if existing and existing["movie_id"] == movie_id:
-            if any(existing[key] != value for key, value in member.items()):
-                raise ApplicationError(
-                    f"Subject {member['id']} is already defined differently in this movie.", 409
-                )
-            continue
-        created = direction.add_subject(
+    with direction.authored(session, "add_segment", "movie", movie_id):
+        for member in data["cast"]:
+            try:
+                existing = direction.read_subject(session, member["id"])
+            except ApplicationError as exc:
+                if exc.status != 404:
+                    raise
+                existing = None
+            if existing and existing["movie_id"] == movie_id:
+                if any(existing[key] != value for key, value in member.items()):
+                    raise ApplicationError(
+                        f"Subject {member['id']} is already defined differently in this movie.", 409
+                    )
+                continue
+            created = direction.add_subject(
+                session,
+                movie_id,
+                revision,
+                subject_id=member["id"],
+                **{key: value for key, value in member.items() if key != "id"},
+            )
+            revision = created["receipt"]["after"]["revision"]
+        return direction.add_segment(
             session,
             movie_id,
             revision,
-            subject_id=member["id"],
-            **{key: value for key, value in member.items() if key != "id"},
+            at=at,
+            **{key: value for key, value in data.items() if key != "cast"},
         )
-        receipts.append(created["receipt"])
-        revision = created["receipt"]["after"]["revision"]
-    segment = direction.add_segment(
-        session,
-        movie_id,
-        revision,
-        at=at,
-        **{key: value for key, value in data.items() if key != "cast"},
-    )
-    return {**segment, "subject_receipts": receipts}
 
 
 def load_survey(path: Path | str | dict) -> SurveyPlan:

@@ -196,3 +196,75 @@ def test_undo_and_redo_targets_follow_the_history(store):
             "redo": None,
         }
         assert again["id"] != third["receipt"]["id"]
+
+
+def composite(service, session, segment):
+    """One authored intent: a cast member, a segment showing them and a cut in it."""
+    movie_id = segment["movie_id"]
+    with service.authored(session, "add_segment", "movie", movie_id) as intent:
+        subject = COMMANDS["add_subject"](service, session, segment)
+        added = service.add_segment(
+            session,
+            movie_id,
+            subject["receipt"]["after"]["revision"],
+            content={**segment["content"], "subjects": ["a", subject["id"]]},
+            delivered_frames=48,
+            continues=False,
+            phases=[(0, SHOT)],
+        )
+        cut = first_cut(service, session, segment)
+        service.create_cut(
+            session,
+            added["id"],
+            added["revision"],
+            frame=24,
+            from_angle_id=cut["from_angle_id"],
+            to_angle_id=cut["to_angle_id"],
+        )
+    return intent, added
+
+
+def test_an_authored_intent_writes_one_receipt_that_undo_reverses_whole(store):
+    db, service = store
+    with db.transaction() as session:
+        segment = seed(service, session)
+        earlier = COMMANDS["update_movie"](service, session, segment)
+        before = tables(session, revisions=False, receipts=False)
+        receipts = service.receipts(session, segment["movie_id"])
+        intent, added = composite(service, session, segment)
+        after = tables(session, revisions=False, receipts=False)
+        written = service.receipts(session, segment["movie_id"])
+        assert [r["id"] for r in written] == [intent.id, *(r["id"] for r in receipts)]
+        assert added["receipt"]["id"] == intent.id
+        assert (written[0]["command"], written[0]["target_kind"]) == ("add_segment", "movie")
+        assert service.undo_targets(session, segment["movie_id"])["undo"] == intent.id
+        inverse = service.undo(session, intent.id)
+        assert tables(session, revisions=False, receipts=False) == before
+        redone = service.undo(session, inverse["id"])
+        assert tables(session, revisions=False, receipts=False) == after
+        service.undo(session, redone["id"])
+        # A command receipt from before the intent still undoes after it.
+        service.undo(session, earlier["receipt"]["id"])
+        assert service.read_movie(session, segment["movie_id"])["title"] == "Split"
+
+
+def test_a_place_edit_inside_an_intent_keeps_its_own_receipt(store):
+    db, service = store
+    with db.transaction() as session:
+        segment = seed(service, session)
+        with service.authored(session, "update_segment", "segment", segment["id"]) as intent:
+            COMMANDS["update_place"](service, session, segment)
+            COMMANDS["update_segment"](service, session, segment)
+        commands = [r["command"] for r in service.receipts(session, segment["movie_id"])[:2]]
+        assert commands == ["update_segment", "update_place"]
+        assert service.receipts(session, segment["movie_id"])[0]["id"] == intent.id
+
+
+def test_an_intent_that_changes_nothing_writes_no_receipt(store):
+    db, service = store
+    with db.transaction() as session:
+        segment = seed(service, session)
+        receipts = service.receipts(session, segment["movie_id"])
+        with service.authored(session, "update_segment", "segment", segment["id"]):
+            pass
+        assert service.receipts(session, segment["movie_id"]) == receipts

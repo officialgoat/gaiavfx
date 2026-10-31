@@ -154,6 +154,18 @@ def direction_receipt(row):
     }
 
 
+def intent_receipt(intent, row):
+    """The one Receipt an authored intent wrote, as Gaia records it."""
+    return {
+        "kind": "direction_receipt",
+        "id": intent.id,
+        "command": intent.command,
+        "target_kind": intent.target_kind,
+        "target_id": intent.target_id,
+        "record_id": row["id"],
+    }
+
+
 def edited(context, row, *, structural=False, receipts=None):
     receipts = receipts if receipts is not None else [direction_receipt(row)]
     if structural:

@@ -356,7 +356,7 @@ def test_cut_cli_on_fake(tmp_path, capsys):
         "--file",
         segment,
     )
-    assert text_segment["subject_receipts"] == []
+    assert text_segment["receipt"]["command"] == "add_segment"
     assert len(cli("subject", "list", movie["id"])) == 1
     text_cut = cli(
         "cut",

@@ -7,12 +7,13 @@ caller's transaction. Every tool applies the same guards; they are Gaia's editor
 boundary, and Direction's own rules stay in Direction. The tools translate their input and word refusals.
 """
 
+import re
 from dataclasses import dataclass
 
 from pydantic import Field
 
+from gaiavfx.application.continuation import METHODS, grid, judge, set_continuation, stored
 from gaiavfx.application.harness.knowledge import load
-from gaiavfx.application.harness.tools import handoff
 from gaiavfx.application.harness.tools.authoring import (
     MOTION,
     require_assemblable,
@@ -20,7 +21,7 @@ from gaiavfx.application.harness.tools.authoring import (
     require_motion_direction,
     require_shot,
 )
-from gaiavfx.application.harness.tools.common import direction_receipt, scoped
+from gaiavfx.application.harness.tools.common import intent_receipt, scoped
 from gaiavfx.application.harness.tools.cut_continuity import (
     require_cut_timing,
     require_segment_continuity,
@@ -30,6 +31,14 @@ from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
 CASTING = load()["prompts"]["segments"]["cast"]
+# A continuation's handoff (docs/CONTINUATION.md) follows the rule unless the user asks about it, so its fields are
+# offered only then; choices go through the Join, as the UI's do, and an explicit null returns a field to the rule.
+HANDOFF = {"continuation_method": "method", "context_frames": "context_frames"}
+HANDOFF_REQUEST = re.compile(
+    r"\b(?:hand ?off|masked|paired|latents|motion context|context (?:length|frames)|"
+    r"frames of context)\b",
+    re.IGNORECASE,
+)
 NO_PREDECESSOR = (
     "continues: true has no predecessor. Use continues: false for the opening beat; "
     "a continuing beat needs the previous segment."
@@ -94,8 +103,12 @@ def offer(properties, required, context, *, handoff_fields=False):
         phase.setdefault("required", []).append("screen_direction")
         if MOTION.search(context.latest_user_message):
             phase["properties"]["screen_direction"] = {"type": "string", "minLength": 1}
-    if handoff_fields and handoff.asked(context):
-        properties |= handoff.schema()
+    if handoff_fields and HANDOFF_REQUEST.search(context.latest_user_message):
+        # Compact enums: the widest schemas stay inside their budget.
+        properties |= {
+            "continuation_method": {"enum": [*METHODS, None]},
+            "context_frames": {"enum": [*grid().context_lengths(), None]},
+        }
     else:
         for name in ("continuation_method", "context_frames"):
             properties.pop(name, None)
@@ -118,8 +131,8 @@ def add_segment(
     context_frames=None,
     draft=False,
 ):
-    """Add a segment and its cuts as one authored unit. `phases` are (start frame, content) pairs; a cut's shot
-    becomes the phase at its frame. Returns the final row and every receipt, in order."""
+    """Add a segment and its cuts as one authored intent, one Receipt. `phases` are (start frame, content) pairs; a
+    cut's shot becomes the phase at its frame. Returns the final row and its receipt."""
     for subject_id in subject_ids:
         scoped(context.state.cast, subject_id, "Subject")
     for _, content in phases:
@@ -136,60 +149,84 @@ def add_segment(
     content = {"subjects": list(subject_ids), "place": place}
     if style is not None:
         content["style"] = style
-    row = direction.add_segment(
-        session,
-        context.movie_id,
-        revision,
-        content=content,
-        delivered_frames=delivered_frames,
-        continues=continues,
-        phases=sorted(opened.items()),
-        at=at,
-        **handoff.added(continuation_method, context_frames),
-    )
-    receipts = [direction_receipt(row)]
-    previous_frame = 0
-    for cut in cuts:
-        require_different_angles(cut.from_angle_id, cut.to_angle_id)
-        if cut.frame <= previous_frame:
-            raise ApplicationError("Cuts must be in increasing frame order.", 422)
-        receipts.append(direction_receipt(create_cut(session, row, cut)))
-        row = direction.read_segment(session, row["id"])
-        previous_frame = cut.frame
+    # The Join judges a new segment's handoff once its cuts exist.
+    choice = stored({"method": continuation_method, "context_frames": context_frames})
+    with direction.authored(session, "add_segment", "movie", context.movie_id) as intent:
+        row = direction.add_segment(
+            session,
+            context.movie_id,
+            revision,
+            content=content,
+            delivered_frames=delivered_frames,
+            continues=continues,
+            phases=sorted(opened.items()),
+            at=at,
+            continuation_method=choice["method"],
+            context_frames=choice["context_frames"],
+        )
+        previous_frame = 0
+        for cut in cuts:
+            require_different_angles(cut.from_angle_id, cut.to_angle_id)
+            if cut.frame <= previous_frame:
+                raise ApplicationError("Cuts must be in increasing frame order.", 422)
+            create_cut(session, row, cut)
+            row = direction.read_segment(session, row["id"])
+            previous_frame = cut.frame
     # A stored segment may continue from an explicit context artifact; Gaia adds one only after its predecessor.
     if continues and direction.predecessor(session, row) is None:
         raise ApplicationError(NO_PREDECESSOR, 422)
     # Only a new segment's choice is judged here: a stored one a later pin disqualified is the plan's to report.
-    handoff.judge(session, row["id"])
+    judge(session, row["id"])
     settle(session, context, row, draft=draft)
-    return row, receipts
+    return row, [intent_receipt(intent, row)]
 
 
 def add_cut(session, context, segment, revision, cut):
-    """Create a cut on an existing segment, adding the phase its shot opens when none starts there. Returns the
-    cut and every receipt, in order."""
+    """Create a cut on an existing segment, adding the phase its shot opens when none starts there, as one authored
+    intent: one Undo removes both. Returns the cut and its receipt."""
     require_cut_timing(segment, cut.frame, segment["cuts"])
     previous_segment = segment
-    receipts = []
     # The first command checks the revision the caller read; a later one the revision the first left.
     segment = {**segment, "revision": revision}
-    if not any(p["start_frame"] == cut.frame for p in segment["phases"]):
-        require_motion_direction(cut.shot)
-        require_shot(cut.shot["description"])
-        phase = direction.add_phase(
-            session, segment["id"], revision, start_frame=cut.frame, content=cut.shot
-        )
-        receipts.append(direction_receipt(phase))
-        segment = direction.read_segment(session, segment["id"])
-    created = create_cut(session, segment, cut)
-    receipts.append(direction_receipt(created))
+    with direction.authored(session, "create_cut", "segment", segment["id"]) as intent:
+        if not any(p["start_frame"] == cut.frame for p in segment["phases"]):
+            require_motion_direction(cut.shot)
+            require_shot(cut.shot["description"])
+            direction.add_phase(
+                session, segment["id"], revision, start_frame=cut.frame, content=cut.shot
+            )
+            segment = direction.read_segment(session, segment["id"])
+        created = create_cut(session, segment, cut)
     settle(
         session,
         context,
         direction.read_segment(session, segment["id"]),
         previous_segment=previous_segment,
     )
-    return created, receipts
+    return created, [intent_receipt(intent, created)]
+
+
+def set_segment(session, value, segment, changes):
+    """A set's ordinary changes, then its handoff through the Join, as one authored intent: the final row and its
+    receipt. Set fields count, not values."""
+    choice = {
+        HANDOFF[name]: getattr(value, name) for name in HANDOFF if name in value.model_fields_set
+    }
+    if not changes and not choice:
+        raise ApplicationError("Specify at least one segment field to change.", 422)
+    row, changed = segment, False
+    with direction.authored(session, "update_segment", "segment", value.segment_id) as intent:
+        if changes:
+            row = direction.update_segment(
+                session, value.segment_id, value.expected_revision, **changes
+            )
+            changed = True
+        expected = row["revision"] if changed else value.expected_revision
+        if choice and (chosen := set_continuation(session, value.segment_id, expected, **choice)):
+            row, changed = chosen, True
+    if not changed:
+        raise ApplicationError("The segment already has that handoff; nothing changed.", 422)
+    return row, [intent_receipt(intent, row)]
 
 
 def create_cut(session, segment, cut):

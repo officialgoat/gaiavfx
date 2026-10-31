@@ -4,14 +4,15 @@ from typing import Literal
 
 from pydantic import Field, model_validator
 
+from gaiavfx.application.continuation import METHODS
 from gaiavfx.application.harness.actions import inlined
 from gaiavfx.application.harness.knowledge import load
-from gaiavfx.application.harness.tools import handoff
 from gaiavfx.application.harness.tools.common import (
     TransactionTool,
     candidates,
     edited,
     granted,
+    intent_receipt,
     scoped,
 )
 from gaiavfx.application.harness.tools.cut_angles import angle, barrier_hint
@@ -84,7 +85,7 @@ class StoryBeat(StrictModel):
     delivered_frames: int | None = Field(default=None, gt=0, strict=True)
     continues: bool
     # docs/CONTINUATION.md: omitted follows the rule (masked uncut, paired across cuts) and the default context.
-    continuation_method: Literal[handoff.METHODS] | None = None
+    continuation_method: Literal[METHODS] | None = None
     context_frames: int | None = Field(default=None, gt=0, strict=True)
     style: str | None = Field(default=None, max_length=8000)
     phases: list[PhaseDraft] = Field(min_length=1, max_length=4)
@@ -142,101 +143,113 @@ class DraftStoryline(TransactionTool):
             context.latest_user_message, any(b.cuts for b in value.beats)
         ):
             raise ApplicationError(reason, 422)
-        receipts, segments = [], []
+        segments = []
         current = direction.read_movie(session, context.movie_id)
         # Only a recorded final cut or an explicit beat source establishes an angle.
         predecessor = None
         if current["segments"] and current["segments"][-1]["cuts"]:
             predecessor = current["segments"][-1]["cuts"][-1]["to_angle_id"]
-        for index, beat in enumerate(value.beats):
-            try:
-                source, chain, cuts, hints, resolved = None, None, [], [], {}
-                if beat.cuts or beat.from_angle:
-                    place = beat_place(context, beat, index)
-                    inherited = (
-                        predecessor
-                        if beat.continues and any(a["id"] == predecessor for a in place["angles"])
-                        else None
-                    )
-                    source = angle(
-                        place,
-                        (beat.cuts[0].from_angle if beat.cuts else beat.from_angle) or inherited,
-                        "from_angle",
-                    )
-                    resolved[source["id"]] = source
-                    chain = source
-                    for cut in beat.cuts:
-                        requested = angle(place, cut.from_angle or chain["id"], "from_angle")
-                        if requested["id"] != chain["id"]:
-                            raise ApplicationError(
-                                f"Chained cut from_angle {requested['name']} ({requested['id']}) must equal the previous cut's to_angle {chain['name']} ({chain['id']}).",
-                                422,
-                            )
-                        target = angle(place, cut.to_angle, "to_angle")
-                        if hint := barrier_hint(direction.read_place(session, place["id"]), target):
-                            hints.append(hint)
-                        resolved[target["id"]] = target
-                        shot = {"description": cut.shot, "screen_direction": cut.screen_direction}
-                        cuts.append(
-                            CutDraft(
-                                cut.frame,
-                                chain["id"],
-                                target["id"],
-                                cut.relation,
-                                cut.crosses_barrier,
-                                shot,
-                            )
+        with direction.authored(session, "draft_storyline", "movie", context.movie_id) as intent:
+            for index, beat in enumerate(value.beats):
+                try:
+                    source, chain, cuts, hints, resolved = None, None, [], [], {}
+                    if beat.cuts or beat.from_angle:
+                        place = beat_place(context, beat, index)
+                        inherited = (
+                            predecessor
+                            if beat.continues
+                            and any(a["id"] == predecessor for a in place["angles"])
+                            else None
                         )
-                        chain = target
-                row, beat_receipts = add_segment(
-                    session,
-                    context,
-                    # The first beat checks the revision the draft was asked against.
-                    value.expected_revision if index == 0 else current["revision"],
-                    subject_ids=beat.subject_ids,
-                    place=beat.place.model_dump(),
-                    style=beat.style,
-                    delivered_frames=beat.delivered_frames or DEFAULTS["default_delivered_frames"],
-                    continues=beat.continues,
-                    phases=[
-                        (p.start_frame, p.model_dump(exclude={"start_frame"})) for p in beat.phases
-                    ],
-                    cuts=cuts,
-                    continuation_method=beat.continuation_method,
-                    context_frames=beat.context_frames,
-                    draft=True,
-                )
-                receipts += beat_receipts
-                # Only a recorded final cut or an explicit beat source establishes an angle.
-                predecessor = chain["id"] if chain else predecessor if beat.continues else None
-                segments.append(
-                    {
-                        "id": row["id"],
-                        "segment_number": row["ordinal"] + 1,
-                        "revision": row["revision"],
-                        "title": beat.title,
-                        "phase_ids": [p["id"] for p in row["phases"]],
-                        "cut_ids": [
-                            r["record_id"] for r in beat_receipts if r["command"] == "create_cut"
-                        ],
-                        **({"hints": list(dict.fromkeys(hints))} if hints else {}),
-                        "angles": [
-                            fields(
-                                direction.read_angle(session, a["id"]), "id", "name", "description"
+                        source = angle(
+                            place,
+                            (beat.cuts[0].from_angle if beat.cuts else beat.from_angle)
+                            or inherited,
+                            "from_angle",
+                        )
+                        resolved[source["id"]] = source
+                        chain = source
+                        for cut in beat.cuts:
+                            requested = angle(place, cut.from_angle or chain["id"], "from_angle")
+                            if requested["id"] != chain["id"]:
+                                raise ApplicationError(
+                                    f"Chained cut from_angle {requested['name']} ({requested['id']}) must equal the previous cut's to_angle {chain['name']} ({chain['id']}).",
+                                    422,
+                                )
+                            target = angle(place, cut.to_angle, "to_angle")
+                            if hint := barrier_hint(
+                                direction.read_place(session, place["id"]), target
+                            ):
+                                hints.append(hint)
+                            resolved[target["id"]] = target
+                            shot = {
+                                "description": cut.shot,
+                                "screen_direction": cut.screen_direction,
+                            }
+                            cuts.append(
+                                CutDraft(
+                                    cut.frame,
+                                    chain["id"],
+                                    target["id"],
+                                    cut.relation,
+                                    cut.crosses_barrier,
+                                    shot,
+                                )
                             )
-                            for a in resolved.values()
+                            chain = target
+                    row, _ = add_segment(
+                        session,
+                        context,
+                        # The first beat checks the revision the draft was asked against.
+                        value.expected_revision if index == 0 else current["revision"],
+                        subject_ids=beat.subject_ids,
+                        place=beat.place.model_dump(),
+                        style=beat.style,
+                        delivered_frames=beat.delivered_frames
+                        or DEFAULTS["default_delivered_frames"],
+                        continues=beat.continues,
+                        phases=[
+                            (p.start_frame, p.model_dump(exclude={"start_frame"}))
+                            for p in beat.phases
                         ],
-                    }
-                )
-                current = direction.read_movie(session, context.movie_id)
-            except StaleRevision:
-                raise
-            except ApplicationError as exc:
-                if str(exc).startswith(f"beat {index + 1} "):
+                        cuts=cuts,
+                        continuation_method=beat.continuation_method,
+                        context_frames=beat.context_frames,
+                        draft=True,
+                    )
+                    # Only a recorded final cut or an explicit beat source establishes an angle.
+                    predecessor = chain["id"] if chain else predecessor if beat.continues else None
+                    segments.append(
+                        {
+                            "id": row["id"],
+                            "segment_number": row["ordinal"] + 1,
+                            "revision": row["revision"],
+                            "title": beat.title,
+                            "phase_ids": [p["id"] for p in row["phases"]],
+                            "cut_ids": [cut["id"] for cut in row["cuts"]],
+                            **({"hints": list(dict.fromkeys(hints))} if hints else {}),
+                            "angles": [
+                                fields(
+                                    direction.read_angle(session, a["id"]),
+                                    "id",
+                                    "name",
+                                    "description",
+                                )
+                                for a in resolved.values()
+                            ],
+                        }
+                    )
+                    current = direction.read_movie(session, context.movie_id)
+                except StaleRevision:
                     raise
-                raise ApplicationError(f"beat {index + 1}: {exc}", exc.status) from exc
+                except ApplicationError as exc:
+                    if str(exc).startswith(f"beat {index + 1} "):
+                        raise
+                    raise ApplicationError(f"beat {index + 1}: {exc}", exc.status) from exc
         # Board entries are written only after every command succeeds, so a refusal
         # cannot leave notes for rolled-back segments in the session document.
-        result = edited(context, current, structural=True, receipts=receipts)
+        result = edited(
+            context, current, structural=True, receipts=[intent_receipt(intent, current)]
+        )
         result.payload = {"segments": segments, "revision": current["revision"]}
         return result

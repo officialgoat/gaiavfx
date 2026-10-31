@@ -5,6 +5,7 @@ from __future__ import annotations
 import functools
 from contextlib import contextmanager
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import null, or_, select, update
@@ -225,29 +226,42 @@ def _bump(session, row, expected, **values):
 
 
 def _receipt(session, movie_id, command, kind, target_id, before, after, undoes=None):
+    """A command's receipt. Inside a journal it is staged, and the journal writes the one Receipt when it closes
+    (an authored intent folds every command it holds into it); the dict returned carries that Receipt's id."""
     if command in _CREATIONS and not undoes:
         after = {
             **after,
             "created_revision": after["record"]["revision"],
             "created_kind": _CREATIONS[command],
         }
-    row = ReceiptRecord(
-        id=new_id(),
-        movie_id=movie_id,
-        command="undo" if undoes else command,
-        target_kind=kind,
-        target_id=target_id,
-        before=deepcopy(before),
-        after=deepcopy(after),
-        undoes=undoes,
-        undone_at=None,
-        created_at=timestamp(),
-    )
-    session.add(row)
-    session.flush()
-    if (active := session.info.get(journal.KEY)) is not None:
-        active["receipts"].append(row)
-    return _record(row)
+    image = {
+        "movie_id": movie_id,
+        "command": "undo" if undoes else command,
+        "target_kind": kind,
+        "target_id": target_id,
+        "before": deepcopy(before),
+        "after": deepcopy(after),
+        "undoes": undoes,
+        "undone_at": None,
+    }
+    if (active := session.info.get(journal.KEY)) is None:
+        row = ReceiptRecord(id=new_id(), created_at=timestamp(), **image)
+        session.add(row)
+        session.flush()
+        return _record(row)
+    active["images"].append(image)
+    return {"id": active["id"], "created_at": active["created_at"], **deepcopy(image)}
+
+
+@dataclass(frozen=True)
+class Intent:
+    """One authored intent: the commands inside it write one Receipt, named for the intent, that Undo reverses
+    whole."""
+
+    id: str
+    command: str
+    target_kind: str
+    target_id: str
 
 
 def _public(receipt):
@@ -2064,30 +2078,52 @@ class DirectionService:
         return _record(_get(session, CutRecord, cut_id))
 
     @contextmanager
-    def _journal(self, session, *, movie_id=None, place_id=None):
-        """Keep the rows the command inside changes on the receipt it writes, for Undo (journal.py). Inside an open
-        journal this adds nothing: a command writes one receipt."""
-        if journal.KEY in session.info:
-            yield
-            return
+    def authored(self, session, command, target_kind, target_id):
+        """Run one authored intent: every command inside writes into one Receipt named `command`, on its target, so
+        one Undo reverses the whole intent. A command on a record outside the intent's movie (a place a beat
+        creates) keeps its own Receipt."""
+        intent = (command, target_kind, target_id)
+        with self._journal(
+            session, intent=intent, **self._scope(session, target_kind, target_id)
+        ) as active:
+            # Inside another intent this one is part of it, and its Receipt is the outer one's.
+            yield Intent(active["id"], *(active["intent"] or intent))
+
+    @contextmanager
+    def _journal(self, session, *, movie_id=None, place_id=None, intent=None):
+        """Keep the rows the commands inside change on the one Receipt the journal writes, for Undo (journal.py).
+        Inside an open journal a command adds its rows to it, unless the open one is an intent and the command's
+        record lies outside it."""
         scope = {
             key: value for key, value in (("movie_id", movie_id), ("place_id", place_id)) if value
         }
+        outer = session.info.get(journal.KEY)
+        if outer is not None and (
+            outer["intent"] is None or intent is not None or scope.items() <= outer["scope"].items()
+        ):
+            yield outer
+            return
+        target = intent and self._target_revision_of(session, *intent[1:])
         active = session.info[journal.KEY] = {
+            "scope": scope,
             "before": journal.snapshot(session, scope),
-            "receipts": [],
+            "images": [],
             "watch": set(),
+            "id": new_id(),
+            "created_at": timestamp(),
+            "intent": intent,
+            "target_revision": target,
         }
         try:
-            yield
-            if active["receipts"]:
-                (receipt,) = active["receipts"]
+            yield active
+            if active["images"]:
+                image = self._folded(session, active)
                 rows_before, rows_after, hanging = journal.changes(
                     session, active["before"], journal.snapshot(session, scope)
                 )
-                receipt.before = {**receipt.before, journal.KEY: rows_before}
-                receipt.after = {
-                    **receipt.after,
+                image["before"] = {**image["before"], journal.KEY: rows_before}
+                image["after"] = {
+                    **image["after"],
                     journal.KEY: {
                         "rows": rows_after,
                         "children": hanging,
@@ -2095,9 +2131,48 @@ class DirectionService:
                         "scope": scope,
                     },
                 }
+                session.add(
+                    ReceiptRecord(id=active["id"], created_at=active["created_at"], **image)
+                )
                 session.flush()
         finally:
-            session.info.pop(journal.KEY, None)
+            if outer is None:
+                session.info.pop(journal.KEY, None)
+            else:
+                session.info[journal.KEY] = outer
+
+    def _folded(self, session, active):
+        """The one Receipt image a journal writes: its command's, or an intent's, which keeps what its commands
+        recorded about its target and the target's revision before and after the whole intent."""
+        images = active["images"]
+        if active["intent"] is None:
+            if len(images) > 1:
+                raise ApplicationError("A command wrote more than one receipt.", 500)
+            return dict(images[0])
+        command, kind, target_id = active["intent"]
+        own = [i for i in images if (i["target_kind"], i["target_id"]) == (kind, target_id)]
+        before = own[0]["before"] if own else {}
+        after = own[-1]["after"] if own else {}
+        if command not in _CREATIONS:
+            after = {
+                k: v for k, v in after.items() if k not in {"created_revision", "created_kind"}
+            }
+        return {
+            **images[0],
+            "command": command,
+            "target_kind": kind,
+            "target_id": target_id,
+            "before": {**before, "revision": active["target_revision"]},
+            "after": {**after, "revision": self._target_revision_of(session, kind, target_id)},
+        }
+
+    def _target_revision_of(self, session, kind, record_id):
+        session.flush()
+        model = PlaceRecord if kind == "place" else _MODELS[kind]
+        row = session.get(model, record_id)
+        if row is not None:
+            session.refresh(row)
+        return row.revision if row is not None else None
 
     def _scope(self, session, kind, record_id):
         if kind == "place":
@@ -2147,9 +2222,7 @@ class DirectionService:
         return {"undo": undo, "redo": redo}
 
     def _target_revision(self, session, receipt):
-        model = PlaceRecord if receipt.target_kind == "place" else _MODELS[receipt.target_kind]
-        row = session.get(model, receipt.target_id)
-        return row.revision if row is not None else None
+        return self._target_revision_of(session, receipt.target_kind, receipt.target_id)
 
     def undo(self, session, receipt_id):
         """Put back the rows a command changed, while they are as it left them. Undoing an Undo redoes."""

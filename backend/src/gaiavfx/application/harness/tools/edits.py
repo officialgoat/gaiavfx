@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from gaiavfx.application.continuation import METHODS
 from gaiavfx.application.harness.actions import (
     CROSSES_BARRIER_GUIDANCE,
     ToolResult,
@@ -11,7 +12,6 @@ from gaiavfx.application.harness.actions import (
     inlined,
     pin_enum,
 )
-from gaiavfx.application.harness.tools import handoff
 from gaiavfx.application.harness.tools.authoring import (
     phase_direction_schema,
     require_assemblable,
@@ -43,6 +43,7 @@ from gaiavfx.application.harness.tools.segment_authoring import (
     add_cut,
     add_segment,
     offer,
+    set_segment,
 )
 from gaiavfx.application.harness.world import direction
 from gaiavfx.shared.contracts import StrictModel
@@ -260,7 +261,7 @@ class EditSegment(TransactionTool):
         at: int | None = Field(default=None, ge=0)
         ordinal: int | None = Field(default=None, ge=0)
         # docs/CONTINUATION.md: null returns a field to the rule; omitted leaves it.
-        continuation_method: Literal[handoff.METHODS] | None = None
+        continuation_method: Literal[METHODS] | None = None
         context_frames: int | None = Field(default=None, gt=0, strict=True)
 
     def narrow(self, context):
@@ -284,7 +285,7 @@ class EditSegment(TransactionTool):
         return pin_existing(schema, "segment_id", ids) if ids else schema
 
     def execute(self, session, context, value):
-        receipts = None  # a set with a handoff has two
+        receipts = None
         if value.op == "add":
             require(value, "place", "delivered_frames", "continues", "phases")
             row, receipts = add_segment(
@@ -316,7 +317,7 @@ class EditSegment(TransactionTool):
                     if value.style is not None:
                         content["style"] = value.style
                     changes["content"] = content
-                row, receipts = handoff.update(session, value, segment, changes)
+                row, receipts = set_segment(session, value, segment, changes)
             else:
                 if value.op == "move":
                     require(value, "ordinal")
