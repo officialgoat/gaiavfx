@@ -11,6 +11,7 @@ from gaiavfx.application import recast_lines as lining
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import recast_run as run_scope
+from gaiavfx.application import recast_take
 from gaiavfx.application import recast_voice as voicing
 from gaiavfx.application.recast_derivatives import advance_reference, cancel_reference
 from gaiavfx.application.target_faces import (
@@ -835,7 +836,7 @@ def plan_recast(session, library, recast_id, *, expected_revision, range=None):
         if not stored["window_analysis_ops"]:
             try:
                 with session.begin_nested():
-                    analyses = p.window_function("start_window_analyses")(
+                    analyses = recast_take.shot_work.start_window_analyses(
                         session,
                         library,
                         source_asset=recast["source_asset_id"],
@@ -994,7 +995,7 @@ def start_head_pass(
     assembly_id = next(
         a
         for a in p.assemblies(session, shot)
-        if any(v["id"] == version for v in p.window_function("shot_versions")(session, library, a))
+        if any(v["id"] == version for v in recast_take.shot_work.shot_versions(session, library, a))
     )
     # The root body's performer order belongs to that attempt, not today's mapping.
     ancestor = p.operations.operation(session, assembly_id)
@@ -1045,7 +1046,7 @@ def start_head_pass(
         raise TargetReportPending()
     film_shot = _find(report["shots"], "index", int(shot_id[1:]), "Shot")
     with session.begin_nested():
-        operations = p.window_function("start_shot_head_pass")(
+        operations = recast_take.shot_work.start_shot_head_pass(
             session,
             library,
             source_asset=recast["source_asset_id"],

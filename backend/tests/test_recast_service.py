@@ -13,9 +13,10 @@ import pytest
 from PIL import Image
 
 from gaiavfx.api.recast import RecastDTO
-from gaiavfx.application import recast, replace_character
+from gaiavfx.application import recast, recast_take, replace_character
 from gaiavfx.application import recast_projection as p
 from gaiavfx.infrastructure.database import Database
+from gaiavfx.modules.direction.windows import shot_windows
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.application import LibraryService
@@ -214,17 +215,7 @@ def world(tmp_path, monkeypatch, recast_template):
     calls = {"analysis": [], "replacement": [], "assembly": [], "plan": []}
     window_reports = {}
     version_map = {}
-    window_module = ModuleType("gaiavfx.application.shot_replacement")
-
-    def shot_windows(start, end, *, length=73, overlap=22):
-        result = []
-        while start < end:
-            stop = min(start + length, end)
-            result.append((start, stop, 5 + 17 * max(0, (stop - start - 5 + 16) // 17)))
-            if stop == end:
-                break
-            start += length - overlap
-        return result
+    window_module = ModuleType("fake_shot_work")  # the test world's ShotWork (recast_take)
 
     def start_window_analyses(
         session,
@@ -582,7 +573,6 @@ def world(tmp_path, monkeypatch, recast_template):
         return op
 
     for function in (
-        shot_windows,
         shared_crop_for_windows,
         window_takes,
         start_shot_bridge,
@@ -595,7 +585,7 @@ def world(tmp_path, monkeypatch, recast_template):
         shot_versions,
     ):
         setattr(window_module, function.__name__, function)
-    monkeypatch.setitem(sys.modules, window_module.__name__, window_module)
+    monkeypatch.setattr(recast_take, "shot_work", window_module)
 
     def replacement_plan(session, request, *, library, renders=None, draft=False):
         calls["plan"].append(deepcopy(request))

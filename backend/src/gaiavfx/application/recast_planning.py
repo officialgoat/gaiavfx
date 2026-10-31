@@ -6,12 +6,14 @@ from hashlib import sha256
 from math import isfinite
 
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_take
 from gaiavfx.modules.direction.application import replacement_policy_text
 from gaiavfx.modules.direction.windows import (
     bridge_layout,
     latent_chain_allowed,
     shot_crop_scale_loss,
     shot_handoff,
+    shot_windows,
 )
 from gaiavfx.shared.errors import ApplicationError
 
@@ -254,9 +256,7 @@ def _compute(session, library, recast, report, shot, stored, policy):
     from gaiavfx.application.replace_character import replacement_plan
 
     for i, (op_id, window) in enumerate(windows):
-        generated_length = p.window_function("shot_windows")(
-            window["shot_start"], window["shot_end"]
-        )[0][2]
+        generated_length = shot_windows(window["shot_start"], window["shot_end"])[0][2]
         plan["windows"].append(
             {
                 "index": i,
@@ -285,7 +285,7 @@ def _compute(session, library, recast, report, shot, stored, policy):
         requests = [request_for(recast, shot, w, op, plan["_bindings"]) for op, w in windows]
         if kind == "latent":
             try:
-                handoff["crop"] = p.window_function("shared_crop_for_windows")(
+                handoff["crop"] = recast_take.shot_work.shared_crop_for_windows(
                     session, library, requests=requests
                 )
             except ValueError:
@@ -297,7 +297,7 @@ def _compute(session, library, recast, report, shot, stored, policy):
                     reason = "scale_unavailable"
                 else:
                     try:
-                        crop = p.window_function("shared_crop_for_windows")(
+                        crop = recast_take.shot_work.shared_crop_for_windows(
                             session, library, requests=requests
                         )
                     except ValueError:
@@ -347,7 +347,7 @@ def _compute(session, library, recast, report, shot, stored, policy):
             ):
                 if policy.shot_crop is None:
                     try:
-                        handoff["crop"] = p.window_function("shared_crop_for_windows")(
+                        handoff["crop"] = recast_take.shot_work.shared_crop_for_windows(
                             session, library, requests=requests
                         )
                     except ValueError:
@@ -369,9 +369,11 @@ def _compute(session, library, recast, report, shot, stored, policy):
                 join = layout["join"]
                 row = {"join": join, "kind": "bridge", **layout}
                 try:
-                    row["crop"] = handoff.get("crop") or p.window_function(
-                        "shared_crop_for_windows"
-                    )(session, library, requests=requests[join - 1 : join + 1])
+                    row["crop"] = handoff.get(
+                        "crop"
+                    ) or recast_take.shot_work.shared_crop_for_windows(
+                        session, library, requests=requests[join - 1 : join + 1]
+                    )
                 except ValueError:
                     row.update(kind="crossfade", reason="no_shared_crop")
                 handoff["joins"].append(row)

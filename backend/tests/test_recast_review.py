@@ -1,9 +1,7 @@
 """Cross-family review regressions, exercising real persistence without inference."""
 
 import inspect
-import sys
 from copy import deepcopy
-from types import ModuleType
 
 import pytest
 from test_recast_feed import drain, run, settle_all
@@ -11,7 +9,7 @@ from test_recast_service import edit
 from test_recast_service import recast_template as recast_template  # noqa: PLC0414
 from test_recast_service import world as world  # noqa: PLC0414
 
-from gaiavfx.application import operations, recast, replace_character
+from gaiavfx.application import operations, recast, recast_take, replace_character
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
 from gaiavfx.shared.errors import ApplicationError
@@ -71,17 +69,11 @@ def test_planning_failures_are_cached_gaps_and_shot_can_be_excluded(world, monke
 
         monkeypatch.setattr(world.window_api, "start_window_analyses", partial)
     else:
-        # W is now real: simulate a missing integration function at the lookup itself.
-        lookup = p.window_function
+        # Direction's window rule fails while planning.
+        def missing(*args, **kwargs):
+            raise ApplicationError("The shot's windows could not be laid out.", 409)
 
-        def missing(name):
-            if name == "shot_windows":
-                raise ApplicationError(
-                    "Window integration function shot_windows is not available.", 409
-                )
-            return lookup(name)
-
-        monkeypatch.setattr(p, "window_function", missing)
+        monkeypatch.setattr(planning, "shot_windows", missing)
     state = world.ready()
     assert state["shots"][0]["plan"]["gaps"][0]["code"] == "planning_error"
     if failure == "analyses":
@@ -279,12 +271,29 @@ def test_busy_runner_calls_sweeps_on_timer_without_starving_jobs(world, monkeypa
     assert jobs == [100, 101, 105, 106, 111]
 
 
-def test_lazy_lookup_across_modules_and_short_request_keys(world, monkeypatch):
-    module = ModuleType("gaiavfx.application.shot_assembly")
-    module.start_shot_assembly = world.window_api.start_shot_assembly
-    monkeypatch.setitem(sys.modules, module.__name__, module)
-    monkeypatch.delattr(world.window_api, "start_shot_assembly")
-    assert p.window_function("start_shot_assembly") == module.start_shot_assembly
+def test_the_shot_work_seam_holds_one_signature_per_method(world):
+    """Recast reaches its shot work only through `recast_take.shot_work`: the protocol, the production adapter (the
+    replacement and assembly modules' functions) and the test world's fake answer the same calls."""
+    methods = [
+        name
+        for name, value in vars(recast_take.ShotWork).items()
+        if callable(value) and not name.startswith("_")
+    ]
+    assert sorted(methods) == sorted(recast_take.MODULES)
+    production = recast_take.Production()
+    for name in methods:
+        declared = list(inspect.signature(getattr(recast_take.ShotWork, name)).parameters.values())
+        real = getattr(production, name)
+        assert real is getattr(recast_take.MODULES[name], name)
+        assert [(q.name, q.kind, q.default) for q in declared[1:]] == [
+            (q.name, q.kind, q.default) for q in inspect.signature(real).parameters.values()
+        ], name
+        assert callable(getattr(world.window_api, name)), name
+    with pytest.raises(AttributeError):
+        production.shot_windows  # noqa: B018 - Direction's windows are not shot work
+
+
+def test_short_request_keys(world):
     assert len(planning.key("x" * 100, "shot" * 20, "replacement", 123456)) <= 12
     state = drain(world, run(world, world.ready())["id"])
     assert state["run"]["state"] == "finished"

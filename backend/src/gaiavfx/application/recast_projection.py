@@ -6,7 +6,6 @@ from copy import deepcopy
 from fractions import Fraction
 from functools import lru_cache
 from hashlib import sha256
-from importlib import import_module
 from uuid import NAMESPACE_URL, uuid5
 from weakref import WeakKeyDictionary
 
@@ -45,30 +44,13 @@ def render_cost(operation):
     )
 
 
-W_MODULES = (
-    "gaiavfx.application.shot_replacement",
-    "gaiavfx.application.shot_assembly",
-    "gaiavfx.application.replace_character",
-    "gaiavfx.modules.direction.windows",
-    "gaiavfx.modules.direction.replacement",
-)
 _CACHES = WeakKeyDictionary()
 
 
-def window_function(name):
-    for module_name in W_MODULES:
-        try:
-            module = import_module(module_name)
-        except ModuleNotFoundError as exc:
-            if exc.name == module_name:
-                continue
-            raise ApplicationError(
-                f"Window integration {module_name} is unavailable: {exc}", 409
-            ) from exc
-        function = getattr(module, name, None)
-        if callable(function):
-            return function
-    raise ApplicationError(f"Window integration function {name} is not available.", 409)
+def _shot_work():
+    from gaiavfx.application import recast_take
+
+    return recast_take.shot_work
 
 
 def cache(library, kind):
@@ -534,9 +516,7 @@ def layer_status(session, library, layer):
         state = "rendering"
     else:
         state = (
-            "settled"
-            if window_function("shot_versions")(session, library, assembly["id"])
-            else "failed"
+            "settled" if _shot_work().shot_versions(session, library, assembly["id"]) else "failed"
         )
     return {
         "character_id": layer["character_id"],
@@ -551,7 +531,7 @@ def versions(session, library, stored):
     result, seen = [], set()
     for assembly in assemblies(session, stored):
         for version in sorted(
-            window_function("shot_versions")(session, library, assembly), key=lambda v: v["take"]
+            _shot_work().shot_versions(session, library, assembly), key=lambda v: v["take"]
         ):
             if version["id"] not in seen:
                 seen.add(version["id"])

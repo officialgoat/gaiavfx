@@ -5,6 +5,7 @@ from copy import deepcopy
 
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_take
 from gaiavfx.application.recast_derivatives import feed_references, feed_voices
 from gaiavfx.application.recast_run import bridge_reservation, renderable
 from gaiavfx.application.target_faces import (
@@ -69,7 +70,7 @@ def start_shot(session, library, recast, film_shot, shot, mode):
         return False
     take = len(plan.get("_history", []))
     faceless = faceless_target(session, library, recast, plan)
-    operations = p.window_function("start_shot_replacement")(
+    operations = recast_take.shot_work.start_shot_replacement(
         session,
         library,
         source_asset=recast["source_asset_id"],
@@ -193,7 +194,7 @@ def _feed_recast(session, library, recast_id):
         chosen = []
         for index, operation in enumerate(operations):
             take = (
-                p.window_function("chain_take")(session, library, operation)
+                recast_take.shot_work.chain_take(session, library, operation)
                 if operation["state"] in p.SETTLED
                 else None
             )
@@ -208,7 +209,7 @@ def _feed_recast(session, library, recast_id):
                 continue
             try:
                 with session.begin_nested():
-                    operation = p.window_function("continue_shot_replacement")(
+                    operation = recast_take.shot_work.continue_shot_replacement(
                         session,
                         library,
                         source_asset=recast["source_asset_id"],
@@ -244,7 +245,7 @@ def _feed_recast(session, library, recast_id):
                 if join["kind"] != "bridge" or not chosen[k - 1] or not chosen[k]:
                     continue
                 successors = (
-                    p.window_function("window_takes")(session, library, operations[k]).values()
+                    recast_take.shot_work.window_takes(session, library, operations[k]).values()
                     if k == len(operations) - 1 and shot["mode"] != "draft"
                     else [chosen[k]]
                 )
@@ -258,7 +259,7 @@ def _feed_recast(session, library, recast_id):
                         continue
                     try:
                         with session.begin_nested():
-                            operation = p.window_function("start_shot_bridge")(
+                            operation = recast_take.shot_work.start_shot_bridge(
                                 session,
                                 library,
                                 source_asset=recast["source_asset_id"],
@@ -290,7 +291,7 @@ def _feed_recast(session, library, recast_id):
                     bridges.append(operation)
                     queued = True
         if all(o["state"] in p.SETTLED for o in [*operations, *bridges]):
-            assembly = p.window_function("start_shot_assembly")(
+            assembly = recast_take.shot_work.start_shot_assembly(
                 session,
                 library,
                 source_asset=recast["source_asset_id"],
@@ -325,12 +326,12 @@ def _feed_recast(session, library, recast_id):
                 film_shot = film_shots[shot["shot_id"]]
                 parent_version = next(
                     v
-                    for v in p.window_function("shot_versions")(
+                    for v in recast_take.shot_work.shot_versions(
                         session, library, layer["parent_assembly"]
                     )
                     if v["id"] == layer["parent_version"]
                 )
-                assembly = p.window_function("start_shot_assembly")(
+                assembly = recast_take.shot_work.start_shot_assembly(
                     session,
                     library,
                     source_asset=recast["source_asset_id"],
