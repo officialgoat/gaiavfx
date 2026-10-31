@@ -57,10 +57,10 @@ test.describe("Split segments through Direction receipts", () => {
       .click();
     await confirm(page, 36);
     const response = await request.get(
-      `/api/direction/movies/${data.movie.id}`,
+      `/api/direction/movies/${data.movie.id}/read`,
       { headers: data.headers },
     );
-    const movie = await response.json();
+    const { movie } = await response.json();
     expect(
       movie.segments.map(
         (s: { delivered_frames: number }) => s.delivered_frames,

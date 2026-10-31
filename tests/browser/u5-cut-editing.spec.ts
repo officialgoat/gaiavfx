@@ -124,10 +124,14 @@ test("Delivered frame moves the cut and its authored phase together and Undo res
     "180",
   );
   await expect(phaseMarker).toHaveAttribute("data-frame", "180");
-  const response = await request.get(`/api/direction/movies/${data.movie.id}`, {
-    headers: data.headers,
-  });
-  const movie: components["schemas"]["MovieDetailDTO"] = await response.json();
+  const response = await request.get(
+    `/api/direction/movies/${data.movie.id}/read`,
+    {
+      headers: data.headers,
+    },
+  );
+  const { movie }: components["schemas"]["MovieReadDTO"] =
+    await response.json();
   expect(movie.segments[1].phases.find((p) => p.id === phase.id)).toMatchObject(
     {
       start_frame: 60,

@@ -62,7 +62,10 @@ test("a movie with no cast gets a segment with no actors", async ({
   await expect(
     page.getByRole("button", { name: "Segment 01", exact: true }),
   ).toBeVisible();
-  const saved = await send<Movie>("GET", `/api/direction/movies/${movie.id}`);
+  const { movie: saved } = await send<{ movie: Movie }>(
+    "GET",
+    `/api/direction/movies/${movie.id}/read`,
+  );
   expect(saved.segments[0].content.subjects).toEqual([]);
   expect(saved.segments[0].phases[0].content.cast).toEqual([]);
 });
@@ -90,7 +93,10 @@ test("the ticked cast is the segment's and its opening phase's cast", async ({
   await dialog.getByRole("checkbox", { name: "Ivo" }).check();
   await dialog.getByRole("button", { name: "Create segment" }).click();
   await expect(dialog).toBeHidden();
-  const saved = await send<Movie>("GET", `/api/direction/movies/${movie.id}`);
+  const { movie: saved } = await send<{ movie: Movie }>(
+    "GET",
+    `/api/direction/movies/${movie.id}/read`,
+  );
   expect(saved.segments[0].content.subjects).toEqual([ivo.id]);
   expect(saved.segments[0].phases[0].content.cast).toEqual([ivo.id]);
 });

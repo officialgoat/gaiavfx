@@ -9,15 +9,18 @@ let data: Awaited<ReturnType<typeof seedDirect>>;
 let third: { id: string };
 test.beforeAll(async ({ request }) => {
   data = await seedDirect(request);
-  const movie = await request.get(`/api/direction/movies/${data.movie.id}`, {
-    headers: data.headers,
-  });
+  const movie = await request.get(
+    `/api/direction/movies/${data.movie.id}/read`,
+    {
+      headers: data.headers,
+    },
+  );
   const added = await request.post(
     `/api/direction/movies/${data.movie.id}/segments`,
     {
       headers: data.headers,
       data: {
-        expected_revision: (await movie.json()).revision,
+        expected_revision: (await movie.json()).movie.revision,
         content: data.second.content,
         delivered_frames: 96,
         continues: true,

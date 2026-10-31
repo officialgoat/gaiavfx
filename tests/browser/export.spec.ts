@@ -45,8 +45,8 @@ test("Export checks selections, confirms changed takes, assembles and opens the 
     .click();
   await expect(sequence.getByText("No selected take")).toHaveCount(1);
   // Remove the deliberately unselected first segment through its real revision-checked command.
-  const movie = await data.get<S["MovieDetailDTO"]>(
-    `/api/direction/movies/${data.movie.id}`,
+  const { movie } = await data.get<S["MovieReadDTO"]>(
+    `/api/direction/movies/${data.movie.id}/read`,
   );
   await data.post(`/api/direction/segments/${data.first.id}/remove`, {
     expected_revision: movie.revision,
