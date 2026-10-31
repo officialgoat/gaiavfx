@@ -163,38 +163,25 @@ export function recastProgress(
   // Python says whether the run's range waits for window analyses (Run scope).
   const analysing = value.run.analysing;
   const waiting = value.shots.filter((s) => QUEUES.waiting.test(s)).length;
+  // Python's Run scope says why Plan, Start or Pause may not run; only unsaved edits are the trackbar's own.
   const planReason = view.busy
     ? "Saving…"
-    : !mapped
-      ? "Map a character first"
-      : value.analysis.state !== "succeeded"
-        ? "Wait for analysis to finish"
-        : value.run.state === "running"
-          ? "Pause the run before planning"
-          : !unplanned && !view.planDirty
-            ? view.range && unplannedOutside
-              ? `Every mapped shot in the work area is planned; ${plural(unplannedOutside, "more shot")} outside it. Clear the work area to plan ${unplannedOutside === 1 ? "it" : "them"}.`
-              : "All mapped shots are planned"
-            : undefined;
+    : (value.run.plan_refusal ??
+      (!unplanned && !view.planDirty
+        ? view.range && unplannedOutside
+          ? `Every mapped shot in the work area is planned; ${plural(unplannedOutside, "more shot")} outside it. Clear the work area to plan ${unplannedOutside === 1 ? "it" : "them"}.`
+          : "All mapped shots are planned"
+        : undefined));
   const startReason = view.busy
     ? "Saving…"
-    : value.analysis.state !== "succeeded"
-      ? "Wait for analysis to finish."
-      : !mapped
-        ? "Confirm a character mapping first."
-        : value.run.state === "paused" && view.planDirty
-          ? pausedMismatch(value)
-          : !estimate || view.planDirty
-            ? view.range
-              ? "Plan the work area to get an estimate first."
-              : "Plan the film to get an estimate first."
-            : analysing
-              ? "Wait for window analyses to finish."
-              : value.run.state === "running"
-                ? "The run is already active."
-                : value.film.fps_status === "unsupported"
-                  ? "This film's frame rate is unsupported."
-                  : undefined;
+    : (value.run.start_refusal ??
+      (value.run.state === "paused" && view.planDirty
+        ? pausedMismatch(value)
+        : !estimate || view.planDirty
+          ? view.range
+            ? "Plan the work area to get an estimate first."
+            : "Plan the film to get an estimate first."
+          : undefined));
   const planLabel = unplanned
     ? `Plan ${unplanned} ${unplanned === 1 ? "shot" : "shots"}`
     : view.planDirty

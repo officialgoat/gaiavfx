@@ -359,15 +359,40 @@ export async function mockRecast(
   rate: FilmRate = [25, 1],
 ) {
   let value = recastFixture(count, rate);
-  // As Python's Run scope: the run's range waits while an included shot in it is still being analysed.
+  // The fixture stands in for Python's Run scope (recast_run.refusals): the run's range waits while an included
+  // shot in it is still being analysed, and Plan, Start and Pause say why they may not run.
   const served = () => {
     const range = value.run.range;
-    value.run.analysing = value.shots.some(
+    const run = value.run;
+    run.analysing = value.shots.some(
       (s) =>
         s.included &&
         s.status === "analysing" &&
         (!range || (s.start < range.end && s.end > range.start)),
     );
+    const analysed = value.analysis.state === "succeeded";
+    const mapped = value.characters.some(
+      (c) => c.target?.state === "confirmed",
+    );
+    run.plan_refusal = !mapped
+      ? "Map a character first"
+      : !analysed
+        ? "Wait for analysis to finish"
+        : run.state === "running"
+          ? "Pause the run before planning"
+          : null;
+    run.start_refusal = !analysed
+      ? "Wait for analysis to finish."
+      : run.analysing
+        ? "Wait for window analyses to finish."
+        : value.film.fps_status === "unsupported"
+          ? "This film's frame rate is unsupported."
+          : !mapped
+            ? "Confirm a character mapping first."
+            : run.state === "running"
+              ? "The run is already active."
+              : null;
+    run.pause_refusal = run.state === "running" ? null : "No run is running.";
     return value;
   };
   const film = {

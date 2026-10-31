@@ -314,7 +314,7 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
             character["lines_confirmed"],
             expressive_library,
         )
-    return {
+    view = {
         "id": recast_id,
         "title": recast["title"],
         "revision": recast["revision"],
@@ -353,6 +353,8 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
             seconds,
         ),
     }
+    view["run"] |= run_scope.refusals(view)
+    return view
 
 
 def patch_character(
@@ -855,6 +857,8 @@ def plan_recast(session, library, recast_id, *, expected_revision, range=None):
 
 def start_run(session, library, recast_id, *, expected_revision, mode, range, render_budget):
     recast, report = load(session, library, recast_id, expected_revision)
+    if blocked := run_scope.start_blocked(recast_state(session, library, recast_id)):
+        raise ApplicationError(blocked, 409)
     _mode(mode)
     _range(range, report)
     if not report or not any(s["plan"] for s in recast["shots"]):

@@ -85,3 +85,49 @@ def test_the_runs_own_estimate_and_a_new_runs_agree_before_anything_renders(mode
         _, fresh = recast_run.estimate_run(state, mode=mode, frame_range=RANGE)
         assert {k: own[k] for k in fresh} == fresh
         assert fresh["basis"] == ("measured" if seconds else "seed")
+
+
+@pytest.mark.parametrize(
+    ("change", "plan", "start", "pause"),
+    [
+        ({}, None, None, "No run is running."),
+        (
+            {"analysis": "running"},
+            "Wait for analysis to finish",
+            "Wait for analysis to finish.",
+            "No run is running.",
+        ),
+        (
+            {"mapped": False},
+            "Map a character first",
+            "Confirm a character mapping first.",
+            "No run is running.",
+        ),
+        ({"analysing": True}, None, "Wait for window analyses to finish.", "No run is running."),
+        (
+            {"mapped": False, "analysing": True},
+            "Map a character first",
+            "Wait for window analyses to finish.",
+            "No run is running.",
+        ),
+        ({"state": "running"}, "Pause the run before planning", "The run is already active.", None),
+        (
+            {"fps": "unsupported"},
+            None,
+            "This film's frame rate is unsupported.",
+            "No run is running.",
+        ),
+    ],
+)
+def test_run_scope_says_why_plan_start_and_pause_may_not_run(change, plan, start, pause):
+    view = {
+        "analysis": {"state": change.get("analysis", "succeeded")},
+        "characters": [{"target": {"state": "confirmed"} if change.get("mapped", True) else None}],
+        "film": {"fps_status": change.get("fps", "supported")},
+        "run": {"state": change.get("state", "idle"), "analysing": change.get("analysing", False)},
+    }
+    assert recast_run.refusals(view) == {
+        "plan_refusal": plan,
+        "start_refusal": start,
+        "pause_refusal": pause,
+    }

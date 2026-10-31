@@ -288,6 +288,10 @@ class RunDTO(BaseModel):
     analysing: bool = False
     # the median measured render, once three were measured; estimates use it instead of the seed timing
     render_seconds: float | None = None
+    # why Plan, Start (or Resume) and Pause would be refused now, in the user's words (recast_run.refusals)
+    plan_refusal: str | None = None
+    start_refusal: str | None = None
+    pause_refusal: str | None = None
 
 
 class ConformDTO(BaseModel):

@@ -45,6 +45,45 @@ def analysing(shots, frame_range) -> bool:
     )
 
 
+def start_blocked(view) -> str | None:
+    """Why a run could not render correctly now, which start_run refuses: the film is not analysed, a shot in the
+    run's range is still being analysed, or the film's frame rate is unsupported."""
+    if view["analysis"]["state"] != "succeeded":
+        return "Wait for analysis to finish."
+    if view["run"]["analysing"]:
+        return "Wait for window analyses to finish."
+    if view["film"]["fps_status"] == "unsupported":
+        return "This film's frame rate is unsupported."
+    return None
+
+
+def refusals(view) -> dict:
+    """Why Plan, Start (or Resume) and Pause would be refused for the recast as read (`recast_state`), in the user's
+    words, or None where they may run. start_run enforces what `start_blocked` says; the trackbar also waits for a
+    confirmed mapping and an idle run (a run without a mapping feeds nothing, a running one is updated in place)."""
+    run = view["run"]
+    analysed = view["analysis"]["state"] == "succeeded"
+    mapped = any((c["target"] or {}).get("state") == "confirmed" for c in view["characters"])
+    plan = (
+        "Map a character first"
+        if not mapped
+        else "Wait for analysis to finish"
+        if not analysed
+        else "Pause the run before planning"
+        if run["state"] == "running"
+        else None
+    )
+    start = start_blocked(view) or (
+        "Confirm a character mapping first."
+        if not mapped
+        else "The run is already active."
+        if run["state"] == "running"
+        else None
+    )
+    pause = None if run["state"] == "running" else "No run is running."
+    return {"plan_refusal": plan, "start_refusal": start, "pause_refusal": pause}
+
+
 def bridge_reservation(plan, renders, *, mode=None):
     joins = plan.get("_handoff", {}).get("joins", [])
     last = len(plan.get("windows", [])) - 1

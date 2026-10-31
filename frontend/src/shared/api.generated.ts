@@ -6275,6 +6275,12 @@ export interface components {
       analysing: boolean;
       /** Render Seconds */
       render_seconds?: number | null;
+      /** Plan Refusal */
+      plan_refusal?: string | null;
+      /** Start Refusal */
+      start_refusal?: string | null;
+      /** Pause Refusal */
+      pause_refusal?: string | null;
     };
     /** RunInput */
     RunInput: {

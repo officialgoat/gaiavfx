@@ -403,11 +403,9 @@ export function recastCommands(r: RecastController): Command[] {
       run: control("pause"),
       reason: () =>
         saving() ??
-        (runState() === "running"
-          ? undefined
-          : runState() === "paused"
-            ? "The run is already paused."
-            : "No run is running."),
+        (runState() === "paused"
+          ? "The run is already paused."
+          : (r.value?.run.pause_refusal ?? undefined)),
     },
     {
       id: "recast.resume",
