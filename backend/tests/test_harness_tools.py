@@ -336,14 +336,26 @@ def test_cut_add_atomic_two_receipts_and_existing_phase(world):
         unchanged = direction.read_segment(session, sid)
         assert unchanged["revision"] == 1 and len(unchanged["phases"]) == 1
     result = execute_edit(work, setup, tool, **values)
-    assert result.ok and [r["command"] for r in result.receipts] == ["add_phase", "create_cut"]
+    # The phase the cut opens and the cut are one authored intent: one Receipt, one Undo.
+    assert result.ok and [r["command"] for r in result.receipts] == ["create_cut"]
     with work.db.transaction() as session:
         row = direction.read_segment(session, sid)
         assert row["revision"] == 3 and len(row["phases"]) == 2
         direction.undo(session, result.receipts[-1]["id"])
         row = direction.read_segment(session, sid)
-        assert not row["cuts"] and row["phases"][1]["start_frame"] == 36
-        new_revision = row["revision"]
+        assert not row["cuts"] and len(row["phases"]) == 1
+        phase = direction.add_phase(
+            session,
+            sid,
+            row["revision"],
+            start_frame=36,
+            content={
+                "description": "Arin beyond the railing.",
+                "screen_direction": "",
+                "sound": "",
+            },
+        )
+        new_revision = phase["receipt"]["after"]["revision"]
     existing = execute_edit(work, setup, tool, **(values | {"expected_revision": new_revision}))
     assert existing.ok and [r["command"] for r in existing.receipts] == ["create_cut"]
     with work.db.transaction() as session:

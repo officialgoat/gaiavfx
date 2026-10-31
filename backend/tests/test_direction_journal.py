@@ -207,7 +207,10 @@ def composite(service, session, segment):
             session,
             movie_id,
             subject["receipt"]["after"]["revision"],
-            content={**segment["content"], "subjects": ["a", subject["id"]]},
+            content={
+                **segment["content"],
+                "subjects": [*segment["content"]["subjects"], subject["id"]],
+            },
             delivered_frames=48,
             continues=False,
             phases=[(0, SHOT)],

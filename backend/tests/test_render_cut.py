@@ -54,7 +54,7 @@ def test_import_reuses_cast_and_rolls_back_failed_commands(store):
             r for r in service.receipts(session, movie["id"]) if r["command"] == "add_segment"
         ]
         assert [r["id"] for r in imported] == [second["receipt"]["id"], first["receipt"]["id"]]
-        assert first["receipt"]["before"]["revision"] == 1
+        assert imported[-1]["before"]["revision"] == 1
         assert len(service.subjects(session, movie["id"])) == 1
         assert len(service.read_movie(session, movie["id"])["segments"]) == 2
         before = service.read_movie(session, movie["id"])
