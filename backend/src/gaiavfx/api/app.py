@@ -176,7 +176,7 @@ def create_app(
 
     @app.exception_handler(ApplicationError)
     async def application_error(_request, error):
-        return JSONResponse({"detail": str(error)}, status_code=error.status)
+        return JSONResponse({"detail": str(error), **error.payload}, status_code=error.status)
 
     @app.middleware("http")
     async def local_origin(request: Request, call_next):

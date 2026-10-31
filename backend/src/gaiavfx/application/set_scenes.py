@@ -12,7 +12,7 @@ angle it serves, so nothing is taken from another shot.
 
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.sets import STORE, link_place
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 TECHNIQUE = "opening_views"
 
@@ -73,7 +73,7 @@ def use_set(
     """Build the first shot's place as the set and ask the first shot for its views."""
     segment = DIRECTION.read_segment(session, segment_id)
     if segment["revision"] != expected_revision:
-        raise ApplicationError("Segment revision is stale.", 409)
+        raise StaleRevision("Segment", segment_id, segment["revision"])
     STORE.get(session, set_id)
     angle, new = _target(session, segment, angle_id, place_id, angle_name)
     if angle is None:

@@ -23,7 +23,6 @@ from gaiavfx.application.harness.tools.common import (
     direction_receipt,
     edited,
     granted,
-    revision,
     scoped,
 )
 from gaiavfx.application.harness.tools.cut_angles import cut_result, resolve_angles
@@ -164,7 +163,6 @@ class EditCut(TransactionTool):
                     f"op=remove uses segment expected_revision {segment['revision']}",
                     409,
                 )
-            revision(segment, value.expected_revision, "Segment", self.name)
             if value.relation is not None and value.crosses_barrier is None:
                 raise ApplicationError(
                     "A known relation requires crosses_barrier; " + CROSSES_BARRIER_GUIDANCE, 422
@@ -184,11 +182,8 @@ class EditCut(TransactionTool):
         scoped(context.state.cuts, value.cut_id, "Cut")
         cut = direction.read_cut(session, value.cut_id)
         if value.op == "remove":
-            segment = direction.read_segment(session, cut["segment_id"])
-            revision(segment, value.expected_revision, "Segment", self.name)
             result = direction.remove_cut(session, value.cut_id, value.expected_revision)
             return edited(context, result, structural=True)
-        revision(cut, value.expected_revision, "Cut", self.name)
         previous_segment = direction.read_segment(session, cut["segment_id"])
         if value.op != "angles":
             require_different_angles(cut["from_angle_id"], cut["to_angle_id"])
@@ -292,12 +287,6 @@ class EditSegment(TransactionTool):
         receipts = None  # a set with a handoff has two
         if value.op == "add":
             require(value, "place", "delivered_frames", "continues", "phases")
-            revision(
-                direction.read_movie(session, context.movie_id),
-                value.expected_revision,
-                "Movie",
-                self.name,
-            )
             row, receipts = add_segment(
                 session,
                 context,
@@ -317,7 +306,6 @@ class EditSegment(TransactionTool):
         else:
             segment = segment_in_scope(session, context, value.segment_id)
             if value.op == "set":
-                revision(segment, value.expected_revision, "Segment", self.name)
                 changes = value.model_dump(
                     exclude_none=True, include={"delivered_frames", "continues"}
                 )
@@ -330,12 +318,6 @@ class EditSegment(TransactionTool):
                     changes["content"] = content
                 row, receipts = handoff.update(session, value, segment, changes)
             else:
-                revision(
-                    direction.read_movie(session, context.movie_id),
-                    value.expected_revision,
-                    "Movie",
-                    self.name,
-                )
                 if value.op == "move":
                     require(value, "ordinal")
                     row = direction.move_segment(
@@ -410,7 +392,6 @@ class EditPhase(TransactionTool):
             require(value, "segment_id", "start_frame", "description")
             require_motion_direction(changes)
             segment = segment_in_scope(session, context, value.segment_id)
-            revision(segment, value.expected_revision, "Segment", self.name)
             row = direction.add_phase(
                 session,
                 segment["id"],
@@ -431,12 +412,6 @@ class EditPhase(TransactionTool):
                 raise ApplicationError("Phase is not in this session's scope.", 422)
             segment = direction.read_segment(session, summary["id"])
             phase = scoped(segment["phases"], value.phase_id, "Phase")
-            revision(
-                phase if value.op == "set" else segment,
-                value.expected_revision,
-                "Phase" if value.op == "set" else "Segment",
-                self.name,
-            )
             if value.op == "set":
                 if not changes and value.start_frame is None:
                     raise ApplicationError("Specify at least one phase field.", 422)
@@ -518,12 +493,6 @@ class EditCast(TransactionTool):
         )
         if value.op == "add":
             require(value, "name", "description", "keeps")
-            revision(
-                direction.read_movie(session, context.movie_id),
-                value.expected_revision,
-                "Movie",
-                self.name,
-            )
             row = direction.add_subject(
                 session,
                 context.movie_id,
@@ -533,21 +502,9 @@ class EditCast(TransactionTool):
         else:
             scoped(context.state.cast, value.subject_id, "Subject")
             if value.op == "set":
-                revision(
-                    direction.read_subject(session, value.subject_id),
-                    value.expected_revision,
-                    "Subject",
-                    self.name,
-                )
                 row = direction.update_subject(
                     session, value.subject_id, value.expected_revision, **changes
                 )
             else:
-                revision(
-                    direction.read_movie(session, context.movie_id),
-                    value.expected_revision,
-                    "Movie",
-                    self.name,
-                )
                 row = direction.remove_subject(session, value.subject_id, value.expected_revision)
         return edited(context, row, structural=value.op != "set")

@@ -61,9 +61,8 @@ def update(session, value, segment, changes):
             session, value.segment_id, value.expected_revision, **changes
         )
         rows.append(row)
-    if choice and (
-        chosen := set_continuation(session, value.segment_id, row["revision"], **choice)
-    ):
+    expected = row["revision"] if rows else value.expected_revision
+    if choice and (chosen := set_continuation(session, value.segment_id, expected, **choice)):
         row = chosen
         rows.append(row)
     if not rows:

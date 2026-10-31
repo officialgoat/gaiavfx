@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from gaiavfx.infrastructure.database import new_id, timestamp
 from gaiavfx.modules.editing.selections.persistence import TakeSelectionRecord
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 
 def _record(row: TakeSelectionRecord) -> dict:
@@ -42,6 +42,14 @@ class SelectionService:
         rows = self.history(session, movie_id, segment_id)
         return max((row["revision"] for row in rows), default=0)
 
+    def _check_revision(self, session, movie_id, segment_id, expected_revision):
+        if self.revision(session, movie_id, segment_id) != expected_revision:
+            raise self._stale(session, movie_id, segment_id)
+
+    def _stale(self, session, movie_id, segment_id):
+        # A segment's selection revision is its own: Selection names it by the segment.
+        return StaleRevision("Selection", segment_id, self.revision(session, movie_id, segment_id))
+
     def select(
         self,
         session: Session,
@@ -70,8 +78,7 @@ class SelectionService:
             raise ApplicationError("A provisional selection needs a valid basis.", 422)
         if type(expected_revision) is not int or expected_revision < 0:
             raise ApplicationError("Invalid selection revision.", 422)
-        if self.revision(session, movie_id, segment_id) != expected_revision:
-            raise ApplicationError("Selection revision is stale.", 409)
+        self._check_revision(session, movie_id, segment_id, expected_revision)
         old = self.current(session, movie_id, segment_id)
         if old and old["authority"] == "user" and authority == "provisional":
             raise ApplicationError("A provisional pick cannot replace a user selection.", 409)
@@ -88,7 +95,7 @@ class SelectionService:
                 .execution_options(synchronize_session=False)
             )
             if result.rowcount != 1:
-                raise ApplicationError("Selection revision is stale.", 409)
+                raise self._stale(session, movie_id, segment_id)
         row = TakeSelectionRecord(
             id=new_id(),
             movie_id=movie_id,
@@ -117,8 +124,7 @@ class SelectionService:
             raise ApplicationError("Invalid selection authority.", 422)
         if type(expected_revision) is not int or expected_revision < 0:
             raise ApplicationError("Invalid selection revision.", 422)
-        if self.revision(session, movie_id, segment_id) != expected_revision:
-            raise ApplicationError("Selection revision is stale.", 409)
+        self._check_revision(session, movie_id, segment_id, expected_revision)
         old = self.current(session, movie_id, segment_id)
         if old is None:
             return None
@@ -135,6 +141,6 @@ class SelectionService:
             .execution_options(synchronize_session=False)
         )
         if result.rowcount != 1:
-            raise ApplicationError("Selection revision is stale.", 409)
+            raise self._stale(session, movie_id, segment_id)
         session.expire_all()
         return _record(session.get(TakeSelectionRecord, old["id"]))

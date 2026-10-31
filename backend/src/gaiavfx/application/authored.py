@@ -102,11 +102,6 @@ def load_segment(path: Path | str | dict) -> dict:
 
 def import_segment(session, movie_id, expected_revision, data_or_path, *, at=None) -> dict:
     """Import into one movie in the caller's transaction; cast identities are never overwritten."""
-    movie = direction.read_movie(session, movie_id)
-    if type(expected_revision) is not int or expected_revision < 1:
-        raise ApplicationError("expected_revision must be a positive integer.", 422)
-    if movie["revision"] != expected_revision:
-        raise ApplicationError("Movie revision is stale.", 409)
     data = load_segment(data_or_path)
     revision = expected_revision
     receipts = []

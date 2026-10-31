@@ -4,7 +4,7 @@ import re
 
 from gaiavfx.application.harness.actions import Tool, ToolResult
 from gaiavfx.application.harness.board import write_entry
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 
 def refusal(message):
@@ -119,15 +119,6 @@ def truthful_refusal(context, message):
     return (revision_guidance(context, lacking[0]) + " " + message) if lacking else message
 
 
-def revision(row, expected, kind, tool):
-    if row["revision"] != expected:
-        raise ApplicationError(
-            f"{kind} revision is {row['revision']}. Call {tool} again with "
-            f"expected_revision {row['revision']} after re-reading if needed.",
-            409,
-        )
-
-
 def candidates(rows):
     return (
         ", ".join(
@@ -208,6 +199,11 @@ class TransactionTool(Tool):
                 validate_text(text)
             with context.db.transaction() as session:
                 return self.execute(session, context, value)
+        except StaleRevision as exc:
+            return refusal(
+                f"{exc.kind} revision is {exc.revision}. Call {self.name} again with "
+                f"expected_revision {exc.revision} after re-reading if needed."
+            )
         except ApplicationError as exc:
             return refusal(exc)
 

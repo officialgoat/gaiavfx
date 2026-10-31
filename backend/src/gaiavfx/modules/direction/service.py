@@ -45,7 +45,7 @@ from gaiavfx.modules.direction.segment import (
     require_frame,
     require_in_cast,
 )
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 
 def _required(value: str, label: str) -> str:
@@ -168,7 +168,7 @@ class SegmentSplitRefusal(ApplicationError):
     """A stable machine-readable reason alongside the user-facing recovery."""
 
     def __init__(self, code: str, message: str):
-        super().__init__(message, 422)
+        super().__init__(message, 422, {"code": code})
         self.code = code
 
 
@@ -188,9 +188,15 @@ def _check_revision(row, expected):
     if type(expected) is not int or expected < 1:
         raise ApplicationError("expected_revision must be a positive integer.", 422)
     if row.revision != expected:
-        raise ApplicationError(
-            f"{row.__class__.__name__.removesuffix('Record')} revision is stale.", 409
-        )
+        raise _stale(row.__class__, row.id, row.revision)
+
+
+def _stale(model, record_id, revision):
+    return StaleRevision(model.__name__.removesuffix("Record"), record_id, revision)
+
+
+def _revision_of(session, model, record_id):
+    return session.scalar(select(model.revision).where(model.id == record_id))
 
 
 def _bump(session, row, expected, **values):
@@ -203,7 +209,7 @@ def _bump(session, row, expected, **values):
         .execution_options(synchronize_session=False)
     )
     if result.rowcount != 1:
-        raise ApplicationError(f"{model.__name__.removesuffix('Record')} revision is stale.", 409)
+        raise _stale(model, row.id, _revision_of(session, model, row.id))
     session.refresh(row)
 
 
@@ -1408,9 +1414,7 @@ class DirectionService:
             .execution_options(synchronize_session=False)
         )
         if changed.rowcount != 1:
-            raise ApplicationError(
-                f"{model.__name__.removesuffix('Record')} revision is stale.", 409
-            )
+            raise _stale(model, record_id, _revision_of(session, model, record_id))
         session.refresh(row)
         return _record(row)
 
@@ -1539,7 +1543,7 @@ class DirectionService:
             .execution_options(synchronize_session=False)
         )
         if changed.rowcount != 1:
-            raise ApplicationError("Place revision is stale.", 409)
+            raise _stale(PlaceRecord, place_id, _revision_of(session, PlaceRecord, place_id))
         session.refresh(row)
         return _record(row)
 
@@ -1619,7 +1623,7 @@ class DirectionService:
             .execution_options(synchronize_session=False)
         )
         if result.rowcount != 1:
-            raise ApplicationError("Place revision is stale.", 409)
+            raise _stale(PlaceRecord, place.id, _revision_of(session, PlaceRecord, place.id))
         session.refresh(place)
         _bump(session, movie, movie.revision)
         receipt = _receipt(

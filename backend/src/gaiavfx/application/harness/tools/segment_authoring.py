@@ -171,6 +171,8 @@ def add_cut(session, context, segment, revision, cut):
     require_cut_timing(segment, cut.frame, segment["cuts"])
     previous_segment = segment
     receipts = []
+    # The first command checks the revision the caller read; a later one the revision the first left.
+    segment = {**segment, "revision": revision}
     if not any(p["start_frame"] == cut.frame for p in segment["phases"]):
         require_motion_direction(cut.shot)
         require_shot(cut.shot["description"])

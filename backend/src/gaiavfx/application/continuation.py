@@ -17,7 +17,7 @@ from gaiavfx.integrations.minimax_h3.continuation import ContinuationFacts, Hand
 from gaiavfx.modules.direction.service import last_angle
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 METHODS = continuity.METHODS
 FIELDS = {"method": "continuation_method", "context_frames": "context_frames"}
@@ -140,7 +140,7 @@ def set_continuation(session, segment_id, expected_revision, **choice):
         raise ApplicationError("expected_revision must be a positive integer.", 422)
     row = DIRECTION.read_segment(session, segment_id)
     if row["revision"] != expected_revision:
-        raise ApplicationError("Segment revision is stale.", 409)
+        raise StaleRevision("Segment", segment_id, row["revision"])
     changes = {key: value for key, value in stored(choice).items() if value != row[FIELDS[key]]}
     if not changes:
         return None

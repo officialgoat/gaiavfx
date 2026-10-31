@@ -153,7 +153,11 @@ def test_persisted_authoring_receipts_and_undo_over_http(tmp_path):
             "patch",
             200,
         )
-        command(f"phases/{phase['id']}", {"expected_revision": 1, "start_frame": 12}, "patch", 409)
+        stale = command(
+            f"phases/{phase['id']}", {"expected_revision": 1, "start_frame": 12}, "patch", 409
+        )
+        # A stale revision names the revision the record is at now.
+        assert stale["stale"] == {"kind": "Phase", "id": phase["id"], "revision": 2}
         undone = command(f"receipts/{changed['receipt']['id']}/undo", status=200)
         assert undone["command"] == "undo" and undone["undoes"] == changed["receipt"]["id"]
         assert read(f"segments/{sid}/assembled") == assembled

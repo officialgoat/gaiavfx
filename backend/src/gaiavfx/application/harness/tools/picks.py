@@ -5,8 +5,8 @@ from pydantic import Field
 from gaiavfx.application.candidate_review import select_take
 from gaiavfx.application.harness.actions import ToolResult, pin_enum
 from gaiavfx.application.harness.board import write_entry
-from gaiavfx.application.harness.tools.common import TransactionTool, permitted, revision, scoped
-from gaiavfx.application.harness.world import direction, ranked, reviews, selections
+from gaiavfx.application.harness.tools.common import TransactionTool, permitted, scoped
+from gaiavfx.application.harness.world import direction, ranked, reviews
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
@@ -55,12 +55,6 @@ class PickProvisional(TransactionTool):
         )
         if not successor or not successor["continues"]:
             raise ApplicationError("This segment has no continuing successor.", 422)
-        revision(
-            {"revision": selections.revision(session, context.movie_id, segment_id)},
-            value.expected_revision,
-            "Selection",
-            self.name,
-        )
         member = next((m for m in review["members"] if m["letter"] == value.letter), None)
         if member is None:
             raise ApplicationError("Choose a letter from the blind review.", 422)

@@ -3,7 +3,6 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.application import set_scenes, set_seed, sets
@@ -16,7 +15,6 @@ from gaiavfx.application.prepare_references import view_producer
 from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.coverage import COVERAGE_WORDS, Coverage
 from gaiavfx.modules.direction.planning import Action
-from gaiavfx.modules.direction.service import SegmentSplitRefusal
 from gaiavfx.modules.direction.techniques import Status
 from gaiavfx.shared.errors import ApplicationError
 
@@ -868,14 +866,9 @@ def direction_router(workspace, authenticate):
         responses={422: {"model": DirectionSplitRefusalDTO}},
     )
     def split_segment(segment_id: str, body: DirectionSegmentSplitInput):
-        try:
-            with workspace.db.transaction() as session:
-                result = direction.split_segment(session, segment_id, **body.model_dump())
-                return result | {"segments": [segment_dto(session, s) for s in result["segments"]]}
-        except SegmentSplitRefusal as error:
-            return JSONResponse(
-                {"code": error.code, "detail": str(error)}, status_code=error.status
-            )
+        with workspace.db.transaction() as session:
+            result = direction.split_segment(session, segment_id, **body.model_dump())
+            return result | {"segments": [segment_dto(session, s) for s in result["segments"]]}
 
     @router.post("/segments/{segment_id}/remove", response_model=RemovedDTO)
     def remove_segment(segment_id: str, body: DirectionRevisionInput):

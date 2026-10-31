@@ -9,11 +9,11 @@ from gaiavfx.application.harness.actions import ToolResult, branch_by_op, inline
 from gaiavfx.application.harness.board import write_entry
 from gaiavfx.application.harness.knowledge import load
 from gaiavfx.application.harness.tools.authoring import PLACE_TEXT
-from gaiavfx.application.harness.tools.common import TransactionTool, granted, revision, scoped
+from gaiavfx.application.harness.tools.common import TransactionTool, granted, scoped
 from gaiavfx.application.harness.tools.input_hints import example, place_input
 from gaiavfx.application.harness.world import direction
 from gaiavfx.shared.contracts import StrictModel
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 
 class AngleText(StrictModel):
@@ -121,7 +121,9 @@ class EditPlace(TransactionTool):
             )
         scoped(context.state.places, value.place_id, "Place")
         before = direction.read_place(session, value.place_id)
-        revision(before, value.expected_revision, "Place", self.name)
+        if before["revision"] != value.expected_revision:
+            # An angles-only edit writes no place row, so Direction would not check the place's revision.
+            raise StaleRevision("Place", value.place_id, before["revision"])
         changes = value.model_dump(
             exclude_none=True, exclude={"op", "name", "place_id", "expected_revision", "angles"}
         )
@@ -156,7 +158,6 @@ class EditPlace(TransactionTool):
             old = direction.read_angle(session, angle.angle_id)
             if old["place_id"] != value.place_id:
                 raise ApplicationError("The angle belongs to another place.", 422)
-            revision(old, angle.expected_revision, f"Angle {old['name']}", self.name)
             new = direction.update_angle(
                 session,
                 angle.angle_id,

@@ -12,7 +12,6 @@ from gaiavfx.application.harness.tools.common import (
     candidates,
     edited,
     granted,
-    revision,
     scoped,
 )
 from gaiavfx.application.harness.tools.cut_angles import angle, barrier_hint
@@ -27,7 +26,7 @@ from gaiavfx.application.harness.tools.segment_authoring import (
 )
 from gaiavfx.application.harness.world import direction, fields
 from gaiavfx.shared.contracts import StrictModel
-from gaiavfx.shared.errors import ApplicationError
+from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 DEFAULTS = load()["cinematography"]["storyline"]
 
@@ -151,8 +150,6 @@ class DraftStoryline(TransactionTool):
             predecessor = current["segments"][-1]["cuts"][-1]["to_angle_id"]
         for index, beat in enumerate(value.beats):
             try:
-                if index == 0:
-                    revision(current, value.expected_revision, "Movie", self.name)
                 source, chain, cuts, hints, resolved = None, None, [], [], {}
                 if beat.cuts or beat.from_angle:
                     place = beat_place(context, beat, index)
@@ -194,7 +191,8 @@ class DraftStoryline(TransactionTool):
                 row, beat_receipts = add_segment(
                     session,
                     context,
-                    current["revision"],
+                    # The first beat checks the revision the draft was asked against.
+                    value.expected_revision if index == 0 else current["revision"],
                     subject_ids=beat.subject_ids,
                     place=beat.place.model_dump(),
                     style=beat.style,
@@ -231,6 +229,8 @@ class DraftStoryline(TransactionTool):
                     }
                 )
                 current = direction.read_movie(session, context.movie_id)
+            except StaleRevision:
+                raise
             except ApplicationError as exc:
                 if str(exc).startswith(f"beat {index + 1} "):
                     raise
