@@ -1,53 +1,63 @@
 import { request } from "../../shared/api";
 import type { components } from "../../shared/api.generated";
+import { route } from "../../shared/routes";
 
 type Schema = components["schemas"];
 export type Session = Schema["HarnessSessionDTO"];
 export type SessionState = Schema["SessionStateDTO"];
 export type Turn = Schema["TurnDTO"];
 export type Plan = Schema["AgentPlanDTO"];
-const path = (id: string) => `/api/agent/sessions/${encodeURIComponent(id)}`;
-const write = <T>(url: string, body: unknown = {}, method = "POST") =>
-  request<T>(url, { method, body: JSON.stringify(body) });
+const S = "/api/agent/sessions";
+const session = (id: string) => ({ session_id: id });
+
+// Routes are typed from the generated contracts (shared/routes.ts): a renamed route or body fails `tsc`.
 export const agent = {
-  model: () => request<Schema["AgentModelStatusDTO"]>("/api/agent/model"),
+  model: () => route("get", "/api/agent/model"),
   // A movie's conversations are listed by its id, a film's by its recast's.
   sessions: (key: { movie_id: string } | { recast_id: string }) =>
-    request<Session[]>(
-      "movie_id" in key
-        ? `/api/agent/sessions?movie_id=${encodeURIComponent(key.movie_id)}`
-        : `/api/agent/sessions?recast_id=${encodeURIComponent(key.recast_id)}`,
-    ),
+    route("get", S, { query: key }),
   open: (
     body:
       | { movie_id: string; scope_kind: "movie" }
       | { movie_id: ""; scope_kind: "film"; scope_id: string },
-  ) => write<Session>("/api/agent/sessions", body),
+  ) =>
+    // A movie's conversation leaves scope_id to Python's default; the contract types defaulted fields as required.
+    route("post", S, { body: body as Schema["SessionInput"] }),
   restart: (id: string, expected_revision: number) =>
-    write<Session>(`${path(id)}/new`, { expected_revision }),
+    route("post", `${S}/{session_id}/new`, {
+      path: session(id),
+      body: { expected_revision },
+    }),
   stopPlan: (id: string, expected_revision: number) =>
-    write<SessionState>(`${path(id)}/plan/stop`, { expected_revision }),
+    route("post", `${S}/{session_id}/plan/stop`, {
+      path: session(id),
+      body: { expected_revision },
+    }),
   state: (id: string, after = -1, signal?: AbortSignal) =>
-    request<SessionState>(`${path(id)}?after=${after}`, { signal }),
-  message: (id: string, body: Schema["MessageInput"]) =>
-    write<SessionState>(`${path(id)}/messages`, body),
+    route("get", `${S}/{session_id}`, {
+      path: session(id),
+      query: { after },
+      signal,
+    }),
+  message: (id: string, body: Schema["MessageInput"]): Promise<SessionState> =>
+    route("post", `${S}/{session_id}/messages`, { path: session(id), body }),
   decide: (
     id: string,
     action: "approve" | "revise" | "reject",
     expected_revision: number,
     note: string,
-  ) =>
-    write<SessionState>(`${path(id)}/plan/${action}`, {
-      expected_revision,
-      note,
+  ): Promise<SessionState> =>
+    route("post", `${S}/{session_id}/plan/${action}`, {
+      path: session(id),
+      body: { expected_revision, note },
     }),
   mode: (id: string, expected_revision: number, enabled: boolean) =>
-    write<Session>(
-      `${path(id)}/plan-mode`,
-      { expected_revision, enabled },
-      "PUT",
-    ),
-  cancel: (id: string) => write<Session>(`${path(id)}/cancel`),
+    route("put", `${S}/{session_id}/plan-mode`, {
+      path: session(id),
+      body: { expected_revision, enabled },
+    }),
+  cancel: (id: string) =>
+    route("post", `${S}/{session_id}/cancel`, { path: session(id) }),
 };
 
 export function mergeState(

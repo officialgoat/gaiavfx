@@ -13,10 +13,10 @@ type Json<T> = T extends { content: { "application/json": infer J } }
   ? J
   : never;
 type Reply<O> = O extends { responses: infer R }
-  ? Json<R[Extract<keyof R, 200 | 201>]>
+  ? Json<R[Extract<keyof R, 200 | 201 | 202>]>
   : never;
 type Body<O> = O extends {
-  requestBody: { content: { "application/json": infer B } };
+  requestBody?: { content: { "application/json": infer B } };
 }
   ? B
   : never;
@@ -34,6 +34,7 @@ export function route<P extends keyof paths, M extends Methods<P>>(
     path?: PathParams<Operation<P, M>>;
     query?: Partial<Query<Operation<P, M>>>;
     body?: Body<Operation<P, M>>;
+    signal?: AbortSignal;
   } = {},
 ): Promise<Reply<Operation<P, M>>> {
   const values = (args.path ?? {}) as Record<string, string>;
@@ -49,7 +50,11 @@ export function route<P extends keyof paths, M extends Methods<P>>(
   return request(
     url,
     method === "get"
-      ? {}
-      : { method: method.toUpperCase(), body: JSON.stringify(args.body ?? {}) },
+      ? { signal: args.signal }
+      : {
+          method: method.toUpperCase(),
+          body: JSON.stringify(args.body ?? {}),
+          signal: args.signal,
+        },
   );
 }

@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { Plus, Plug, LockKeyhole } from "lucide-react";
 import { request } from "../../shared/api";
 import type { components } from "../../shared/api.generated";
+import { route } from "../../shared/routes";
 import type { Connections } from "./client";
 
 type Connection = components["schemas"]["AssistantConnection"];
-type Vault = components["schemas"]["CredentialState"];
+const credentials = "/api/v1/settings/assistant/credentials";
 export function AssistantConnections({
   draft,
   setDraft,
@@ -27,7 +28,7 @@ export function AssistantConnections({
     [error, setError] = useState("");
   const vault = useQuery({
     queryKey: ["assistant-credentials"],
-    queryFn: () => request<Vault>("settings/assistant/credentials"),
+    queryFn: () => route("get", credentials),
   });
   const connections = draft.assistant_connections ?? [];
   const connection =
@@ -305,8 +306,8 @@ export function AssistantConnections({
             <details className="assistant-vault">
               <summary>API key for this session</summary>
               <p className="small muted">
-                Kept in memory only. Re-enter after restarting GAIAVFX;
-                queued requests retain only the credential name.
+                Kept in memory only. Re-enter after restarting GAIAVFX; queued
+                requests retain only the credential name.
               </p>
               <label>
                 Session API key
@@ -324,13 +325,8 @@ export function AssistantConnections({
                 onClick={() =>
                   void action(async () => {
                     const id = connection.credential_id || connection.id;
-                    await request("settings/assistant/credentials", {
-                      method: "PUT",
-                      body: JSON.stringify({
-                        id,
-                        value: apiKey,
-                        storage: "session",
-                      }),
+                    await route("put", credentials, {
+                      body: { id, value: apiKey, storage: "session" },
                     });
                     setApiKey("");
                     update({ credential_id: id });
@@ -378,9 +374,8 @@ export function AssistantConnections({
                     disabled={busy || passphrase.length < 8}
                     onClick={() =>
                       void action(async () => {
-                        await request("settings/assistant/credentials/unlock", {
-                          method: "POST",
-                          body: JSON.stringify({ passphrase }),
+                        await route("post", `${credentials}/unlock`, {
+                          body: { passphrase },
                         });
                         setPassphrase("");
                         await vault.refetch();
@@ -410,9 +405,12 @@ export function AssistantConnections({
                       onClick={() =>
                         void action(async () => {
                           const id = connection.credential_id || connection.id;
-                          await request("settings/assistant/credentials", {
-                            method: "PUT",
-                            body: JSON.stringify({ id, value: apiKey }),
+                          // Python defaults storage to portable; the contract types defaulted fields as required.
+                          await route("put", credentials, {
+                            body: {
+                              id,
+                              value: apiKey,
+                            } as components["schemas"]["SaveCredential"],
                           });
                           setApiKey("");
                           update({ credential_id: id });
@@ -431,10 +429,7 @@ export function AssistantConnections({
                       disabled={busy}
                       onClick={() =>
                         void action(async () => {
-                          await request("settings/assistant/credentials/lock", {
-                            method: "POST",
-                            body: "{}",
-                          });
+                          await route("post", `${credentials}/lock`);
                           setApiKey("");
                           await vault.refetch();
                         })
@@ -474,6 +469,7 @@ export function AssistantConnections({
                 disabled={busy || !canTest}
                 onClick={() =>
                   void action(async () => {
+                    // Stays on request(): the contract marks this body optional, which route() cannot send.
                     const result = await request<{
                       model: string;
                       vision_input_tested: boolean;

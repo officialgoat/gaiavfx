@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { request } from "../../shared/api";
 import type { components } from "../../shared/api.generated";
+import { route } from "../../shared/routes";
 
 export type SetupStatus = components["schemas"]["SetupStatusDTO"];
 export type SetupCheck = components["schemas"]["Check"];
@@ -21,7 +21,7 @@ export function useSetup() {
   const queryKey = ["setup-status"];
   const query = useQuery({
     queryKey,
-    queryFn: () => request<SetupStatus>("/api/v1/setup/status"),
+    queryFn: () => route("get", "/api/v1/setup/status"),
     staleTime: 15_000,
     refetchInterval: 20_000,
     refetchOnWindowFocus: false,
@@ -30,7 +30,8 @@ export function useSetup() {
   const checkAgain = () =>
     client.fetchQuery({
       queryKey,
-      queryFn: () => request<SetupStatus>("/api/v1/setup/status?refresh=true"),
+      queryFn: () =>
+        route("get", "/api/v1/setup/status", { query: { refresh: true } }),
       staleTime: 0,
     });
   return { ...query, checkAgain };

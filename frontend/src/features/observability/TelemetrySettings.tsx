@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, RefreshCw, LockKeyhole } from "lucide-react";
-import { request } from "../../shared/api";
 import type { components } from "../../shared/api.generated";
+import { route } from "../../shared/routes";
 import "./observability.css";
 
 type Settings = components["schemas"]["TelemetrySettingsDTO"];
-type Status = components["schemas"]["TelemetryStatus"];
-type Vault = components["schemas"]["CredentialState"];
+const T = "/api/v1/settings/telemetry";
 const regions = [
   ["https://cloud.langfuse.com", "Europe"],
   ["https://us.cloud.langfuse.com", "United States"],
@@ -19,16 +18,16 @@ export function TelemetrySettings() {
   const client = useQueryClient();
   const settings = useQuery({
     queryKey: ["telemetry-settings"],
-    queryFn: () => request<Settings>("settings/telemetry"),
+    queryFn: () => route("get", T),
   });
   const status = useQuery({
     queryKey: ["telemetry-status"],
-    queryFn: () => request<Status>("settings/telemetry/status"),
+    queryFn: () => route("get", `${T}/status`),
     refetchInterval: 5000,
   });
   const vault = useQuery({
     queryKey: ["assistant-credentials"],
-    queryFn: () => request<Vault>("settings/assistant/credentials"),
+    queryFn: () => route("get", "/api/v1/settings/assistant/credentials"),
   });
   const [draft, setDraft] = useState<Settings | null>(null);
   const [publicKey, setPublicKey] = useState(""),
@@ -112,9 +111,8 @@ export function TelemetrySettings() {
         onSubmit={(event) => {
           event.preventDefault();
           void action(async () => {
-            const value = await request<Settings>("settings/telemetry", {
-              method: "PUT",
-              body: JSON.stringify({
+            const value = await route("put", T, {
+              body: {
                 enabled: draft.enabled,
                 base_url: draft.base_url,
                 environment: draft.environment,
@@ -122,7 +120,7 @@ export function TelemetrySettings() {
                 credential_storage: draft.credential_storage,
                 ...(publicKey ? { public_key: publicKey } : {}),
                 ...(secretKey ? { secret_key: secretKey } : {}),
-              }),
+              },
             });
             setDraft(value);
             setPublicKey("");
@@ -217,9 +215,10 @@ export function TelemetrySettings() {
               disabled={busy || passphrase.length < 8}
               onClick={() =>
                 void action(async () => {
-                  const value = await request<Vault>(
-                    "settings/assistant/credentials/unlock",
-                    { method: "POST", body: JSON.stringify({ passphrase }) },
+                  const value = await route(
+                    "post",
+                    "/api/v1/settings/assistant/credentials/unlock",
+                    { body: { passphrase } },
                   );
                   setPassphrase("");
                   client.setQueryData(["assistant-credentials"], value);
@@ -253,11 +252,9 @@ export function TelemetrySettings() {
             disabled={busy || dirty || !saved?.public_key_hint}
             onClick={() =>
               void action(async () => {
-                const result = await request<
-                  components["schemas"]["ConnectionResult"]
-                >("settings/telemetry/test", { method: "POST" });
+                const result = await route("post", `${T}/test`);
                 setMessage(`Connected to ${result.project_name}.`);
-                const fresh = await request<Settings>("settings/telemetry");
+                const fresh = await route("get", T);
                 setDraft(fresh);
                 client.setQueryData(["telemetry-settings"], fresh);
                 void client.invalidateQueries({ queryKey: ["tasks"] });
@@ -321,7 +318,7 @@ export function TelemetrySettings() {
             disabled={busy || !saved?.enabled}
             onClick={() =>
               void action(async () => {
-                await request("settings/telemetry/retry", { method: "POST" });
+                await route("post", `${T}/retry`);
                 setMessage(
                   "Delivery queued. Uncertain receipts will be checked before another send.",
                 );

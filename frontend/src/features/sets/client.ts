@@ -1,5 +1,6 @@
 import { request } from "../../shared/api";
 import type { components } from "../../shared/api.generated";
+import { route } from "../../shared/routes";
 
 export type SetSummary = components["schemas"]["SetSummaryDTO"];
 export type SetState = components["schemas"]["SetStateDTO"];
@@ -12,80 +13,82 @@ export type SetHideRegion = components["schemas"]["SetHideRegionDTO"];
 export type SetMapPayload = components["schemas"]["SetMapDTO"];
 export type IssueKind = SetIssue["kind"];
 
-const json = (method: string, body: unknown): RequestInit => ({
-  method,
-  body: JSON.stringify(body),
-});
+const S = "/api/sets/{set_id}" as const;
+const set = (id: string) => ({ set_id: id });
 
+// Routes are typed from the generated contracts (shared/routes.ts): a renamed route or body fails `tsc`.
 export const sets = {
-  list: () => request<SetSummary[]>("/api/sets"),
+  list: () => route("get", "/api/sets"),
   get: (id: string, versionId?: string) =>
-    request<SetState>(
-      `/api/sets/${id}${versionId ? `?version_id=${encodeURIComponent(versionId)}` : ""}`,
-    ),
+    route("get", S, { path: set(id), query: { version_id: versionId } }),
   map: (id: string, versionId: string) =>
-    request<SetMapPayload>(`/api/sets/${id}/versions/${versionId}/map`),
+    route("get", `${S}/versions/{version_id}/map`, {
+      path: { ...set(id), version_id: versionId },
+    }),
   importBundle: (folder: string) =>
-    request<SetState>("/api/sets/import", json("POST", { folder })),
+    route("post", "/api/sets/import", { body: { folder } }),
   markIssue: (id: string, body: components["schemas"]["SetIssueInput"]) =>
-    request<SetState>(`/api/sets/${id}/issues`, json("POST", body)),
+    route("post", `${S}/issues`, { path: set(id), body }),
   issueStatus: (
     id: string,
     issueId: string,
     body: components["schemas"]["SetIssueStatusInput"],
   ) =>
-    request<SetState>(`/api/sets/${id}/issues/${issueId}`, json("PATCH", body)),
+    route("patch", `${S}/issues/{issue_id}`, {
+      path: { ...set(id), issue_id: issueId },
+      body,
+    }),
   queueFix: (id: string, body: components["schemas"]["SetFixInput"]) =>
-    request<SetState>(`/api/sets/${id}/fixes`, json("POST", body)),
+    route("post", `${S}/fixes`, { path: set(id), body }),
   cancelFix: (id: string, fixId: string, versionId?: string) =>
-    request<SetState>(
-      `/api/sets/${id}/fixes/${fixId}${versionId ? `?version_id=${versionId}` : ""}`,
-      { method: "DELETE" },
-    ),
+    route("delete", `${S}/fixes/{fix_id}`, {
+      path: { ...set(id), fix_id: fixId },
+      query: { version_id: versionId },
+    }),
   hide: (id: string, body: components["schemas"]["SetHideRegionInput"]) =>
-    request<SetState>(`/api/sets/${id}/hide-regions`, json("POST", body)),
+    route("post", `${S}/hide-regions`, { path: set(id), body }),
   hideRemoved: (
     id: string,
     regionId: string,
     removed: boolean,
     versionId?: string,
   ) =>
-    request<SetState>(
-      `/api/sets/${id}/hide-regions/${regionId}`,
-      json("PATCH", { removed, version_id: versionId ?? null }),
-    ),
+    route("patch", `${S}/hide-regions/{region_id}`, {
+      path: { ...set(id), region_id: regionId },
+      body: { removed, version_id: versionId ?? null },
+    }),
   saveView: (id: string, body: components["schemas"]["SetViewInput"]) =>
-    request<SetState>(`/api/sets/${id}/views`, json("POST", body)),
+    route("post", `${S}/views`, { path: set(id), body }),
   viewRemoved: (
     id: string,
     viewId: string,
     removed: boolean,
     versionId?: string,
   ) =>
-    request<SetState>(
-      `/api/sets/${id}/views/${viewId}`,
-      json("PATCH", { removed, version_id: versionId ?? null }),
-    ),
+    route("patch", `${S}/views/{view_id}`, {
+      path: { ...set(id), view_id: viewId },
+      body: { removed, version_id: versionId ?? null },
+    }),
+  // Stays on request(): a picture uploads as a form, not JSON.
   viewStill: (id: string, viewId: string, still: Blob) => {
     const body = new FormData();
     body.append("file", still, "view.png");
-    return request<SetState>(`/api/sets/${id}/views/${viewId}/still`, {
-      method: "POST",
-      body,
-    });
+    return request<SetState>(
+      `/api/sets/${encodeURIComponent(id)}/views/${encodeURIComponent(viewId)}/still`,
+      { method: "POST", body },
+    );
   },
   /** The places built as this set, with the angles its views can be the cameras of. */
-  places: (id: string) =>
-    request<components["schemas"]["SetPlaceDTO"][]>(`/api/sets/${id}/places`),
+  places: (id: string) => route("get", `${S}/places`, { path: set(id) }),
   aimView: (
     id: string,
     viewId: string,
     body: components["schemas"]["SetAimInput"],
   ) =>
-    request<SetState>(
-      `/api/sets/${id}/views/${viewId}/angle`,
-      json("PUT", body),
-    ),
+    route("put", `${S}/views/{view_id}/angle`, {
+      path: { ...set(id), view_id: viewId },
+      body,
+    }),
   /** `looksFixed`: the issues the version's fixes addressed that the user saw fixed in the review. */
   accept: (
     id: string,
@@ -93,41 +96,37 @@ export const sets = {
     expectedCurrentId: string | null,
     looksFixed: string[] = [],
   ) =>
-    request<SetState>(
-      `/api/sets/${id}/versions/${versionId}/accept`,
-      json("POST", {
-        expected_current_id: expectedCurrentId,
-        looks_fixed: looksFixed,
-      }),
-    ),
+    route("post", `${S}/versions/{version_id}/accept`, {
+      path: { ...set(id), version_id: versionId },
+      body: { expected_current_id: expectedCurrentId, looks_fixed: looksFixed },
+    }),
   discard: (id: string, versionId: string) =>
-    request<SetState>(`/api/sets/${id}/versions/${versionId}/discard`, {
-      method: "POST",
+    route("post", `${S}/versions/{version_id}/discard`, {
+      path: { ...set(id), version_id: versionId },
     }),
   /** Fill more unseen space (ADR 0020): queue an extension that Run queued fixes runs. */
   fillMore: (id: string, versionId: string) =>
-    request<SetState>(
-      `/api/sets/${id}/fill-more`,
-      json("POST", { version_id: versionId }),
-    ),
+    route("post", `${S}/fill-more`, {
+      path: set(id),
+      body: { version_id: versionId },
+    }),
   /** Run queued fixes as its preview said (`fixIds`, the run's `fix_ids`; refused when the queue changed since),
    * or, with `retry` (Retry build), the newest build's failed fixes queued again first. */
   runFixes: (id: string, versionId: string, retry = false, fixIds?: string[]) =>
-    request<SetState>(
-      `/api/sets/${id}/build`,
-      json("POST", { version_id: versionId, retry, fix_ids: fixIds ?? null }),
-    ),
+    route("post", `${S}/build`, {
+      path: set(id),
+      body: { version_id: versionId, retry, fix_ids: fixIds ?? null },
+    }),
   retryFix: (id: string, fixId: string, versionId: string) =>
-    request<SetState>(
-      `/api/sets/${id}/fixes/${fixId}/retry`,
-      json("POST", { version_id: versionId }),
-    ),
+    route("post", `${S}/fixes/{fix_id}/retry`, {
+      path: { ...set(id), fix_id: fixId },
+      body: { version_id: versionId },
+    }),
   /** A build is a Generation operation; cancelling it goes through the operations route. */
   cancelBuild: (operationId: string) =>
-    request<unknown>(
-      `/api/production/operations/${operationId}/cancel`,
-      json("POST", {}),
-    ),
+    route("post", "/api/production/operations/{operation_id}/cancel", {
+      path: { operation_id: operationId },
+    }),
 };
 
 export type SetBuild = NonNullable<SetState["build"]>;

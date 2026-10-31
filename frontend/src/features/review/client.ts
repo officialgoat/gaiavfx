@@ -1,4 +1,5 @@
 import { request } from "../../shared/api";
+import { route } from "../../shared/routes";
 import type { Schema } from "../project/client";
 
 export type Review = Schema["ReviewDTO"];
@@ -30,51 +31,88 @@ export const producerRoute: Record<string, Producer> = {
   render: "renders",
   character_replacement: "replacements",
 };
-const read = <T>(path: string) => request<T>(`/api/production/${path}`);
-const write = <T>(path: string, body: unknown = {}, method = "POST") =>
-  request<T>(`/api/production/${path}`, { method, body: JSON.stringify(body) });
+const P = "/api/production";
+/** The route that approves a candidate, by its review's purpose (a plain string in ReviewDTO). */
+const approvals = {
+  plate: "plates",
+  angle_views: "views",
+  insertion: "pins",
+  character_replacement: "replacements",
+} as const;
+// Routes are typed from the generated contracts (shared/routes.ts): a renamed route or body fails `tsc`.
 export const production = {
   people: (assetId: string) =>
-    read<Schema["ReplacementPeopleAnalysisDTO"][]>(
-      `people-analyses?asset_id=${encodeURIComponent(assetId)}`,
-    ),
+    route("get", `${P}/people-analyses`, { query: { asset_id: assetId } }),
   replacementPlan: (body: Schema["ReplacementPlanInput"]) =>
-    write<Schema["ReplacementPlanDTO"]>("replacement-plans", body),
+    route("post", `${P}/replacement-plans`, { body }),
   recordedReplacementPlan: (id: string) =>
-    read<Schema["ReplacementPlanDTO"]>(
-      `replacements/${encodeURIComponent(id)}/plan`,
-    ),
+    route("get", `${P}/replacements/{operation_id}/plan`, {
+      path: { operation_id: id },
+    }),
   sheetTiles: (placeId: string) =>
-    read<Schema["ProductionSheetTilesDTO"]>(`places/${placeId}/sheet-tiles`),
-  operation: (id: string) => read<Schema["OperationDTO"]>(`operations/${id}`),
+    route("get", `${P}/places/{place_id}/sheet-tiles`, {
+      path: { place_id: placeId },
+    }),
+  operation: (id: string) =>
+    route("get", `${P}/operations/{operation_id}`, {
+      path: { operation_id: id },
+    }),
   operationSummary: (id: string) =>
-    read<Schema["OperationSummaryDTO"]>(
-      `operations/${encodeURIComponent(id)}/summary`,
-    ),
+    route("get", `${P}/operations/{operation_id}/summary`, {
+      path: { operation_id: id },
+    }),
   start: (kind: Producer, body: ProducerBody) =>
-    write<Schema["OperationDTO"]>(
-      kind === "removals" && "empty" in body ? "plates" : kind,
-      body,
+    route(
+      "post",
+      `${P}/${kind === "removals" && "empty" in body ? "plates" : kind}`,
+      { body },
     ),
-  open: (kind: Producer, id: string) => write<Review>(`${kind}/${id}/review`),
-  review: (id: string) => read<Review>(`reviews/${id}`),
-  reveal: (id: string) => read<Review>(`reviews/${id}/reveal`),
+  // Stays on request(): Producer includes sheets, which has no review route (callers refuse it first).
+  open: (kind: Producer, id: string) =>
+    request<Review>(`${P}/${kind}/${id}/review`, {
+      method: "POST",
+      body: "{}",
+    }),
+  review: (id: string) =>
+    route("get", `${P}/reviews/{review_id}`, { path: { review_id: id } }),
+  reveal: (id: string) =>
+    route("get", `${P}/reviews/{review_id}/reveal`, {
+      path: { review_id: id },
+    }),
   rank: (id: string, body: Ranking) =>
-    write<Schema["RankingDTO"]>(`reviews/${id}/ranking`, body, "PUT"),
+    route("put", `${P}/reviews/{review_id}/ranking`, {
+      path: { review_id: id },
+      body,
+    }),
   reject: (id: string, body: Schema["ProductionReferenceRejectionInput"]) =>
-    write<Review>(`reviews/${id}/reject`, body),
+    route("post", `${P}/reviews/{review_id}/reject`, {
+      path: { review_id: id },
+      body,
+    }),
   select: (id: string, body: Schema["SelectInput"]) =>
-    write<Schema["SelectionDTO"]>(`reviews/${id}/select`, body),
-  approve: (purpose: string, candidate_id: string, replace = false) =>
-    write<unknown>(
-      `${({ plate: "plates", angle_views: "views", insertion: "pins", character_replacement: "replacements" } as Record<string, string>)[purpose]}/approve`,
-      { candidate_id, ...(replace ? { replace: true } : {}) },
+    route("post", `${P}/reviews/{review_id}/select`, {
+      path: { review_id: id },
+      body,
+    }),
+  approve: (
+    purpose: string,
+    candidate_id: string,
+    replace = false,
+  ): Promise<unknown> =>
+    route(
+      "post",
+      `${P}/${approvals[purpose as keyof typeof approvals]}/approve`,
+      { body: { candidate_id, ...(replace ? { replace: true } : {}) } },
     ),
-  tags: () => read<Schema["ReviewTaxonomyDTO"]>("review-tags"),
+  tags: () => route("get", `${P}/review-tags`),
   prescreen: (id: string) =>
-    write<Schema["PrescreenDTO"]>(`candidates/${id}/prescreen`),
+    route("post", `${P}/candidates/{candidate_id}/prescreen`, {
+      path: { candidate_id: id },
+    }),
   cancel: (id: string) =>
-    write<Schema["OperationDTO"]>(`operations/${id}/cancel`),
+    route("post", `${P}/operations/{operation_id}/cancel`, {
+      path: { operation_id: id },
+    }),
 };
 
 export function rankingDraft(review: Review): Ranking {

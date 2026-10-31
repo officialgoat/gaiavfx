@@ -1,11 +1,9 @@
 import { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { request } from "../../shared/api";
+import { route } from "../../shared/routes";
 import { useEditRunner } from "../../shared/edit-runner";
-import type { components } from "../../shared/api.generated";
 import type { DirectController } from "../project/use-direction";
 
-type Schema = components["schemas"];
 const terminal = [
   "succeeded",
   "failed",
@@ -20,7 +18,9 @@ export function useMovieExport(d: DirectController) {
   const read = useQuery({
     queryKey: ["movie-export", movieId],
     queryFn: () =>
-      request<Schema["MovieExportDTO"]>(`/api/export/movies/${movieId}`),
+      route("get", "/api/export/movies/{movie_id}", {
+        path: { movie_id: movieId },
+      }),
     enabled: !!d.movie.data,
     refetchInterval: 1500,
   });
@@ -94,21 +94,20 @@ export function useMovieExport(d: DirectController) {
             allow: allowStale,
             key: crypto.randomUUID(),
           };
-        await request<Schema["OperationDTO"]>(`/api/export/movies/${movieId}`, {
-          method: "POST",
-          body: JSON.stringify({
-            request_key: intent.current.key,
-            allow_stale: allowStale,
-          }),
+        await route("post", "/api/export/movies/{movie_id}", {
+          path: { movie_id: movieId },
+          body: { request_key: intent.current.key, allow_stale: allowStale },
         });
         intent.current = null;
       }),
     cancel: () =>
       void perform(async () => {
         if (active)
-          await request(`/api/production/operations/${latest.id}/cancel`, {
-            method: "POST",
-          });
+          await route(
+            "post",
+            "/api/production/operations/{operation_id}/cancel",
+            { path: { operation_id: latest.id } },
+          );
       }),
   };
 }
