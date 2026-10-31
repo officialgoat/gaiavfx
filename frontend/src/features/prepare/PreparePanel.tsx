@@ -1,3 +1,4 @@
+import { useNavigator } from "../../app/navigator";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Image, ArrowLeft } from "lucide-react";
 import type { DirectController } from "../project/use-direction";
@@ -245,8 +246,8 @@ export function PreparePanel({
               rejected={rejected}
               rejectedOperations={rejectedOperations}
               onOpenSet={
-                step.kind === "camera" && place.set_id && actions.openSet
-                  ? () => actions.openSet?.(place.set_id!)
+                step.kind === "camera" && place.set_id
+                  ? () => useNavigator.getState().openStage(place.set_id!)
                   : undefined
               }
             />

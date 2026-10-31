@@ -1,3 +1,4 @@
+import { useNavigator } from "../../app/navigator";
 import { useQuery } from "@tanstack/react-query";
 import { Box } from "lucide-react";
 import { useWorkspaceActions } from "../../shared/workspace-actions";
@@ -59,18 +60,20 @@ export function SetReceipt({
           </span>
         )}
       </div>
-      {value && actions.openSet && (
+      {value && (
         <button
           className="secondary-button"
           onClick={() =>
-            actions.openSet?.(
-              setId,
-              issue
-                ? { kind: "issue", id: issue.id }
-                : view
-                  ? { kind: "view", id: view.id }
-                  : null,
-            )
+            useNavigator
+              .getState()
+              .openStage(
+                setId,
+                issue
+                  ? { kind: "issue", id: issue.id }
+                  : view
+                    ? { kind: "view", id: view.id }
+                    : null,
+              )
           }
         >
           Open stage

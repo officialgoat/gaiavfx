@@ -1,3 +1,4 @@
+import { useNavigator } from "../../app/navigator";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { direction, type Segment } from "../project/client";
@@ -46,9 +47,9 @@ export function BuildSetForm({
   const building = seed?.state === "building";
   const waiting = !!seed?.waiting && !!seed.set_id;
   const number = String(segment.ordinal + 1).padStart(2, "0");
-  const openSet = (setId: string) => {
+  const openStage = (setId: string) => {
     close();
-    actions.openSet?.(setId);
+    useNavigator.getState().openStage(setId);
   };
   const build = () =>
     void d
@@ -71,7 +72,7 @@ export function BuildSetForm({
       className="editor-dialog-form build-set-form"
       onSubmit={(event) => {
         event.preventDefault();
-        if (waiting) openSet(seed!.set_id!);
+        if (waiting) openStage(seed!.set_id!);
         else if (startable) build();
       }}
     >
@@ -107,7 +108,7 @@ export function BuildSetForm({
                 <button
                   type="button"
                   className="secondary-button"
-                  onClick={() => openSet(seed.set_id!)}
+                  onClick={() => openStage(seed.set_id!)}
                 >
                   Open the new stage
                 </button>

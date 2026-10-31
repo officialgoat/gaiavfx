@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { openMovie, seedDirect } from "./direct-fixture";
 import type { components } from "../../frontend/src/shared/api.generated";
 import { reviewCommands } from "../../frontend/src/features/review/commands";
+import { useNavigator } from "../../frontend/src/app/navigator";
 import { directPreviews } from "../../frontend/src/features/project/client";
 import type { DirectController } from "../../frontend/src/features/project/use-direction";
 import type { ReviewController } from "../../frontend/src/features/review/use-review";
@@ -26,14 +27,7 @@ test("a zero-cut segment reviews and previews only its own render", () => {
     request: { segment_id: id },
     candidates: [{ id, asset_id: id, kind: "video" }],
   })) as unknown as S["OperationDTO"][];
-  reviewCommands(
-    d,
-    r,
-    operations,
-    "prepare",
-    () => {},
-    () => {},
-  )
+  reviewCommands(d, r, operations, "prepare", () => {})
     .find((c) => c.id === "review")!
     .run({ kind: "segment", id: "zero", segmentId: "zero" });
   expect(opened).toBe("zero");
@@ -79,14 +73,11 @@ test("stage jobs open their own built stage instead of a candidate review", () =
       request: { set_id: "pending-stage" },
     },
   ] as unknown as S["OperationDTO"][];
-  const command = reviewCommands(
-    d,
-    r,
-    operations,
-    "direct",
-    () => {},
-    (id) => opened.push(id),
-  ).find((c) => c.id === "preparation.review")!;
+  // The one way to open a stage is the navigator's.
+  useNavigator.setState({ openStage: (id) => void opened.push(id) });
+  const command = reviewCommands(d, r, operations, "direct", () => {}).find(
+    (c) => c.id === "preparation.review",
+  )!;
   for (const id of ["seed", "rebuild"]) {
     const target = { kind: "preparation" as const, id };
     expect(command.reason?.(target)).toBeUndefined();

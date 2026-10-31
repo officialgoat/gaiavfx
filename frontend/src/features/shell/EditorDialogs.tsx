@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useOpenDocument } from "../../app/open-document";
+import { useNavigator } from "../../app/navigator";
 import { Sheet } from "../../shared/ui";
 import { RELATION_WORDS } from "../project/client";
 import * as edits from "../project/edits";
@@ -119,7 +119,7 @@ function DialogContent({
             onClick={() => {
               // Returning from a film to the same movie keeps its place.
               if (movie.id !== d.editor.movieId) d.editor.chooseMovie(movie.id);
-              useOpenDocument.getState().openMovie();
+              useNavigator.getState().openMovie();
               close();
             }}
           >
@@ -175,7 +175,7 @@ function DialogContent({
           const result = await edits.createMovie(d, text("title"));
           if (result) {
             d.editor.chooseMovie(result.id);
-            useOpenDocument.getState().openMovie();
+            useNavigator.getState().openMovie();
             success = result;
           }
         } else if (dialog === "segment" && d.movie.data) {

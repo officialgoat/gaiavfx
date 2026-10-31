@@ -9,12 +9,12 @@ import { direction, type Receipt, type Schema, type Segment } from "./client";
 import { removeCut, splitSegment } from "./edits";
 import { splitBlocker } from "./movie-model";
 import { useEditor, type Target } from "../timeline/editor-state";
-import { useOpenDocument } from "../../app/open-document";
+import { useNavigator } from "../../app/navigator";
 import { retryAfterRefresh, useEditRunner } from "../../shared/edit-runner";
 
 export function useDirection(enabled: boolean) {
   const editor = useEditor();
-  const openDocument = useOpenDocument((state) => state.document);
+  const openDocument = useNavigator((state) => state.document);
   const client = useQueryClient();
   const runner = useEditRunner(editor.movieId, {
     failed: "The edit could not be saved.",

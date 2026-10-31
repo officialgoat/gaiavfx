@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { useOpenDocument } from "../../app/open-document";
+import { useNavigator } from "../../app/navigator";
 import { useQuery } from "@tanstack/react-query";
 import { ContactSheet } from "../prepare/ContactSheet";
 import { peopleReport } from "../prepare/people";
@@ -91,7 +91,7 @@ export function PeopleReceipt({
         }
         onHighlight={(highlight, interaction) =>
           // With a film open the movie's Source monitor is not on screen; leave the movie's editor alone.
-          useOpenDocument.getState().document.kind === "movie" &&
+          useNavigator.getState().document.kind === "movie" &&
           useEditor
             .getState()
             .highlightSource(

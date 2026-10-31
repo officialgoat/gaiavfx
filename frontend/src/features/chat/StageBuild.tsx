@@ -1,3 +1,4 @@
+import { useNavigator } from "../../app/navigator";
 import { Box } from "lucide-react";
 import { useWorkspaceActions } from "../../shared/workspace-actions";
 import type { Session } from "./client";
@@ -18,10 +19,10 @@ export function StageBuild({ build }: { build: StageBuildState }) {
       <span className="stage-build-text" role={running ? "status" : undefined}>
         {running ? build.label : build.message}
       </span>
-      {build.waiting && build.set_id && actions.openSet && (
+      {build.waiting && build.set_id && (
         <button
           className="secondary-button"
-          onClick={() => actions.openSet?.(build.set_id!)}
+          onClick={() => useNavigator.getState().openStage(build.set_id!)}
         >
           Open stage
         </button>

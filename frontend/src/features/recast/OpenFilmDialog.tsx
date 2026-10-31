@@ -1,4 +1,4 @@
-import { useOpenDocument } from "../../app/open-document";
+import { useNavigator } from "../../app/navigator";
 import { Sheet } from "../../shared/ui";
 import { LibraryPicker } from "./Cast";
 import type { RecastController } from "./use-recast";
@@ -16,7 +16,7 @@ export function OpenFilmDialog({
   /** Shows a track workspace when another one (Library, Export) is in front. */
   onOpen: () => void;
 }) {
-  const openFilm = useOpenDocument((state) => state.openFilm);
+  const openFilm = useNavigator((state) => state.openFilm);
   const show = (recastId: string) => {
     if (!recastId) return;
     openFilm(recastId);

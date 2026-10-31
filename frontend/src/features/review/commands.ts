@@ -1,3 +1,4 @@
+import { useNavigator, type Workspace } from "../../app/navigator";
 import type { Command } from "../shell/commands";
 import type { Target } from "../timeline/editor-state";
 import type { DirectController } from "../project/use-direction";
@@ -13,8 +14,7 @@ export function reviewCommands(
   r: ReviewController,
   operations: Operation[],
   workspace: string,
-  go: (name: string) => void,
-  openSet: (id: string) => void,
+  go: (name: Workspace) => void,
 ): Command[] {
   const builtSet = (operation: Operation) => {
     if (typeof operation.request.set_id === "string")
@@ -282,7 +282,7 @@ export function reviewCommands(
           const o = operations.find((o) => o.id === t.id);
           if (o?.kind === "set_build") {
             const id = builtSet(o);
-            if (id) openSet(id);
+            if (id) useNavigator.getState().openStage(id);
           } else if (o) void r.openOperation(o);
         }
       },

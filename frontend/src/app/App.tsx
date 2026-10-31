@@ -56,7 +56,12 @@ import {
   editorCommands,
   scopeProblems,
 } from "../features/shell/command-scope";
-import { useOpenDocument } from "./open-document";
+import {
+  commandScope,
+  useNavigator,
+  WORKSPACES,
+  type Workspace,
+} from "./navigator";
 import { recasts } from "../features/recast/client";
 import { SetsLibrary } from "../features/sets/SetsLibrary";
 import { setCommands, useSetWorkbench } from "../features/sets/set-workbench";
@@ -66,86 +71,10 @@ const SetWorkbench = lazy(() => import("../features/sets/SetWorkbench"));
 
 export function App() {
   const preferences = usePreferences();
-  // U5b: the Recast page retired. A saved "recast" workspace opens Direct (the workspace below falls back to it) with
-  // the film it was on, read once before the workspace is saved again; a "recast" left in memory by a hot reload
-  // falls back to Direct too.
-  const [retiredPageFilm] = useState(() => {
-    try {
-      if (localStorage.getItem("gaiavfx:workspace") !== "recast") return "";
-      const place = JSON.parse(
-        localStorage.getItem("gaiavfx:recast-place") ?? "null",
-      );
-      return typeof place?.id === "string" ? place.id : "";
-    } catch {
-      return "";
-    }
-  });
-  useEffect(() => {
-    if (retiredPageFilm && useOpenDocument.getState().document.kind !== "film")
-      useOpenDocument.getState().openFilm(retiredPageFilm);
-  }, [retiredPageFilm]);
-  const [workspace, setWorkspace] = useState(() => {
-    try {
-      const saved = localStorage.getItem("gaiavfx:workspace");
-      return (saved &&
-        ["prepare", "direct", "agent", "review", "export", "library"].includes(
-          saved,
-        )) ||
-        (saved === "set" && localStorage.getItem("gaiavfx:set"))
-        ? saved
-        : "direct";
-    } catch {
-      return "direct";
-    }
-  });
-  useEffect(() => {
-    try {
-      localStorage.setItem("gaiavfx:workspace", workspace);
-    } catch {
-      /* Workspace navigation works without storage. */
-    }
-  }, [workspace]);
-  useEffect(() => {
-    if (workspace === "recast") setWorkspace("direct");
-  }, [workspace]);
-  // ADR 0018 §6: an open set is a full-window page like Library; Close returns to where it was opened from.
+  // Where the shell is (ADR 0017, 0018 §6): the workspace, the Library's section, the open document and stage.
+  const nav = useNavigator();
+  const { workspace, document: openDocument, panel } = nav;
   const setWorkbench = useSetWorkbench();
-  useEffect(() => {
-    if (workspace !== "set" || setWorkbench.setId) return;
-    try {
-      const saved = localStorage.getItem("gaiavfx:set");
-      if (saved) setWorkbench.open(saved, "library");
-      else setWorkspace("library");
-    } catch {
-      setWorkspace("library");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspace]);
-  const openSet = (
-    setId: string,
-    focus: Parameters<typeof setWorkbench.open>[2] = null,
-  ) => {
-    setWorkbench.open(
-      setId,
-      workspace === "set" ? setWorkbench.returnTo : workspace,
-      focus,
-    );
-    try {
-      localStorage.setItem("gaiavfx:set", setId);
-    } catch {
-      /* The set opens without storage too. */
-    }
-    setWorkspace("set");
-    setPanel(null);
-  };
-  const closeSet = () => {
-    setWorkbench.close();
-    const back = setWorkbench.returnTo || "library";
-    // A set opened from Library returns to its Sets section.
-    if (back === "library") setLibraryKind("sets");
-    setWorkspace(back);
-  };
-  const openDocument = useOpenDocument((state) => state.document);
   const filmOpen = openDocument.kind === "film";
   const [filmDialog, setFilmDialog] = useState(false);
   const recast = useRecast(filmOpen || filmDialog);
@@ -164,9 +93,6 @@ export function App() {
       void recast.perform(async () => recast.open(await recasts.get(recastId)));
     }
   }, [openDocument, filmReady, recast.busy]);
-  const [libraryKind, setLibraryKind] = useState("library");
-  const [focusAssetId, setFocusAssetId] = useState<string | undefined>();
-  const [panel, setPanel] = useState<"settings" | "jobs" | null>(null);
   const [dialog, setDialog] = useState<EditorDialog | null>(null);
   const [name, setName] = useState("My film library");
   const [libraryPath, setLibraryPath] = useState("");
@@ -183,8 +109,8 @@ export function App() {
       : { kind: "movie", id: d.editor.movieId },
   );
   const movieExport = useMovieExport(d);
-  const openProductionWorkspace = (name: string) => {
-    setWorkspace(name);
+  const openProductionWorkspace = (name: Workspace) => {
+    nav.go(name);
     preferences.setLayout(name, { rightTab: "properties" });
   };
   const review = useReview(d, openProductionWorkspace);
@@ -239,11 +165,6 @@ export function App() {
     if (panel === "settings")
       void window.gaiavfx?.libraryLocation().then(setLibraryPath);
   }, [panel]);
-  const showLibrary = (id?: string) => {
-    setFocusAssetId(id);
-    setLibraryKind("library");
-    setWorkspace("library");
-  };
   async function importFiles(files?: FileList | null) {
     setImportError("");
     setImporting(true);
@@ -263,9 +184,9 @@ export function App() {
   }
   const allCommands = makeCommands(d, {
     dialog: setDialog,
-    workspace: setWorkspace,
-    settings: () => setPanel("settings"),
-    jobs: () => setPanel("jobs"),
+    workspace: nav.go,
+    settings: () => nav.openPanel("settings"),
+    jobs: () => nav.openPanel("jobs"),
     importMedia: () => {
       if (!importing) {
         if (window.gaiavfx) void importFiles();
@@ -273,15 +194,14 @@ export function App() {
       }
     },
     properties: () => {
-      setWorkspace("direct");
+      nav.go("direct");
       preferences.setLayout("direct", { rightTab: "properties" });
     },
     source: (id) => {
       d.editor.source(id);
-      setWorkspace("direct");
+      nav.go("direct");
     },
-    library: showLibrary,
-    openSet: (setId) => openSet(setId),
+    library: nav.showLibrary,
     theme: preferences.setTheme,
     layout: setLayout,
     resetLayout: () => preferences.resetLayout(workspace),
@@ -300,7 +220,7 @@ export function App() {
   // A plan note opens its own field, so revealing the panel must not queue composer focus.
   const focusChat = (composer = true) => {
     const destination = workspace === "agent" ? "agent" : "direct";
-    setWorkspace(destination);
+    nav.go(destination);
     preferences.setLayout(destination, { rightTab: "chat" });
     if (composer)
       requestAnimationFrame(() =>
@@ -315,12 +235,9 @@ export function App() {
     operations.data ?? [],
     workspace,
     openProductionWorkspace,
-    openSet,
   ))
     allCommands.set(command.id, command);
-  for (const command of exportCommands(movieExport, () =>
-    setWorkspace("export"),
-  ))
+  for (const command of exportCommands(movieExport, () => nav.go("export")))
     allCommands.set(command.id, command);
   // ADR 0017 §11: the open document scopes the commands. A film gets its own editor and the recast commands; its
   // movie commands become disabled stubs, so nothing reaches the movie loaded behind it.
@@ -334,7 +251,7 @@ export function App() {
   if (workspace === "set") {
     const tool = setWorkbench.tool;
     for (const command of setCommands({
-      close: closeSet,
+      close: nav.closeStage,
       busy: (kind) =>
         tool &&
         tool.kind !== kind &&
@@ -349,10 +266,7 @@ export function App() {
     }))
       allCommands.set(command.id, command);
   }
-  const commands = applyScope(
-    allCommands,
-    workspace === "set" ? "set" : filmOpen ? "film" : "movie",
-  );
+  const commands = applyScope(allCommands, commandScope(nav));
   const problems = scopeProblems(commands);
   const problemText = [
     problems.unclassified.length &&
@@ -371,16 +285,15 @@ export function App() {
   return (
     <WorkspaceActions.Provider
       value={{
-        settings: () => setPanel("settings"),
-        jobs: () => setPanel("jobs"),
-        showAsset: async (id) => showLibrary(id),
-        openSet: (setId, focus) => openSet(setId, focus ?? null),
+        settings: () => nav.openPanel("settings"),
+        jobs: () => nav.openPanel("jobs"),
+        showAsset: async (id) => nav.showLibrary(id),
         // A film opens as the track workspace's document, at the shot of the frame (ADR 0017).
         openRecast: (assetId, frame) => {
           void recast.openFilm(assetId, frame).then((id) => {
             if (!id) return;
-            useOpenDocument.getState().openFilm(id);
-            setWorkspace("direct");
+            nav.openFilm(id);
+            nav.go("direct");
           });
         },
       }}
@@ -410,19 +323,15 @@ export function App() {
           <MenuBar />
           <div className="studio-workspacebar">
             <nav aria-label="Workspaces">
-              {["Prepare", "Direct", "Agent", "Review", "Export"].map(
-                (name) => (
-                  <button
-                    key={name}
-                    aria-current={
-                      workspace === name.toLowerCase() ? "page" : undefined
-                    }
-                    onClick={() => setWorkspace(name.toLowerCase())}
-                  >
-                    {name}
-                  </button>
-                ),
-              )}
+              {WORKSPACES.map((name) => (
+                <button
+                  key={name}
+                  aria-current={workspace === name ? "page" : undefined}
+                  onClick={() => nav.go(name)}
+                >
+                  {name[0].toUpperCase() + name.slice(1)}
+                </button>
+              ))}
             </nav>
             <nav
               className="workspace-breadcrumb"
@@ -443,11 +352,11 @@ export function App() {
                     ? "page"
                     : undefined
                 }
-                onClick={() => showLibrary()}
+                onClick={() => nav.showLibrary()}
               >
                 Library
               </button>
-              <button aria-label="Jobs" onClick={() => setPanel("jobs")}>
+              <button aria-label="Jobs" onClick={() => nav.openPanel("jobs")}>
                 <Layers3 size={14} />
                 Jobs <span className="count">{activeOperations}</span>
               </button>
@@ -473,13 +382,13 @@ export function App() {
               <button
                 className="icon-button"
                 aria-label="Settings"
-                onClick={() => setPanel("settings")}
+                onClick={() => nav.openPanel("settings")}
               >
                 <Settings size={15} />
               </button>
             </div>
           </div>
-          <SetupBanner openSetup={() => setPanel("settings")} />
+          <SetupBanner openSetup={() => nav.openPanel("settings")} />
           {library.data?.library ? (
             ["direct", "agent", "prepare", "review"].includes(workspace) &&
             filmOpen ? (
@@ -489,7 +398,7 @@ export function App() {
                 r={recast}
                 d={d}
                 chat={chat}
-                showLibrary={showLibrary}
+                showLibrary={nav.showLibrary}
               />
             ) : ["direct", "agent", "prepare", "review"].includes(workspace) ? (
               <>
@@ -542,7 +451,7 @@ export function App() {
                   </span>
                 </h1>
                 {filmReady && recast.value ? (
-                  <ConformForm r={recast} showLibrary={showLibrary} />
+                  <ConformForm r={recast} showLibrary={nav.showLibrary} />
                 ) : (
                   <p role="status">Opening your film…</p>
                 )}
@@ -564,10 +473,11 @@ export function App() {
                   ).map(([kind, label]) => (
                     <button
                       key={kind}
-                      aria-current={libraryKind === kind ? "page" : undefined}
+                      aria-current={
+                        nav.librarySection === kind ? "page" : undefined
+                      }
                       onClick={() => {
-                        setLibraryKind(kind);
-                        setFocusAssetId(undefined);
+                        nav.setLibrarySection(kind);
                       }}
                     >
                       {label}
@@ -575,24 +485,26 @@ export function App() {
                   ))}
                 </nav>
                 <div className="real-library-workspace">
-                  {libraryKind === "sets" ? (
-                    <SetsLibrary onOpen={(set) => openSet(set.id)} />
+                  {nav.librarySection === "sets" ? (
+                    <SetsLibrary onOpen={(set) => nav.openStage(set.id)} />
                   ) : (
                     <LibraryPanel
-                      key={libraryKind}
+                      key={nav.librarySection}
                       workspaceContext={
-                        libraryKind === "images" ? "images" : "library"
+                        nav.librarySection === "images" ? "images" : "library"
                       }
                       allowedKinds={
-                        libraryKind === "images" ? ["image"] : undefined
+                        nav.librarySection === "images" ? ["image"] : undefined
                       }
-                      mediaKind={libraryKind === "images" ? "image" : undefined}
+                      mediaKind={
+                        nav.librarySection === "images" ? "image" : undefined
+                      }
                       large
-                      focusAssetId={focusAssetId}
+                      focusAssetId={nav.focusAssetId}
                       entityKind={
-                        libraryKind === "characters"
+                        nav.librarySection === "characters"
                           ? "character"
-                          : libraryKind === "wardrobe"
+                          : nav.librarySection === "wardrobe"
                             ? "outfit"
                             : undefined
                       }
@@ -613,7 +525,7 @@ export function App() {
                     key={setWorkbench.setId}
                     chat={chat}
                     d={d}
-                    onClose={closeSet}
+                    onClose={nav.closeStage}
                   />
                 ) : (
                   <main className="studio-loading" role="status">
@@ -636,7 +548,7 @@ export function App() {
                 </p>
                 <button
                   className="secondary-button"
-                  onClick={() => setWorkspace("direct")}
+                  onClick={() => nav.go("direct")}
                 >
                   Back to Direct
                 </button>
@@ -767,7 +679,7 @@ export function App() {
             close={() => setFilmDialog(false)}
             onOpen={() => {
               if (!["direct", "agent", "prepare", "review"].includes(workspace))
-                setWorkspace("direct");
+                nav.go("direct");
             }}
           />
           {/* Every path that would create a film's recast (Open film, Prepare's Open in Recast) asks here first. */}
@@ -777,7 +689,7 @@ export function App() {
             title="Settings"
             description="Make the workspace your own."
             open={panel === "settings"}
-            onOpenChange={(open) => !open && setPanel(null)}
+            onOpenChange={(open) => !open && nav.openPanel(null)}
           >
             <SetupPanel />
             {library.data?.library && <ConnectionForm />}
@@ -822,7 +734,7 @@ export function App() {
             title="Jobs"
             description="Generation and media processing activity."
             open={panel === "jobs"}
-            onOpenChange={(open) => !open && setPanel(null)}
+            onOpenChange={(open) => !open && nav.openPanel(null)}
           >
             {library.data?.library ? (
               <OperationList blind={filmOpen} />

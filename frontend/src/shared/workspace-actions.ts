@@ -5,11 +5,6 @@ export const WorkspaceActions = createContext<{
   jobs: () => void;
   showAsset: (id: string) => Promise<void>;
   openRecast?: (assetId: string, frame?: number) => void;
-  /** Open a set's workbench (ADR 0018 §6), optionally at an issue, view or keyframe. */
-  openSet?: (
-    setId: string,
-    focus?: { kind: "issue" | "view" | "keyframe"; id: string } | null,
-  ) => void;
 } | null>(null);
 export function useWorkspaceActions() {
   const value = useContext(WorkspaceActions);

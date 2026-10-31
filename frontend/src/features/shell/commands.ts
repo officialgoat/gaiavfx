@@ -1,3 +1,4 @@
+import { useNavigator, WORKSPACES, type Workspace } from "../../app/navigator";
 import { handoffWords, RELATION_WORDS, type Relation } from "../project/client";
 import * as edits from "../project/edits";
 import type { DirectController } from "../project/use-direction";
@@ -28,14 +29,13 @@ export type Command = {
 export type MenuEntry = string | { label: string; children: MenuEntry[] };
 export type ShellActions = {
   dialog: (name: EditorDialog) => void;
-  workspace: (name: string) => void;
+  workspace: (name: Workspace) => void;
   settings: () => void;
   jobs: () => void;
   importMedia: () => void;
   properties: () => void;
   source: (id: string) => void;
   library: (id?: string) => void;
-  openSet: (setId: string) => void;
   theme: (theme: "dark" | "light") => void;
   layout: (patch: Partial<DockLayout>) => void;
   resetLayout: () => void;
@@ -389,10 +389,10 @@ export function makeCommands(
       undefined,
       a.currentTheme === theme,
     );
-  for (const name of ["Prepare", "Direct", "Agent", "Review", "Export"])
-    add(`workspace.${name}`, `${name} workspace`, () =>
-      a.workspace(name.toLowerCase()),
-    );
+  for (const name of WORKSPACES) {
+    const label = name[0].toUpperCase() + name.slice(1);
+    add(`workspace.${label}`, `${label} workspace`, () => a.workspace(name));
+  }
   add("project", "Project", () => a.layout({ leftTab: "project" }));
   add("library", "Library", () => a.library());
   // Sets in scenes (ADR 0019 §5): the segment's first shot from a set, and that set's workbench.
@@ -426,7 +426,7 @@ export function makeCommands(
     (t) => {
       const s = d.getSegment(t);
       const setId = s && d.segmentPlanMap.get(s.id)?.seed?.set_id;
-      if (setId) a.openSet(setId);
+      if (setId) useNavigator.getState().openStage(setId);
     },
     undefined,
     (t) => {
@@ -442,7 +442,7 @@ export function makeCommands(
     "Open its stage",
     (t) => {
       const setId = placeOf(t)?.set_id;
-      if (setId) a.openSet(setId);
+      if (setId) useNavigator.getState().openStage(setId);
     },
     undefined,
     (t) =>

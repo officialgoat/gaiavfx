@@ -1,3 +1,4 @@
+import type { Workspace } from "../../app/navigator";
 import { useEffect, useRef, useState } from "react";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { frameRate } from "../../shared/frame-rate";
@@ -18,7 +19,7 @@ import {
 
 export function useReview(
   d: DirectController,
-  workspace: (name: string) => void,
+  workspace: (name: Workspace) => void,
 ) {
   const client = useQueryClient();
   const [id, setId] = useState("");
