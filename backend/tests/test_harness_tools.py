@@ -552,7 +552,7 @@ def test_segment_render_alias_scope_and_unread_guard(tmp_path):
 def test_stale_sheet_reassembly_waits_for_reference_review_and_plan(tmp_path):
     from harness_eval_tasks import TASKS, close, run_idle
 
-    from gaiavfx.application.sheet_recipes import sheet_reference
+    from gaiavfx.application.direction_reading import sheet_reference
 
     work, setup = next(t for t in TASKS if t.id == "stale-sheet-reassembled").build(tmp_path)
     try:

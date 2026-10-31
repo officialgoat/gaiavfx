@@ -9,6 +9,7 @@ from test_direction_store import make_cut
 from test_production_api import AUTH, run_idle, setup, source_assets
 
 from gaiavfx.application.direction_plans import plan_to_dict
+from gaiavfx.application.direction_reading import sheet_reference
 from gaiavfx.application.prepare_references import (
     approve_pin,
     approve_view,
@@ -18,7 +19,6 @@ from gaiavfx.application.prepare_references import (
     sheet_tiles_for_place,
 )
 from gaiavfx.application.render_cut import start_render
-from gaiavfx.application.sheet_recipes import sheet_reference
 from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.coverage import Coverage, assess_cut
 from gaiavfx.modules.direction.persistence import (

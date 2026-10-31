@@ -139,6 +139,12 @@ def test_application_boundaries():
     assert not violations, "\n".join(violations)
 
 
+def test_direction_reading_depends_only_on_modules():
+    """Any application module can read the one configured Direction service without an import cycle."""
+    reading = SOURCE / "application" / "direction_reading.py"
+    assert not [n for n in imported_names(reading) if n.startswith("gaiavfx.application")]
+
+
 def test_router_boundaries():
     violations = []
     for file, name in imports_in("api"):

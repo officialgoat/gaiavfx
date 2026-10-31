@@ -10,6 +10,7 @@ way.
 from dataclasses import dataclass, replace
 
 from gaiavfx.application.direction_reading import DIRECTION as direction
+from gaiavfx.application.direction_reading import sheet_reference
 from gaiavfx.application.prepare_references import (
     current_sheet,
     inactive_reference_assets,
@@ -17,7 +18,6 @@ from gaiavfx.application.prepare_references import (
     latest_sheet,
     sheet_staleness,
 )
-from gaiavfx.application.sheet_recipes import sheet_reference
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.prompt import gaps
 from gaiavfx.modules.direction.application import default_policy

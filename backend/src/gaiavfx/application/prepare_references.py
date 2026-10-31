@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 
 from gaiavfx.application import set_views
 from gaiavfx.application.authored import validate_removal
-from gaiavfx.application.direction_reading import DIRECTION
+from gaiavfx.application.direction_reading import DIRECTION, rendered, set_view_inputs
 from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import minimax_h3, qwen_image_edit
@@ -561,8 +561,8 @@ def approve_view(session, *, candidate_id):
         raise ApplicationError(f"Open the {producer.name} review before approving a view.", 422)
     if producer.evidence == "set_view":
         # The picture must still show what the set holds for the angle: approval records the inputs of now.
-        made = set_views.rendered(session, candidate["asset_id"])
-        now = set_views.set_view_inputs(session, match)
+        made = rendered(session, candidate["asset_id"])
+        now = set_view_inputs(session, match)
         if (
             made["set_id"],
             made["view_id"],

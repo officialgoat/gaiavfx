@@ -9,7 +9,7 @@ than the one the shot's view was rendered at. That is an update to offer, never 
 
 from dataclasses import dataclass
 
-from gaiavfx.application import set_views
+from gaiavfx.application import direction_reading
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.prepare_references import view_producer
 from gaiavfx.application.sets import STORE
@@ -71,7 +71,7 @@ def place_status(session, opening: OpeningPlan | None, refusals) -> PlaceStatus 
     choice = opening.recommended
     uses_views = bool(choice and Block.PLACE_VIEWS in choice.blocks)
     view = next((b for b in opening.bindings if b.kind == "view" and not b.stale), None)
-    made = set_views.rendered(session, view.asset_id) if view and found["set_id"] else None
+    made = direction_reading.rendered(session, view.asset_id) if view and found["set_id"] else None
     rendered = (
         next(
             v["ordinal"]
