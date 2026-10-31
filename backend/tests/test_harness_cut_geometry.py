@@ -539,7 +539,7 @@ def test_e2e10_render_target_follows_the_segment_the_title_names(world):
     """e2e run 10: "Render segment 1, 2 takes" had no target; the default took the only
     segment with a cut (segment 2), and every render was refused for a missing segment 1
     take. The title's segment wins; without one, only a single-segment movie defaults."""
-    from gaiavfx.application.harness.tools.plan import default_producer_targets
+    from gaiavfx.application.harness.tools.plan_check import default_producer_targets
 
     work, setup = world
     ctx = context_for(work, setup)

@@ -243,7 +243,7 @@ def test_o5_precut_phase_continues_predecessor(kernel):
 
 @pytest.mark.parametrize("same_action", [False, True])
 def test_o7_different_refusals_are_progress(kernel, monkeypatch, same_action):
-    from gaiavfx.application.harness.tools import plan
+    from gaiavfx.application.harness.tools import plan_check
 
     # The four distinct run-6 corrections, followed by the corrected proposal.
     refusals = iter(
@@ -255,7 +255,7 @@ def test_o7_different_refusals_are_progress(kernel, monkeypatch, same_action):
             "",
         ]
     )
-    monkeypatch.setattr(plan, "check_plan_costs", lambda *args: next(refusals))
+    monkeypatch.setattr(plan_check, "check_plan_costs", lambda *args: next(refusals))
     sequence = [
         action(
             "propose_plan",

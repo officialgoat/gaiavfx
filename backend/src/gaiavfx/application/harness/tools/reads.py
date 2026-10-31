@@ -6,7 +6,7 @@ from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.harness.actions import Tool, ToolResult, pin_enum
 from gaiavfx.application.harness.shots import take_shots
 from gaiavfx.application.harness.tools.common import TransactionTool, scoped
-from gaiavfx.application.harness.tools.plan import ACTION_KINDS
+from gaiavfx.application.harness.tools.plan_check import ACTION_KINDS
 from gaiavfx.application.harness.world import (
     LIST,
     direction,

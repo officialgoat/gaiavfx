@@ -576,7 +576,8 @@ def test_the_agent_fills_more_of_an_accepted_stage_in_a_build_step(scene):
 def test_a_stage_build_proposed_as_preparation_is_refused_with_the_build_step_s_form(scene):
     # The live trial: the model proposed "Build stage from segment 1's selected take" as a prepare step of 1 job, and
     # the plan passed.
-    from gaiavfx.application.harness.tools.plan import ProposePlan, stage_title
+    from gaiavfx.application.harness.tools.plan import ProposePlan
+    from gaiavfx.application.harness.tools.plan_check import stage_title
 
     s = scene
     h, row, document = planned(s, "answer")
@@ -620,7 +621,7 @@ def test_a_stage_build_proposed_as_preparation_is_refused_with_the_build_step_s_
 def test_an_omitted_build_target_is_what_the_title_names_or_the_only_choice():
     from types import SimpleNamespace
 
-    from gaiavfx.application.harness.tools.plan import default_build_target
+    from gaiavfx.application.harness.tools.plan_check import default_build_target
 
     state = SimpleNamespace(
         segments=[{"id": "s1", "ordinal": 0}, {"id": "s2", "ordinal": 1}],
@@ -666,14 +667,19 @@ def test_the_build_s_receipt_says_what_it_reserved(scene):
 def test_a_build_step_reserves_the_renders_its_filling_may_spend(scene):
     # Filling a stage's unseen space renders up to six probes (ADR 0020 §7), so a build step budgets them; the build
     # spends what its operation reserved.
-    from gaiavfx.application.harness.tools.plan_costs import check_plan_costs, step_jobs_left
+    from gaiavfx.application.harness.tools.plan_costs import (
+        check_plan_costs,
+        complete_costs,
+        step_jobs_left,
+    )
     from gaiavfx.application.set_seed import fill_renders
 
     s = scene
     h, row, document = planned(s, "build")
     ctx = context(h, row, document)
     step = PlanStep(kind="build", title="Build the shack", target=s.segment["id"])
-    assert check_plan_costs(ctx, [step]) == "" and step.jobs == fill_renders() == 6
+    complete_costs(ctx, [step])  # an omitted build reserves its filling's renders
+    assert step.jobs == fill_renders() == 6 and check_plan_costs(ctx, [step]) == ""
     wrong = PlanStep(kind="build", title="Build the shack", target=s.segment["id"], jobs=2)
     assert "build_jobs" in check_plan_costs(ctx, [wrong])
     document.plan.steps[0].jobs = fill_renders()

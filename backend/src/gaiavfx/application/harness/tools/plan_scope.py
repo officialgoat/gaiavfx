@@ -21,6 +21,14 @@ KEYWORDS = {
     "prepare": r"prepar(?:e|es|ed|ing|ation)",
     "render": r"render(?:s|ed|ing)?|takes?",
 }
+# The preparation actions a step title names for its costs, in the words above: a plate fit is named with removal,
+# and the place's views with its survey.
+ACTIONS = {
+    "plate": ("removal", r"plates?"),
+    "survey": ("survey", r"views?"),
+    "pin": ("insert", None),
+    "sheet": ("assemble", None),
+}
 UNCERTAIN = re.compile(r"\b(?:maybe|perhaps|if|whether|or|not|never)\b|n['’]t\b|\?", re.IGNORECASE)
 
 
@@ -67,3 +75,17 @@ def prepare_step_finished(step, message, operation):
     if not named:
         named = producer_kinds(message)
     return named == {WORDS.get(operation["kind"], operation["kind"])}
+
+
+def named_actions(title):
+    """The preparation actions a step title names (plate, survey, pin, sheet), in the scope's own words. A title that
+    names none covers every action its target needs."""
+    return {
+        action
+        for action, (kind, more) in ACTIONS.items()
+        if re.search(
+            rf"\b(?:{KEYWORDS[kind]}{'|' + more if more else ''})\b",
+            title.replace("_", " "),
+            re.IGNORECASE,
+        )
+    }

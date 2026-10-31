@@ -199,7 +199,8 @@ def test_a_prepare_step_on_a_scene_s_angle_reads_its_first_shot_s_plan(shack):
 def test_aiming_a_camera_proposed_as_preparation_is_refused_as_an_edit(shack):
     # The live trial: the model planned "Aim a camera at the Stove angle (segment 1)" as a prepare step, which grants
     # no save_set_view.
-    from gaiavfx.application.harness.tools.plan import ProposePlan, aim_title
+    from gaiavfx.application.harness.tools.plan import ProposePlan
+    from gaiavfx.application.harness.tools.plan_check import aim_title
 
     s = shack
     _, steps, _ = porch_scene(s)

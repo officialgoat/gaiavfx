@@ -379,6 +379,6 @@ def test_recovery_examples_are_scoped_executable_and_rollback_safe(world):
     ],
 )
 def test_step_kind_validation_keeps_real_preparation_legal(title, wrong):
-    from gaiavfx.application.harness.tools.plan import edit_title
+    from gaiavfx.application.harness.tools.plan_check import edit_title
 
     assert edit_title(title) is wrong

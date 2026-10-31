@@ -20,7 +20,7 @@ from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.edits import EditPhase
 from gaiavfx.application.harness.tools.insertion import insertion_facts, resolve_insertion
 from gaiavfx.application.harness.tools.places import EditPlace
-from gaiavfx.application.harness.tools.plan import edit_title
+from gaiavfx.application.harness.tools.plan_check import edit_title
 from gaiavfx.application.harness.tools.prepare import PrepareCut
 from gaiavfx.application.harness.tools.render import RenderCandidates
 from gaiavfx.application.harness.world import direction, operations

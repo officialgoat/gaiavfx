@@ -28,7 +28,8 @@ from gaiavfx.application.harness.tools.insertion import (
     toward_camera_requested,
 )
 from gaiavfx.application.harness.tools.places import EditPlace
-from gaiavfx.application.harness.tools.plan import ProposePlan, setup_only
+from gaiavfx.application.harness.tools.plan import ProposePlan
+from gaiavfx.application.harness.tools.plan_check import setup_only
 from gaiavfx.application.harness.tools.prepare import PrepareCut
 from gaiavfx.application.harness.view import render_view
 from gaiavfx.application.harness.world import direction, operations

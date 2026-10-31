@@ -1,7 +1,5 @@
 """Budget known preparation actions and enforce each producer step's allowance."""
 
-import re
-
 from gaiavfx.application.harness.preparation import VIEW_ACTIONS
 from gaiavfx.application.harness.replacement_context import (
     latest_read_analysis,
@@ -11,6 +9,7 @@ from gaiavfx.application.harness.replacement_context import (
 from gaiavfx.application.harness.shots import shot_plan, shot_words, shots, targeted_shots
 from gaiavfx.application.harness.tools.common import current_step
 from gaiavfx.application.harness.tools.input_hints import known_empty_image
+from gaiavfx.application.harness.tools.plan_scope import named_actions
 from gaiavfx.application.prepare_references import view_producer
 from gaiavfx.application.set_seed import fill_renders
 from gaiavfx.shared.errors import ApplicationError
@@ -73,20 +72,6 @@ def preparation_needs(context, shot):
     return needs
 
 
-def named_actions(title):
-    actions = {
-        kind
-        for kind, pattern in {
-            "plate": r"\b(?:plate|remov\w*)\b",
-            "survey": r"\b(?:survey\w*|views?)\b",
-            "pin": r"\b(?:pins?|insert\w*)\b",
-            "sheet": r"\b(?:sheet\w*|assembl\w*)\b",
-        }.items()
-        if re.search(pattern, title, re.IGNORECASE)
-    }
-    return actions
-
-
 def unknown_relation(cut_id):
     return (
         f"Cut {cut_id}: declaring its relation decides the technique; a reverse across a "
@@ -105,8 +90,42 @@ def cut_plan_refusal(context, shot):
     return unknown_relation(shot["id"])
 
 
+def complete_costs(context, steps):
+    """The targets and jobs a proposal may leave out: a replacement render's analysed shot (the only one, or the one
+    this session read last) and its renders, and a build's filling renders (ADR 0020 §7)."""
+    analyses = getattr(context.state, "people_analyses", [])
+    ready = [a["id"] for a in analyses if a["state"] == "succeeded"]
+    recasts = {r["id"] for r in getattr(context.state, "recasts", [])}
+    for step in steps:
+        if step.target in recasts:
+            continue
+        if (
+            step.kind == "render"
+            and not step.target
+            and ready
+            and (
+                replacement_requested(step.title)
+                or session_requested_replacement(context.report_turns)
+            )
+        ):
+            step.target = (
+                ready[0] if len(ready) == 1 else latest_read_analysis(context.report_turns, ready)
+            ) or ""
+        if (
+            step.kind == "render"
+            and step.jobs == 0
+            and any(a["id"] == step.target for a in analyses)
+        ):
+            step.jobs = min(4, max(0, context.settings.get("agent_budget_jobs", 6)))
+        if step.kind == "build" and step.jobs == 0:
+            # A build fills its stage's unseen space unless the agent says otherwise, so its step reserves the
+            # probes' renders; a build that does not fill spends none of them.
+            step.jobs = fill_renders()
+
+
 def check_plan_costs(context, steps):
-    """Refuse guessed costs and render-before-preparation; never silently grant more work."""
+    """Refuse guessed costs and render-before-preparation; never silently grant more work. It reads a completed
+    proposal (`complete_costs`) and changes nothing."""
     covered, prepared = set(), set()
     problems = []
     analyses = getattr(context.state, "people_analyses", [])
@@ -134,34 +153,23 @@ def check_plan_costs(context, steps):
                 or session_requested_replacement(context.report_turns)
             )
         ):
-            # The single analysed shot, or the one this session read last, is the target.
-            target = (
-                ready[0] if len(ready) == 1 else latest_read_analysis(context.report_turns, ready)
+            # Completing named no analysed shot: neither the only one nor one this session read last.
+            problems.append(
+                "replacement_target: set the render step's target to one people analysis id: "
+                + ", ".join(ready)
             )
-            if not target:
-                problems.append(
-                    "replacement_target: set the render step's target to one people analysis id: "
-                    + ", ".join(ready)
-                )
-                continue
-            step.target = target
+            continue
         analysis = next((a for a in analyses if a["id"] == step.target), None)
         if step.kind == "render" and analysis:
             if analysis["state"] != "succeeded":
                 problems.append(
                     "analysis_missing: finish people analysis before proposing replacement."
                 )
-            if step.jobs == 0:
-                step.jobs = min(4, max(0, context.settings.get("agent_budget_jobs", 6)))
             if not 1 <= step.jobs <= 4:
                 problems.append("replacement_jobs: reserve 1 to 4 renders for the analysed shot.")
             continue
         if step.kind == "build":
-            # A build fills its stage's unseen space unless the agent says otherwise, so its step reserves the
-            # probes' renders (ADR 0020 §7); a build that does not fill spends none of them.
             renders = fill_renders()
-            if step.jobs == 0:
-                step.jobs = renders
             if step.jobs != renders:
                 problems.append(
                     f"build_jobs: a build step reserves the {renders} renders its filling may spend, "
