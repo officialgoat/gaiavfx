@@ -365,21 +365,21 @@ def test_d5_overhead_refuses_views_that_only_look_up(text):
     "error", [ApplicationError("schema uses 4626 > 4500 tokens"), ValueError("broken context")]
 )
 def test_d7_context_failure_records_a_system_turn_and_message_retries(kernel, monkeypatch, error):
-    from gaiavfx.application.harness import loop
+    from gaiavfx.application.harness import request
 
-    original = loop.assemble
+    original = request.assemble
 
     def fail(*args, **kwargs):
         raise error
 
-    monkeypatch.setattr(loop, "assemble", fail)
+    monkeypatch.setattr(request, "assemble", fail)
     row = run(kernel, action("say", text="Ready"))
     assert row["state"] == "waiting_human"
     turn = kernel.harness.turns(kernel.id)[-1]
     assert turn["role"] == "system" and str(error) in turn["action"]["message"]
     assert "Post a message to retry" in turn["action"]["message"]
     assert not kernel.model.calls
-    monkeypatch.setattr(loop, "assemble", original)
+    monkeypatch.setattr(request, "assemble", original)
     kernel.harness.post_message(kernel.id, "Retry", "retry")
     kernel.runner.run_once()
     assert kernel.harness.read(kernel.id)["state"] == "idle"
