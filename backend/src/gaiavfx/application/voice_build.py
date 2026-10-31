@@ -40,7 +40,7 @@ from gaiavfx.integrations.voice import engines as voice_engines
 from gaiavfx.integrations.voice import spec as voice_spec
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
-from gaiavfx.modules.generation.operations.outcome import failure
+from gaiavfx.modules.generation.operations.outcome import cause
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -423,12 +423,11 @@ def _sentence(operation, stage, current) -> str:
     if operation["state"] == "cancelled" or operation["cancel_requested"]:
         return AUDITION_CANCELLED if audition else CANCELLED
     stopped = _root_failures([j for j in current.values() if j["state"] in STOPPED])
-    errors = " ".join(str(j.get("error") or "") for j in stopped).lower()
-    errors += " " + str(operation.get("error") or "").lower()
-    cause = failure(operation)
-    if cause == "engine_missing":
+    # The stopped jobs, not the operation: a build awaiting its review has a failed job but has not settled.
+    why = cause(stopped, operation.get("error"))
+    if why == "engine_missing":
         return ENGINES
-    if cause == "out_of_memory":
+    if why == "out_of_memory":
         return MEMORY
     steps = {j["step"] for j in stopped}
     if "voice_library" in steps:

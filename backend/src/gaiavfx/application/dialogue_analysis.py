@@ -21,7 +21,7 @@ from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import spec as voice_spec
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
-from gaiavfx.modules.generation.operations.outcome import failure
+from gaiavfx.modules.generation.operations.outcome import cause
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -316,16 +316,16 @@ def _sentence(operation, stage):
     """One actionable sentence for the Voice step: never a job id, path or worker output (as `_conform_error`)."""
     if operation["state"] == "cancelled" or operation["cancel_requested"]:
         return "The dialogue analysis was cancelled. Retry to run it again."
-    errors = " ".join(
-        str(j.get("error") or "") for j in operation["jobs"] if j["state"] in STOPPED
-    ).lower()
+    stopped = [j for j in operation["jobs"] if j["state"] in STOPPED]
+    errors = " ".join(str(j.get("error") or "") for j in stopped).lower()
     errors += " " + str(operation.get("error") or "").lower()
     if "channels" in errors:
         return "This film's audio has more than two channels; dialogue analysis supports mono and stereo for now."
-    cause = failure(operation)
-    if cause == "engine_missing":
+    # The stopped jobs, not the operation: an analysis can have a failed job before it settles.
+    why = cause(stopped, operation.get("error"))
+    if why == "engine_missing":
         return "The voice engines are not set up. Run the voice engine setup, then retry."
-    if cause == "out_of_memory":
+    if why == "out_of_memory":
         return "The GPU ran out of memory during the dialogue analysis. Close other GPU work, then retry."
     step = {
         "audio": "reading the film's audio",

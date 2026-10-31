@@ -26,18 +26,23 @@ def settled(operation: dict) -> bool:
     return operation["state"] in OPERATION_TERMINAL
 
 
+def cause(jobs, error: str | None = None) -> str:
+    """The kind of cause the stopped `jobs` and the operation's own `error` record; "other" when none is named. For a
+    producer that reads its stopped jobs while the operation itself has not settled (a build awaiting its review)."""
+    text = " ".join(
+        str(job.get("error") or "")
+        for job in jobs
+        if not str(job.get("error") or "").startswith("Input job ")
+    )
+    text = f"{text} {error or ''}".lower()
+    return next((kind for kind, words in _WORDS if any(w in text for w in words)), "other")
+
+
 def failure(operation: dict) -> str | None:
     """The kind of cause an operation stopped for; None while it runs or once it succeeded."""
     if operation["state"] == "cancelled" or operation.get("cancel_requested"):
         return "cancelled"
     if operation["state"] not in OPERATION_TERMINAL - {"succeeded"}:
         return None
-    stopped = [
-        job
-        for job in operation.get("jobs") or ()
-        if job["state"] in JOB_TERMINAL - {"succeeded"}
-        and not str(job.get("error") or "").startswith("Input job ")
-    ]
-    text = " ".join(str(job.get("error") or "") for job in stopped)
-    text = f"{text} {operation.get('error') or ''}".lower()
-    return next((kind for kind, words in _WORDS if any(w in text for w in words)), "other")
+    stopped = [j for j in operation.get("jobs") or () if j["state"] in JOB_TERMINAL - {"succeeded"}]
+    return cause(stopped, operation.get("error"))
