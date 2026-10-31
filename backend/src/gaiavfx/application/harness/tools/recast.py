@@ -7,6 +7,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from gaiavfx.application.harness import budget
 from gaiavfx.application.harness.actions import ToolResult, inlined, pin_enum
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX
 from gaiavfx.application.harness.tools.common import (
@@ -15,7 +16,6 @@ from gaiavfx.application.harness.tools.common import (
     permitted,
     scoped,
 )
-from gaiavfx.application.harness.tools.plan_costs import step_jobs_left
 from gaiavfx.application.recast import (
     list_recasts,
     named_character,
@@ -373,13 +373,7 @@ class StartRecastRun(ReadRecast):
                     "gaps": [g for s in shots for g in s["plan"]["gaps"]],
                 },
             )
-        left = min(value.render_budget, context.jobs_limit - context.jobs_reserved)
-        if context.document and context.document.plan_mode and context.document.plan.grant:
-            grant = context.document.plan.grant
-            left = min(left, grant.budget_jobs + grant.reserved_at_approval - context.jobs_reserved)
-        step_left = step_jobs_left(context)
-        if step_left is not None:
-            left = min(left, step_left)
+        left = min(value.render_budget, budget.left(context))
         if estimate["renders"] > left or value.render_budget > left:
             prefix, used = [], 0
             for shot in shots:

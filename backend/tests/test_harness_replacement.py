@@ -9,6 +9,7 @@ import pytest
 
 from gaiavfx.application.harness.actions import ToolContext, parse_action
 from gaiavfx.application.harness.board import Whiteboard
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools import replacement as tools
@@ -72,7 +73,7 @@ def replacement_context(monkeypatch):
         turn_id="turn",
         state=state,
         document=document,
-        jobs_limit=2,
+        budget=Budget(2, 0),
         attachments=[{"id": "video", "kind": "video"}],
     )
     monkeypatch.setattr(tools, "people_for_asset", lambda *a, **k: [row])
@@ -136,7 +137,7 @@ def test_runtime_refuses_before_application_submission(replacement_context, prob
     elif problem == "identity":
         context.state.cast[0]["identity_asset_id"] = None
     elif problem == "budget":
-        context.jobs_reserved = 2
+        context.budget = Budget(context.budget.limit, 2)
     elif problem == "unresolved":
         fixture.row["report"]["tracks"][0]["presence"][5] = "unresolved"
     elif problem == "unconfirmed":
@@ -188,7 +189,7 @@ def test_analysis_needs_no_grant_costs_zero_and_waits(replacement_context, monke
     fixture = replacement_context
     context = fixture.context
     context.document.plan = None
-    context.jobs_limit = 0
+    context.budget = Budget(0, context.budget.spent)
     context.unread_attachments = ["video"]
     monkeypatch.setattr(tools, "people_for_asset", lambda *a, **k: [])
     monkeypatch.setattr(

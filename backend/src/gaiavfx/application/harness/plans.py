@@ -8,7 +8,7 @@ import logging
 import time
 from collections import Counter
 
-from gaiavfx.application.harness.commands import jobs_reserved
+from gaiavfx.application.harness.budget import reserved
 from gaiavfx.application.harness.conversation import Record
 from gaiavfx.application.harness.history import (
     attachments,
@@ -85,7 +85,7 @@ class PlanCommands:
                 budget_jobs=plan.budget_jobs,
                 step_kinds=list(dict.fromkeys(step.kind for step in plan.steps)),
                 approved_turn=len(turns),
-                reserved_at_approval=jobs_reserved(turns),
+                reserved_at_approval=reserved(turns),
             )
             plan.state = "executing"
             self._reset(document)

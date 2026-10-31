@@ -10,6 +10,7 @@ from test_set_seed import scene as scene  # noqa: PLC0414 - pytest fixture expor
 
 from gaiavfx.api.agent import HarnessSessionDTO
 from gaiavfx.application import sets
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.loop import Harness, ended_turn, ended_words
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
@@ -247,7 +248,9 @@ def test_the_view_names_a_set_candidate_while_a_set_could_keep_a_shared_place(sc
 
     s = scene
     h, row, document = planned(s, "answer")
-    assert "Stage candidate" not in render_view(context(h, row, document).state, "off", 0, 6)
+    assert "Stage candidate" not in render_view(
+        context(h, row, document).state, "off", Budget(6, 0)
+    )
     # A second scene opens in the same box room, by the place's id, not its name.
     with s.workspace.db.transaction() as session:
         movie = DIRECTION.read_movie(session, s.segment["movie_id"])
@@ -266,7 +269,7 @@ def test_the_view_names_a_set_candidate_while_a_set_could_keep_a_shared_place(sc
             second["revision"],
             opening_angle_id=s.segment["opening_angle_id"],
         )
-    view = render_view(context(h, row, document).state, "off", 0, 6)
+    view = render_view(context(h, row, document).state, "off", Budget(6, 0))
     # The line names the shots build_set_from_take can build from, so the agent need not guess one.
     assert (
         f"Stage candidate: segments 1, 2 share place Box room ({s.place['id']}), not built as a stage; "
@@ -287,12 +290,14 @@ def test_the_view_names_a_set_candidate_while_a_set_could_keep_a_shared_place(sc
     )
     drain(s.run)
     assert f"segment 1 ({s.segment['id']}) has a selected take" in render_view(
-        context(h, row, document).state, "off", 0, 6
+        context(h, row, document).state, "off", Budget(6, 0)
     )
     # Once a build of that take is under way, the view no longer offers one.
     s.comfy.execution_error = False
     transact(s.workspace, set_seed.retry_seed, s.workspace.library, stopped["id"])
-    assert "Stage candidate" not in render_view(context(h, row, document).state, "off", 0, 6)
+    assert "Stage candidate" not in render_view(
+        context(h, row, document).state, "off", Budget(6, 0)
+    )
 
 
 def test_the_agent_sees_its_build_in_words_and_builds_only_the_scene_its_step_names(scene):
@@ -304,7 +309,7 @@ def test_the_agent_sees_its_build_in_words_and_builds_only_the_scene_its_step_na
     h, row, document = planned(s, "build")
 
     def view():
-        return render_view(context(h, row, document).state, "off", 0, 6, document=document)
+        return render_view(context(h, row, document).state, "off", Budget(6, 0), document=document)
 
     assert (
         f"target exists: {s.segment['id']}; build_set_from_take from one of its take's shots ({SHOTS}); the user "
@@ -399,8 +404,8 @@ def test_the_chat_shows_the_build_in_python_s_words_and_why_the_agent_is_quiet(s
 
 def test_a_stopped_build_returns_the_renders_it_never_allocated(scene):
     from gaiavfx.application import set_fill
-    from gaiavfx.application.harness.commands import jobs_reserved
-    from gaiavfx.application.harness.tools.plan_costs import step_jobs_left
+    from gaiavfx.application.harness.budget import reserved as jobs_reserved
+    from gaiavfx.application.harness.budget import step_left as step_jobs_left
     from gaiavfx.modules.generation.operations.service import OperationService
 
     s = scene
@@ -431,11 +436,13 @@ def test_a_stopped_build_returns_the_renders_it_never_allocated(scene):
     # "the build step stays open" outside any plan and offered to rerun it instead of the stage candidate.
     stopped_line = "Stage build: Building Box room from a take stopped before it finished"
     assert stopped_line in render_view(
-        context(h, row, document).state, "off", 0, 6, document=document
+        context(h, row, document).state, "off", Budget(6, 0), document=document
     )
     later = planned(s, "answer")
-    assert "Stage build:" not in render_view(context(*later).state, "off", 0, 6, document=later[2])
-    assert "Stage build:" not in render_view(context(h, row, document).state, "off", 0, 6)
+    assert "Stage build:" not in render_view(
+        context(*later).state, "off", Budget(6, 0), document=later[2]
+    )
+    assert "Stage build:" not in render_view(context(h, row, document).state, "off", Budget(6, 0))
     # The step and the conversation count what the build allocated, not what it reserved.
     assert step_jobs_left(context(h, row, document)) == 6 - used
     turns = [
@@ -513,7 +520,7 @@ def test_the_agent_fills_more_of_an_accepted_stage_in_a_build_step(scene):
     document.plan.steps[0].target = set_id
     assert "fill_set_more" in {t.name for t, _ in applicable_tools(context(h, row, document))}
     assert f"target exists: {set_id}; fill_set_more" in render_view(
-        context(h, row, document).state, "off", 0, 6, document=document
+        context(h, row, document).state, "off", Budget(6, 0), document=document
     )
     # The user's own exclusion is queued: Run queued fixes would run it too, so the agent asks first.
     with s.workspace.db.transaction() as session:
@@ -650,9 +657,9 @@ def test_an_omitted_build_target_is_what_the_title_names_or_the_only_choice():
 
 
 def test_the_build_s_receipt_says_what_it_reserved(scene):
-    # The session's budget reads every accepted turn's operation receipts (commands.jobs_reserved); a build's receipt
+    # The session's budget reads every accepted turn's operation receipts (budget.reserved); a build's receipt
     # without its reservation failed the next turn.
-    from gaiavfx.application.harness.commands import jobs_reserved
+    from gaiavfx.application.harness.budget import reserved as jobs_reserved
 
     s = scene
     h, row, document = planned(s, "build")
@@ -667,11 +674,8 @@ def test_the_build_s_receipt_says_what_it_reserved(scene):
 def test_a_build_step_reserves_the_renders_its_filling_may_spend(scene):
     # Filling a stage's unseen space renders up to six probes (ADR 0020 §7), so a build step budgets them; the build
     # spends what its operation reserved.
-    from gaiavfx.application.harness.tools.plan_costs import (
-        check_plan_costs,
-        complete_costs,
-        step_jobs_left,
-    )
+    from gaiavfx.application.harness.budget import step_left as step_jobs_left
+    from gaiavfx.application.harness.tools.plan_costs import check_plan_costs, complete_costs
     from gaiavfx.application.set_seed import fill_renders
 
     s = scene

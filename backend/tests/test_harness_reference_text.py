@@ -17,6 +17,7 @@ from test_harness_e2e_tools import call
 from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import action_schema
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import HEAD_CEILING, estimate
 from gaiavfx.application.harness.history import latest_user_message, references_read
 from gaiavfx.application.harness.knowledge import cinematography_head, load
@@ -211,7 +212,7 @@ def prepare_grant(context):
         ),
         steps=[PlanStep(kind="prepare", title="Prepare reverse pin", jobs=2)],
     )
-    context.jobs_limit = 2
+    context.budget = Budget(2, context.budget.spent)
     return context
 
 
@@ -403,7 +404,9 @@ def test_t2_continuity(direction_text, relation, crosses, expected):
 def test_t4_scripted_agent_uses_reading_notes_then_fits_reviews_and_approves(unplated):
     work, setup = unplated
     context = prepare_grant(context_for(work, setup))
-    context.jobs_reserved = context.jobs_limit  # fitting consumes no inference budget
+    context.budget = Budget(
+        context.budget.limit, context.budget.limit
+    )  # fitting consumes no inference budget
     context.attachments = [{"id": setup["plate"], "kind": "image", "name": "courtyard"}]
     turns = [
         {
@@ -513,7 +516,7 @@ def test_t6_no_preparation_for_zero_cut_ready_segment(world):
         )
     context = context_for(work, setup)
     context.document.plan_mode = True
-    context.view = render_view(context.state, "prepare", 0, 6, document=context.document)
+    context.view = render_view(context.state, "prepare", Budget(6, 0), document=context.document)
     tool = ProposePlan()
     result = call(
         tool,

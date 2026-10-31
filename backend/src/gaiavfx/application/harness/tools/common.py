@@ -16,17 +16,12 @@ def refusal(message):
 
 
 def current_step(context):
-    document = context.document
-    if not document or not document.plan_mode or not document.plan:
-        return None
-    if document.plan.state != "executing":
-        return None
-    return document.plan.current()
+    return context.document.executing_step() if context.document else None
 
 
 def operation_receipt(operation, **extra) -> dict:
     """The receipt of an operation a tool started or joined: what it is and what it reserved, read from the operation
-    itself, so the session's budget (`commands.jobs_reserved`) and the plan step's (`plan_costs.step_jobs_left`)
+    itself, so the session's budget (`budget.reserved`) and the plan step's (`budget.step_left`)
     count it. `kind` names the receipt; `operation_kind` the producer (one JSON key cannot carry both)."""
     return {
         "kind": "operation",

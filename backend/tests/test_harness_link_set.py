@@ -9,6 +9,7 @@ from test_set_views import shack as shack  # noqa: PLC0414 - pytest fixture expo
 
 from gaiavfx.application import set_agent, sets
 from gaiavfx.application.direction_reading import DIRECTION
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.session import AgentSession
 from gaiavfx.application.harness.tools import applicable_tools
@@ -60,7 +61,7 @@ def test_the_agent_uses_a_set_for_a_scene_and_says_what_changed(shack):
     # The shack's place is built as the set, so the sets are in the agent's context without being named.
     assert [row["id"] for row in ctx.state.sets] == [s.set_id]
     assert "link_set" in {tool.name for tool, _ in applicable_tools(ctx)}
-    view = render_view(ctx.state, ctx.autonomy, 0, 6, document=ctx.document)
+    view = render_view(ctx.state, ctx.autonomy, Budget(6, 0), document=ctx.document)
     assert f"built as stage {s.set_id}" in view
 
     linked = LinkSet().run(
@@ -82,7 +83,7 @@ def test_the_agent_uses_a_set_for_a_scene_and_says_what_changed(shack):
     after = plain(s.workspace, DIRECTION.read_segment, segment["id"])
     assert after["opening_technique"] == "opening_views"
     # The agent now sees the first shot it must prepare, and why it cannot yet.
-    view = render_view(context(s).state, "prepare", 0, 6)
+    view = render_view(context(s).state, "prepare", Budget(6, 0))
     assert f"First shot (prepare_cut cut_id {segment['id']}): opening_views not ready" in view
     # and what stands in the way of its stage, as the References row words it, with the angle to aim
     assert (
@@ -98,7 +99,7 @@ def test_a_scene_in_a_stage_s_place_that_opens_on_text_is_told_how_to_use_the_st
     porch, steps, _ = porch_scene(s)
     with s.workspace.db.transaction() as session:
         DIRECTION.set_place_set(session, porch["id"], porch["revision"], set_id=s.set_id)
-    view = render_view(context(s).state, "prepare", 0, 6)
+    view = render_view(context(s).state, "prepare", Budget(6, 0))
     assert (
         f"  First shot (angle_id {steps['id']}) is in stage Box room but uses text only; link_set asks it for the "
         "stage's views"
@@ -191,7 +192,7 @@ def test_a_prepare_step_on_a_scene_s_angle_reads_its_first_shot_s_plan(shack):
             budget_jobs=0, step_kinds=["prepare"], approved_turn=1, reserved_at_approval=0
         ),
     )
-    view = render_view(ctx.state, "prepare", 0, 6, document=document)
+    view = render_view(ctx.state, "prepare", Budget(6, 0), document=document)
     # The step's problem is the first shot's: no camera aimed in the stage yet.
     assert "No camera for the first shot in the stage" in view
 

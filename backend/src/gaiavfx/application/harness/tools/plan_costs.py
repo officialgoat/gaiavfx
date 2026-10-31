@@ -7,41 +7,10 @@ from gaiavfx.application.harness.replacement_context import (
     session_requested_replacement,
 )
 from gaiavfx.application.harness.shots import shot_plan, shot_words, shots, targeted_shots
-from gaiavfx.application.harness.tools.common import current_step
 from gaiavfx.application.harness.tools.input_hints import known_empty_image
 from gaiavfx.application.harness.tools.plan_scope import named_actions
 from gaiavfx.application.prepare_references import view_producer
 from gaiavfx.application.set_seed import fill_renders
-from gaiavfx.shared.errors import ApplicationError
-
-
-def step_jobs_left(context):
-    step = current_step(context)
-    if not step or step.kind not in {"prepare", "render", "build"}:
-        return None
-    spent, settled = {}, {}
-    for receipt in step.receipts:
-        if receipt.get("kind") in {"operation", "recast_run"}:
-            operation_id = receipt["id"]
-            if receipt.get("settled"):
-                # A stopped build's settled spend replaces what it reserved (ADR 0020 §8).
-                settled[operation_id] = receipt.get("budget_reserved", 0)
-            else:
-                spent[operation_id] = max(
-                    spent.get(operation_id, 0), receipt.get("budget_reserved", 0)
-                )
-    return max(0, step.jobs - sum((spent | settled).values()))
-
-
-def afford_step(context, needed):
-    remaining = step_jobs_left(context)
-    if remaining is not None and needed > remaining:
-        raise ApplicationError(
-            f"step_budget_exhausted: producer needs {needed} jobs, but step "
-            f"'{current_step(context).title}' has {remaining} jobs remaining. "
-            "Revise the plan's step budget for user approval.",
-            422,
-        )
 
 
 def preparation_needs(context, shot):

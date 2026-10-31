@@ -9,11 +9,13 @@ import pytest
 
 from gaiavfx.application.harness.actions import ToolContext, parse_action
 from gaiavfx.application.harness.board import Whiteboard
-from gaiavfx.application.harness.commands import jobs_reserved
+from gaiavfx.application.harness.budget import Budget
+from gaiavfx.application.harness.budget import reserved as jobs_reserved
+from gaiavfx.application.harness.budget import step_left as step_jobs_left
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools import recast as tools
-from gaiavfx.application.harness.tools.plan_costs import check_plan_costs, step_jobs_left
+from gaiavfx.application.harness.tools.plan_costs import check_plan_costs
 from gaiavfx.application.harness.view import render_view
 from gaiavfx.application.harness.world import WorldState
 from gaiavfx.shared.errors import ApplicationError
@@ -101,7 +103,7 @@ def fixture(monkeypatch):
         turn_id="turn",
         state=world,
         document=document,
-        jobs_limit=2,
+        budget=Budget(2, 0),
         latest_user_message="Recast the Navigator with Veyra.",
         library=SimpleNamespace(get=lambda *args: {"name": "Veyra", "kind": "image"}),
     )
@@ -126,7 +128,7 @@ def test_over_grant_returns_longest_prefix_and_no_run(fixture):
     assert result.payload["suggested_range"] == {"start": 0, "end": 50}
     assert result.payload["suggested_renders"] == 2
     fixture.start.assert_not_called()
-    fixture.context.jobs_reserved = 2
+    fixture.context.budget = Budget(fixture.context.budget.limit, 2)
     assert tools.StartRecastRun().run(fixture.context, value()).payload["suggested_range"] is None
 
 
@@ -171,7 +173,7 @@ def test_run_rechecks_authority_and_fresh_state(fixture, problem):
 def test_proposals_cost_nothing_pin_images_and_require_character_resolution(fixture):
     context = fixture.context
     context.document.plan = None
-    context.jobs_limit = 0
+    context.budget = Budget(0, context.budget.spent)
     fixture.state["characters"][0]["target"] = None
     context.state.recasts = [tools.compact(fixture.state)]
     tool = tools.ProposeCast()
@@ -222,7 +224,7 @@ def test_blind_read_catalog_plan_costs_and_context(fixture):
     assert "conforms" not in result.payload and "shots" not in result.payload
     assert "never exposed" not in str(result)
     assert not check_plan_costs(context, [context.document.plan.steps[0]])
-    assert "film-recast" in render_view(context.state, "off", 0, 2)
+    assert "film-recast" in render_view(context.state, "off", Budget(2, 0))
     context.state.recasts = []
     context.latest_user_message = "Describe the light."
     assert tools.ProposeCast().narrow(context) is None

@@ -8,6 +8,7 @@ from harness_support import action
 from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.session import Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.shots import shots
 from gaiavfx.application.harness.tools.common import validate_text
@@ -183,7 +184,7 @@ def test_cut_creation_angle_ownership_duplicate_and_exact_revision_retry(world):
             )
         ],
     )
-    view = render_view(ctx.state, "off", 0, 0, document=ctx.document)
+    view = render_view(ctx.state, "off", Budget(0, 0), document=ctx.document)
     assert f"target exists: {result.payload['id']}" in view and "op=relation/insertion" in view
     assert "Create cut at f36" not in view
     assert f"Place {setup['place_id']}" in view and "reverse inside" in view

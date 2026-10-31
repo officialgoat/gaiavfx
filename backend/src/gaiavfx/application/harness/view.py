@@ -5,10 +5,10 @@ from gaiavfx.application.harness.shots import set_candidates, take_shots
 from gaiavfx.application.harness.world import clip, plate_survey_notes
 
 
-def render_view(state, autonomy, jobs_reserved, jobs_limit, *, document=None):
+def render_view(state, autonomy, budget, *, document=None):
     lines = [
         f"Movie {state.movie['id']} r{state.movie['revision']}: {state.movie['title']}",
-        f"Autonomy {autonomy}; {max(0, jobs_limit - jobs_reserved)} jobs left ({jobs_reserved}/{jobs_limit} reserved).",
+        f"Autonomy {autonomy}; {budget.left} jobs left ({budget.spent}/{budget.limit} reserved).",
     ]
     if document and document.plan_mode:
         plan = document.plan
@@ -29,7 +29,7 @@ def render_view(state, autonomy, jobs_reserved, jobs_limit, *, document=None):
             elif plan.state == "executing":
                 done = sum(step.status in {"done", "skipped"} for step in plan.steps)
                 lines[1] += (
-                    f": {done}/{len(plan.steps)} steps done, {max(0, jobs_limit - jobs_reserved)} of {plan.budget_jobs} plan jobs left"
+                    f": {done}/{len(plan.steps)} steps done, {budget.left} of {plan.budget_jobs} plan jobs left"
                 )
             if plan.state in {"proposed", "approved", "executing"}:
                 lines.append("Goal: " + shorten({"content": plan.goal}, 80)["content"])
@@ -48,8 +48,7 @@ def render_view(state, autonomy, jobs_reserved, jobs_limit, *, document=None):
         context = SimpleNamespace(
             state=state,
             document=document,
-            jobs_limit=jobs_limit,
-            jobs_reserved=jobs_reserved,
+            budget=budget,
             attachments=[],
         )
         for name in ("render_candidates", "prepare_cut"):

@@ -14,6 +14,7 @@ from test_harness_round6 import drafted
 from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import action_schema, parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import assemble
 from gaiavfx.application.harness.knowledge import cinematography_head, unsupported_head
 from gaiavfx.application.harness.loop import Harness
@@ -83,9 +84,7 @@ def check_budget(ctx):
         "\n".join(f"{tool.name}: {tool.description}" for tool, _ in tools),
         action_schema(tools),
         ctx.board,
-        render_view(
-            ctx.state, ctx.autonomy, ctx.jobs_reserved, ctx.jobs_limit, document=ctx.document
-        ),
+        render_view(ctx.state, ctx.autonomy, ctx.budget, document=ctx.document),
         [],
         32768,
         output=2400,
@@ -155,7 +154,7 @@ def test_q1_render_focus_allows_only_zero_job_sheet_with_existing_prepare_grant(
     assert ctx.document.plan.grant == grant
     run_idle(work, setup["fake"])
     ctx.state = context_for(work, setup).state
-    view = render_view(ctx.state, ctx.autonomy, 0, 6, document=ctx.document)
+    view = render_view(ctx.state, ctx.autonomy, Budget(6, 0), document=ctx.document)
     assert "outside this scope" not in view and "no preparable cut" not in view
     assert "prepare_cut" not in {tool.name for tool, _ in applicable_tools(ctx)}
     ctx.turn_id = "render-after-sheet"

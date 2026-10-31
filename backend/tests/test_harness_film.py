@@ -11,6 +11,7 @@ from harness_support import action
 from gaiavfx.application.harness import plans, scope
 from gaiavfx.application.harness.actions import ToolContext, ToolResult, parse_action
 from gaiavfx.application.harness.board import Whiteboard
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.knowledge import knowledge_head, load
 from gaiavfx.application.harness.prompt import PROMPTS, system_prompt
 from gaiavfx.application.harness.scope import (
@@ -180,11 +181,11 @@ def film(monkeypatch):
             scope_kind="film",
             scope_id=RECAST,
             board=Whiteboard(),
-            view=scope_view(world, "off", 0, jobs_limit, document=document),
+            view=scope_view(world, "off", Budget(jobs_limit, 0), document=document),
             turn=1,
             state=world,
             document=document,
-            jobs_limit=jobs_limit,
+            budget=Budget(jobs_limit, 0),
             # A video in the conversation would offer people analysis in a movie.
             attachments=[{"id": "clip", "kind": "video", "name": "Harbor clip"}],
             latest_user_message="Recast the Navigator with Veyra in this clip.",

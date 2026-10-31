@@ -9,6 +9,7 @@ from test_harness_replacement import replacement_context as replacement_context 
 from test_harness_replacement import value
 
 from gaiavfx.application.harness.actions import action_schema, parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import SCHEMA_CEILING, estimate
 from gaiavfx.application.harness.replacement_context import user_confirmed
 from gaiavfx.application.harness.tools import applicable_tools, compact_schema
@@ -96,7 +97,7 @@ def test_pair_in_one_third_has_distinct_neutral_positions(replacement_context):
 def test_plan_default_before_approval_uses_configured_budget(replacement_context, budget, expected):
     context = replacement_context.context
     context.document.plan = None
-    context.jobs_limit = context.jobs_reserved = 0
+    context.budget = Budget(0, 0)
     context.settings["agent_budget_jobs"] = budget
     tool = ProposePlan()
     result = tool.run(
@@ -246,7 +247,7 @@ def test_ask_human_records_the_analyses_in_view(replacement_context):
 def test_untargeted_replacement_step_gets_the_single_analysis(replacement_context, ready):
     context = replacement_context.context
     context.document.plan = None
-    context.jobs_limit = context.jobs_reserved = 0
+    context.budget = Budget(0, 0)
     if ready == 2:
         context.state.people_analyses = [
             *context.state.people_analyses,
@@ -274,7 +275,7 @@ def test_answer_without_replace_word_still_targets_the_read_analysis(replacement
     # The user's answer ("Person 1 and person 2") does not repeat the request; the session does.
     context = replacement_context.context
     context.document.plan = None
-    context.jobs_limit = context.jobs_reserved = 0
+    context.budget = Budget(0, 0)
     context.state.people_analyses = [
         *context.state.people_analyses,
         {**context.state.people_analyses[0], "id": "analysis-2"},

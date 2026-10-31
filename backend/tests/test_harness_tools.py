@@ -6,6 +6,7 @@ import harness_support
 import pytest
 
 from gaiavfx.application.harness.actions import parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.shots import shots
@@ -382,8 +383,8 @@ def test_render_gating_blind_reads_and_ranked_provisional_picks(tmp_path):
         render, pick, reader = RenderCandidates(), PickProvisional(), ReadCandidates()
         assert render.narrow(context)
         assert render.narrow(replace(context, autonomy="prepare")) is None
-        assert render.narrow(replace(context, jobs_reserved=6)) is None
-        poor = replace(context, jobs_reserved=5)
+        assert render.narrow(replace(context, budget=Budget(context.budget.limit, 6))) is None
+        poor = replace(context, budget=Budget(context.budget.limit, 5))
         schema = render.narrow(poor)
         assert schema["properties"]["count"]["maximum"] == 1
         assert "seeds" not in schema["properties"]
@@ -545,7 +546,8 @@ def test_segment_render_alias_scope_and_unread_guard(tmp_path):
                 tool.Input(**value)
         assert not tool.run(context, tool.Input(segment_id="outside-scope", seeds=[1])).ok
         assert not tool.run(
-            replace(context, jobs_reserved=6), tool.Input(segment_id=segment["id"], seeds=[1])
+            replace(context, budget=Budget(context.budget.limit, 6)),
+            tool.Input(segment_id=segment["id"], seeds=[1]),
         ).ok
         rendered = tool.run(context, tool.Input(cut_id=segment["cuts"][0]["id"], seeds=[1]))
         assert rendered.ok
@@ -676,7 +678,7 @@ def test_stale_sheet_reassembly_waits_for_reference_review_and_plan(tmp_path):
             ),
         )
         context.autonomy = "off"
-        context.jobs_reserved = context.jobs_limit = 0
+        context.budget = Budget(0, 0)
         assert prepare.narrow(context) is not None
         result = prepare.run(context, value)
         assert result.ok and result.payload["kind"] == "assemble"
@@ -762,7 +764,7 @@ def test_prepare_survey_review_insertion_and_sheet(world):
     prepare = PrepareCut()
     value = prepare.Input(cut_id=setup["cut_id"], seed=31)
     assert prepare.narrow(replace(context, autonomy="off")) is None
-    assert prepare.narrow(replace(context, jobs_reserved=6)) is None
+    assert prepare.narrow(replace(context, budget=Budget(context.budget.limit, 6))) is None
     result = prepare.run(context, value)
     assert result.ok and result.waits_on and result.receipts[0]["budget_reserved"] == 1
     with work.db.transaction() as session:
@@ -808,7 +810,7 @@ def test_prepare_survey_review_insertion_and_sheet(world):
         )
     context = context_for(work, setup)
     assert prepare.narrow(context) is not None
-    poor = replace(context, jobs_reserved=5)
+    poor = replace(context, budget=Budget(context.budget.limit, 5))
     assert prepare.narrow(poor) is None
     refused = prepare.run(poor, value)
     assert not refused.ok and "budget_exhausted" in refused.discrepancy
@@ -858,7 +860,7 @@ def test_prepare_survey_review_insertion_and_sheet(world):
         ),
     )
     context.autonomy = "off"
-    context.jobs_reserved = context.jobs_limit = 3
+    context.budget = Budget(3, 3)
     assert prepare.narrow(context) is not None
     result = prepare.run(context, value)
     assert result.ok and result.receipts[0]["budget_reserved"] == 0

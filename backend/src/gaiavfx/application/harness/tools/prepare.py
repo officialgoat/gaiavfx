@@ -2,6 +2,7 @@
 
 import hashlib
 
+from gaiavfx.application.harness import budget
 from gaiavfx.application.harness.actions import ToolResult
 from gaiavfx.application.harness.preparation import PREPARATION, VIEW_ACTIONS
 from gaiavfx.application.harness.shots import shot_plan, shots
@@ -20,7 +21,6 @@ from gaiavfx.application.harness.tools.input_hints import (
     insertion_input,
 )
 from gaiavfx.application.harness.tools.insertion import InsertionInput, resolve_insertion
-from gaiavfx.application.harness.tools.plan_costs import afford_step
 from gaiavfx.application.harness.tools.producers import EmptyPlate, RemovalPlate, start_views
 from gaiavfx.application.harness.tools.retries import (
     preparation_operations,
@@ -119,7 +119,7 @@ def preparable(context, shot):
     needed = preparation_cost(context, shot)
     return (
         needed is not None
-        and needed <= context.jobs_limit - context.jobs_reserved
+        and needed <= context.budget.left
         and not any(
             o["state"] in IN_FLIGHT or o["review_pending"]
             for o in operations_for_shot(context.state, shot)
@@ -255,16 +255,7 @@ class PrepareCut(TransactionTool):
         receipts = []
 
         def afford(needed):
-            afford_step(context, needed)
-            zero_job_plan_step = needed == 0
-            if (
-                context.jobs_reserved >= context.jobs_limit and not zero_job_plan_step
-            ) or context.jobs_reserved + needed > context.jobs_limit:
-                raise ApplicationError(
-                    f"budget_exhausted: {context.jobs_reserved} reserved, "
-                    f"limit {context.jobs_limit}, needed {needed} jobs.",
-                    422,
-                )
+            budget.afford(context, needed)
 
         actions, review = preparation_actions(plan)
         if value.insertion and "insert_subject" not in actions:

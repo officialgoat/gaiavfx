@@ -5,6 +5,7 @@ import json
 import pytest
 
 from gaiavfx.application.harness.board import Whiteboard
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import assemble, turn_messages
 from gaiavfx.shared.errors import ApplicationError
 
@@ -102,7 +103,7 @@ def test_all_active_steps_and_pending_reviews_survive_large_view():
             for i in range(24)
         ],
     )
-    view = render_view(state, "off", 0, 0, document=doc)
+    view = render_view(state, "off", Budget(0, 0), document=doc)
     assert estimate(view) <= VIEW_CEILING
     assert all(f"step {i} [edit]" in view for i in range(12))
     assert all(f"review-{i:036}" in view for i in range(24))

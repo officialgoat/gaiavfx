@@ -12,6 +12,7 @@ from test_harness_reference_text import ANGLE, prepare_grant
 from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import action_schema, parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import SCHEMA_CEILING, estimate
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
@@ -57,7 +58,7 @@ def plan(context, kind, target="", *, edit=False):
             reserved_at_approval=0,
         ),
     )
-    context.jobs_limit = 6
+    context.budget = Budget(6, context.budget.spent)
     return context
 
 
@@ -538,7 +539,7 @@ def test_k11_real_stale_selection_keeps_requested_target_and_explains_it(tmp_pat
         assert tool.narrow(context)["properties"]["segment_id"]["enum"] == [
             setup["second_segment_id"]
         ]
-        view = render_view(context.state, "render", 0, 6, document=context.document)
+        view = render_view(context.state, "render", Budget(6, 0), document=context.document)
         assert "Phases changed since this take" in view and setup["take"] in view
         for target in (setup["segment_id"], setup["second_segment_id"]):
             result = tool.run(context, tool.Input(segment_id=target))

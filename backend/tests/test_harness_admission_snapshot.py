@@ -19,11 +19,11 @@ from test_harness_film import RECAST, film, plan  # noqa: F401 (fixture)
 
 from gaiavfx.application.harness import context as harness_context
 from gaiavfx.application.harness.actions import action_schema, parse_action
+from gaiavfx.application.harness.budget import step_left as step_jobs_left
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import DEFAULT_TOOLS, applicable_tools
 from gaiavfx.application.harness.tools.common import truthful_refusal
-from gaiavfx.application.harness.tools.plan_costs import step_jobs_left
 from gaiavfx.application.harness.tools.step_targets import require_target, target_problem
 from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.shared.errors import ApplicationError

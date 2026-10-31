@@ -4,6 +4,7 @@ import hashlib
 
 from pydantic import Field, model_validator
 
+from gaiavfx.application.harness import budget
 from gaiavfx.application.harness.actions import ToolResult, pin_enum
 from gaiavfx.application.harness.tools.common import (
     TransactionTool,
@@ -11,7 +12,6 @@ from gaiavfx.application.harness.tools.common import (
     permitted,
     scoped,
 )
-from gaiavfx.application.harness.tools.plan_costs import afford_step, step_jobs_left
 from gaiavfx.application.harness.tools.step_targets import target_ids, target_problem
 from gaiavfx.application.harness.world import FINISHED, IN_FLIGHT, operations
 from gaiavfx.application.render_cut import start_render
@@ -56,8 +56,8 @@ class RenderCandidates(TransactionTool):
             return self
 
     def narrow(self, context):
-        left = context.jobs_limit - context.jobs_reserved
-        if not permitted(context, "render") or left <= 0:
+        left = context.budget.left
+        if not permitted(context, "render") or not left:
             return None
         # Keep the established continuation-recovery path callable: it returns
         # the instruction to read and pick a predecessor. Every other refusal
@@ -108,12 +108,7 @@ class RenderCandidates(TransactionTool):
         if problem := target_problem(context, self.name):
             raise ApplicationError(problem, 422)
         seeds = render_seeds(context, value)
-        afford_step(context, len(seeds))
-        if context.jobs_reserved + len(seeds) > context.jobs_limit:
-            raise ApplicationError(
-                f"budget_exhausted: {context.jobs_reserved} reserved, limit {context.jobs_limit}, needed {len(seeds)} jobs.",
-                422,
-            )
+        budget.afford(context, len(seeds))
         if len(set(seeds)) != len(seeds):
             raise ApplicationError("Render seeds must be distinct.", 422)
         recent = operations.recent(session, kind="render", scope={"segment_id": [segment_id]})
@@ -151,11 +146,7 @@ def render_seeds(context, value):
         if "count" in value.model_fields_set and value.count != len(value.seeds):
             raise ApplicationError("count must match the number of explicit seeds.", 422)
         return value.seeds
-    left = max(0, context.jobs_limit - context.jobs_reserved)
-    step_left = step_jobs_left(context)
-    if step_left is not None:
-        left = min(left, step_left)
-    count = value.count if "count" in value.model_fields_set else min(2, left)
+    count = value.count if "count" in value.model_fields_set else min(2, budget.left(context))
     if not count:
         raise ApplicationError("budget_exhausted: No render jobs left.", 422)
     base = int(hashlib.sha256(f"{context.session_id}:{context.turn}".encode()).hexdigest()[:8], 16)

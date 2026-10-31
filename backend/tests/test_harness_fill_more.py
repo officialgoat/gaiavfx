@@ -10,9 +10,9 @@ from test_set_seed import scene as scene  # noqa: PLC0414
 
 from gaiavfx.api.agent import HarnessSessionDTO
 from gaiavfx.application import set_fill, sets
-from gaiavfx.application.harness.commands import jobs_reserved
+from gaiavfx.application.harness.budget import reserved as jobs_reserved
+from gaiavfx.application.harness.budget import step_left as step_jobs_left
 from gaiavfx.application.harness.loop import ended_turn
-from gaiavfx.application.harness.tools.plan_costs import step_jobs_left
 from gaiavfx.application.harness.tools.sets import BuildSetFromTake, FillSetMore
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError

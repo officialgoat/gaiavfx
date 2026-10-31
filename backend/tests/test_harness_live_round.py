@@ -7,6 +7,7 @@ import pytest
 from harness_support import action
 from test_harness_follow_through import post, story
 
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.plan import ProposePlan
 from gaiavfx.application.harness.tools.talk import Say
@@ -301,14 +302,14 @@ def test_l5_reviewed_views_and_pin_still_need_free_sheet_assembly(tmp_path):
         ctx = context_for(work, setup)
         assert ctx.state.plans[setup["cut_id"]]["recommended"]["ready"]
         assert not ctx.state.segment_plans[setup["segment_id"]]["ready"]
-        view = render_view(ctx.state, ctx.autonomy, ctx.jobs_reserved, ctx.jobs_limit)
+        view = render_view(ctx.state, ctx.autonomy, ctx.budget)
         assert "references ready; segment not ready" in view
         assert "prepare_cut assembles it for free" in view
         segment = next(s for s in ctx.state.payload()["segments"] if s["id"] == setup["segment_id"])
         assert not segment["render"]["ready"]
         inspected = InspectCut().run(ctx, InspectCut.Input(cut_id=setup["cut_id"]))
         assert not inspected.payload["segment_render"]["ready"]
-        ctx.jobs_limit = ctx.jobs_reserved
+        ctx.budget = Budget(ctx.budget.spent, ctx.budget.spent)
         tool = PrepareCut()
         assert tool.narrow(ctx) is not None
         result = tool.run(ctx, tool.Input(cut_id=setup["cut_id"]))

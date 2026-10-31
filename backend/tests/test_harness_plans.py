@@ -5,6 +5,7 @@ import pytest
 from harness_support import action, run
 
 from gaiavfx.application.harness.actions import parse_action
+from gaiavfx.application.harness.budget import limit_of
 from gaiavfx.application.harness.session import AgentSession
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.edits import EditCast
@@ -249,6 +250,7 @@ def test_plan_budget_is_the_grant_plus_prior_reservations_without_reading_settin
             ),
         )
     )
-    assert harness._authority(document) == ("off", 7)
+    assert harness._authority(document) == "off"
+    assert limit_of(document, {"agent_budget_jobs": 99}) == 7
     document.plan = None
-    assert harness._authority(document) == ("off", 0)
+    assert limit_of(document, {"agent_budget_jobs": 99}) == 0

@@ -11,12 +11,12 @@ from gaiavfx.application.harness.actions import (
     action_schema,
     parse_action,
 )
+from gaiavfx.application.harness.budget import Budget, limit_of
 from gaiavfx.application.harness.commands import (
     ACTION_ALLOWANCE,  # noqa: F401 - compatibility for harness callers
     THINKING_ALLOWANCE,  # noqa: F401
     ConversationCommands,
     frozen_settings,  # noqa: F401
-    jobs_reserved,
 )
 from gaiavfx.application.harness.context import (
     assemble,
@@ -127,8 +127,8 @@ class Harness(ConversationCommands, PlanCommands):
             return record.save(document, "running" if retry else "failed")
 
     def context(self, row, document, turns, turn_id=""):
-        autonomy, limit = self._authority(document)
-        reserved = jobs_reserved(turns)
+        autonomy = self._authority(document)
+        budget = Budget.of(document, turns, self.settings())
         read = reported_reviews(turns)
         started = history.message_renders(turns)
         with self.db.transaction() as session:
@@ -163,7 +163,7 @@ class Harness(ConversationCommands, PlanCommands):
             scope_kind=row["scope_kind"],
             scope_id=row["scope_id"],
             board=document.board,
-            view=scope_view(state, autonomy, reserved, limit, document=document),
+            view=scope_view(state, autonomy, budget, document=document),
             turn=len(turns),
             turn_id=turn_id,
             state=state,
@@ -172,8 +172,7 @@ class Harness(ConversationCommands, PlanCommands):
                 "agent_budget_jobs": self.settings().get("agent_budget_jobs", 6),
             },
             autonomy=autonomy,
-            jobs_reserved=reserved,
-            jobs_limit=limit,
+            budget=budget,
             cancelled=lambda: self.cancelled(row["id"]),
             document=document,
             library=self.library,
@@ -345,8 +344,8 @@ class Harness(ConversationCommands, PlanCommands):
                         "tools": ["reference_notes"]
                         if reading
                         else [tool.name for tool, _ in applicable],
-                        "jobs_limit": context.jobs_limit,
-                        "jobs_reserved": context.jobs_reserved,
+                        "jobs_limit": context.budget.limit,
+                        "jobs_reserved": context.budget.spent,
                     },
                 )
                 document.budgets.request_turns += 1
@@ -369,8 +368,8 @@ class Harness(ConversationCommands, PlanCommands):
                             provenance={
                                 "context": report,
                                 "tools": [tool.name for tool, _ in applicable],
-                                "jobs_limit": context.jobs_limit,
-                                "jobs_reserved": context.jobs_reserved,
+                                "jobs_limit": context.budget.limit,
+                                "jobs_reserved": context.budget.spent,
                             },
                         )
                     ),
@@ -431,7 +430,10 @@ class Harness(ConversationCommands, PlanCommands):
                 context.board = document.board
                 if context.cancelled():
                     raise ApplicationError("cancelled by the user", 409)
-                context.autonomy, context.jobs_limit = self._authority(document)
+                # The human may approve or revoke a plan while the model thinks.
+                context.autonomy = self._authority(document)
+                limit = limit_of(document, self.settings())
+                context.budget = Budget(limit, context.budget.spent)
                 tools = applicable_tools(context, self.tools)
                 tool, value = parse_action(reply.raw, tools, context)
                 result = tool.run(context, value)

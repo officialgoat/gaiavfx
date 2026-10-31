@@ -154,6 +154,11 @@ class AgentSession(StrictModel):
     model_retries: int = Field(default=0, ge=0, le=1)
     focus: dict | None = None
 
+    def executing_step(self) -> PlanStep | None:
+        """The step an executing plan is on; None while no plan governs or it is not executing."""
+        plan = self.plan if self.plan_mode else None
+        return plan.current() if plan and plan.state == "executing" else None
+
     @model_validator(mode="after")
     def _film_always_plans(self):
         # ADR 0017 amendment 11: a film's document cannot represent plan mode off, so every

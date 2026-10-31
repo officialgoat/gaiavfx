@@ -9,6 +9,7 @@ from typing import Any, ClassVar
 
 from pydantic import Field, ValidationError
 
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import SCHEMA_CEILING, estimate
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
@@ -52,8 +53,7 @@ class ToolContext:
     state: Any = None
     settings: dict = field(default_factory=dict)
     autonomy: str = "off"
-    jobs_reserved: int = 0
-    jobs_limit: int = 6
+    budget: Budget = field(default_factory=Budget)
     cancelled: Callable[[], bool] = lambda: False
     document: Any = None
     library: Any = None

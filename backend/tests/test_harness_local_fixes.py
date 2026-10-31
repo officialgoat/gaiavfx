@@ -11,6 +11,7 @@ from harness_eval_scripts import GOOD, SAY, STEP_DONE, STORY_PLAN, action, prepa
 from harness_eval_tasks import TASKS
 
 from gaiavfx.application.harness.actions import parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.render import RenderCandidates, render_seeds
@@ -204,21 +205,19 @@ def test_say_backstop_steps_reviews_and_refusal_escape(kernel):
 
 
 def test_count_is_deterministic_bounded_and_explicit_seeds_are_reproducible():
-    context = SimpleNamespace(
-        session_id="session", turn=5, jobs_limit=4, jobs_reserved=0, document=None
-    )
+    context = SimpleNamespace(session_id="session", turn=5, budget=Budget(4, 0), document=None)
     Input = RenderCandidates.Input
     default = Input(cut_id="cut")
     first = render_seeds(context, default)
     assert first == render_seeds(context, default) and len(set(first)) == 2
     context.turn += 1
     assert first != render_seeds(context, default)
-    context.jobs_reserved = 3
+    context.budget = Budget(context.budget.limit, 3)
     assert len(render_seeds(context, default)) == 1
     assert render_seeds(context, Input(cut_id="cut", seeds=[123])) == [123]
     with pytest.raises(ApplicationError, match="count must match"):
         render_seeds(context, Input(cut_id="cut", count=2, seeds=[123]))
-    context.jobs_reserved = 4
+    context.budget = Budget(context.budget.limit, 4)
     with pytest.raises(ApplicationError, match="budget_exhausted"):
         render_seeds(context, default)
 
@@ -235,7 +234,7 @@ def test_render_count_narrowing_and_backstop(tmp_path):
         doc = AgentSession.model_validate(row["document"])
         doc.plan_mode = False
         ctx = h.context(row, doc, [])
-        ctx.jobs_limit, ctx.jobs_reserved = 2, 1
+        ctx.budget = Budget(2, 1)
         tool = RenderCandidates()
         assert tool.narrow(ctx)["properties"]["count"]["maximum"] == 1
         result = tool.run(ctx, tool.Input(cut_id=setup["cut_id"], count=2))

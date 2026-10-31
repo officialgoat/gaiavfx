@@ -127,8 +127,8 @@ def recast_lines(recast):
     return lines
 
 
-def scope_view(state, autonomy, jobs_reserved, jobs_limit, *, document=None):
-    view = render_view(state, autonomy, jobs_reserved, jobs_limit, document=document)
+def scope_view(state, autonomy, budget, *, document=None):
+    view = render_view(state, autonomy, budget, document=document)
     if not isinstance(state, FilmState):
         return view
     # Plan targets must appear in the view (view_ids), so the recast and character ids are printed.

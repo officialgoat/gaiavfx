@@ -16,7 +16,7 @@ from test_harness_round5 import executing
 from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import parse_action
-from gaiavfx.application.harness.session import PlanStep
+from gaiavfx.application.harness.session import AgentSession, PlanStep
 from gaiavfx.application.harness.tools.authoring import require_shot, validate_overhead
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.edits import EditCut
@@ -312,7 +312,7 @@ def test_d4_producer_cannot_spend_other_steps_budget(unplated):
 
 
 def test_d4_receipt_reattachment_does_not_refund_step_jobs():
-    from gaiavfx.application.harness.tools.plan_costs import afford_step
+    from gaiavfx.application.harness.budget import afford_step
 
     step = PlanStep(
         kind="render",
@@ -323,7 +323,7 @@ def test_d4_receipt_reattachment_does_not_refund_step_jobs():
             {"kind": "operation", "id": "render"},
         ],
     )
-    ctx = SimpleNamespace(document=SimpleNamespace(plan_mode=True, plan=executing(step)))
+    ctx = SimpleNamespace(document=AgentSession(plan_mode=True, plan=executing(step)))
     with pytest.raises(ApplicationError, match="producer needs 1 jobs.*0 jobs remaining"):
         afford_step(ctx, 1)
 

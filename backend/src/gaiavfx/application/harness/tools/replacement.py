@@ -7,6 +7,7 @@ from typing import Annotated
 
 from pydantic import Field, model_validator
 
+from gaiavfx.application.harness import budget
 from gaiavfx.application.harness.actions import ToolResult, inlined, pin_enum
 from gaiavfx.application.harness.replacement_context import (
     cut_failure,
@@ -23,7 +24,6 @@ from gaiavfx.application.harness.tools.common import (
     permitted,
     scoped,
 )
-from gaiavfx.application.harness.tools.plan_costs import afford_step, step_jobs_left
 from gaiavfx.application.harness.world import FINISHED, IN_FLIGHT, operation_view, operations
 from gaiavfx.application.replace_character import (
     PerformerChoice,
@@ -333,9 +333,8 @@ class PerformerInput(StrictModel):
 
 
 def remaining_renders(context):
-    remaining = context.jobs_limit - context.jobs_reserved
-    step_left = step_jobs_left(context)
-    return min(4, remaining, step_left if step_left is not None else 4)
+    """A replacement renders at most four candidates, within the budget left."""
+    return min(4, budget.left(context))
 
 
 class ReplaceCharacter(TransactionTool):
@@ -410,7 +409,7 @@ class ReplaceCharacter(TransactionTool):
             raise ApplicationError(
                 "budget_exhausted: replacement exceeds the remaining render grant.", 422
             )
-        afford_step(context, renders)
+        budget.afford_step(context, renders)
         scoped(context.state.people_analyses, value.analysis_id, "Analysis")
         op = operations.operation(session, value.analysis_id)
         source = op["request"]["source_asset"]

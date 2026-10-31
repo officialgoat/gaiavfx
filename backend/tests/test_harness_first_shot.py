@@ -12,6 +12,7 @@ from test_set_views import shack as shack  # noqa: PLC0414 - pytest fixture expo
 
 from gaiavfx.application import direction_plans, prepare_references
 from gaiavfx.application.direction_reading import DIRECTION
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.session import AgentSession, PlanStep
 from gaiavfx.application.harness.shots import shots
@@ -51,7 +52,7 @@ def test_a_first_shot_in_a_set_is_prepared_to_ready_by_the_agent(shack):
         ("sheet", s.place["id"]): 0,
     }
     assert s.segment["id"] in str(PrepareCut().narrow(ctx))
-    view = render_view(ctx.state, ctx.autonomy, 0, 6, document=ctx.document)
+    view = render_view(ctx.state, ctx.autonomy, Budget(6, 0), document=ctx.document)
     assert (
         f"First shot (prepare_cut cut_id {s.segment['id']}): opening_views not ready: "
         "view_angle, view_place"

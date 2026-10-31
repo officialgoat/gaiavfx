@@ -7,6 +7,7 @@ import pytest
 
 from gaiavfx.application.harness.actions import action_schema
 from gaiavfx.application.harness.board import Whiteboard, write_entry
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import (
     BOARD_CEILING,
     HEAD_CEILING,
@@ -81,7 +82,7 @@ def test_authoring_with_existing_stage_and_takes_fits_context(world):
         "catalog": catalog,
         "schema": action_schema(applicable),
         "board": doc.board,
-        "view": render_view(state, "off", 0, 6, document=doc),
+        "view": render_view(state, "off", Budget(6, 0), document=doc),
         "messages": [{"role": "user", "content": ctx.latest_user_message}],
         "context_size": 32768,
         "output": 2400,
@@ -237,7 +238,7 @@ def test_budget_per_state(world, message):
             if applicable is plan_widest
             else state_label(ctx, applicable)
         )
-        view = render_view(ctx.state, ctx.autonomy, 0, 6, document=ctx.document)
+        view = render_view(ctx.state, ctx.autonomy, Budget(6, 0), document=ctx.document)
         catalog = "\n".join(f"{tool.name}: {tool.description}" for tool, _ in applicable)
         report = assemble(
             system_prompt(ctx, applicable),
@@ -474,7 +475,7 @@ def test_all_twelve_plan_steps_remain_visible_with_maximum_unicode_titles():
             ),
         )
     )
-    view = render_view(state, "off", 0, 0, document=document)
+    view = render_view(state, "off", Budget(0, 0), document=document)
     assert all(f"step {i} [edit] pending:" in view for i in range(12))
     assert estimate(view) <= VIEW_CEILING
 

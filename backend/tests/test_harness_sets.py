@@ -10,6 +10,7 @@ from test_sets import make_bundle
 from gaiavfx.application import set_agent, set_bundles, sets
 from gaiavfx.application.harness.actions import ToolContext
 from gaiavfx.application.harness.board import Whiteboard
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools import sets as tools
@@ -69,7 +70,9 @@ def test_sets_enter_the_context_only_when_talked_about_or_read_before(world):
         later = WorldState(movie={"id": "movie", "title": "Harbor", "revision": 1})
         turns = [{"state": "accepted", "receipts": [{"kind": "set_read", "set_id": set_id}]}]
         tools.refresh_sets(session, later, workspace.library, turns, "And now?")
-        assert later.sets and "read_set reads a stage's cameras" in render_view(later, "off", 0, 6)
+        assert later.sets and "read_set reads a stage's cameras" in render_view(
+            later, "off", Budget(6, 0)
+        )
     assert "provenance" not in str(state.sets) and "artifact" not in str(state.sets)
 
 

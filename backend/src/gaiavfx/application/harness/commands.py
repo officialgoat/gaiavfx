@@ -1,5 +1,6 @@
 """Conversation commands and payloads for the durable Harness session."""
 
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.conversation import Record
 from gaiavfx.application.harness.scope import scope_state
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX, AgentSession
@@ -10,21 +11,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 ACTION_ALLOWANCE = 2048
 THINKING_ALLOWANCE = {"low": 6144, "medium": 12288, "xhigh": 12288}
-
-
-def jobs_reserved(turns):
-    # Deduplicate defensively: attaching or reading an operation never spends again. A stopped build's settled
-    # receipt replaces what it reserved (ADR 0020 §8).
-    receipts = {}
-    for turn in turns:
-        if turn["state"] != "accepted":
-            continue
-        for r in turn["receipts"]:
-            if r.get("kind") in {"operation", "recast_run"} and not receipts.get(r["id"], {}).get(
-                "settled"
-            ):
-                receipts[r["id"]] = r
-    return sum(r["budget_reserved"] for r in receipts.values())
 
 
 def frozen_settings(settings):
@@ -192,8 +178,9 @@ class ConversationCommands:
     def payload(self, row):
         doc = AgentSession.model_validate(row["document"])
         document = doc.model_dump()
-        autonomy, limit = self._authority(doc)
+        autonomy = self._authority(doc)
         turns = self.turns(row["id"])
+        budget = Budget.of(doc, turns, self.settings())
         build = self.build_progress(doc)
         return {
             **{
@@ -201,8 +188,8 @@ class ConversationCommands:
                 for key in ("id", "movie_id", "scope_kind", "scope_id", "state", "revision")
             },
             **{key: document[key] for key in ("board", "budgets", "stop_reason", "waiting_on")},
-            "jobs_reserved": jobs_reserved(turns),
-            "jobs_limit": limit,
+            "jobs_reserved": budget.spent,
+            "jobs_limit": budget.limit,
             "autonomy": autonomy,
             **{key: document[key] for key in ("plan_mode", "plan", "plan_history", "summary")},
             "plan_jobs_max": PLAN_JOBS_MAX,
@@ -276,12 +263,10 @@ class ConversationCommands:
         return row["state"]
 
     def _authority(self, document):
+        """Autonomy: off while a plan governs; its job budget is the Grant's (budget.limit_of)."""
         if document.plan_mode:
-            plan = document.plan
-            grant = plan.grant if plan and plan.state == "executing" else None
-            return "off", grant.reserved_at_approval + grant.budget_jobs if grant else 0
-        settings = self.settings()
-        return settings.get("agent_autonomy", "off"), settings.get("agent_budget_jobs", 6)
+            return "off"
+        return self.settings().get("agent_autonomy", "off")
 
     @staticmethod
     def _reset(document):

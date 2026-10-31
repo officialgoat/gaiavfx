@@ -9,6 +9,7 @@ from harness_support import action
 from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import ToolResult, action_schema, inlined, parse_action
+from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import assemble
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.prompt import system_prompt
@@ -90,11 +91,11 @@ def test_wrong_plate_retry_uses_original_source_one_job_and_waits_for_its_approv
     with pytest.raises(ApplicationError, match=setup["angles"][0]):
         parse_action(action(tool.name, **bad), [(tool, tool.narrow(ctx))])
     assert "plate_angle_mismatch" in tool.run(ctx, tool.Input(**bad)).discrepancy
-    ctx.jobs_limit = 0
+    ctx.budget = Budget(0, ctx.budget.spent)
     # S7j offers the zero-inference empty-image fit; removal still needs a job.
     assert tool.narrow(ctx) is not None
     assert "budget_exhausted" in tool.run(ctx, tool.Input(**value)).discrepancy
-    ctx.jobs_limit = 1
+    ctx.budget = Budget(1, ctx.budget.spent)
     # Omission defaults to from_angle; this is also valid in the grammar.
     value["plate"].pop("angle_id")
     _, parsed = parse_action(action(tool.name, **value), [(tool, tool.narrow(ctx))])

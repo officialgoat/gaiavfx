@@ -135,7 +135,7 @@ def target_problem(context, name):
             if actions & {"review_view", "review_keyframe"}:
                 reasons.append("the reference needs the user's approval in Review workspace")
             needed = preparation_cost(context, shot)
-            left = context.jobs_limit - context.jobs_reserved
+            left = context.budget.left
             if needed is not None and needed > left:
                 reasons.append(
                     f"needs {needed} preparation jobs but only {left} remain; revise the plan's budget for user approval"

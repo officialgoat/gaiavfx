@@ -8,6 +8,7 @@ from typing import Literal
 
 from pydantic import Field
 
+from gaiavfx.application.harness import budget
 from gaiavfx.application.harness.actions import ToolResult, pin_enum
 from gaiavfx.application.harness.tools.common import (
     TransactionTool,
@@ -16,7 +17,6 @@ from gaiavfx.application.harness.tools.common import (
     operation_receipt,
     scoped,
 )
-from gaiavfx.application.harness.tools.plan_costs import afford_step
 from gaiavfx.application.set_agent import (
     agent_fill_more,
     agent_mark_issue,
@@ -256,7 +256,7 @@ class FillSetMore(TransactionTool):
 
     def execute(self, session, context, value):
         scoped(rows(context), value.set_id, "Stage")
-        afford_step(context, fill_renders())
+        budget.afford_step(context, fill_renders())
         operation = agent_fill_more(session, context.library, value.set_id)
         state = repair_state(session, operation)
         return ToolResult(
@@ -314,7 +314,7 @@ class BuildSetFromTake(TransactionTool):
         )
         if preview["refusal"]:
             raise ApplicationError(preview["refusal"], 409)
-        afford_step(context, preview["renders"])
+        budget.afford_step(context, preview["renders"])
         name = value.name or preview["name"]
         # The place is built as the new set when it has none, as the user's dialog does by default.
         operation = start_seed(
