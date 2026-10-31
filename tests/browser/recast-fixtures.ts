@@ -359,6 +359,17 @@ export async function mockRecast(
   rate: FilmRate = [25, 1],
 ) {
   let value = recastFixture(count, rate);
+  // As Python's Run scope: the run's range waits while an included shot in it is still being analysed.
+  const served = () => {
+    const range = value.run.range;
+    value.run.analysing = value.shots.some(
+      (s) =>
+        s.included &&
+        s.status === "analysing" &&
+        (!range || (s.start < range.end && s.end > range.start)),
+    );
+    return value;
+  };
   const film = {
     ...filmAsset,
     info: { ...filmAsset.info, frame_rate: rate.join("/") },
@@ -664,7 +675,7 @@ export async function mockRecast(
           } satisfies S["LinesDTO"],
         });
       }
-      return route.fulfill({ json: value });
+      return route.fulfill({ json: served() });
     }
     calls.push({ path: suffix, method, body });
     if (!suffix) {
@@ -711,7 +722,7 @@ export async function mockRecast(
           attempt: retry ? value.dialogue.attempt + 1 : 1,
         };
       value.revision++;
-      return route.fulfill({ json: value });
+      return route.fulfill({ json: served() });
     }
     const undoing = /^\/[^/]+\/edits\/([^/]+)\/undo$/.exec(suffix);
     if (undoing) {
@@ -747,7 +758,7 @@ export async function mockRecast(
         kind,
       );
       value.revision++;
-      return route.fulfill({ json: value });
+      return route.fulfill({ json: served() });
     }
     const parts = suffix.split("/");
     const character = value.characters.find((c) => c.id === parts[3]);
@@ -1049,7 +1060,7 @@ export async function mockRecast(
       };
       return route.fulfill({ status: 201, json: operation });
     }
-    return route.fulfill({ json: value });
+    return route.fulfill({ json: served() });
   });
   return {
     calls,

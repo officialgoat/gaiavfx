@@ -272,13 +272,7 @@ export function useRecast(active: boolean) {
       value.run.state === "idle" &&
       value.run.renders_used === 0 &&
       !planDirty &&
-      !value.shots.some(
-        (s) =>
-          s.included &&
-          s.status === "analysing" &&
-          (!value.run.range ||
-            (s.start < value.run.range.end && s.end > value.run.range.start)),
-      ) &&
+      !value.run.analysing &&
       value.estimate.renders > 0
     )
       setBudget(Math.min(10000, value.estimate.renders));

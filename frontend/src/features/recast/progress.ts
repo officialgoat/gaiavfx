@@ -160,9 +160,8 @@ export function recastProgress(
   const unplannedOutside = value.shots.filter(
     (s) => !inside(s, view.range) && s.status === "unplanned",
   ).length;
-  const analysing = value.shots.some(
-    (s) => s.included && s.status === "analysing" && inside(s, value.run.range),
-  );
+  // Python says whether the run's range waits for window analyses (Run scope).
+  const analysing = value.run.analysing;
   const waiting = value.shots.filter((s) => QUEUES.waiting.test(s)).length;
   const planReason = view.busy
     ? "Saving…"
