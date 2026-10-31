@@ -19,21 +19,13 @@ from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
-DEFAULT_INTEGRATION = "minimax_h3"
-INTEGRATIONS = {DEFAULT_INTEGRATION: minimax_h3}
 METHODS = continuity.METHODS
 FIELDS = {"method": "continuation_method", "context_frames": "context_frames"}
 
 
-def provider(integration=DEFAULT_INTEGRATION):
-    found = INTEGRATIONS.get(integration)
-    if found is None:
-        raise ApplicationError(f"Unknown direction integration: {integration}", 422)
-    return found
-
-
-def grid(integration=DEFAULT_INTEGRATION):
-    return provider(integration).capabilities().frame_grid
+def grid():
+    """The frame grid segments render on: H3's, the one model Direction plans for."""
+    return minimax_h3.capabilities().frame_grid
 
 
 def source(session, row, context_artifact=None):
@@ -85,7 +77,7 @@ def angle_changes(row, predecessor):
     return last_angle(predecessor) != row["opening_angle_id"]
 
 
-def facts(session, row, *, pins, artifact=None, integration=DEFAULT_INTEGRATION):
+def facts(session, row, *, pins, artifact=None):
     """What the rule reads about one join. `pins` counts the window's planned pinned keyframes: a technique's
     planned pin counts before it is bound (docs/CONTINUATION.md)."""
     return ContinuationFacts(
@@ -93,36 +85,34 @@ def facts(session, row, *, pins, artifact=None, integration=DEFAULT_INTEGRATION)
         cuts=len(row["cuts"]),
         guides=pins,
         source_frames=(
-            continuity.source_frames(artifact.get("info"), grid(integration)) if artifact else None
+            continuity.source_frames(artifact.get("info"), grid()) if artifact else None
         ),
         angle_changes=row["continues"] and angle_changes(row, DIRECTION.predecessor(session, row)),
     )
 
 
-def resolve(
-    session, row, *, pins, artifact=None, integration=DEFAULT_INTEGRATION
-) -> Handoff | None:
+def resolve(session, row, *, pins, artifact=None) -> Handoff | None:
     """The handoff a continuing segment renders with and the rule's hint; None when it does not continue."""
     if not row["continues"]:
         return None
     return continuity.resolve(
-        facts(session, row, pins=pins, artifact=artifact, integration=integration),
+        facts(session, row, pins=pins, artifact=artifact),
         method=row["continuation_method"],
         context_frames=row["context_frames"],
-        grid=grid(integration),
+        grid=grid(),
     )
 
 
-def stored(choice, integration=DEFAULT_INTEGRATION):
+def stored(choice):
     """A choice as Direction stores it: the default context length is null, so the join follows the default."""
-    default = grid(integration).context_default
+    default = grid().context_default
     return {
         key: None if key == "context_frames" and value == default else value
         for key, value in choice.items()
     }
 
 
-def _problem(session, row, choice, integration):
+def _problem(session, row, choice):
     """Why the rule refuses `choice` for this join now, judged with its cuts, planned pins and source take."""
     # The planner reads this module; planning a join without its window imports it here.
     from gaiavfx.application.direction_plans import planned_pins
@@ -131,25 +121,17 @@ def _problem(session, row, choice, integration):
         artifact, _ = source(session, row)
     except ApplicationError:
         artifact = None  # no selected take yet: the render plan checks the source
-    known = facts(
-        session,
-        row,
-        pins=planned_pins(session, row, integration),
-        artifact=artifact,
-        integration=integration,
-    )
+    known = facts(session, row, pins=planned_pins(session, row), artifact=artifact)
     return continuity.choice_problem(
         known,
-        grid(integration),
+        grid(),
         method=choice.get("method", row["continuation_method"]),
         context_frames=choice.get("context_frames", row["context_frames"]),
         changing=frozenset(choice),
     )
 
 
-def set_continuation(
-    session, segment_id, expected_revision, *, integration=DEFAULT_INTEGRATION, **choice
-):
+def set_continuation(session, segment_id, expected_revision, **choice):
     """`choice` holds `method`, `context_frames` or both. Returns the edited segment with its receipt, or None
     when the choice is already stored: no receipt records a change that did not happen."""
     if not choice or set(choice) - set(FIELDS):
@@ -159,14 +141,10 @@ def set_continuation(
     row = DIRECTION.read_segment(session, segment_id)
     if row["revision"] != expected_revision:
         raise ApplicationError("Segment revision is stale.", 409)
-    changes = {
-        key: value
-        for key, value in stored(choice, integration).items()
-        if value != row[FIELDS[key]]
-    }
+    changes = {key: value for key, value in stored(choice).items() if value != row[FIELDS[key]]}
     if not changes:
         return None
-    if problem := _problem(session, row, changes, integration):
+    if problem := _problem(session, row, changes):
         raise ApplicationError(problem, 422)
     return DIRECTION.update_segment(
         session,
@@ -176,10 +154,10 @@ def set_continuation(
     )
 
 
-def judge(session, segment_id, integration=DEFAULT_INTEGRATION):
+def judge(session, segment_id):
     """Refuse a new segment's stored choice the rule cannot render, once its cuts and pins exist; the caller's
     transaction then rolls the whole addition back."""
     row = DIRECTION.read_segment(session, segment_id)
     choice = {key: row[field] for key, field in FIELDS.items() if row[field] is not None}
-    if choice and (problem := _problem(session, row, choice, integration)):
+    if choice and (problem := _problem(session, row, choice)):
         raise ApplicationError(problem, 422)

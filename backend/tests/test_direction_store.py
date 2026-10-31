@@ -256,9 +256,6 @@ def test_references_and_integration_errors_are_typed(store):
         with pytest.raises(ApplicationError) as missing:
             service.read_cut(session, "missing")
         assert missing.value.status == 404
-        with pytest.raises(ApplicationError) as unknown:
-            plan_for_cut(session, cut["id"], "unknown")
-        assert unknown.value.status == 422
         service.record_evidence(session, target["id"], "survey_view", "asset")
 
 

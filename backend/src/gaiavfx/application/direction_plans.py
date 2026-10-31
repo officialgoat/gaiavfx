@@ -1,4 +1,4 @@
-"""Compose stored Direction facts with an explicitly selected model integration.
+"""Compose stored Direction facts with H3, the model integration segments render with.
 
 A segment renders as one window of shots (ADR 0019): its opening, then the shot after each cut. Every shot has its
 own plan; the window lowers them together, with at most one place-views sheet.
@@ -10,8 +10,6 @@ from enum import Enum
 from sqlalchemy.orm import Session
 
 from gaiavfx.application import continuation as join
-from gaiavfx.application.continuation import DEFAULT_INTEGRATION, INTEGRATIONS
-from gaiavfx.application.continuation import provider as _provider
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.prepare_references import (
     current_sheet,
@@ -23,6 +21,7 @@ from gaiavfx.application.prepare_references import (
 from gaiavfx.application.scene_place import PlaceStatus, place_status
 from gaiavfx.application.set_seed import segment_seed
 from gaiavfx.application.sheet_recipes import sheet_reference
+from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.continuation import Handoff
 from gaiavfx.integrations.minimax_h3.prompt import gaps
 from gaiavfx.integrations.minimax_h3.window import Window, compile_window
@@ -74,8 +73,7 @@ def _with_sheet(session, place_id, available, bindings, judgments=()):
     return available, bindings + (binding,)
 
 
-def plan_for_cut(session: Session, cut_id: str, integration: str = DEFAULT_INTEGRATION) -> CutPlan:
-    provider = _provider(integration)
+def plan_for_cut(session: Session, cut_id: str) -> CutPlan:
     service = DIRECTION
     cut = service.read_cut(session, cut_id)
     place_id = service.read_angle(session, cut["to_angle_id"])["place_id"]
@@ -95,8 +93,8 @@ def plan_for_cut(session: Session, cut_id: str, integration: str = DEFAULT_INTEG
         return plan_cut(
             context,
             default_policy(),
-            provider.capabilities(),
-            provider.knowledge_pack(),
+            minimax_h3.capabilities(),
+            minimax_h3.knowledge_pack(),
             available,
             fidelity=cut["fidelity"],
             override=cut["override_technique"],
@@ -106,11 +104,8 @@ def plan_for_cut(session: Session, cut_id: str, integration: str = DEFAULT_INTEG
         raise ApplicationError(f"Invalid direction technique: {exc}", 422) from exc
 
 
-def plan_for_opening(
-    session: Session, segment_id: str, integration: str = DEFAULT_INTEGRATION
-) -> OpeningPlan | None:
+def plan_for_opening(session: Session, segment_id: str) -> OpeningPlan | None:
     """The plan of the segment's first shot, or None while it names no opening angle (ADR 0019 §1)."""
-    provider = _provider(integration)
     service = DIRECTION
     segment = service.read_segment(session, segment_id)
     if segment["opening_angle_id"] is None:
@@ -124,8 +119,8 @@ def plan_for_opening(
         return plan_opening(
             context,
             default_policy(),
-            provider.capabilities(),
-            provider.knowledge_pack(),
+            minimax_h3.capabilities(),
+            minimax_h3.knowledge_pack(),
             available,
             override=segment["opening_technique"],
             bindings=bindings,
@@ -222,26 +217,23 @@ def _shapes_window(shot: _Shot) -> bool:
     return shot.cut is not None or bool(choice and choice.blocks != (Block.DIRECTION_TEXT,))
 
 
-def plan_for_segment(session, segment_id, integration=DEFAULT_INTEGRATION, **inputs):
+def plan_for_segment(session, segment_id, **inputs):
     """The segment's plan as the UI and the agent read it: the render's plan, and the set being built from the
     segment's take with why none can be built now (ADR 0019 §4), which rendering never reads."""
-    plan = segment_render_inputs(session, segment_id, integration, **inputs).plan
+    plan = segment_render_inputs(session, segment_id, **inputs).plan
     seed, build_refusal = segment_seed(session, direction.read_segment(session, segment_id))
     return replace(plan, seed=seed, build_refusal=build_refusal)
 
 
-def segment_render_inputs(
-    session, segment_id, integration=DEFAULT_INTEGRATION, *, sheet_asset=None, context_artifact=None
-):
+def segment_render_inputs(session, segment_id, *, sheet_asset=None, context_artifact=None):
     """Inspect and lower the whole window before reserving any jobs.
 
     Each shot retains its own policy and binding judgments. A repeated sheet is validated for every shot, then
     bound once at the first shot that needs it: the opening's comes first.
     """
-    _provider(integration)
     row = direction.read_segment(session, segment_id)
-    opening = plan_for_opening(session, segment_id, integration)
-    plans = tuple(plan_for_cut(session, cut["id"], integration) for cut in row["cuts"])
+    opening = plan_for_opening(session, segment_id)
+    plans = tuple(plan_for_cut(session, cut["id"]) for cut in row["cuts"])
     shots = _shots(row, opening, plans)
     refusals = []
     sheet_shots = []
@@ -342,14 +334,11 @@ def segment_render_inputs(
             artifact, source = join.source(session, row, context_artifact)
         except ApplicationError as exc:
             missing_source = SegmentRefusal("continuation_source", str(exc))
-        handoff = join.resolve(
-            session, row, pins=_planned_pins(shots), artifact=artifact, integration=integration
-        )
+        handoff = join.resolve(session, row, pins=_planned_pins(shots), artifact=artifact)
         handoff_refusals = [SegmentRefusal(*r) for r in (handoff.refusals if handoff else ())]
         if not refusals and not handoff_refusals:
-            grid = INTEGRATIONS[integration].capabilities().frame_grid
             try:
-                window = compile_window(segment, pictures, keyframes, grid, handoff)
+                window = compile_window(segment, pictures, keyframes, join.grid(), handoff)
             except ValueError as exc:
                 refusals.append(SegmentRefusal("compiler", str(exc)))
         refusals.extend(handoff_refusals)
@@ -357,7 +346,7 @@ def segment_render_inputs(
             refusals.append(missing_source)
     else:
         # The continuation row still says how this join would hand over, while the structure is refused.
-        handoff = join.resolve(session, row, pins=_planned_pins(shots), integration=integration)
+        handoff = join.resolve(session, row, pins=_planned_pins(shots))
     shaping = [shot.plan for shot in shots if _shapes_window(shot)]
     techniques = {p.recommended.technique_id for p in shaping if p.recommended}
     technique = (
@@ -397,10 +386,10 @@ def _planned_pins(shots):
     )
 
 
-def planned_pins(session, row, integration=DEFAULT_INTEGRATION):
+def planned_pins(session, row):
     """`_planned_pins` for a segment whose window is not being lowered: its shots are planned here."""
-    opening = plan_for_opening(session, row["id"], integration)
-    plans = tuple(plan_for_cut(session, cut["id"], integration) for cut in row["cuts"])
+    opening = plan_for_opening(session, row["id"])
+    plans = tuple(plan_for_cut(session, cut["id"]) for cut in row["cuts"])
     return _planned_pins(_shots(row, opening, plans))
 
 

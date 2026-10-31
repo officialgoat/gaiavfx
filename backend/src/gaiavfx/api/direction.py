@@ -10,7 +10,6 @@ from gaiavfx.application import set_scenes, set_seed, sets
 from gaiavfx.application.authored import segment_to_dict
 from gaiavfx.application.continuation import METHODS, grid, set_continuation
 from gaiavfx.application.direction_plans import (
-    DEFAULT_INTEGRATION,
     plan_for_cut,
     plan_for_segment,
     plan_to_dict,
@@ -995,16 +994,13 @@ def direction_router(workspace, authenticate):
             return direction.suitability(session, cut_id)
 
     @router.get("/cuts/{cut_id}/plan", response_model=CutPlanDTO)
-    def get_cut_plan(cut_id: str, integration: str = DEFAULT_INTEGRATION):
+    def get_cut_plan(cut_id: str):
         with workspace.db.transaction() as session:
-            return CutPlanDTO.model_validate(
-                plan_to_dict(plan_for_cut(session, cut_id, integration))
-            )
+            return CutPlanDTO.model_validate(plan_to_dict(plan_for_cut(session, cut_id)))
 
     @router.get("/segments/{segment_id}/plan", response_model=DirectionSegmentPlanDTO)
     def get_segment_plan(
         segment_id: str,
-        integration: str = DEFAULT_INTEGRATION,
         sheet_asset: str | None = None,
         context_artifact: str | None = None,
     ):
@@ -1013,7 +1009,6 @@ def direction_router(workspace, authenticate):
                 plan_for_segment(
                     session,
                     segment_id,
-                    integration,
                     sheet_asset=sheet_asset,
                     context_artifact=context_artifact,
                 )

@@ -43,7 +43,6 @@ def test_cut_plan_endpoint_and_missing_cut(tmp_path):
         assert response.json()["recommended"]["actions"][0]["action"] == "view_angle"
         assert client.get(path).status_code == 401
         assert client.get("/api/direction/cuts/missing/plan", headers=AUTH).status_code == 404
-        assert client.get(path, headers=AUTH, params={"integration": "other"}).status_code == 422
         operation = app.openapi()["paths"]["/api/direction/cuts/{cut_id}/plan"]["get"]
         assert "200" in operation["responses"]
         assert operation["responses"]["200"]["content"]["application/json"]["schema"][

@@ -10044,9 +10044,7 @@ export interface operations {
   };
   get_cut_plan_api_direction_cuts__cut_id__plan_get: {
     parameters: {
-      query?: {
-        integration?: string;
-      };
+      query?: never;
       header?: never;
       path: {
         cut_id: string;
@@ -10078,7 +10076,6 @@ export interface operations {
   get_segment_plan_api_direction_segments__segment_id__plan_get: {
     parameters: {
       query?: {
-        integration?: string;
         sheet_asset?: string | null;
         context_artifact?: string | null;
       };

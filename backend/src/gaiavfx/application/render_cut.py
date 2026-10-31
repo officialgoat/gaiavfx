@@ -34,7 +34,6 @@ def start_render(
     sheet_asset=None,
     context_artifact=None,
     budget_limit=None,
-    integration="minimax_h3",
     request_key=None,
 ):
     if (segment_id is None) == (cut_id is None):
@@ -44,7 +43,7 @@ def start_render(
     segment_row = direction.read_segment(session, segment_id)
     movie_id = segment_row["movie_id"]
     inputs_plan = segment_render_inputs(
-        session, segment_id, integration, sheet_asset=sheet_asset, context_artifact=context_artifact
+        session, segment_id, sheet_asset=sheet_asset, context_artifact=context_artifact
     )
     plan, segment, artifact = inputs_plan.plan, inputs_plan.segment, inputs_plan.artifact
     if plan.refusals:

@@ -158,7 +158,6 @@ def parser() -> argparse.ArgumentParser:
     cut_set.add_argument("--clear-override", action="store_true")
     cut_inspect = cut.add_parser("inspect")
     cut_inspect.add_argument("cut_id")
-    cut_inspect.add_argument("--integration", default="minimax_h3")
 
     library = groups.add_parser("library").add_subparsers(dest="action", required=True)
     library.add_parser("create").add_argument("--name", required=True)
@@ -468,7 +467,7 @@ def _dispatch(service: DirectionService, session, args):
         return service.update_cut(
             session, args.cut_id, args.expected_revision, **_cut_fields(args, create=False)
         )
-    return plan_to_dict(plan_for_cut(session, args.cut_id, args.integration))
+    return plan_to_dict(plan_for_cut(session, args.cut_id))
 
 
 def main(argv: list[str] | None = None, *, comfy=None) -> int:
