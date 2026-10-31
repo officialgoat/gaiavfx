@@ -4,7 +4,7 @@ from pydantic import Field
 
 from gaiavfx.application.harness import prompt
 from gaiavfx.application.harness.actions import Tool, ToolResult
-from gaiavfx.application.harness.tools.common import TOOL_KINDS, current_step, granted, refusal
+from gaiavfx.application.harness.tools.common import current_step, granted, refusal
 from gaiavfx.application.harness.tools.report_truth import (
     completed_plate_refusal,
     correction_refusal,
@@ -16,6 +16,8 @@ from gaiavfx.shared.contracts import StrictModel
 
 class Say(Tool):
     name = "say"
+    film = True
+    always = True
     description = prompt.SAY
     terminal = True
 
@@ -37,7 +39,7 @@ class Say(Tool):
                 from gaiavfx.application.harness.tools import DEFAULT_TOOLS
 
                 legal = any(
-                    TOOL_KINDS.get(tool.name) == step.kind
+                    tool.step_kind == step.kind
                     and granted(context, step.kind)
                     and tool.narrow(context) is not None
                     for tool in DEFAULT_TOOLS
@@ -71,6 +73,9 @@ class Say(Tool):
 
 class AskHuman(Tool):
     name = "ask_human"
+    film = True
+    always = True
+    reads = True
     description = prompt.ASK_HUMAN
     terminal = True
 

@@ -12,7 +12,7 @@ import re
 from itertools import pairwise
 
 from gaiavfx.application.harness.reading import validate_notes
-from gaiavfx.application.harness.tools.common import TOOL_KINDS
+from gaiavfx.application.harness.tools import KINDS as TOOL_KINDS
 from gaiavfx.shared.errors import ApplicationError
 from harness_eval_outcome_state import authority
 

@@ -777,7 +777,7 @@ def test_film_conversation_tools_are_adr_0012_section_8():
     """ADR 0012 Amendment 7 §8: a film's agent reads, proposes, plans and starts runs; nothing else."""
     from gaiavfx.application.harness.scope import FILM_TOOLS
     from gaiavfx.application.harness.tools import DEFAULT_TOOLS
-    from gaiavfx.application.harness.tools.common import TOOL_KINDS
+    from gaiavfx.application.harness.tools import KINDS as TOOL_KINDS
 
     assert FILM_TOOLS <= {tool.name for tool in DEFAULT_TOOLS}
     assert not {name for name in FILM_TOOLS if TOOL_KINDS.get(name) in {"edit", "prepare", "pick"}}

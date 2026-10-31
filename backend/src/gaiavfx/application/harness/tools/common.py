@@ -11,40 +11,6 @@ def refusal(message):
     return ToolResult(ok=False, discrepancy=str(message))
 
 
-TOOL_KINDS = {
-    **dict.fromkeys(("edit_cut", "edit_place", "edit_segment", "edit_phase", "edit_cast"), "edit"),
-    "draft_storyline": "edit",
-    "prepare_cut": "prepare",
-    "render_candidates": "render",
-    "replace_character": "render",
-    "start_recast_run": "render",
-    "pick_provisional": "pick",
-    "save_set_view": "edit",
-    "link_set": "edit",
-    "build_set_from_take": "build",
-    "fill_set_more": "build",
-}
-
-# ADR 0012 §8 (Amendment 7): a film's agent reads the recast, proposes casts and
-# appearances, plans and talks, and starts a recast run only inside an approved plan.
-# Analysis, retakes, head passes, pausing, cancelling, choosing, confirming and
-# conforming stay human; none of them is a harness tool.
-FILM_TOOLS = frozenset(
-    {
-        "read_recast",
-        "propose_cast",
-        "propose_appearance",
-        "start_recast_run",
-        "propose_plan",
-        "plan_step",
-        "say",
-        "ask_human",
-        "board_write",
-        "describe_reference",
-    }
-)
-
-
 def current_step(context):
     document = context.document
     if not document or not document.plan_mode or not document.plan:
@@ -52,12 +18,6 @@ def current_step(context):
     if document.plan.state != "executing":
         return None
     return document.plan.current()
-
-
-# Edits that supply a preparation's missing inputs (place and angle text, phase
-# screen direction, the cut's relation or insertion, cast identity). Drafting and
-# segment structure are not preparation; offering them overflowed the schema.
-PREPARATION_EDITS = {"edit_place", "edit_phase", "edit_cut", "edit_cast"}
 
 
 def operation_receipt(operation, **extra) -> dict:
@@ -73,38 +33,16 @@ def operation_receipt(operation, **extra) -> dict:
     }
 
 
-def step_applicable(context, name):
+def step_applicable(context, tool):
     """Focus the grammar on the current step; the immutable grant still owns authority."""
     step = current_step(context)
     if not step:
         return True
-    if step.kind == "render" and name == "prepare_cut":
+    if step.kind == "render" and tool.name == "prepare_cut":
         from gaiavfx.application.harness.tools.preparation_progress import render_sheet_targets
 
         return bool(render_sheet_targets(context))
-    return (
-        name
-        in {
-            "read_movie",
-            "read_segment",
-            "inspect_cut",
-            "read_candidates",
-            "describe_reference",
-            "analyze_reference_video",
-            "analyze_people",
-            "read_recast",
-            "propose_cast",
-            "propose_appearance",
-            "read_set",
-            "mark_set_issue",
-            "plan_step",
-            "ask_human",
-            "say",
-            "propose_plan",
-        }
-        or TOOL_KINDS.get(name) == step.kind
-        or (step.kind == "prepare" and name in PREPARATION_EDITS)
-    )
+    return tool.always or tool.step_kind == step.kind or (step.kind == "prepare" and tool.prepares)
 
 
 def granted(context, kind):
@@ -132,11 +70,11 @@ def permitted(context, kind):
 
 def tool_schema(context, tool):
     """One availability decision for the grammar and recovery instructions."""
-    if getattr(context, "scope_kind", "") == "film" and tool.name not in FILM_TOOLS:
+    if getattr(context, "scope_kind", "") == "film" and not tool.film:
         return None
-    if tool.reading_refusal(context) or not step_applicable(context, tool.name):
+    if tool.reading_refusal(context) or not step_applicable(context, tool):
         return None
-    if tool.name in TOOL_KINDS and not granted(context, TOOL_KINDS[tool.name]):
+    if tool.step_kind and not granted(context, tool.step_kind):
         return None
     return tool.narrow(context)
 
@@ -159,24 +97,24 @@ def truthful_refusal(context, message):
     from gaiavfx.application.harness.tools import DEFAULT_TOOLS
 
     missing = [
-        t.name
+        t
         for t in DEFAULT_TOOLS
         if re.search(rf"\b{t.name}\b", message)
         and not available(context, t.name)
         and (t.name != "say" or re.search(r"\b(?:[Uu]se|[Cc]all|with) say\b|\bsay:", message))
     ]
-    for name in missing:
-        message = re.sub(rf"\b{name}(?:\.[\w.]+)?\b", "the required action", message)
+    for tool in missing:
+        message = re.sub(rf"\b{tool.name}(?:\.[\w.]+)?\b", "the required action", message)
     plan = context.document.plan if context.document else None
     lacking = [
-        TOOL_KINDS[name]
-        for name in missing
-        if name in TOOL_KINDS
+        tool.step_kind
+        for tool in missing
+        if tool.step_kind
         and plan
         and context.document.plan_mode
         and plan.state == "executing"
         and plan.grant
-        and TOOL_KINDS[name] not in plan.grant.step_kinds
+        and tool.step_kind not in plan.grant.step_kinds
     ]
     return (revision_guidance(context, lacking[0]) + " " + message) if lacking else message
 
@@ -255,16 +193,15 @@ class TransactionTool(Tool):
 
         try:
             require_target(context, self.name, value.model_dump())
-            if self.name in TOOL_KINDS and (
-                not granted(context, TOOL_KINDS[self.name])
-                or not step_applicable(context, self.name)
+            if self.step_kind and (
+                not granted(context, self.step_kind) or not step_applicable(context, self)
             ):
                 raise ApplicationError(
                     "Not in the approved plan's current step. "
-                    + revision_guidance(context, TOOL_KINDS[self.name]),
+                    + revision_guidance(context, self.step_kind),
                     422,
                 )
-            if self.name in TOOL_KINDS:
+            if self.step_kind:
                 text = value.model_dump()
                 # Insertion resolves known ids and reports all invalid fields together.
                 text.pop("insertion", None)

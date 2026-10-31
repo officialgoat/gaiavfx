@@ -12,6 +12,10 @@ from gaiavfx.shared.errors import ApplicationError
 
 class DescribeReference(Tool):
     name, kind = "describe_reference", "image"
+    film = True
+    always = True
+    reads = True
+    overflow = 16
     description = TEXT["describe"]
 
     class Input(StrictModel):
@@ -47,4 +51,6 @@ class DescribeReference(Tool):
 
 class AnalyzeReferenceVideo(DescribeReference):
     name, kind = "analyze_reference_video", "video"
+    film = False
+    overflow = 15
     description = TEXT["analyze"]

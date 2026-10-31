@@ -68,6 +68,8 @@ def rows(context):
 
 class ReadSet(TransactionTool):
     name = "read_set"
+    always = True
+    overflow = 5
     description = (
         "Read a saved stage (a place built once): its version, cameras K0… with headings and grid cells, the map in "
         "rooms, numbered issues with their author (human, agent or Judge), queued fixes and saved views."
@@ -94,6 +96,7 @@ class ReadSet(TransactionTool):
 
 class MarkSetIssue(ReadSet):
     name = "mark_set_issue"
+    overflow = 4
     description = (
         "Propose an issue on a stage for the user to see in its workbench, as the agent. Name grid cells (A1…) "
         "and cameras (K0…) from read_set. It fixes nothing; the user decides."
@@ -129,6 +132,9 @@ class MarkSetIssue(ReadSet):
 
 class SaveSetView(ReadSet):
     name = "save_set_view"
+    step_kind = "edit"
+    always = False
+    overflow = 2
     description = (
         "Save a named camera on a stage for shots: standing at a camera from read_set (K0…) and looking along a "
         "heading in degrees, clockwise from above. With angle_id it is that scene angle's camera, for its views. "
@@ -189,6 +195,8 @@ class SaveSetView(ReadSet):
 
 class LinkSet(TransactionTool):
     name = "link_set"
+    step_kind = "edit"
+    overflow = 3
     description = (
         "Use a stage for a scene, as the user's Use stage does: the place its first shot opens in is built as the "
         "stage for every scene there, and the first shot asks for the stage's views. The result says what changed."
@@ -228,6 +236,8 @@ class LinkSet(TransactionTool):
 
 class FillSetMore(TransactionTool):
     name = "fill_set_more"
+    step_kind = "build"
+    overflow = 0
     description = (
         "Fill more of a stage's unseen space from its accepted version, as the user's Fill more unseen space does: "
         f"{FILL_TIME} and up to {fill_renders()} renders, which its build step reserves. Refused while the user has other "
@@ -266,6 +276,8 @@ class FillSetMore(TransactionTool):
 
 class BuildSetFromTake(TransactionTool):
     name = "build_set_from_take"
+    step_kind = "build"
+    overflow = 1
     description = (
         "Build a new stage from one shot of a scene's selected take, as the user's Build stage does. With "
         "fill_unseen (on by default) it fills in what the take never saw, also from a camera that stands still or "

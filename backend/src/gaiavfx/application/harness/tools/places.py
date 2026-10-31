@@ -27,6 +27,9 @@ class AngleText(StrictModel):
 
 class EditPlace(TransactionTool):
     name = "edit_place"
+    step_kind = "edit"
+    prepares = True
+    overflow = 19
     description = "add_place: location; add_angle: camera at place_id; set: revised text. Empty place only; cast/people belong in pins. No undo."
 
     class Input(StrictModel):

@@ -113,6 +113,8 @@ class StoryBeat(StrictModel):
 
 class DraftStoryline(TransactionTool):
     name = "draft_storyline"
+    step_kind = "edit"
+    overflow = 10
     description = load()["prompts"]["draft"]["description"] + " " + CASTING
 
     class Input(StrictModel):

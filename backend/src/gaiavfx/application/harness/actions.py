@@ -76,6 +76,22 @@ class Tool:
     description: ClassVar[str] = ""
     terminal: ClassVar[bool] = False
     Input: ClassVar[type[StrictModel]] = StrictModel
+    # Admission (`tools/common.tool_schema`), declared by each tool beside its name:
+    step_kind: ClassVar[str | None] = (
+        None  # the plan step kind it works in, under that kind's grant; None: no grant
+    )
+    film: ClassVar[bool] = False  # offered in a film's conversation (ADR 0012 §8, Amendment 7)
+    always: ClassVar[bool] = (
+        False  # offered whatever kind of step the plan is on (reads, talk, the plan's tools)
+    )
+    prepares: ClassVar[bool] = (
+        False  # an edit that supplies a preparation's missing input, offered in a prepare step
+    )
+    reads: ClassVar[bool] = (
+        False  # it reads the latest message's attachments, so it is offered before they are read
+    )
+    # dropped in this order (lowest first) when the catalog would exceed the schema ceiling; None: never dropped
+    overflow: ClassVar[int | None] = None
 
     def describe(self, context) -> str:
         """The catalog's text for this tool; a tool worded differently in a film overrides it."""
@@ -97,14 +113,7 @@ class Tool:
 
     def reading_refusal(self, context):
         """The catalog and direct execution share the same read-before-acting gate."""
-        if context.unread_attachments and self.name not in {
-            "describe_reference",
-            "analyze_reference_video",
-            "analyze_people",
-            "read_recast",
-            "reference_notes",
-            "ask_human",
-        }:
+        if context.unread_attachments and not self.reads:
             return (
                 "Read the latest message's attachments before acting or discussing them: "
                 + ", ".join(context.unread_attachments)

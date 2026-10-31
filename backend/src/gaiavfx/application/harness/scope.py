@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from gaiavfx.application.harness.context import VIEW_CEILING, estimate
 from gaiavfx.application.harness.history import latest_user_message
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX
-from gaiavfx.application.harness.tools.common import FILM_TOOLS
+from gaiavfx.application.harness.tools import FILM_TOOLS
 from gaiavfx.application.harness.tools.recast import compact
 from gaiavfx.application.harness.tools.replacement import refresh_analyses
 from gaiavfx.application.harness.tools.sets import refresh_sets

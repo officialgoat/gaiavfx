@@ -52,6 +52,8 @@ class ProposedStep(StrictModel):
 
 class ProposePlan(Tool):
     name = "propose_plan"
+    film = True
+    always = True
     description = PLAN_TEXT["rules"]
     terminal = True
 
@@ -106,6 +108,8 @@ class ProposePlan(Tool):
 
 class PlanStepTool(Tool):
     name = "plan_step"
+    film = True
+    always = True
     description = PLAN_TEXT["step"]
 
     class Input(StrictModel):

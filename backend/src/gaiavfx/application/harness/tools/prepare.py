@@ -136,6 +136,7 @@ def preparable(context, shot):
 
 class PrepareCut(TransactionTool):
     name = "prepare_cut"
+    step_kind = "prepare"
     description = "Prepare references, including free sheet assembly; wait for human reviews."
 
     class Input(StrictModel):

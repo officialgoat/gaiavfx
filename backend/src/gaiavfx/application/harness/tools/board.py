@@ -13,6 +13,8 @@ from gaiavfx.shared.errors import ApplicationError
 
 class BoardWrite(Tool):
     name = "board_write"
+    film = True
+    overflow = 14
     description = prompt.BOARD_WRITE
 
     class Input(StrictModel):

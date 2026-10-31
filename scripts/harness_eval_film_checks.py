@@ -8,7 +8,7 @@ the agent's say/ask_human text, like the product's own report guards; they are n
 
 import re
 
-from gaiavfx.application.harness.tools.common import FILM_TOOLS
+from gaiavfx.application.harness.tools import FILM_TOOLS
 
 READING = "reference_notes"
 WRITES = {

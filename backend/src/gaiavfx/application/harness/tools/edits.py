@@ -81,6 +81,9 @@ def segment_in_scope(session, context, segment_id):
 
 class EditCut(TransactionTool):
     name = "edit_cut"
+    step_kind = "edit"
+    prepares = True
+    overflow = 20
     description = "Cut create/remove: segment revision. Move(frame)/angles/relation/insertion: cut revision. Move carries its phase."
 
     class Input(StrictModel):
@@ -243,6 +246,8 @@ class EditCut(TransactionTool):
 
 class EditSegment(TransactionTool):
     name = "edit_segment"
+    step_kind = "edit"
+    overflow = 13
     description = (
         "Add/move/remove: movie revision. Set: segment revision. Retains receipts. " + CASTING
     )
@@ -355,6 +360,9 @@ class EditSegment(TransactionTool):
 
 class EditPhase(TransactionTool):
     name = "edit_phase"
+    step_kind = "edit"
+    prepares = True
+    overflow = 18
     description = "Phases. Use edit_cut for cuts. Add/remove: segment rev; set: phase rev."
 
     class Input(StrictModel):
@@ -455,6 +463,9 @@ class EditPhase(TransactionTool):
 
 class EditCast(TransactionTool):
     name = "edit_cast"
+    step_kind = "edit"
+    prepares = True
+    overflow = 17
     description = "Add/remove with movie revision; set with member revision. identity_asset_id: current message's attached person image. keeps: things such as a satchel."
 
     class Input(StrictModel):

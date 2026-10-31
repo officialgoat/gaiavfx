@@ -38,6 +38,7 @@ def render_blocked(ops, read):
 
 class RenderCandidates(TransactionTool):
     name = "render_candidates"
+    step_kind = "render"
     description = (
         "Render count takes (default 2) of required segment_id within budget. Never selects."
     )

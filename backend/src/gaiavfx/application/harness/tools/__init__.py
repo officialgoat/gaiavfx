@@ -72,31 +72,17 @@ DEFAULT_TOOLS = (
 )
 
 
-# Dropped first when a state's catalog would exceed the schema ceiling. A failed
+# Dropped first when a state's catalog would exceed the schema ceiling (each tool's `overflow`). A failed
 # context assembly ends the session, so a smaller grammar is always preferable.
-OVERFLOW_ORDER = (
-    "fill_set_more",
-    "build_set_from_take",
-    "save_set_view",
-    "link_set",
-    "mark_set_issue",
-    "read_set",
-    "propose_appearance",
-    "propose_cast",
-    "start_recast_run",
-    "read_recast",
-    "draft_storyline",
-    "replace_character",
-    "analyze_people",
-    "edit_segment",
-    "board_write",
-    "analyze_reference_video",
-    "describe_reference",
-    "edit_cast",
-    "edit_phase",
-    "edit_place",
-    "edit_cut",
+OVERFLOW_ORDER = tuple(
+    t.name
+    for t in sorted((t for t in DEFAULT_TOOLS if t.overflow is not None), key=lambda t: t.overflow)
 )
+# A film's conversation offers these (ADR 0012 §8, Amendment 7): it reads the recast, proposes casts and appearances,
+# plans and talks, and starts a recast run only inside an approved plan. Analysis, retakes, head passes, pausing,
+# cancelling, choosing, confirming and conforming stay human; none of them is a harness tool.
+FILM_TOOLS = frozenset(t.name for t in DEFAULT_TOOLS if t.film)
+KINDS = {t.name: t.step_kind for t in DEFAULT_TOOLS if t.step_kind}
 
 
 def applicable_tools(context, tools=DEFAULT_TOOLS):
@@ -111,14 +97,14 @@ def applicable_tools(context, tools=DEFAULT_TOOLS):
 def budgeted_tools(context, applicable):
     from gaiavfx.application.harness.actions import action_schema
     from gaiavfx.application.harness.context import SCHEMA_CEILING, estimate
-    from gaiavfx.application.harness.tools.common import TOOL_KINDS, current_step
+    from gaiavfx.application.harness.tools.common import current_step
 
     step = current_step(context)
     for name in OVERFLOW_ORDER:
         size = estimate(json.dumps(action_schema(applicable), separators=(",", ":")))
         if size <= SCHEMA_CEILING:
             break
-        if step and TOOL_KINDS.get(name) == step.kind:
+        if step and KINDS.get(name) == step.kind:
             continue
         applicable = [(tool, schema) for tool, schema in applicable if tool.name != name]
     return applicable

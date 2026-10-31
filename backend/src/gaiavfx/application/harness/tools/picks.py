@@ -13,6 +13,7 @@ from gaiavfx.shared.errors import ApplicationError
 
 class PickProvisional(TransactionTool):
     name = "pick_provisional"
+    step_kind = "pick"
     description = "Pick a provisional continuation source for a continuing successor, recording its basis and respecting the user's selection."
 
     class Input(StrictModel):

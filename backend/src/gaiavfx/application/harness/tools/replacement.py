@@ -222,6 +222,9 @@ def refresh_analyses(session, state, attachments, library, turns=()):
 
 class AnalyzePeople(TransactionTool):
     name = "analyze_people"
+    always = True
+    reads = True
+    overflow = 12
     description = (
         "Analyse people and object tracks in one video shot. Reading: no grant or render jobs."
     )
@@ -337,6 +340,8 @@ def remaining_renders(context):
 
 class ReplaceCharacter(TransactionTool):
     name = "replace_character"
+    step_kind = "render"
+    overflow = 11
     description = "Replace up to two analysed performers with cast identities, within a render grant. Review only."
 
     class Input(StrictModel):
