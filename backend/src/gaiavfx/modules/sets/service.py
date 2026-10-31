@@ -23,21 +23,20 @@ from .persistence import (
     SetViewRecord,
 )
 
-ISSUE_KINDS = frozenset(
-    {
-        "shape",
-        "space",
-        "duplicate",
-        "stairs",
-        "obstacle",
-        "pocket",
-        "floaters",
-        "hole",
-        "split",
-        "doubled",
-        "two-way",
-        "other",
-    }
+# Ordered: the HTTP and agent schemas list these kinds in this order.
+ISSUE_KINDS = (
+    "shape",
+    "space",
+    "duplicate",
+    "stairs",
+    "obstacle",
+    "pocket",
+    "floaters",
+    "hole",
+    "split",
+    "doubled",
+    "two-way",
+    "other",
 )
 AUTHORS = frozenset({"human", "agent", "judge"})
 FIX_ACTIONS = frozenset({"reshoot", "extend", "retract", "keep"})

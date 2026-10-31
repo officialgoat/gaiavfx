@@ -175,3 +175,15 @@ def test_saving_a_view_is_an_edit_inside_a_grant(world):
     assert np.allclose(viewmat[2, :3], [1, 0, 0], atol=1e-6)
     assert np.allclose(viewmat[1, :3], [0, 1, 0], atol=1e-6)
     assert np.allclose(viewmat[:3, 3], 0, atol=1e-6)
+
+
+def test_the_agent_and_http_list_every_issue_kind_in_the_sets_order():
+    """The agent marks the same issue kinds the workbench does, including an unseen pocket, in one stable order."""
+    from typing import get_args
+
+    from gaiavfx.api.sets import IssueKind
+    from gaiavfx.modules.sets.service import ISSUE_KINDS
+
+    agent = tools.MarkSetIssue.Input.model_json_schema()["properties"]["kind"]["enum"]
+    assert tuple(agent) == ISSUE_KINDS == get_args(IssueKind)
+    assert "pocket" in agent

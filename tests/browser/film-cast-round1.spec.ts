@@ -1,6 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
 import { filmAsset, mockRecast, pictureAsset } from "./recast-fixtures";
-import { PROCESS_MEDIA } from "../../frontend/src/features/generation/process-media";
 
 // Usability round 1 (retained regression coverage B5-B9): the film's Cast area says when one
 // picture plays two characters, lists the cast with its screen time in the lanes' order, gathers every "Same person?"
@@ -345,7 +344,7 @@ test("the film's Assets bin leaves out a replacement's process files", async ({
   const pictures = queries.filter((q) => q.get("kind") === "image");
   expect(pictures.length).toBeGreaterThan(0);
   for (const query of pictures)
-    expect(query.get("exclude")).toBe(PROCESS_MEDIA);
+    expect(query.get("hide_process")).toBe("true");
   await expectBlind(page);
 });
 

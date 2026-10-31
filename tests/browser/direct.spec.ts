@@ -2,7 +2,6 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { openMovie, seedDirect } from "./direct-fixture";
-import { PROCESS_MEDIA } from "../../frontend/src/features/generation/process-media";
 
 test.describe("Direct on the real Direction and Library APIs", () => {
   let data: Awaited<ReturnType<typeof seedDirect>>;
@@ -69,7 +68,7 @@ test.describe("Direct on the real Direction and Library APIs", () => {
   });
 
   // Pilot T1-F2: a character replacement's process files (intermediates, assembled previews, the composites that are
-  // a replaced shot's versions) stay out of the movie's reference bin; the Library filters them by provenance.
+  // a replaced shot's versions) stay out of the movie's reference bin; Python names them and the Library filters them by provenance.
   test("the reference bin leaves out replacement process files", async ({
     page,
   }) => {
@@ -84,14 +83,7 @@ test.describe("Direct on the real Direction and Library APIs", () => {
       page.getByRole("button", { name: "Arin reference.jpg image" }),
     ).toBeVisible();
     const bin = queries.find((q) => q.get("limit") === "30");
-    expect(bin?.get("exclude")).toBe(PROCESS_MEDIA);
-    expect(PROCESS_MEDIA.split(",")).toEqual(
-      expect.arrayContaining([
-        "replacement_intermediate",
-        "shot_assembly",
-        "generation_candidate:composite",
-      ]),
-    );
+    expect(bin?.get("hide_process")).toBe("true");
   });
 
   // Usability A2 (T2-F1, T6-F1, T8-F3): the Library hides the same process files until "Show process files" is on.
@@ -113,7 +105,7 @@ test.describe("Direct on the real Direction and Library APIs", () => {
       (route) => {
         const query = new URL(route.request().url()).searchParams;
         queries.push(query);
-        const items = query.has("exclude")
+        const items = query.get("hide_process") === "true"
           ? [data.asset]
           : [data.asset, composite];
         return route.fulfill({
@@ -133,17 +125,10 @@ test.describe("Direct on the real Direction and Library APIs", () => {
     ).toBeVisible();
     await expect(toggle).not.toBeChecked();
     await expect(process).toHaveCount(0);
-    expect(queries.at(-1)?.get("exclude")).toBe(PROCESS_MEDIA);
-    expect(PROCESS_MEDIA.split(",")).toEqual(
-      expect.arrayContaining([
-        "replacement_intermediate",
-        "shot_assembly",
-        "generation_candidate:composite",
-      ]),
-    );
+    expect(queries.at(-1)?.get("hide_process")).toBe("true");
     await toggle.check();
     await expect(process).toBeVisible();
-    expect(queries.at(-1)?.has("exclude")).toBe(false);
+    expect(queries.at(-1)?.has("hide_process")).toBe(false);
     await toggle.uncheck();
     await expect(process).toHaveCount(0);
   });

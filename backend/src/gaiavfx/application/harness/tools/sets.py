@@ -27,22 +27,11 @@ from gaiavfx.application.set_agent import (
     repair_state,
 )
 from gaiavfx.application.set_seed import fill_renders, seed_preview, start_seed
+from gaiavfx.modules.sets.service import ISSUE_KINDS
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
-IssueKind = Literal[
-    "shape",
-    "space",
-    "duplicate",
-    "stairs",
-    "obstacle",
-    "floaters",
-    "hole",
-    "split",
-    "doubled",
-    "two-way",
-    "other",
-]
+IssueKind = Literal[ISSUE_KINDS]
 
 
 def requested(message):

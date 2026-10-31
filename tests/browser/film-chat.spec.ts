@@ -1,7 +1,6 @@
 import { test, expect, type Page, type Route } from "@playwright/test";
 import { filmAsset, mockRecast } from "./recast-fixtures";
 import { seedDirect } from "./direct-fixture";
-import { PROCESS_MEDIA } from "../../frontend/src/features/generation/process-media";
 import type { components } from "../../frontend/src/shared/api.generated";
 
 type S = components["schemas"];
@@ -294,8 +293,7 @@ test("the film's Attach from Library leaves out process files and composites", a
   for (const url of listings
     .slice(before)
     .filter((u) => u.searchParams.get("limit") === "30")) {
-    expect(url.searchParams.get("exclude")).toBe(PROCESS_MEDIA);
-    expect(url.searchParams.get("keep")).toBe("character_replacement");
+    expect(url.searchParams.get("hide_process")).toBe("true");
   }
   await expectBlind(page);
 });

@@ -7848,6 +7848,7 @@ export interface operations {
         imported_only?: boolean;
         exclude?: string;
         keep?: string;
+        hide_process?: boolean;
       };
       header?: never;
       path?: never;

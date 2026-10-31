@@ -12,6 +12,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from gaiavfx.application.process_media import DELIVERABLE_STEPS, PROCESS_STEPS
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
@@ -101,9 +102,13 @@ def library_router(workspace, authenticate, token: str):
         imported_only: bool = False,
         exclude: str = Query("", max_length=500),
         keep: str = Query("", max_length=500),
+        hide_process: bool = False,
     ):
         rules = tuple(rule for rule in exclude.split(",") if rule)
         kept = tuple(step for step in keep.split(",") if step)
+        if hide_process:
+            rules += PROCESS_STEPS
+            kept += DELIVERABLE_STEPS
         with w.db.transaction() as session:
             return w.library.browse(
                 session, q, kind, collection, offset, limit, imported_only, rules, kept

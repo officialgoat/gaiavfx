@@ -19,22 +19,10 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from gaiavfx.application import set_build, set_bundles, sets
+from gaiavfx.modules.sets.service import ISSUE_KINDS
 from gaiavfx.shared.errors import ApplicationError
 
-IssueKind = Literal[
-    "shape",
-    "space",
-    "duplicate",
-    "stairs",
-    "obstacle",
-    "pocket",
-    "floaters",
-    "hole",
-    "split",
-    "doubled",
-    "two-way",
-    "other",
-]
+IssueKind = Literal[ISSUE_KINDS]
 Author = Literal["human", "agent", "judge"]
 
 

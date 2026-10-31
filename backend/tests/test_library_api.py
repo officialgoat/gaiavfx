@@ -112,6 +112,43 @@ def test_imported_asset_filter_precedes_pagination_and_preserves_reused_sources(
     assert {a["id"] for a in kept["items"]} == {"source-0", "source-1", "video-00"}
 
 
+def test_hide_process_leaves_out_every_process_step_python_names(api):
+    """Python names the process steps: a stage's stills, including those a build's Fill more adds, and a replaced
+    shot's composites stay out, while an approved replacement and a saved stage view stay listed."""
+    from gaiavfx.modules.library.assets import AssetRecord
+
+    steps = {
+        "seed-still": [{"type": "set_seed", "operation_id": "op"}],
+        "fill-still": [{"type": "set_build", "operation_id": "op", "role": "set_keyframe"}],
+        "imported-still": [{"type": "set_import"}],
+        "composite": [{"type": "generation_candidate", "output_key": "composite"}],
+        "approved": [
+            {"type": "generation_candidate", "output_key": "composite"},
+            {"type": "character_replacement"},
+        ],
+        "stage-view": [{"type": "set_view"}],
+        "picture": [{"type": "import", "original_name": "picture.png"}],
+    }
+    with api.app.state.workspace.db.transaction() as session:
+        for name, provenance in steps.items():
+            session.add(
+                AssetRecord(
+                    id=name,
+                    sha256=name,
+                    name=f"{name}.png",
+                    kind="image",
+                    path=f"media/{name}.png",
+                    mime="image/png",
+                    info={},
+                    provenance=provenance,
+                )
+            )
+    listed = api.get("/api/v1/assets", params={"kind": "image", "hide_process": True}).json()
+    assert {a["id"] for a in listed["items"]} == {"approved", "stage-view", "picture"}
+    everything = api.get("/api/v1/assets", params={"kind": "image"}).json()
+    assert everything["total"] == len(steps)
+
+
 def test_import_reuses_content_and_preserves_aliases_associations_and_signed_media(api, tmp_path):
     collection = api.post("/api/v1/collections", json={"name": "References"}).json()
     entity = api.post("/api/v1/entities", json={"kind": "character", "name": "Mara"}).json()
