@@ -147,7 +147,10 @@ def test_k1_a_promised_read_is_refused_once_and_the_read_follows(kernel):
 
 
 def test_k1_history_reads_work_and_approval_boundary():
-    from gaiavfx.application.harness.tools.request_rules import turn_actions
+    from gaiavfx.application.harness.tools.report_checks import acted, said
+
+    def turn_actions(turns):
+        return acted(turns), said(turns)
 
     def turn(name, state="accepted"):
         return {"role": "agent", "state": state, "action": {"tool": name}}
@@ -166,10 +169,11 @@ def test_k1_history_reads_work_and_approval_boundary():
     assert turn_actions(turns) == (False, True)
     turns.append(turn("propose_plan"))
     assert turn_actions(turns) == (True, True)
-    turns.append({"role": "system", "state": "accepted", "action": {"message": "Approved"}})
-    assert turn_actions(turns, len(turns) - 1) == (False, False)
+    approved = {"message": "The user approved the plan."}
+    turns.append({"role": "system", "state": "accepted", "action": approved})
+    assert turn_actions(turns) == (False, False)
     turns.append(turn("prepare_cut"))
-    assert turn_actions(turns, len(turns) - 2) == (True, False)
+    assert turn_actions(turns) == (True, False)
 
 
 def test_k1_direct_tool_and_no_available_tool(kernel):
@@ -179,10 +183,12 @@ def test_k1_direct_tool_and_no_available_tool(kernel):
     tool = Say()
     result = tool.run(ctx, tool.Input(text="I'll add a place."))
     assert not result.ok and "call edit_place now" in result.discrepancy
-    ctx.say_attempted = False
     result = tool.run(ctx, tool.Input(text="I'll render takes."))
     assert not result.ok and "call the tool now" in result.discrepancy
-    ctx.say_attempted, ctx.work_performed = False, True
+    # A turn that did work may report it.
+    ctx.report_turns = [
+        {"role": "agent", "state": "accepted", "action": {"tool": "edit_place"}, "receipts": []}
+    ]
     assert tool.run(ctx, tool.Input(text="I'll add a place.")).ok
 
 
@@ -272,7 +278,6 @@ def test_k1_names_the_work_target_before_supporting_objects(kernel):
         ("I'll create two segments with cuts.", "edit_segment"),
         ("I'll add a phase to the segment.", "edit_phase"),
     ):
-        ctx.say_attempted = False
         result = tool.run(ctx, tool.Input(text=text))
         assert not result.ok and f"call {expected} now" in result.discrepancy
 

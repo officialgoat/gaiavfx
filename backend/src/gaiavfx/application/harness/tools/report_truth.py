@@ -16,6 +16,7 @@ decision and quote its note, offering a re-render or revised references.
 import re
 
 from gaiavfx.application.harness.tools.common import current_step
+from gaiavfx.application.harness.tools.report_checks import current_turns, refused
 from gaiavfx.application.harness.world import direction, maybe_review, plate_survey_cuts, ranked
 
 TOPIC = re.compile(
@@ -33,30 +34,9 @@ SELECTION = re.compile(
 )
 
 
-def current_turns(turns):
-    start = 0
-    for i, turn in enumerate(turns):
-        action = turn.get("action") or {}
-        message = action.get("message", "")
-        if turn["role"] == "human" or (
-            turn["role"] == "system"
-            and (
-                action.get("review_operation_id")
-                or message.startswith(
-                    ("The user approved the plan", "The user reviewed", "The user rejected the")
-                )
-            )
-        ):
-            start = i
-    return turns[start:]
-
-
 def completed_plate_refusal(context, text):
     """Correct one stale review request per human message/resume, never approve for the user."""
-    if context.plate_review_attempted or any(
-        (t.get("result") or {}).get("discrepancy", "").startswith("plate_already_approved:")
-        for t in current_turns(context.report_turns)
-    ):
+    if refused(context.report_turns, "plate_already_approved:"):
         return ""
     cuts = plate_survey_cuts(context.state)
     if not cuts:
@@ -87,7 +67,6 @@ def completed_plate_refusal(context, text):
             sentence,
             re.IGNORECASE,
         ):
-            context.plate_review_attempted = True
             return "plate_already_approved: the plate is approved; continue with the survey using prepare_cut."
     return ""
 
@@ -168,17 +147,12 @@ def actual_changes(session, turns):
 
 def correction_refusal(context, text):
     turns = current_turns(context.report_turns)
-    attempted = context.correction_attempted or any(
-        (t.get("result") or {}).get("discrepancy", "").startswith("correction_not_made:")
-        for t in turns
-    )
     claim = correction_claim(text)
-    if attempted or not claim:
+    if refused(turns, "correction_not_made:") or not claim:
         return ""
     with context.db.transaction() as session:
         if actual_changes(session, turns):
             return ""
-    context.correction_attempted = True
     echoes = [(t.get("result") or {}).get("payload", {}).get("inputs_used", "") for t in turns]
     facts = "; ".join(e for e in echoes if e)[-900:]
     if not facts:

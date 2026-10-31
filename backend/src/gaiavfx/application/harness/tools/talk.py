@@ -5,6 +5,7 @@ from pydantic import Field
 from gaiavfx.application.harness import prompt
 from gaiavfx.application.harness.actions import Tool, ToolResult
 from gaiavfx.application.harness.tools.common import current_step, granted, refusal
+from gaiavfx.application.harness.tools.report_checks import first_refusal
 from gaiavfx.application.harness.tools.report_truth import (
     completed_plate_refusal,
     correction_refusal,
@@ -52,21 +53,24 @@ class Say(Tool):
     def _run(self, context, value):
         from gaiavfx.application.harness.tools.replacement import replacement_claim_refusal
 
-        if reason := replacement_claim_refusal(context, value.text):
-            return refusal(reason)
-        if reason := completed_plate_refusal(context, value.text):
-            return refusal(reason)
-        if self.narrow(context) is None:
-            return refusal(
-                "say is unavailable while an executing plan has an actionable step. "
-                "Execute it, or use plan_step with a note to mark it done/skipped; "
-                "ask_human for a genuine decision."
-            )
-        if reason := ranking_refusal(context, value.text) or correction_refusal(
-            context, value.text
-        ):
-            return refusal(reason)
-        if reason := promise_refusal(context, value.text):
+        def unavailable(context, text):
+            if self.narrow(context) is None:
+                return (
+                    "say is unavailable while an executing plan has an actionable step. "
+                    "Execute it, or use plan_step with a note to mark it done/skipped; "
+                    "ask_human for a genuine decision."
+                )
+            return ""
+
+        checks = (
+            replacement_claim_refusal,
+            completed_plate_refusal,
+            unavailable,
+            ranking_refusal,
+            correction_refusal,
+            promise_refusal,
+        )
+        if reason := first_refusal(context, value.text, checks):
             return refusal(reason)
         return ToolResult(payload={"text": value.text})
 
@@ -87,7 +91,7 @@ class AskHuman(Tool):
         return prompt.ASK_HUMAN_FILM if prompt.film(context) else self.description
 
     def _run(self, context, value):
-        if reason := completed_plate_refusal(context, value.question):
+        if reason := first_refusal(context, value.question, (completed_plate_refusal,)):
             return refusal(reason)
         payload = {"question": value.question, "options": list(value.options)}
         # The analyses in view when asking; an answer confirms performers only for these.

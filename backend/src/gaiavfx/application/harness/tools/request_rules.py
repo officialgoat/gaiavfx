@@ -12,16 +12,8 @@ L1 also catches offers to perform an explicit request, once per human turn.
 
 import re
 
-READS = {
-    "read_movie",
-    "read_segment",
-    "inspect_cut",
-    "read_candidates",
-    "describe_reference",
-    "analyze_reference_video",
-    "reference_notes",
-    "read_recast",
-}
+from gaiavfx.application.harness.tools.report_checks import acted, said
+
 READ_TOOLS = ("read_recast", "read_movie")
 # The read verb right after the lead, with a few modifiers: "Let me quickly check …", "I'll take a look …". A read verb
 # later in the sentence ("Let me explain what I see") and "Let me see: …" are answers, not promises (Astra's P5 review).
@@ -141,26 +133,6 @@ def offered_request(message, text):
     return None
 
 
-def turn_actions(turns, approved_turn=-1):
-    """Reconstruct K1 after restart; human messages and approval start a new turn."""
-    acted, said = False, False
-    for index, turn in enumerate(turns):
-        if turn["role"] == "human" or turn.get("ordinal", index) == approved_turn:
-            acted, said = False, False
-        name = (turn.get("action") or {}).get("tool")
-        if name == "say":
-            said = True
-        elif name and name not in READS and turn["state"] == "accepted":
-            acted = True
-    return acted, said
-
-
-def turn_context(turns, document):
-    grant = document.plan.grant if document.plan else None
-    acted, said = turn_actions(turns, grant.approved_turn if grant else -1)
-    return {"work_performed": acted, "say_attempted": said}
-
-
 def promised_work(text):
     for sentence in re.split(r"(?<=[.!?])\s+|\n+", text):
         sentence = sentence.strip()
@@ -189,11 +161,12 @@ def promised_read(text):
 def promise_refusal(context, text):
     from gaiavfx.application.harness.tools.common import available, granted
 
-    attempted = context.say_attempted
-    context.say_attempted = True
+    # Only a turn's first say, before it has done any work, is held to what it offers.
+    if said(context.report_turns) or acted(context.report_turns):
+        return ""
     promise = promised_work(text) or offered_request(context.latest_user_message, text)
     reading = None if promise else promised_read(text)
-    if attempted or context.work_performed or not (promise or reading):
+    if not (promise or reading):
         return ""
     if reading:
         # The held-out film campaign, 23 Oct: "Let me check the current state of the recast" ended the turn.

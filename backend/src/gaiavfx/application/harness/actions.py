@@ -61,14 +61,10 @@ class ToolContext:
     unread_attachments: list[str] = field(default_factory=list)
     unread_renders: list[str] = field(default_factory=list)
     latest_user_message: str = ""
-    work_performed: bool = False
-    say_attempted: bool = False
     reference_notes: dict = field(default_factory=dict)
     recent_user_words: list[str] = field(default_factory=list)
     plate_rejections: dict[str, str] = field(default_factory=dict)
     report_turns: list[dict] = field(default_factory=list)
-    correction_attempted: bool = False
-    plate_review_attempted: bool = False
 
 
 class Tool:

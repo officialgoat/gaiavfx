@@ -46,7 +46,6 @@ from gaiavfx.application.harness.tools import DEFAULT_TOOLS, applicable_tools
 from gaiavfx.application.harness.tools.common import operation_receipt
 from gaiavfx.application.harness.tools.render import reported_reviews
 from gaiavfx.application.harness.tools.replacement import completed_analysis
-from gaiavfx.application.harness.tools.request_rules import turn_context
 from gaiavfx.application.harness.world import FINISHED, LIST, operation_view, operations
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.infrastructure.requests import Requests
@@ -177,7 +176,6 @@ class Harness(ConversationCommands, PlanCommands):
             document=document,
             library=self.library,
             latest_user_message=history.latest_user_message(turns),
-            **turn_context(turns, document),
             reference_notes=history.references_read(turns),
             recent_user_words=history.recent_user_words(turns),
             plate_rejections=rejections,

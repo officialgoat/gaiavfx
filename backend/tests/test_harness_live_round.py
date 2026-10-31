@@ -109,7 +109,9 @@ def test_l1_direct_offer_names_tool_and_work_allows_report(kernel):
     value = tool.Input(text="Should I add the angle?")
     result = tool.run(ctx, value)
     assert not result.ok and "call edit_place now" in result.discrepancy
-    ctx.say_attempted, ctx.work_performed = False, True
+    ctx.report_turns = [
+        {"role": "agent", "state": "accepted", "action": {"tool": "edit_place"}, "receipts": []}
+    ]
     assert tool.run(ctx, value).ok
 
 

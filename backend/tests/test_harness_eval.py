@@ -242,7 +242,7 @@ def test_film_campaign_on_a_cpu_gateway_with_a_dead_comfy(tmp_path, monkeypatch)
 def test_film_review_waits_for_the_run_range_and_the_approval_names_no_plan_id(tmp_path):
     from harness_eval_film_checks import evaluate
 
-    from gaiavfx.application.harness.tools.report_truth import current_turns
+    from gaiavfx.application.harness.tools.report_checks import current_turns
 
     task = next(t for t in TASKS if t.id == "film-plan-range")
     observed = []
