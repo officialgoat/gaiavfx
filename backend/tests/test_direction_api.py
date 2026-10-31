@@ -406,3 +406,55 @@ def test_a_segment_with_no_cast_is_created_assembled_and_planned(tmp_path):
         assert assembled.json()["shots"] == [{**shot, "cast": []}]
         plan = client.get(f"/api/direction/segments/{sid}/plan")
         assert plan.status_code == 200, plan.text
+
+
+def test_the_movie_read_equals_the_reads_it_replaces(tmp_path):
+    """One read gives the workspace what it composed from many: the movie, each segment's plan (its cuts' plans
+    inside), split points, each cut's pins, selections, receipts and the undo and redo targets."""
+    LibraryService(tmp_path, MIGRATIONS).create("Movie read")
+    app = create_app(tmp_path, MIGRATIONS, "test-token", enable_runner=False)
+    with TestClient(app, base_url="http://localhost", headers=AUTH) as client:
+        with app.state.workspace.db.transaction() as session:
+            service = DirectionService()
+            place = service.create_place(session, "Courtyard")
+            source = service.add_angle(session, place["id"], "Gate")
+            target = service.add_angle(session, place["id"], "Arcade")
+            segment = make_segment(service, session)
+            cut = service.create_cut(
+                session,
+                segment_id=segment["id"],
+                expected_revision=segment["revision"],
+                frame=36,
+                from_angle_id=source["id"],
+                to_angle_id=target["id"],
+            )
+            movie_id = segment["movie_id"]
+        read = client.get(f"/api/direction/movies/{movie_id}/read").json()
+
+        def get(path, **params):
+            response = client.get(path, params=params)
+            assert response.status_code == 200, response.text
+            return response.json()
+
+        assert read["movie"] == get(f"/api/direction/movies/{movie_id}")
+        assert read["segment_plans"] == {
+            segment["id"]: get(f"/api/direction/segments/{segment['id']}/plan")
+        }
+        assert read["segment_plans"][segment["id"]]["cuts"] == [
+            get(f"/api/direction/cuts/{cut['id']}/plan")
+        ]
+        assert read["split_points"] == {
+            segment["id"]: get(f"/api/direction/segments/{segment['id']}/split-points")
+        }
+        assert read["keyframes"] == {cut["id"]: get(f"/api/direction/cuts/{cut['id']}/keyframes")}
+        assert read["selections"] == {
+            segment["id"]: get(
+                "/api/production/selections", movie_id=movie_id, segment_id=segment["id"]
+            )
+        }
+        receipts = get(f"/api/direction/movies/{movie_id}/receipts", limit=100)
+        assert read["receipts"] == receipts
+        assert read["undo"] == {"undo": receipts[0]["id"], "redo": None}
+        undone = client.post(f"/api/direction/receipts/{receipts[0]['id']}/undo").json()
+        again = client.get(f"/api/direction/movies/{movie_id}/read").json()
+        assert again["undo"] == {"undo": receipts[1]["id"], "redo": undone["id"]}

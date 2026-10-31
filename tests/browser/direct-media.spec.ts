@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { openMovie, seedDirect } from "./direct-fixture";
+import { openMovie, seedDirect, withSelection } from "./direct-fixture";
 
 test("real UI import and Source/Program playback; candidate names stay private", async ({
   page,
@@ -15,8 +15,7 @@ test("real UI import and Source/Program playback; candidate names stay private",
     folder,
     `seed-999-technique-private-${process.pid}.mp4`,
   );
-  const tools =
-    process.env.GAIAVFX_MEDIA_DIR ?? path.resolve(".runtime/media");
+  const tools = process.env.GAIAVFX_MEDIA_DIR ?? path.resolve(".runtime/media");
   execFileSync(
     path.join(tools, process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg"),
     [
@@ -73,26 +72,20 @@ test("real UI import and Source/Program playback; candidate names stay private",
 
   // Production read fixtures avoid starting inference. Media and the authored
   // movie remain real API data; this separately verifies the monitor projection.
-  await page.route("**/api/production/selections?*", (route) =>
-    route.fulfill({
-      json: {
-        current: {
-          id: "selected-fixture",
-          movie_id: data.movie.id,
-          segment_id: data.first.id,
-          candidate_id: "selected-candidate",
-          asset_id: asset.id,
-          authority: "user",
-          basis: null,
-          selected_at: "2026-09-30T12:00:00Z",
-          superseded_at: null,
-          revision: 1,
-        },
-        history: [],
-        revision: 1,
-      },
-    }),
-  );
+  await withSelection(page, data.first.id, {
+    id: "selected-fixture",
+    movie_id: data.movie.id,
+    segment_id: data.first.id,
+    candidate_id: "selected-candidate",
+    asset_id: asset.id,
+    authority: "user",
+    basis: null,
+    selected_at: "2026-09-30T12:00:00Z",
+    superseded_at: null,
+    revision: 1,
+    stale: false,
+    stale_reasons: [],
+  });
   await page.route("**/api/production/operations?*", (route) =>
     route.fulfill({
       json: [

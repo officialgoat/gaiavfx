@@ -7,7 +7,7 @@ from typing import Annotated, Literal
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
 
-from gaiavfx.api.direction import PlaceDTO, ReceiptDTO
+from gaiavfx.api.direction import PlaceDTO, ReceiptDTO, SelectionDTO, SelectionsDTO
 from gaiavfx.application import set_seed, set_views
 from gaiavfx.application.authored import load_survey, validate_insertion
 from gaiavfx.application.candidate_review import (
@@ -464,27 +464,6 @@ class ReviewDTO(BaseModel):
     unranked: list[str]
     ranking: RankingDTO
     rejection: ProductionReferenceRejectionDTO | None = None
-
-
-class SelectionDTO(BaseModel):
-    stale: bool = False
-    stale_reasons: list[str] = Field(default_factory=list)
-    id: str
-    movie_id: str
-    segment_id: str
-    candidate_id: str
-    asset_id: str
-    authority: str
-    basis: str | None
-    selected_at: str
-    superseded_at: str | None
-    revision: int
-
-
-class SelectionsDTO(BaseModel):
-    current: SelectionDTO | None
-    history: list[SelectionDTO]
-    revision: int
 
 
 class ProductionEvidenceDTO(BaseModel):

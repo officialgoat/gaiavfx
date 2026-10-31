@@ -5,12 +5,7 @@ import {
   useQueryClient,
   type Query,
 } from "@tanstack/react-query";
-import {
-  direction,
-  type Receipt,
-  type Segment,
-  type SegmentPlan,
-} from "./client";
+import { direction, type Receipt, type Schema, type Segment } from "./client";
 import { removeCut, splitSegment } from "./edits";
 import { splitBlocker } from "./movie-model";
 import { useEditor, type Target } from "../timeline/editor-state";
@@ -25,7 +20,6 @@ export function useDirection(enabled: boolean) {
     failed: "The edit could not be saved.",
     conflict: retryAfterRefresh,
   });
-  const [redoIds, setRedoIds] = useState<string[]>([]);
   const [removeCutId, setRemoveCutId] = useState<string | null>(null);
   const [splitRequest, setSplitRequest] = useState<{
     segment: Segment;
@@ -41,15 +35,28 @@ export function useDirection(enabled: boolean) {
       editor.chooseMovie(movies.data[0].id);
   }, [movies.data, editor.movieId, editor.chooseMovie]);
   useEffect(() => {
-    setRedoIds([]);
     setSplitRequest(null);
     setRemoveCutId(null);
   }, [editor.movieId]);
-  const movie = useQuery({
-    queryKey: ["direction", "movie", editor.movieId],
-    queryFn: () => direction.movie(editor.movieId),
+  // The movie as Python reads it, in one read (application/movie_read.py): plans, pins, selections, history and
+  // what Undo and Redo reverse next. A stage built from a take moves through its fill rounds without settling: the
+  // References row reads its words again while it builds.
+  const read = useQuery({
+    queryKey: ["direction", "read", editor.movieId],
+    queryFn: () => direction.read(editor.movieId),
     enabled: enabled && !!editor.movieId,
+    refetchInterval: (query: Query<Schema["MovieReadDTO"]>) =>
+      Object.values(query.state.data?.segment_plans ?? {}).some(
+        (plan) => plan.seed?.state === "building",
+      )
+        ? 2500
+        : false,
   });
+  const movie = {
+    data: read.data?.movie,
+    isPending: read.isPending,
+    error: read.error,
+  };
   const places = useQuery({
     queryKey: ["direction", "places"],
     queryFn: direction.places,
@@ -64,13 +71,12 @@ export function useDirection(enabled: boolean) {
   const angles = angleQueries.flatMap((q) => q.data ?? []);
   const segments = movie.data?.segments ?? [];
   const cuts = segments.flatMap((s) => s.cuts);
-  const splitPoints = useQueries({
-    queries: segments.map((s) => ({
-      queryKey: ["direction", "split-points", s.id],
-      queryFn: () => direction.splitPoints(s.id),
-    })),
-  });
-  const splitPointMap = new Map(segments.map((s, i) => [s.id, splitPoints[i]]));
+  const splitPointMap = new Map(
+    segments.map((s) => [
+      s.id,
+      { isError: read.isError, data: read.data?.split_points[s.id] },
+    ]),
+  );
   const splitReason = (segment: Segment | undefined, frame: number) =>
     segment
       ? splitBlocker(splitPointMap.get(segment.id), frame)
@@ -79,47 +85,22 @@ export function useDirection(enabled: boolean) {
     if (!runner.busy && !splitReason(segment, frame))
       setSplitRequest({ segment, frame });
   };
-  const plans = useQueries({
-    queries: cuts.map((c) => ({
-      queryKey: ["direction", "plan", c.id],
-      queryFn: () => direction.plan(c.id),
-    })),
-  });
-  const segmentPlans = useQueries({
-    queries: segments.map((s) => ({
-      queryKey: ["direction", "segment-plan", s.id, "", ""],
-      queryFn: () => direction.segmentPlan(s.id),
-      // A stage built from the take moves through its fill rounds without settling: the References row reads its
-      // words again while it builds.
-      refetchInterval: (query: Query<SegmentPlan>) =>
-        query.state.data?.seed?.state === "building" ? 2500 : false,
-    })),
-  });
   const segmentPlanMap = new Map(
-    segments.map((s, i) => [s.id, segmentPlans[i]?.data]),
+    segments.map((s) => [s.id, read.data?.segment_plans[s.id]]),
   );
-  const pins = useQueries({
-    queries: cuts.map((c) => ({
-      queryKey: ["direction", "keyframes", c.id],
-      queryFn: () => direction.keyframes(c.id),
-    })),
-  });
-  const selections = useQueries({
-    queries: segments.map((s) => ({
-      queryKey: ["direction", "selection", s.id],
-      queryFn: () => direction.selections(s.movie_id, s.id),
-    })),
-  });
-  const receipts = useQuery({
-    queryKey: ["direction", "receipts", editor.movieId],
-    queryFn: () => direction.receipts(editor.movieId),
-    enabled: enabled && !!editor.movieId,
-  });
-  const planMap = new Map(cuts.map((c, i) => [c.id, plans[i]?.data]));
-  const pinMap = new Map(cuts.map((c, i) => [c.id, pins[i]?.data ?? []]));
+  // A cut's plan is inside its segment's: no cut is planned twice.
+  const planMap = new Map(
+    Object.values(read.data?.segment_plans ?? {}).flatMap((plan) =>
+      plan.cuts.map((cut) => [cut.cut_id, cut] as const),
+    ),
+  );
+  const pinMap = new Map(
+    cuts.map((c) => [c.id, read.data?.keyframes[c.id] ?? []]),
+  );
   const selectionMap = new Map(
-    segments.map((s, i) => [s.id, selections[i]?.data?.current]),
+    segments.map((s) => [s.id, read.data?.selections[s.id]?.current]),
   );
+  const receipts = { data: read.data?.receipts };
   const starts = new Map<string, number>();
   let duration = 0;
   for (const segment of segments) {
@@ -158,41 +139,24 @@ export function useDirection(enabled: boolean) {
   async function perform<T>(
     action: () => Promise<T>,
     label: string,
-    preserveRedo = false,
   ): Promise<T | undefined> {
     const outcome = await runner.run(action, {
       notice: label,
-      done: async () => {
-        if (!preserveRedo) setRedoIds([]);
-        await refresh();
-      },
+      done: refresh,
       failed: refresh,
     });
     return outcome.ok ? outcome.value : undefined;
   }
-  // The API owns revision guards and inverse commands; undoing the inverse is redo.
-  const latest = receipts.data?.find(
-    (r) =>
-      !r.undone_at && !redoIds.includes(r.id) && r.command !== "create_movie",
-  );
+  // Python says what Undo and Redo reverse next; undoing an Undo redoes, so a reload keeps the history.
+  const targets = read.data?.undo;
+  const latest = receipts.data?.find((r) => r.id === targets?.undo);
   async function undo(receipt: Receipt | undefined = latest) {
-    if (!receipt) return;
-    const inverse = await perform(
-      () => direction.undo(receipt.id),
-      "Change undone",
-      true,
-    );
-    if (inverse) setRedoIds((ids) => [...ids, inverse.id]);
+    if (receipt)
+      await perform(() => direction.undo(receipt.id), "Change undone");
   }
   async function redo() {
-    const id = redoIds.at(-1);
-    if (!id) return;
-    const inverse = await perform(
-      () => direction.undo(id),
-      "Change redone",
-      true,
-    );
-    if (inverse) setRedoIds((ids) => ids.slice(0, -1));
+    const id = targets?.redo;
+    if (id) await perform(() => direction.undo(id), "Change redone");
   }
   return {
     editor,
@@ -245,7 +209,10 @@ export function useDirection(enabled: boolean) {
     selectionMap,
     receipts,
     latest,
-    canRedo: !!redoIds.length,
+    canRedo: !!targets?.redo,
+    /** Where each cut's pin sits and how many identity lanes the References row needs, from Python. */
+    pinOffsets: read.data?.pin_offsets ?? {},
+    identityLanes: read.data?.identity_lanes ?? 0,
     starts,
     duration,
     getSegment,
@@ -262,13 +229,7 @@ export function useDirection(enabled: boolean) {
     refresh,
     clearError: runner.clearError,
     readError:
-      movie.error ??
-      places.error ??
-      plans.find((q) => q.error)?.error ??
-      segmentPlans.find((q) => q.error)?.error ??
-      pins.find((q) => q.error)?.error ??
-      selections.find((q) => q.error)?.error ??
-      angleQueries.find((q) => q.error)?.error,
+      read.error ?? places.error ?? angleQueries.find((q) => q.error)?.error,
   };
 }
 export type DirectController = ReturnType<typeof useDirection>;

@@ -11,6 +11,7 @@ from gaiavfx.application.authored import segment_to_dict
 from gaiavfx.application.continuation import METHODS, grid, set_continuation
 from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION
+from gaiavfx.application.movie_read import movie_read
 from gaiavfx.application.prepare_references import view_producer
 from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.coverage import COVERAGE_WORDS, Coverage
@@ -647,6 +648,44 @@ class DirectionSegmentPlanDTO(BaseModel):
     continuation: ContinuationPlanDTO | None = None  # set for a continuing segment
 
 
+class SelectionDTO(BaseModel):
+    stale: bool = False
+    stale_reasons: list[str] = Field(default_factory=list)
+    id: str
+    movie_id: str
+    segment_id: str
+    candidate_id: str
+    asset_id: str
+    authority: str
+    basis: str | None
+    selected_at: str
+    superseded_at: str | None
+    revision: int
+
+
+class SelectionsDTO(BaseModel):
+    current: SelectionDTO | None
+    history: list[SelectionDTO]
+    revision: int
+
+
+class UndoTargetsDTO(BaseModel):
+    undo: str | None  # the receipt Undo reverses next
+    redo: str | None  # the Undo that Redo reverses next
+
+
+class MovieReadDTO(BaseModel):
+    movie: MovieDetailDTO
+    segment_plans: dict[str, DirectionSegmentPlanDTO]
+    pin_offsets: dict[str, int | None]  # cut id: the frame offset its pin is shown at
+    identity_lanes: int  # identity-picture lanes the References row needs
+    split_points: dict[str, list[DirectionSplitPointDTO]]
+    keyframes: dict[str, list[KeyframeDTO]]
+    selections: dict[str, SelectionsDTO]
+    receipts: list[ReceiptDTO]
+    undo: UndoTargetsDTO
+
+
 def direction_router(workspace, authenticate):
     router = APIRouter(prefix="/api/direction", dependencies=[Depends(authenticate)])
     direction = DIRECTION
@@ -676,6 +715,22 @@ def direction_router(workspace, authenticate):
             return row | {
                 "segments": [segment_dto(session, seg) for seg in row["segments"]],
                 "fps": grid().fps,
+            }
+
+    @router.get(
+        "/movies/{movie_id}/read", response_model=MovieReadDTO, response_model_exclude_unset=True
+    )
+    def read_movie(movie_id: str):
+        """The movie as the workspace reads it, in one read (application/movie_read.py)."""
+        with workspace.db.transaction() as session:
+            read = movie_read(session, movie_id)
+            movie = read["movie"]
+            return read | {
+                "movie": movie
+                | {
+                    "segments": [segment_dto(session, seg) for seg in movie["segments"]],
+                    "fps": grid().fps,
+                }
             }
 
     @router.patch("/movies/{movie_id}", response_model=MovieCommandDTO)

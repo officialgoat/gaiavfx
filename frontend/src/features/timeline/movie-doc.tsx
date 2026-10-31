@@ -68,15 +68,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
   ] = rows;
   const razor = d.editor.tool === "razor";
   // References (ADR 0019 §5): a lane per identity picture, then one place lane, at the same height for every segment.
-  const identityLanes = Math.max(
-    0,
-    ...d.segments.map(
-      (s) =>
-        d.movie.data?.subjects.filter(
-          (p) => s.content.subjects.includes(p.id) && p.identity_asset_id,
-        ).length ?? 0,
-    ),
-  );
+  const identityLanes = d.identityLanes;
   for (const s of d.segments) {
     const start = d.starts.get(s.id)!;
     const snapFrames = [
@@ -174,13 +166,7 @@ export function buildMovieDoc(d: DirectController): TimelineDoc {
     s.cuts.forEach((c) => {
       const plan = d.planMap.get(c.id);
       const pins = d.pinMap.get(c.id) ?? [];
-      const offset =
-        plan?.recommended?.keyframe_offset_frames ??
-        (pins.length
-          ? plan?.alternatives.find(
-              (choice) => choice.keyframe_offset_frames !== null,
-            )?.keyframe_offset_frames
-          : undefined);
+      const offset = d.pinOffsets[c.id] ?? undefined;
       item(cutRow, {
         key: c.id,
         target: { kind: "cut", id: c.id, segmentId: s.id },

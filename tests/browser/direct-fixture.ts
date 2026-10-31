@@ -132,6 +132,19 @@ export async function seedDirect(request: APIRequestContext) {
   });
   return { movie, first, second, cut, from, to, asset, headers };
 }
+/** Give one segment a selected take in the movie's read, as Review would; the rest of the read stays Python's. */
+export async function withSelection(
+  page: Page,
+  segmentId: string,
+  current: Schema["SelectionDTO"],
+) {
+  await page.route("**/api/direction/movies/*/read", async (route) => {
+    const response = await route.fetch();
+    const read: Schema["MovieReadDTO"] = await response.json();
+    read.selections[segmentId] = { current, history: [], revision: 1 };
+    await route.fulfill({ response, json: read });
+  });
+}
 export async function openMovie(page: Page, title: string) {
   await page.goto("/");
   await page.getByRole("button", { name: "File", exact: true }).click();

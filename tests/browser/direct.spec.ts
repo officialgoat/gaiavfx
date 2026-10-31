@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
-import { openMovie, seedDirect } from "./direct-fixture";
+import { openMovie, seedDirect, withSelection } from "./direct-fixture";
 
 test.describe("Direct on the real Direction and Library APIs", () => {
   let data: Awaited<ReturnType<typeof seedDirect>>;
@@ -105,9 +105,10 @@ test.describe("Direct on the real Direction and Library APIs", () => {
       (route) => {
         const query = new URL(route.request().url()).searchParams;
         queries.push(query);
-        const items = query.get("hide_process") === "true"
-          ? [data.asset]
-          : [data.asset, composite];
+        const items =
+          query.get("hide_process") === "true"
+            ? [data.asset]
+            : [data.asset, composite];
         return route.fulfill({
           json: { items, total: items.length, offset: 0, limit: 60 },
         });
@@ -152,29 +153,20 @@ test.describe("Direct on the real Direction and Library APIs", () => {
     expect(imported.ok(), await imported.text()).toBeTruthy();
     const take = (await imported.json()).asset;
     // Segment 02 has a selected take; Segment 01 has none (the real API answers for it).
-    await page.route("**/api/production/selections?*", (route) =>
-      new URL(route.request().url()).searchParams.get("segment_id") ===
-      data.second.id
-        ? route.fulfill({
-            json: {
-              current: {
-                id: "selection-two",
-                movie_id: data.movie.id,
-                segment_id: data.second.id,
-                candidate_id: "candidate-two",
-                asset_id: take.id,
-                authority: "user",
-                basis: null,
-                selected_at: "2026-10-22T12:00:00Z",
-                superseded_at: null,
-                revision: 1,
-              },
-              history: [],
-              revision: 1,
-            },
-          })
-        : route.fallback(),
-    );
+    await withSelection(page, data.second.id, {
+      id: "selection-two",
+      movie_id: data.movie.id,
+      segment_id: data.second.id,
+      candidate_id: "candidate-two",
+      asset_id: take.id,
+      authority: "user",
+      basis: null,
+      selected_at: "2026-10-22T12:00:00Z",
+      superseded_at: null,
+      revision: 1,
+      stale: false,
+      stale_reasons: [],
+    });
     await openMovie(page, data.movie.title);
     const program = page.getByRole("region", { name: "Program monitor" });
     const playhead = page.getByRole("slider", {

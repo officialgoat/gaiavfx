@@ -518,6 +518,26 @@ export interface paths {
     patch: operations["update_movie_api_direction_movies__movie_id__patch"];
     trace?: never;
   };
+  "/api/direction/movies/{movie_id}/read": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Read Movie
+     * @description The movie as the workspace reads it, in one read (application/movie_read.py).
+     */
+    get: operations["read_movie_api_direction_movies__movie_id__read_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/direction/movies/{movie_id}/subjects": {
     parameters: {
       query?: never;
@@ -5080,6 +5100,35 @@ export interface components {
       /** Title */
       title: string;
     };
+    /** MovieReadDTO */
+    MovieReadDTO: {
+      movie: components["schemas"]["MovieDetailDTO"];
+      /** Segment Plans */
+      segment_plans: {
+        [key: string]: components["schemas"]["DirectionSegmentPlanDTO"];
+      };
+      /** Pin Offsets */
+      pin_offsets: {
+        [key: string]: number | null;
+      };
+      /** Identity Lanes */
+      identity_lanes: number;
+      /** Split Points */
+      split_points: {
+        [key: string]: components["schemas"]["DirectionSplitPointDTO"][];
+      };
+      /** Keyframes */
+      keyframes: {
+        [key: string]: components["schemas"]["KeyframeDTO"][];
+      };
+      /** Selections */
+      selections: {
+        [key: string]: components["schemas"]["SelectionsDTO"];
+      };
+      /** Receipts */
+      receipts: components["schemas"]["ReceiptDTO"][];
+      undo: components["schemas"]["UndoTargetsDTO"];
+    };
     /** NameInput */
     NameInput: {
       /** Name */
@@ -7492,6 +7541,13 @@ export interface components {
         [key: string]: unknown;
       };
     };
+    /** UndoTargetsDTO */
+    UndoTargetsDTO: {
+      /** Undo */
+      undo: string | null;
+      /** Redo */
+      redo: string | null;
+    };
     /** UnlockCredentials */
     UnlockCredentials: {
       /**
@@ -8768,6 +8824,37 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["MovieCommandDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  read_movie_api_direction_movies__movie_id__read_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        movie_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["MovieReadDTO"];
         };
       };
       /** @description Validation Error */
