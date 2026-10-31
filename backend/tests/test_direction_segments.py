@@ -371,7 +371,9 @@ def test_cut_moves_preserve_phase_timing_and_refuse_invalid_frames(store):
         assert assembled.cut_frames == (36,)
         changed = service.update_cut(session, stored_cut["id"], 1, frame=48)
         receipt(changed, "cut", stored_cut["id"])
-        assert [p["start_frame"] for p in service.phases(session, segment["id"])] == [0, 48]
+        assert [
+            p["start_frame"] for p in service.read_segment(session, segment["id"])["phases"]
+        ] == [0, 48]
         assembled, _ = service.assemble_segment(session, segment["id"])
         assert assembled.cut_frames == (48,)
         fail_without_write(
@@ -391,7 +393,10 @@ def test_cut_moves_preserve_phase_timing_and_refuse_invalid_frames(store):
         fail_without_write(
             session, 409, "48", lambda: service.update_cut(session, other["id"], 1, frame=48)
         )
-        assert [c["frame"] for c in service.cuts(session, segment["id"])] == [48, 60]
+        assert [c["frame"] for c in service.read_segment(session, segment["id"])["cuts"]] == [
+            48,
+            60,
+        ]
 
 
 def test_incomplete_authoring_and_schema_errors_are_typed(store):

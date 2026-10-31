@@ -217,11 +217,13 @@ def test_o4_agent_moves_then_removes_cut_with_independent_undo_receipts(kernel):
     removed = tool.run(ctx, value)
     assert removed.ok and removed.payload["removed"]
     with kernel.db.transaction() as session:
-        assert not direction.cuts(session, segment["id"])
+        assert not direction.read_segment(session, segment["id"])["cuts"]
         direction.undo(session, removed.receipts[0]["id"])
         direction.undo(session, moved.receipts[0]["id"])
         assert direction.read_cut(session, cut["id"])["frame"] == 36
-        assert [p["start_frame"] for p in direction.phases(session, segment["id"])] == [0, 36]
+        assert [
+            p["start_frame"] for p in direction.read_segment(session, segment["id"])["phases"]
+        ] == [0, 36]
 
 
 def test_o5_precut_phase_continues_predecessor(kernel):

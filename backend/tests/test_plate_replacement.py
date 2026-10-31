@@ -46,7 +46,7 @@ def test_zero_cut_opening_plate_replacement_has_movie_receipt_and_undo(kernel):
             session, segment["id"], segment["revision"], opening_angle_id=angle["id"]
         )
         old = direction.set_plate(session, place["id"], asset_id="old", angle_id=angle["id"])
-        assert direction.cuts(session, segment["id"]) == []
+        assert direction.read_segment(session, segment["id"])["cuts"] == []
         unrelated_receipts = direction.receipts(session, kernel.movie["id"])
 
         changed = direction.approve_plate_replacement(
@@ -67,7 +67,7 @@ def test_zero_cut_opening_plate_replacement_has_movie_receipt_and_undo(kernel):
         restored = direction.read_place(session, place["id"])
         assert restored["plate_asset_id"] == "old"
         assert restored["plate_angle_id"] == angle["id"]
-        assert direction.cuts(session, segment["id"]) == []
+        assert direction.read_segment(session, segment["id"])["cuts"] == []
 
 
 def binding_map(service, session, cut):

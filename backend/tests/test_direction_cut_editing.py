@@ -17,13 +17,13 @@ def test_remove_undo_redo_preserves_cut_identity_and_phase(store):
         original = cut(service, session, segment)
         removed = service.remove_cut(session, original["id"], 2)
         assert removed["receipt"]["command"] == "remove_cut"
-        assert not service.cuts(session, segment["id"])
-        assert service.phases(session, segment["id"]) == segment["phases"]
+        assert not service.read_segment(session, segment["id"])["cuts"]
+        assert service.read_segment(session, segment["id"])["phases"] == segment["phases"]
         inverse = service.undo(session, removed["receipt"]["id"])
         restored = service.read_cut(session, original["id"])
         assert restored == {k: v for k, v in original.items() if k != "receipt"}
         service.undo(session, inverse["id"])
-        assert not service.cuts(session, segment["id"])
+        assert not service.read_segment(session, segment["id"])["cuts"]
 
 
 def test_move_moves_phase_and_one_undo_restores_both(store):
@@ -32,16 +32,20 @@ def test_move_moves_phase_and_one_undo_restores_both(store):
         segment = make_segment(service, session)
         original = cut(service, session, segment)
         moved = service.update_cut(session, original["id"], 1, frame=60)
-        phases = service.phases(session, segment["id"])
+        phases = service.read_segment(session, segment["id"])["phases"]
         assert [p["start_frame"] for p in phases] == [0, 60]
         assert phases[1]["id"] == segment["phases"][1]["id"]
         service.assemble_segment(session, segment["id"])
         inverse = service.undo(session, moved["receipt"]["id"])
         assert service.read_cut(session, original["id"])["frame"] == 36
-        assert [p["start_frame"] for p in service.phases(session, segment["id"])] == [0, 36]
+        assert [
+            p["start_frame"] for p in service.read_segment(session, segment["id"])["phases"]
+        ] == [0, 36]
         service.undo(session, inverse["id"])
         assert service.read_cut(session, original["id"])["frame"] == 60
-        assert [p["start_frame"] for p in service.phases(session, segment["id"])] == [0, 60]
+        assert [
+            p["start_frame"] for p in service.read_segment(session, segment["id"])["phases"]
+        ] == [0, 60]
 
 
 def test_move_can_create_missing_phase_from_active_direction(store):
@@ -50,11 +54,11 @@ def test_move_can_create_missing_phase_from_active_direction(store):
         segment = make_segment(service, session)
         original = cut(service, session, segment, frame=96)
         moved = service.update_cut(session, original["id"], 1, frame=72)
-        phases = service.phases(session, segment["id"])
+        phases = service.read_segment(session, segment["id"])["phases"]
         assert [p["start_frame"] for p in phases] == [0, 36, 72]
         assert phases[-1]["content"] == segment["phases"][-1]["content"]
         service.undo(session, moved["receipt"]["id"])
-        assert service.phases(session, segment["id"]) == segment["phases"]
+        assert service.read_segment(session, segment["id"])["phases"] == segment["phases"]
 
 
 def test_move_can_use_identical_authored_phase_without_overwriting_it(store):
@@ -67,12 +71,12 @@ def test_move_can_use_identical_authored_phase_without_overwriting_it(store):
         phase = service.add_phase(
             session, segment["id"], 2, start_frame=60, content=segment["phases"][-1]["content"]
         )
-        before = service.phases(session, segment["id"])
+        before = service.read_segment(session, segment["id"])["phases"]
         moved = service.update_cut(session, original["id"], 1, frame=60)
-        assert service.phases(session, segment["id"]) == before
+        assert service.read_segment(session, segment["id"])["phases"] == before
         assert any(p["id"] == phase["id"] for p in before)
         service.undo(session, moved["receipt"]["id"])
-        assert service.phases(session, segment["id"]) == before
+        assert service.read_segment(session, segment["id"])["phases"] == before
 
 
 def test_move_collision_and_intervening_phase_edit_refuse_without_writes(store):
@@ -91,7 +95,7 @@ def test_move_collision_and_intervening_phase_edit_refuse_without_writes(store):
             session, 409, "phase", lambda: service.update_cut(session, original["id"], 1, frame=60)
         )
         moved = service.update_cut(session, original["id"], 1, frame=72)
-        phase = service.phases(session, segment["id"])[-1]
+        phase = service.read_segment(session, segment["id"])["phases"][-1]
         service.update_phase(
             session,
             phase["id"],
@@ -182,7 +186,7 @@ def test_cut_chain_guards_create_retarget_move_and_remove(store):
         )
         removed = service.remove_cut(session, second["id"], 3)
         service.undo(session, removed["receipt"]["id"])
-        assert [c["id"] for c in service.cuts(session, segment["id"])] == [
+        assert [c["id"] for c in service.read_segment(session, segment["id"])["cuts"]] == [
             first["id"],
             second["id"],
         ]

@@ -643,8 +643,8 @@ class DirectionService:
     def read_segment(self, session, segment_id):
         return {
             **_record(_get(session, SegmentRecord, segment_id)),
-            "phases": self.phases(session, segment_id),
-            "cuts": self.cuts(session, segment_id),
+            "phases": self._phases(session, segment_id),
+            "cuts": self._cuts(session, segment_id),
         }
 
     def predecessor(self, session, segment):
@@ -682,7 +682,7 @@ class DirectionService:
             relation_source="unknown",
         )
 
-    def phases(self, session, segment_id):
+    def _phases(self, session, segment_id):
         _get(session, SegmentRecord, segment_id)
         return [
             _record(row)
@@ -693,7 +693,7 @@ class DirectionService:
             )
         ]
 
-    def cuts(self, session, segment_id):
+    def _cuts(self, session, segment_id):
         _get(session, SegmentRecord, segment_id)
         return [
             _record(row)
@@ -976,16 +976,16 @@ class DirectionService:
             changes.update(content=content, content_schema=authored.SEGMENT_SCHEMA)
         if delivered_frames is not None:
             _frames(delivered_frames)
-            for phase in self.phases(session, segment_id):
+            for phase in self._phases(session, segment_id):
                 _frame(phase["start_frame"], delivered_frames)
-            for cut in self.cuts(session, segment_id):
+            for cut in self._cuts(session, segment_id):
                 _frame(cut["frame"], delivered_frames, cut=True)
             changes["delivered_frames"] = delivered_frames
         if continues is not None:
             _continues(continues)
             changes["continues"] = continues
         if opening_angle_id is not _UNSET:
-            cuts = self.cuts(session, segment_id)
+            cuts = self._cuts(session, segment_id)
             if opening_angle_id is None:
                 if cuts:
                     raise ApplicationError(
@@ -1644,25 +1644,6 @@ class DirectionService:
     def read_evidence(self, session: Session, evidence_id: str) -> dict:
         return _record(_get(session, EvidenceRecord, evidence_id))
 
-    def evidence_for_assets(self, session: Session, asset_ids) -> list[dict]:
-        """The evidence showing any of these assets, with its angle and place (a set view's references)."""
-        rows = session.execute(
-            select(EvidenceRecord, AngleRecord, PlaceRecord)
-            .join(AngleRecord, AngleRecord.id == EvidenceRecord.angle_id)
-            .join(PlaceRecord, PlaceRecord.id == AngleRecord.place_id)
-            .where(EvidenceRecord.asset_id.in_(list(asset_ids)))
-            .order_by(EvidenceRecord.created_at, EvidenceRecord.id)
-        )
-        return [
-            {
-                **_record(evidence),
-                "angle_name": angle.name,
-                "place_id": place.id,
-                "place_name": place.name,
-            }
-            for evidence, angle, place in rows
-        ]
-
     def keyframes(self, session: Session, cut_id: str) -> list[dict]:
         _get(session, CutRecord, cut_id)
         return [
@@ -1913,7 +1894,7 @@ class DirectionService:
             raise ApplicationError(f"Cut frame {frame} already exists.", 409)
 
     def _cut_chain(self, session, segment_id, replacement=None, cut_id=None):
-        cuts = [c for c in self.cuts(session, segment_id) if c["id"] != cut_id]
+        cuts = [c for c in self._cuts(session, segment_id) if c["id"] != cut_id]
         if replacement is not None:
             cuts.append(replacement)
         cuts.sort(key=lambda c: c["frame"])
@@ -2011,7 +1992,7 @@ class DirectionService:
             "revision": row.revision,
             "cut": _record(row),
             "segment_revision": segment.revision,
-            "phases": self.phases(session, segment.id),
+            "phases": self._phases(session, segment.id),
         }
 
     def _cut_move_receipt(self, session, row, segment, before):
