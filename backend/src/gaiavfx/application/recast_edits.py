@@ -305,7 +305,7 @@ def _referenced(restored, shots, character_id):
         return True
     for shot in shots:
         plan = shot["plan"] or {}
-        # `_finish` recomputes an unstarted shot's plan from the restored cast; a started shot keeps
+        # `finish` recomputes an unstarted shot's plan from the restored cast; a started shot keeps
         # its performers and bindings, and archived attempts keep theirs for good.
         kept = plan if shot["window_replacement_ops"] else {}
         if (
@@ -418,7 +418,7 @@ def undo_edit(session, library, recast_id, edit_id, *, expected_revision):
     """Undo one cast edit, or redo one (undo of an undo entry). Every refusal comes before any write."""
     from gaiavfx.application import recast as commands  # recast imports this module
 
-    recast, report = commands._load(session, library, recast_id, expected_revision)
+    recast, report = commands.load(session, library, recast_id, expected_revision)
     journal = capture(recast, report)
     entry = p.store.edit(session, edit_id)
     if entry is None or entry["recast_id"] != recast_id:
@@ -450,7 +450,7 @@ def undo_edit(session, library, recast_id, edit_id, *, expected_revision):
     p.store.mark_undone(session, entry["id"])
     base = entry["summary"].removeprefix("Undo: ").removeprefix("Redo: ")
     kind = "redo" if entry["kind"] == "undo" else "undo"
-    return commands._finish(
+    return commands.finish(
         session,
         library,
         recast,

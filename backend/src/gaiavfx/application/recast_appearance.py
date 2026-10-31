@@ -164,7 +164,7 @@ def rank_proposals(recast, report, windows, shot_id, load_mask, policy):
 def suggest_appearances(database, library, recast_id, shot_id, *, expected_revision):
     # Read immutable reports without acquiring Editing's writer lock.
     with database.transaction() as session:
-        recast, report = app._load(session, library, recast_id)
+        recast, report = app.load(session, library, recast_id)
         if recast["revision"] != expected_revision:
             raise ApplicationError("The recast changed; reload before suggesting appearances.", 409)
         app._shot(recast, shot_id)
@@ -197,7 +197,7 @@ def suggest_appearances(database, library, recast_id, shot_id, *, expected_revis
         recast, report, windows, shot_id, lambda artifact: _mask_data(library, artifact), p.policy()
     )
     with database.transaction() as session:
-        current, current_report = app._load(session, library, recast_id, expected_revision)
+        current, current_report = app.load(session, library, recast_id, expected_revision)
         if (
             p.report_token(session, current, current_report) != film_token
             or analysis_ids
@@ -214,4 +214,4 @@ def suggest_appearances(database, library, recast_id, shot_id, *, expected_revis
             raise ApplicationError("Window analyses changed; request suggestions again.", 409)
         for proposal in proposals:
             app._propose_appearance(current, **proposal, proposed_by="analysis")
-        return app._finish(session, library, current)
+        return app.finish(session, library, current)

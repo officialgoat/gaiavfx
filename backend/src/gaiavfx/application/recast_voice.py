@@ -349,7 +349,7 @@ def _choose(session, library, recast, character, asset_ids):
 
 def _sampled(session, library, recast_id, character_id, expected_revision):
     commands = _commands()
-    recast, report = commands._load(session, library, recast_id, expected_revision)
+    recast, report = commands.load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     return commands, recast, journal, commands._character(recast, character_id)
 
@@ -486,7 +486,7 @@ def build_voice(
     client asks first). A build that settled without success gets the next attempt; a finished build is built again
     only with `rebuild` after the expressive recordings changed. Never automatic."""
     commands = _commands()
-    recast, _ = commands._load(session, library, recast_id, expected_revision)
+    recast, _ = commands.load(session, library, recast_id, expected_revision)
     character = commands._character(recast, character_id)
     _buildable(session, library, character)
     builds = _build()
@@ -511,7 +511,7 @@ def build_voice(
     else:
         _start(session, library, character, scan, attempt + 1)
     character["voice_model_state"] = "making"
-    return commands._finish(session, library, recast)
+    return commands.finish(session, library, recast)
 
 
 def _clip_spans(line, whisper_spans, rate: int) -> list[list[float]]:
@@ -623,7 +623,7 @@ def retry_voice(
     or audition again (with the lines confirmed now) after a failed, cancelled or rejected audition, or one the feed
     could not start."""
     commands = _commands()
-    recast, report = commands._load(session, library, recast_id, expected_revision)
+    recast, report = commands.load(session, library, recast_id, expected_revision)
     character = commands._character(recast, character_id)
     _buildable(session, library, character)
     builds = _build()
@@ -660,13 +660,13 @@ def retry_voice(
     else:
         raise ApplicationError(NOTHING_TO_RETRY, 409)
     character["voice_model_state"] = "making"
-    return commands._finish(session, library, recast)
+    return commands.finish(session, library, recast)
 
 
 def _reviewed(session, library, recast_id, character_id, expected_revision):
     """The waiting audition: (commands, recast, character, build, audition, reel); refusals before any write."""
     commands = _commands()
-    recast, _ = commands._load(session, library, recast_id, expected_revision)
+    recast, _ = commands.load(session, library, recast_id, expected_revision)
     character = commands._character(recast, character_id)
     if character.get("voice_model_state") != "waiting":
         raise ApplicationError("No voice audition is waiting for approval.", 409)
@@ -713,7 +713,7 @@ def approve_voice(session, library, recast_id, character_id, *, expected_revisio
         },
     )
     character.update(voice_model_state="approved", voice_model_artifact_id=manifest["artifact_id"])
-    return commands._finish(session, library, recast)
+    return commands.finish(session, library, recast)
 
 
 def reject_voice(session, library, recast_id, character_id, *, expected_revision):
@@ -722,4 +722,4 @@ def reject_voice(session, library, recast_id, character_id, *, expected_revision
         session, library, recast_id, character_id, expected_revision
     )
     character["voice_model_state"] = "rejected"
-    return commands._finish(session, library, recast)
+    return commands.finish(session, library, recast)

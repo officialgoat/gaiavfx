@@ -291,7 +291,7 @@ def line_views(session, library, recast, report, current=None, appearances=None)
 
 def lines_state(session, library, recast_id):
     """GET /lines: read only, never locks, saves or starts anything."""
-    recast, report = _commands()._load(session, library, recast_id)
+    recast, report = _commands().load(session, library, recast_id)
     return line_views(session, library, recast, report)
 
 
@@ -310,16 +310,16 @@ def _startable(session, library, recast):
 def start_dialogue_analysis(session, library, recast_id, *, expected_revision):
     """Human only: start (or find) the film's shared dialogue analysis. Asked for, never automatic."""
     commands = _commands()
-    recast, _ = commands._load(session, library, recast_id, expected_revision)
+    recast, _ = commands.load(session, library, recast_id, expected_revision)
     _startable(session, library, recast)
     _evidence().start_dialogue_analysis(session, library, recast["source_asset_id"])
-    return commands._finish(session, library, recast)
+    return commands.finish(session, library, recast)
 
 
 def retry_dialogue_analysis(session, library, recast_id, *, expected_revision):
     """Human only: a new attempt after the current one settled without success."""
     commands = _commands()
-    recast, _ = commands._load(session, library, recast_id, expected_revision)
+    recast, _ = commands.load(session, library, recast_id, expected_revision)
     operation = _startable(session, library, recast)
     if (
         operation is None
@@ -332,7 +332,7 @@ def retry_dialogue_analysis(session, library, recast_id, *, expected_revision):
     _evidence().start_dialogue_analysis(
         session, library, recast["source_asset_id"], retry_failed=True
     )
-    return commands._finish(session, library, recast)
+    return commands.finish(session, library, recast)
 
 
 # --- line decisions (human only, journaled) ----------------------------------------------------------------------------
@@ -341,7 +341,7 @@ def retry_dialogue_analysis(session, library, recast_id, *, expected_revision):
 def _deciding(session, library, recast_id, expected_revision):
     """Load under the revision lock and refuse before any write unless the current analysis has succeeded."""
     commands = _commands()
-    recast, report = commands._load(session, library, recast_id, expected_revision)
+    recast, report = commands.load(session, library, recast_id, expected_revision)
     current = current_operation(session, library, recast)
     operation = current[0]
     if operation is None or operation["state"] != "succeeded":
@@ -630,7 +630,7 @@ def propose_line(
         evidence=deepcopy(evidence),
         decided_at=None,
     )
-    return ctx.commands._finish(session, library, ctx.recast)  # a proposal is not the user's edit
+    return ctx.commands.finish(session, library, ctx.recast)  # a proposal is not the user's edit
 
 
 # --- merges -----------------------------------------------------------------------------------------------------------

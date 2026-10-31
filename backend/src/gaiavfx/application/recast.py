@@ -28,7 +28,7 @@ from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
 
-def _load(session, library, recast_id, expected_revision=None):
+def load(session, library, recast_id, expected_revision=None):
     if expected_revision is not None:
         p.store.lock(session, recast_id, expected_revision)
     recast = p.store.load(session, recast_id)
@@ -37,7 +37,7 @@ def _load(session, library, recast_id, expected_revision=None):
     return recast, report
 
 
-def _finish(session, library, recast, journal=None, **entry):
+def finish(session, library, recast, journal=None, **entry):
     """One revision per command; a journaled cast edit also records its rows (recast_edits)."""
     recast["revision"] += 1
     recast["updated_at"] = timestamp()
@@ -51,7 +51,7 @@ def _finish(session, library, recast, journal=None, **entry):
 
 def _journaled(session, library, recast, journal, command, **facts):
     summary = journaling.summary_for(command, journal, recast, **facts)
-    return _finish(session, library, recast, journal=journal, command=command, summary=summary)
+    return finish(session, library, recast, journal=journal, command=command, summary=summary)
 
 
 def _character(recast, character_id):
@@ -225,7 +225,7 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
     read, which then compares each built voice with the expressive recordings (`library_changed`)."""
     from gaiavfx.application.recast_conform import conform_states
 
-    recast, report = _load(session, library, recast_id)
+    recast, report = load(session, library, recast_id)
     planning.refresh_all(session, library, recast, report)
     margin_min = p.policy().identity_margin_min
     characters, unknown = p.character_views(recast, report)
@@ -410,7 +410,7 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
 def patch_character(
     session, library, recast_id, character_id, *, expected_revision, label=None, hidden=None
 ):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     character = _character(recast, character_id)
     if label is not None:
@@ -431,7 +431,7 @@ def _override(recast, track_ids, to):
 
 
 def merge_characters(session, library, recast_id, *, expected_revision, into, sources):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     # Moving line decisions ties the merge's undo to the current dialogue analysis, as a line command's.
     dialogue = (
         lining.current_id(session, library, recast)
@@ -480,7 +480,7 @@ def merge_characters(session, library, recast_id, *, expected_revision, into, so
 
 def set_not_same(session, library, recast_id, *, expected_revision, pairs):
     """The user's "Not the same person" (ADR 0017, CP3): the pair's suggestion stays hidden, in every browser."""
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     stored = {(n["character_a"], n["character_b"]) for n in recast["not_same"]}
     for a, b in pairs:
@@ -503,7 +503,7 @@ def set_not_same(session, library, recast_id, *, expected_revision, pairs):
 
 
 def move_tracks(session, library, recast_id, *, expected_revision, track_ids, to):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     if not report or set(track_ids) - {t["id"] for t in report["tracks"]}:
         raise ApplicationError("A track does not belong to this film report.", 422)
@@ -639,7 +639,7 @@ def propose_appearance(
     evidence,
     user_message="",
 ):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     _character(recast, character_id)
     if proposed_by not in {"analysis", "agent", "user"}:
         raise ApplicationError("Unknown appearance proposer.", 422)
@@ -649,7 +649,7 @@ def propose_appearance(
     _propose_appearance(
         recast, shot_id, analysis_operation_id, track_id, character_id, proposed_by, evidence
     )
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def _decide_appearance(
@@ -667,7 +667,7 @@ def _decide_appearance(
 ):
     if authority != "user":
         raise ApplicationError("Only a human can decide an appearance link.", 403)
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     _character(recast, character_id)
     _appearance_track(session, library, recast, shot_id, analysis_operation_id, track_id)
     link = p.appearance_link(recast, analysis_operation_id, track_id)
@@ -679,7 +679,7 @@ def _decide_appearance(
         )
         link = p.appearance_link(recast, analysis_operation_id, track_id)
     link.update(state=state, decided_at=timestamp())
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def confirm_appearance(
@@ -747,19 +747,19 @@ def clear_appearance(
 ):
     if authority != "user":
         raise ApplicationError("Only a human can clear an appearance link.", 403)
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     _shot(recast, shot_id)
     link = p.appearance_link(recast, analysis_operation_id, track_id)
     if not link or link["shot_id"] != shot_id:
         raise ApplicationError("Appearance link not found in this shot.", 404)
     recast["appearance_links"].remove(link)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def _target(
     session, library, recast_id, character_id, expected_revision, asset_id, label, *, authority
 ):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     character = _character(recast, character_id)
     if authority == "agent" and character["target_state"] == "confirmed":
@@ -783,7 +783,7 @@ def _target(
         target_state="confirmed" if authority == "user" else "proposed",
     )
     if authority != "user":
-        return _finish(session, library, recast)  # an agent proposal is not the user's edit
+        return finish(session, library, recast)  # an agent proposal is not the user's edit
     advance_reference(session, library, recast, character, retry_failed=True)
     return _journaled(
         session, library, recast, journal, "set_target", character_id=character_id, label=label
@@ -819,7 +819,7 @@ def propose_target(
 
 
 def confirm_target(session, library, recast_id, character_id, *, expected_revision):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     character = _character(recast, character_id)
     if not character["target_state"]:
         raise ApplicationError("No target has been proposed.", 409)
@@ -828,11 +828,11 @@ def confirm_target(session, library, recast_id, character_id, *, expected_revisi
     character["target_state"] = "confirmed"
     start_target_report(session, library, character["target_asset_id"], retry_failed=True)
     advance_reference(session, library, recast, character, retry_failed=True)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def clear_target(session, library, recast_id, character_id, expected_revision):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     character = _character(recast, character_id)
     cancel_reference(session, recast, character)
@@ -853,17 +853,17 @@ _UNSET = object()
 def patch_shot(
     session, library, recast_id, shot_id, *, expected_revision, included=_UNSET, priority=_UNSET
 ):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     shot = _shot(recast, shot_id)
     if included is not _UNSET:
         shot["included"] = included
     if priority is not _UNSET:
         shot["priority"] = priority
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def plan_recast(session, library, recast_id, *, expected_revision, range=None):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     if not report:
         raise ApplicationError("Film analysis must finish before planning.", 409)
     _range(range, report)
@@ -902,11 +902,11 @@ def plan_recast(session, library, recast_id, *, expected_revision, range=None):
                 planning.error(stored, exc)
                 stored["plan"]["_analysis_error"] = str(exc)
     planning.refresh_all(session, library, recast, report)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def start_run(session, library, recast_id, *, expected_revision, mode, range, render_budget):
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     _mode(mode)
     _range(range, report)
     if not report or not any(s["plan"] for s in recast["shots"]):
@@ -925,12 +925,12 @@ def start_run(session, library, recast_id, *, expected_revision, mode, range, re
     from gaiavfx.application.recast_feed import promote_drafts
 
     promote_drafts(session, recast, report)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def retry_analysis(session, library, recast_id, *, expected_revision):
     """Start a fresh film analysis after one ended without success; user decisions are kept."""
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     previous = p.operations.operation(session, recast["analysis_operation_id"])
     if previous["state"] not in {"failed", "cancelled", "partial", "needs_attention"}:
         raise ApplicationError("Film analysis is running or finished; nothing to retry.", 409)
@@ -943,18 +943,18 @@ def retry_analysis(session, library, recast_id, *, expected_revision):
         request_key=planning.key(recast["id"], "film", recast["revision"] + 1),
     )
     recast["analysis_operation_id"] = operation["id"]
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def pause_run(session, library, recast_id, *, expected_revision):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     recast["run_state"] = "paused"
     recast["run_reason"] = "Paused by the user."
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def cancel_run(session, library, recast_id, *, expected_revision):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     recast["run_state"] = "idle"
     recast["run_reason"] = None
     for shot in recast["shots"]:
@@ -983,11 +983,11 @@ def cancel_run(session, library, recast_id, *, expected_revision):
             if op["state"] not in p.SETTLED:
                 p.operations.request_cancel(session, op_id)
         planning.archive(shot, cancelled=True)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def choose_version(session, library, recast_id, shot_id, *, expected_revision, version):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     shot = _shot(recast, shot_id)
     if version not in {"original", "unchosen"} and version not in {
         v["id"] for v in p.versions(session, library, shot)
@@ -1003,7 +1003,7 @@ def choose_version(session, library, recast_id, shot_id, *, expected_revision, v
 def retake_shot(session, library, recast_id, shot_id, *, expected_revision, mode):
     from gaiavfx.application.recast_feed import start_shot
 
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     _mode(mode)
     shot = _shot(recast, shot_id)
     if (
@@ -1016,7 +1016,7 @@ def retake_shot(session, library, recast_id, shot_id, *, expected_revision, mode
     planning.refresh(session, library, recast, report, film_shot, shot)
     if not start_shot(session, library, recast, film_shot, shot, mode):
         raise ApplicationError("The shot is not ready or the render budget is exhausted.", 409)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def start_head_pass(
@@ -1024,7 +1024,7 @@ def start_head_pass(
 ):
     from gaiavfx.application.recast_feed import used
 
-    recast, report = _load(session, library, recast_id, expected_revision)
+    recast, report = load(session, library, recast_id, expected_revision)
     shot = _shot(recast, shot_id)
     plan = shot["plan"] or {}
     if character_id not in plan.get("performers", []):
@@ -1122,11 +1122,11 @@ def start_head_pass(
                 "cancelled": False,
             }
         )
-        return _finish(session, library, recast)
+        return finish(session, library, recast)
 
 
 def reveal_shot(session, library, recast_id, shot_id):
-    recast, _ = _load(session, library, recast_id)
+    recast, _ = load(session, library, recast_id)
     shot = _shot(recast, shot_id)
     return {
         "shot_id": shot_id,
@@ -1166,7 +1166,7 @@ def face_path(session, library, recast_id, artifact_id):
 
 
 def approve_reference(session, library, recast_id, character_id, *, expected_revision):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     character = _character(recast, character_id)
     if character.get("reference_state") != "waiting" or character["target_state"] != "confirmed":
         raise ApplicationError("No face sheet is waiting for approval.", 409)
@@ -1198,13 +1198,13 @@ def approve_reference(session, library, recast_id, character_id, *, expected_rev
     )
     character["reference_state"] = "approved"
     start_target_report(session, library, sheet)
-    return _finish(session, library, recast)
+    return finish(session, library, recast)
 
 
 def reject_reference(session, library, recast_id, character_id, *, expected_revision):
-    recast, _ = _load(session, library, recast_id, expected_revision)
+    recast, _ = load(session, library, recast_id, expected_revision)
     character = _character(recast, character_id)
     if character.get("reference_state") != "waiting" or character["target_state"] != "confirmed":
         raise ApplicationError("No face sheet is waiting for approval.", 409)
     character["reference_state"] = "rejected"
-    return _finish(session, library, recast)
+    return finish(session, library, recast)

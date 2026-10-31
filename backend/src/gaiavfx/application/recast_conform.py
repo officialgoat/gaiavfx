@@ -59,7 +59,7 @@ def conform_states(session, recast_id):
 
 
 def start_conform(session, library, recast_id, *, mode, range, codec, request_key):
-    from gaiavfx.application.recast import _load, _range
+    from gaiavfx.application.recast import _range, load
 
     intent = {"recast_id": recast_id, "mode": mode, "range": range, "codec": codec}
     existing = p.operations.for_request(session, request_key)
@@ -71,7 +71,7 @@ def start_conform(session, library, recast_id, *, mode, range, codec, request_ke
         return existing | {"_created": False}
     if mode not in {"chosen", "preview_unreviewed"} or codec not in {"h264", "prores"}:
         raise ApplicationError("Unknown conform mode or codec.", 422)
-    recast, report = _load(session, library, recast_id)
+    recast, report = load(session, library, recast_id)
     if not report:
         raise ApplicationError("Finish film analysis before conforming.", 409)
     _range(range, report)
