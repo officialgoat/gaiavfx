@@ -106,7 +106,13 @@ def test_direction_holds_the_empty_place_rule_for_every_caller(tmp_path):
         place = direction.create_place(session, "Arcade")
     with TestClient(app, base_url="http://localhost") as client:
         url = f"/api/direction/places/{place['id']}"
-        body = {"movie_id": movie["id"], "expected_revision": place["revision"]}
+        body = {
+            "movie_id": movie["id"],
+            "expected_revision": place["revision"],
+            "description": "Empty stone courtyard",
+            "sound": "Wind in the trees",
+            "overhead": "Straight down over the roof",
+        }
         for field, text, words in (
             ("sound", "Footsteps on the stones", "no footsteps, voices"),
             ("overhead", "Looking up at the sky", "not a view looking up"),

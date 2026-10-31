@@ -38,6 +38,7 @@ from gaiavfx.application.prepare_references import (
     start_empty_plate,
 )
 from gaiavfx.modules.direction.insertion import continuity_facing
+from gaiavfx.modules.direction.persistence import AngleRecord
 from gaiavfx.modules.direction.place_text import (
     EMPTY_PLACE_REFUSAL,
     PERSON_WORDS,
@@ -161,10 +162,10 @@ def test_t1_all_place_operations_refuse_atomically(world):
 def test_t1_legacy_survey_text_refused_without_rewriting(world):
     work, setup = world
     with work.db.transaction() as session:
-        old = direction.read_angle(session, setup["angles"][2])
-        angle = direction.update_angle(
-            session, old["id"], old["revision"], description=RUN3_ANGLES[1]
-        )
+        # Text stored before Direction held the empty-place rule; Direction refuses to write it now.
+        session.get(AngleRecord, setup["angles"][2]).description = RUN3_ANGLES[1]
+    with work.db.transaction() as session:
+        angle = direction.read_angle(session, setup["angles"][2])
     context, tool = context_for(work, setup), PrepareCut()
     result = call(tool, context, cut_id=setup["cut_id"])
     assert not result.ok and EMPTY_PLACE_REFUSAL in result.discrepancy
