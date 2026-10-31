@@ -104,16 +104,7 @@ export function reviewCommands(
         busy() ??
         (t.kind === "preparation" &&
         operations.some(
-          (o) =>
-            o.id === t.id &&
-            !o.cancel_requested &&
-            ![
-              "succeeded",
-              "partial",
-              "cancelled",
-              "failed",
-              "needs_attention",
-            ].includes(o.state),
+          (o) => o.id === t.id && !o.cancel_requested && !o.settled,
         )
           ? undefined
           : "This operation is already finished or cancelling."),

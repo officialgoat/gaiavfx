@@ -19,14 +19,6 @@ import { useWorkspaceActions } from "../../shared/workspace-actions";
 import { preparationShot, shotPlace } from "./shot";
 import { preparationSteps, type PreparationStep } from "./preparation-steps";
 
-const SETTLED = [
-  "succeeded",
-  "partial",
-  "failed",
-  "cancelled",
-  "needs_attention",
-];
-
 function Thumbnail({ id }: { id?: string | null }) {
   const asset = useQuery({
     queryKey: ["asset", id],
@@ -294,7 +286,7 @@ function PreparationStepCard({
         !rejected.has(c.id) &&
         step.ownsCandidate(c),
     );
-  const running = attempts.some((o) => !SETTLED.includes(o.state));
+  const running = attempts.some((o) => !o.settled);
   const status =
     step.kind === "camera"
       ? step.approved

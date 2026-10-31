@@ -1,10 +1,11 @@
 """Human movie export and its readiness projection."""
 
 from fastapi import APIRouter, Depends, Response
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.api.production import OperationDTO
 from gaiavfx.application.export_movie import movie_export_state, start_export
+from gaiavfx.modules.generation.operations import outcome
 
 
 class MovieExportInput(BaseModel):
@@ -20,6 +21,12 @@ class MovieExportStatusDTO(BaseModel):
     asset_id: str | None
     cancel_requested: bool
     error: str | None
+
+    @computed_field
+    @property
+    def settled(self) -> bool:
+        """Whether the export has stopped running, by the same rule as every operation."""
+        return outcome.settled(self.model_dump(include={"state"}))
 
 
 class MovieExportSegmentDTO(BaseModel):

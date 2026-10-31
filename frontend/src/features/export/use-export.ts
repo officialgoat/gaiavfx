@@ -4,14 +4,6 @@ import { route } from "../../shared/routes";
 import { useEditRunner } from "../../shared/edit-runner";
 import type { DirectController } from "../project/use-direction";
 
-const terminal = [
-  "succeeded",
-  "failed",
-  "cancelled",
-  "partial",
-  "needs_attention",
-];
-
 export function useMovieExport(d: DirectController) {
   const movieId = d.editor.movieId;
   const client = useQueryClient();
@@ -44,7 +36,7 @@ export function useMovieExport(d: DirectController) {
   const allowStale = confirmation === confirmationKey;
   const stale = segments.some((s) => s.stale_reasons.length > 0);
   const latest = read.data?.latest;
-  const active = !!latest && !terminal.includes(latest.state);
+  const active = !!latest && !latest.settled;
   const readyReason = !movieId
     ? "Open a movie first."
     : read.isPending

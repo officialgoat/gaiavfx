@@ -51,12 +51,12 @@ from gaiavfx.application.harness.world import FINISHED, LIST, operation_view, op
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.infrastructure.requests import Requests
 from gaiavfx.modules.agent.service import AgentStore
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.assistant import connection_for
 from gaiavfx.shared.errors import ApplicationError
 
 STALLED = 2
-OPERATION_TERMINAL = {"succeeded", "partial", "failed", "cancelled", "needs_attention"}
 
 
 def schema_billed(settings):

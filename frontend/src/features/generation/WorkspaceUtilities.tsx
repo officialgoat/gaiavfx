@@ -305,8 +305,8 @@ function EngineReadiness() {
         </ul>
       )}
       <p className="small muted">
-        GAIAVFX never installs engines. Licences are shown for your information and
-        never block a job.
+        GAIAVFX never installs engines. Licences are shown for your information
+        and never block a job.
       </p>
     </>
   );
@@ -346,15 +346,6 @@ function VoiceLibrary() {
   );
 }
 
-/** Settled operations, as the service's OPERATION_TERMINAL: a cancel request does nothing to them, so they offer none
- * (usability round 2, C1). "awaiting_review" is not settled; cancelling it stops the operation. */
-const SETTLED = [
-  "succeeded",
-  "partial",
-  "failed",
-  "cancelled",
-  "needs_attention",
-];
 /** A film's renders, one kind per method: in a film they read alike, so render batches are not told apart by method. */
 const RECAST_RENDERS = ["character_replacement", "shot_assembly"];
 const REFUSED = /10061|refused|ECONNREFUSED|connection error/i;
@@ -456,7 +447,8 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
                 <p className="error-text">{operation.error}</p>
               ))}
             {!blind && <ReplacementDecisions operation={operation} />}
-            {!SETTLED.includes(operation.state) && (
+            {/* A settled operation ignores a cancel request (usability round 2, C1); one awaiting review stops. */}
+            {!operation.settled && (
               <CommandButton
                 id="operation.cancel"
                 target={{ kind: "preparation", id: operation.id }}

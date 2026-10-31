@@ -5102,6 +5102,11 @@ export interface components {
       cancel_requested: boolean;
       /** Error */
       error: string | null;
+      /**
+       * Settled
+       * @description Whether the export has stopped running, by the same rule as every operation.
+       */
+      readonly settled: boolean;
     };
     /** MovieInput */
     MovieInput: {

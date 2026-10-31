@@ -123,21 +123,13 @@ export function App() {
     enabled: !!library.data?.library,
     refetchInterval: 2500,
   });
-  const settledStates = [
-    "succeeded",
-    "partial",
-    "failed",
-    "cancelled",
-    "needs_attention",
-  ];
   const activeOperations =
-    operations.data?.filter((o) => !settledStates.includes(o.state)).length ??
-    0;
+    operations.data?.filter((o) => !o.settled).length ?? 0;
   // An operation that settles can change what Direction's plans see (a sheet assembled, views waiting for review),
   // so the plans and references are read again whenever one settles.
   const settled =
     operations.data
-      ?.filter((o) => settledStates.includes(o.state))
+      ?.filter((o) => o.settled)
       .map((o) => o.id)
       .join(",") ?? null;
   const settledBefore = useRef<string | null>(null);

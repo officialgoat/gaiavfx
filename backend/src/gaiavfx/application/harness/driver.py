@@ -11,7 +11,7 @@ claims, so a stream of chat messages cannot starve an already queued render.
 import logging
 import threading
 
-from gaiavfx.application.harness.loop import OPERATION_TERMINAL
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.assistant import connection_for
 from gaiavfx.shared.errors import ApplicationError
