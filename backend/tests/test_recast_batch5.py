@@ -10,7 +10,7 @@ import pytest
 from test_mouth_facts import trial
 from test_replacement_contract import CAP, attempt, joint_facts, mug_facts, result
 
-from gaiavfx.application import recast_feed, recast_projection, shot_assembly
+from gaiavfx.application import recast_feed, recast_projection, recast_run, shot_assembly
 from gaiavfx.application import replace_character as app
 from gaiavfx.application import shot_replacement as shot
 from gaiavfx.application.operations import knowledge_snapshot
@@ -516,5 +516,5 @@ def test_draft_bridge_reservation_is_one_per_join_even_with_retry():
         "windows": [{}, {}, {}],
         "_handoff": {"joins": [{"join": 1, "kind": "bridge"}, {"join": 2, "kind": "bridge"}]},
     }
-    assert recast_feed.bridge_reservation(bridge_plan, 2, mode="draft") == 2
-    assert recast_feed.bridge_reservation(bridge_plan, 4, mode="final") == 5
+    assert recast_run.bridge_reservation(bridge_plan, 2, mode="draft") == 2
+    assert recast_run.bridge_reservation(bridge_plan, 4, mode="final") == 5

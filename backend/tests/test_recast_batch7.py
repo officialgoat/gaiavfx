@@ -13,7 +13,7 @@ from test_recast_service import recast_template as recast_template  # noqa: PLC0
 from test_recast_service import world as world  # noqa: PLC0414
 from test_replacement_contract import CAP, attempt, mug_facts, result
 
-from gaiavfx.application import recast, recast_feed, recast_planning
+from gaiavfx.application import recast, recast_planning, recast_run
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import replace_character as app
 from gaiavfx.application import shot_replacement as shot
@@ -110,8 +110,8 @@ def test_bridged_plan_uses_one_crop_and_reports_its_scale(world, monkeypatch, co
     assert "Shot-wide crop used" in handoff["reasons"][0]
     assert "scale loss" in handoff["reasons"][0]
     assert "skip framing escalation" in handoff["reasons"][0]
-    assert recast_feed.bridge_reservation(plan, 2, mode="draft") == count - 1
-    assert recast_feed.bridge_reservation(plan, 4, mode="final") == count + 2
+    assert recast_run.bridge_reservation(plan, 2, mode="draft") == count - 1
+    assert recast_run.bridge_reservation(plan, 4, mode="final") == count + 2
 
 
 @pytest.mark.parametrize("scale,reason", [(0.399999, "scale_loss"), (None, "no_shared_crop")])

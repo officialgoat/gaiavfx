@@ -9,7 +9,7 @@ from test_recast_feed import long_shots, run, settle_all
 from test_recast_service import recast_template as recast_template  # noqa: PLC0414
 from test_recast_service import world as world  # noqa: PLC0414
 
-from gaiavfx.application import recast, recast_feed, recast_planning, shot_assembly
+from gaiavfx.application import recast, recast_feed, recast_planning, recast_run, shot_assembly
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import replace_character as app
 from gaiavfx.modules.direction.application import replacement_policy_text
@@ -91,7 +91,7 @@ def test_chain_planning(world, monkeypatch, count, flags, scale, old, kind):
         assert "close-up chain" in plan["_handoff"]["reasons"][0]
         assert plan["_handoff"]["crop"]["scale"] == scale
         assert plan["_handoff"]["joins"] == []
-        assert recast_feed.bridge_reservation(plan, 2, mode="draft") == 0
+        assert recast_run.bridge_reservation(plan, 2, mode="draft") == 0
     else:
         assert len(plan["_handoff"]["joins"]) == count - 1
 

@@ -267,7 +267,7 @@ def test_recast_read_satisfies_only_its_source_attachment(fixture):
 
 @pytest.mark.parametrize("mode,renders", [("draft", 2), ("final", 4)])
 def test_harness_and_stage_share_bridge_seed_estimate(fixture, mode, renders):
-    from gaiavfx.application.recast import _estimate
+    from gaiavfx.application.recast_run import run_estimate
 
     state = fixture.state
     state["shots"] = state["shots"][:1]
@@ -282,8 +282,8 @@ def test_harness_and_stage_share_bridge_seed_estimate(fixture, mode, renders):
         "joins": [{"join": 1, "kind": "bridge"}, {"join": 2, "kind": "bridge"}],
     }
     _, harness = tools.estimate_run(state, mode=mode)
-    stage = _estimate(
-        {"run_mode": mode, "run_range_start": None, "run_range_end": None}, state["shots"], []
+    stage = run_estimate(
+        {"run_mode": mode, "run_range_start": None, "run_range_end": None}, state["shots"], {}, {}
     )
     seconds = (renders * 3 + 1 + (1 if mode == "draft" else renders)) * 280
     for estimate in (harness, stage):

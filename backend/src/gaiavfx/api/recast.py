@@ -284,6 +284,10 @@ class RunDTO(BaseModel):
     shots_done: int
     shots_total: int
     current_shot_id: str | None
+    # an included shot in the run's range is still being analysed: Start waits for it
+    analysing: bool = False
+    # the median measured render, once three were measured; estimates use it instead of the seed timing
+    render_seconds: float | None = None
 
 
 class ConformDTO(BaseModel):

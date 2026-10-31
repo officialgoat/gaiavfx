@@ -3,7 +3,6 @@
 import json
 import re
 from copy import deepcopy
-from statistics import median
 
 from gaiavfx.application import recast_derivatives as derivatives
 from gaiavfx.application import recast_edits as journaling
@@ -11,9 +10,9 @@ from gaiavfx.application import recast_feed as feeding
 from gaiavfx.application import recast_lines as lining
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_run as run_scope
 from gaiavfx.application import recast_voice as voicing
 from gaiavfx.application.recast_derivatives import advance_reference, cancel_reference
-from gaiavfx.application.recast_run import seed_window_seconds
 from gaiavfx.application.target_faces import (
     TargetReportPending,
     TargetReportRefused,
@@ -169,54 +168,6 @@ def _status(mapped, included, plan, versions, choice, windows, assembly, layers=
     return "planned" if plan else "unplanned"
 
 
-def _estimate(recast, shots, operations, analyses=None):
-    analyses = analyses or {}
-    selected = [
-        s
-        for s in shots
-        if s["included"]
-        and s["plan"]
-        and (not s["plan"]["gaps"] or s["status"] == "analysing")
-        and p.in_range(s, p.run_range(recast))
-    ]
-    stored = {s["shot_id"]: s["plan"] for s in recast.get("shots", [])}
-    plans = [stored.get(s["id"]) or s["plan"] for s in selected]
-    if not plans:
-        return None
-    durations = [duration for op in operations if (duration := p.render_seconds(op)) is not None]
-    measured = len(durations) >= 3
-    count = 0
-    seconds = 0
-    frames = 0
-    for plan in plans:
-        bridges = feeding.bridge_reservation(
-            plan, plan["renders_per_window"], mode=recast["run_mode"]
-        )
-        count += bridges
-        seconds += bridges * (median(durations) if measured else seed_window_seconds(73, 0))
-        frames += bridges * 73
-        for index, window in enumerate(plan["windows"]):
-            count += plan["renders_per_window"]
-            seconds += plan["renders_per_window"] * (
-                median(durations) if measured else seed_window_seconds(window["length"], index)
-            )
-            frames += (window["end"] - window["start"]) * plan["renders_per_window"]
-    return {
-        "shots": len(plans),
-        "windows": sum(
-            max(len(s["plan"]["windows"]), len(analyses.get(s["id"], []))) for s in selected
-        ),
-        "windows_pending": sum(
-            o["state"] not in p.SETTLED for s in selected for o in analyses.get(s["id"], [])
-        ),
-        "renders": count,
-        "gpu_seconds_low": int(seconds * 0.7),
-        "gpu_seconds_high": int(seconds * 1.3),
-        "storage_bytes": frames * 2_500_000,
-        "basis": "measured" if measured else "seed",
-    }
-
-
 def recast_state(session, library, recast_id, *, private_plans=False, expressive_library=None):
     """RecastDTO. Read only: it starts nothing. `expressive_library` (the Settings folder) is given only by the page's
     read, which then compares each built voice with the expressive recordings (`library_changed`)."""
@@ -335,16 +286,8 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
                 ),
             }
         )
-    selected = [
-        s
-        for s in shots
-        if s["included"]
-        and s["plan"]
-        and s["plan"]["performers"]
-        and not s["plan"]["gaps"]
-        and s["plan"]["windows"]
-        and p.in_range(s, p.run_range(recast))
-    ]
+    selected = [s for s in shots if run_scope.covered(s, p.run_range(recast))]
+    seconds = run_scope.measured_seconds([o for o in all_ops if not o["request"].get("head")])
     current = next((s["id"] for s in selected if s["id"] in active_shots), None)
     done = sum(
         s["id"] in settled_shots
@@ -397,9 +340,16 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
             "shots_done": done,
             "shots_total": len(selected),
             "current_shot_id": current,
+            # the start gate waits for these (the renderer reads it, never re-derives it)
+            "analysing": run_scope.analysing(shots, p.run_range(recast)),
+            "render_seconds": seconds,
         },
-        "estimate": _estimate(
-            recast, shots, [o for o in all_ops if not o["request"].get("head")], analyses
+        "estimate": run_scope.run_estimate(
+            recast,
+            shots,
+            {s["shot_id"]: s["plan"] for s in recast.get("shots", [])},
+            analyses,
+            seconds,
         ),
     }
 

@@ -6,22 +6,13 @@ from copy import deepcopy
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application.recast_derivatives import feed_references, feed_voices
+from gaiavfx.application.recast_run import bridge_reservation, renderable
 from gaiavfx.application.target_faces import (
     start_target_report,
     target_report,
 )
 from gaiavfx.infrastructure.database import timestamp
 from gaiavfx.shared.errors import ApplicationError
-
-
-def bridge_reservation(plan, renders, *, mode=None):
-    joins = plan.get("_handoff", {}).get("joins", [])
-    last = len(plan.get("windows", [])) - 1
-    return sum(
-        renders if j["join"] == last and mode != "draft" else 1
-        for j in joins
-        if j["kind"] == "bridge"
-    )
 
 
 def used(session, recast):
@@ -67,13 +58,7 @@ def faceless_target(session, library, recast, plan):
 
 def start_shot(session, library, recast, film_shot, shot, mode):
     plan = shot["plan"]
-    if (
-        not plan
-        or not plan["performers"]
-        or not plan["_ready"]
-        or plan["gaps"]
-        or shot["window_replacement_ops"]
-    ):
+    if not renderable(plan) or shot["window_replacement_ops"]:
         return False
     count = p.window_renders(mode)
     remaining = recast["render_budget"] - used(session, recast)
