@@ -6,6 +6,7 @@ from test_production_api import AUTH, setup
 
 from gaiavfx.modules.direction.place_text import EMPTY_PLACE_REFUSAL
 from gaiavfx.modules.direction.service import DirectionService
+from gaiavfx.shared.errors import ApplicationError
 
 
 def test_place_text_receipt_validation_conflict_undo_redo(tmp_path):
@@ -93,3 +94,29 @@ def test_place_text_receipt_rolls_back_with_command(tmp_path):
         assert direction.read_place(session, place["id"]) == place
         assert len(direction.receipts(session, movie["id"])) == 1
     app.state.workspace.db.close()
+
+
+def test_direction_holds_the_empty_place_rule_for_every_caller(tmp_path):
+    """The rule lives in Direction: the API, Gaia and any other caller are refused the same way, including an
+    empty place's sound with people in it and an overhead that looks up."""
+    app = setup(tmp_path)
+    direction = DirectionService()
+    with app.state.workspace.db.transaction() as session:
+        movie = direction.create_movie(session, "Courtyard")
+        place = direction.create_place(session, "Arcade")
+    with TestClient(app, base_url="http://localhost") as client:
+        url = f"/api/direction/places/{place['id']}"
+        body = {"movie_id": movie["id"], "expected_revision": place["revision"]}
+        for field, text, words in (
+            ("sound", "Footsteps on the stones", "no footsteps, voices"),
+            ("overhead", "Looking up at the sky", "not a view looking up"),
+        ):
+            refused = client.patch(url, json=body | {field: text}, headers=AUTH)
+            assert refused.status_code == 422 and words in refused.text, refused.text
+    with app.state.workspace.db.transaction() as session:
+        with pytest.raises(ApplicationError, match="people are added later"):
+            direction.update_place(
+                session, place["id"], place["revision"], description="A man by the gate"
+            )
+        with pytest.raises(ApplicationError, match="people are added later"):
+            direction.add_angle(session, place["id"], "Over her shoulder")

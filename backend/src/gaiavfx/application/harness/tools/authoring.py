@@ -4,7 +4,12 @@ import re
 from copy import deepcopy
 
 from gaiavfx.application.harness.world import direction
-from gaiavfx.modules.direction.place_text import validate_place_text
+from gaiavfx.modules.direction.place_text import (
+    PLACE_TEXT,
+    validate_empty_sound,
+    validate_overhead,
+    validate_place_text,
+)
 from gaiavfx.shared.errors import ApplicationError
 
 MOTION = re.compile(
@@ -12,12 +17,6 @@ MOTION = re.compile(
     r"cross(?:es|ing)?|mov(?:e[sd]?|ing)|pac(?:e[sd]?|ing))\b",
     re.IGNORECASE,
 )
-SOUNDS = re.compile(r"\b(?:footsteps?|voices?|breathing|fabric)\b", re.IGNORECASE)
-PLACE_TEXT = {
-    "description": "the empty place and its landmarks",
-    "sound": "ambient sound of the empty place; no footsteps, voices, breathing or fabric",
-    "overhead": "the final view looking straight down on the place",
-}
 
 
 def require_different_angles(source, target):
@@ -39,16 +38,6 @@ def require_shot(text):
             "for example 'Arin beyond the railing with the sunlit courtyard behind him'.",
             422,
         )
-
-
-def validate_overhead(text, names=()):
-    validate_place_text(text, names)
-    if re.search(
-        r"\b(?:sky|ceiling|overhead|look(?:s|ing)? up)\b", text, re.IGNORECASE
-    ) and not re.search(
-        r"\b(?:down|top[ -]down|bird.s.eye|from above|aerial)\b", text, re.IGNORECASE
-    ):
-        raise ValueError("overhead means " + PLACE_TEXT["overhead"] + ", not a view looking up")
 
 
 def require_motion_direction(content):
@@ -100,12 +89,6 @@ def phase_direction_schema(schema, context):
             required["properties"]["screen_direction"] = {"type": "string", "minLength": 1}
             result.append(required)
     return result[0] if len(result) == 1 else {"oneOf": result}
-
-
-def validate_empty_sound(text, names=()):
-    validate_place_text(text, names)
-    if SOUNDS.search(text):
-        raise ValueError("sound: " + PLACE_TEXT["sound"])
 
 
 def place_problems(session, context, place):

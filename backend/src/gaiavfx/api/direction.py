@@ -17,7 +17,6 @@ from gaiavfx.application.direction_plans import (
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.prepare_references import view_producer
 from gaiavfx.modules.direction.coverage import COVERAGE_WORDS, Coverage
-from gaiavfx.modules.direction.place_text import validate_place_text
 from gaiavfx.modules.direction.planning import Action
 from gaiavfx.modules.direction.service import SegmentSplitRefusal
 from gaiavfx.modules.direction.techniques import Status
@@ -655,14 +654,6 @@ def direction_router(workspace, authenticate):
     router = APIRouter(prefix="/api/direction", dependencies=[Depends(authenticate)])
     direction = DIRECTION
 
-    def empty_place_text(session, movie_id, *texts):
-        cast = [row["name"] for row in direction.subjects(session, movie_id)]
-        try:
-            for value in texts:
-                validate_place_text(value, cast)
-        except ValueError as exc:
-            raise ApplicationError(str(exc), 422) from exc
-
     def cut_dto(session, cut):
         return cut | {"movie_id": direction.read_segment(session, cut["segment_id"])["movie_id"]}
 
@@ -926,7 +917,6 @@ def direction_router(workspace, authenticate):
     @router.patch("/places/{place_id}", response_model=DirectionPlaceTextCommandDTO)
     def edit_place_text(place_id: str, body: DirectionPlaceTextPatch):
         with workspace.db.transaction() as session:
-            empty_place_text(session, body.movie_id, body.description, body.sound, body.overhead)
             return direction.update_place(session, place_id, **body.model_dump())
 
     @router.get("/places/{place_id}/angles", response_model=list[AngleDTO])
@@ -937,7 +927,6 @@ def direction_router(workspace, authenticate):
     @router.patch("/angles/{angle_id}", response_model=DirectionAngleTextCommandDTO)
     def edit_angle_text(angle_id: str, body: DirectionAngleTextPatch):
         with workspace.db.transaction() as session:
-            empty_place_text(session, body.movie_id, body.name, body.description)
             return direction.update_angle(session, angle_id, **body.model_dump())
 
     @router.get("/angles/{angle_id}/evidence", response_model=list[EvidenceDTO])

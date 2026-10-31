@@ -32,6 +32,7 @@ from gaiavfx.modules.direction.persistence import (
     SubjectRecord,
     SuitabilityRecord,
 )
+from gaiavfx.modules.direction.place_text import validate_place_fields
 from gaiavfx.modules.direction.planning import Available, Binding
 from gaiavfx.modules.direction.segment import (
     require_continues,
@@ -353,6 +354,11 @@ class DirectionService:
         # camera and hidden regions in the set) live in the sets module: `view_reader(session, evidence)`.
         self.sheet_reader = sheet_reader
         self.view_reader = view_reader
+
+    def _empty_place(self, session, movie_id, **texts):
+        """A place's and its angles' words describe the empty place, naming none of the movie's cast."""
+        cast = [subject["name"] for subject in self.subjects(session, movie_id)] if movie_id else ()
+        _validated(validate_place_fields, cast, texts)
 
     def _view_inputs(self, session, row):
         if row.kind == "set_view":
@@ -1423,8 +1429,14 @@ class DirectionService:
         sound=None,
         overhead=None,
         movie_id=None,
+        cast_of=None,
         _undoes=None,
     ):
+        """`movie_id` records the edit in that movie's history; the words may name none of the cast of `cast_of`,
+        which defaults to that movie."""
+        self._empty_place(
+            session, cast_of or movie_id, description=description, sound=sound, overhead=overhead
+        )
         changes = {
             key: value
             for key, value in (
@@ -1461,8 +1473,10 @@ class DirectionService:
         placement=None,
         name=None,
         movie_id=None,
+        cast_of=None,
         _undoes=None,
     ):
+        self._empty_place(session, cast_of or movie_id, name=name, description=description)
         changes = {}
         if name is not None:
             changes["name"] = _required(name, "name")
@@ -1663,22 +1677,30 @@ class DirectionService:
             )
         ]
 
-    def create_place(self, session: Session, name: str) -> dict:
+    def create_place(self, session: Session, name: str, *, cast_of=None) -> dict:
         name = _required(name, "name")
         if len(name) > 120:
             raise ApplicationError("Place name exceeds 120 characters.", 422)
+        self._empty_place(session, cast_of, name=name)
         row = PlaceRecord(id=new_id(), name=name, created_at=timestamp())
         session.add(row)
         session.flush()
         return _record(row)
 
     def add_angle(
-        self, session: Session, place_id: str, name: str, placement: dict | None = None
+        self,
+        session: Session,
+        place_id: str,
+        name: str,
+        placement: dict | None = None,
+        *,
+        cast_of=None,
     ) -> dict:
         _get(session, PlaceRecord, place_id)
         name = _required(name, "name")
         if len(name) > 120:
             raise ApplicationError("Angle name exceeds 120 characters.", 422)
+        self._empty_place(session, cast_of, name=name)
         created_at = timestamp()
         previous = session.scalar(
             select(AngleRecord.created_at)

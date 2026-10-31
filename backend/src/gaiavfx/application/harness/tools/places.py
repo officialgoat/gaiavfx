@@ -8,15 +8,10 @@ from pydantic import Field
 from gaiavfx.application.harness.actions import ToolResult, branch_by_op, inlined
 from gaiavfx.application.harness.board import write_entry
 from gaiavfx.application.harness.knowledge import load
-from gaiavfx.application.harness.tools.authoring import (
-    PLACE_TEXT,
-    validate_empty_sound,
-    validate_overhead,
-)
+from gaiavfx.application.harness.tools.authoring import PLACE_TEXT
 from gaiavfx.application.harness.tools.common import TransactionTool, granted, revision, scoped
 from gaiavfx.application.harness.tools.input_hints import example, place_input
 from gaiavfx.application.harness.world import direction
-from gaiavfx.modules.direction.place_text import validate_place_text
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
@@ -95,20 +90,7 @@ class EditPlace(TransactionTool):
         return schema
 
     def execute(self, session, context, value):
-        # Read the full cast, not the bounded view (which can omit names).
-        names = [s["name"] for s in direction.read_movie(session, context.movie_id)["subjects"]]
-        texts = [value.name, value.description, value.sound, value.overhead]
-        texts += [text for angle in value.angles for text in (angle.name, angle.description)]
-        try:
-            if value.sound is not None:
-                validate_empty_sound(value.sound, names)
-            if value.overhead is not None:
-                validate_overhead(value.overhead, names)
-            for text in texts:
-                if text is not None:
-                    validate_place_text(text, names)
-        except ValueError as exc:
-            raise ApplicationError(str(exc), 422) from exc
+        # Direction refuses words that put a person or the movie's cast in the empty place.
         if value.op == "add_place":
             return self.add(session, context, value)
         if value.op == "add_angle":
@@ -117,9 +99,15 @@ class EditPlace(TransactionTool):
                 raise ApplicationError(
                     "add_angle needs name and description for the new view.", 422
                 )
-            angle = direction.add_angle(session, value.place_id, value.name)
+            angle = direction.add_angle(
+                session, value.place_id, value.name, cast_of=context.movie_id
+            )
             angle = direction.update_angle(
-                session, angle["id"], angle["revision"], description=value.description
+                session,
+                angle["id"],
+                angle["revision"],
+                description=value.description,
+                cast_of=context.movie_id,
             )
             return ToolResult(payload={"angle": angle, "revision": angle["revision"]}, changed=True)
         if not value.place_id or value.expected_revision is None:
@@ -150,7 +138,13 @@ class EditPlace(TransactionTool):
                     422,
                 )
         after = (
-            direction.update_place(session, value.place_id, value.expected_revision, **changes)
+            direction.update_place(
+                session,
+                value.place_id,
+                value.expected_revision,
+                cast_of=context.movie_id,
+                **changes,
+            )
             if changes
             else before
         )
@@ -161,7 +155,11 @@ class EditPlace(TransactionTool):
                 raise ApplicationError("The angle belongs to another place.", 422)
             revision(old, angle.expected_revision, f"Angle {old['name']}", self.name)
             new = direction.update_angle(
-                session, angle.angle_id, angle.expected_revision, description=angle.description
+                session,
+                angle.angle_id,
+                angle.expected_revision,
+                description=angle.description,
+                cast_of=context.movie_id,
             )
             edits.append({"before": old, "after": new})
         # An angle's words are not its camera in the place's stage (the stage eval's model rewrote the words to
@@ -214,16 +212,23 @@ class EditPlace(TransactionTool):
                 ),
                 422,
             )
-        place = direction.create_place(session, value.name)
+        cast_of = context.movie_id
+        place = direction.create_place(session, value.name, cast_of=cast_of)
         changes = value.model_dump(exclude_none=True, include={"description", "sound", "overhead"})
         if changes:
-            place = direction.update_place(session, place["id"], place["revision"], **changes)
+            place = direction.update_place(
+                session, place["id"], place["revision"], cast_of=cast_of, **changes
+            )
         angles = []
         for draft in value.angles:
-            angle = direction.add_angle(session, place["id"], draft.name)
+            angle = direction.add_angle(session, place["id"], draft.name, cast_of=cast_of)
             if draft.description is not None:
                 angle = direction.update_angle(
-                    session, angle["id"], angle["revision"], description=draft.description
+                    session,
+                    angle["id"],
+                    angle["revision"],
+                    description=draft.description,
+                    cast_of=cast_of,
                 )
             angles.append(angle)
         note = (
