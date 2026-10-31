@@ -2,14 +2,20 @@
 
 from __future__ import annotations
 
+import functools
+import inspect
+import json
+from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
+from itertools import pairwise
 
 from sqlalchemy import null, or_, select, update
 from sqlalchemy.orm import Session
 
 from gaiavfx.infrastructure.database import new_id, timestamp
 from gaiavfx.modules.direction import content as authored
+from gaiavfx.modules.direction import journal
 from gaiavfx.modules.direction.application import default_policy
 from gaiavfx.modules.direction.coverage import (
     AngleRelation,
@@ -152,6 +158,9 @@ _CREATIONS = {
     "create_cut": "cut",
 }
 _CHANGED_AFTER = "The record changed after this command; undo the later command first."
+_BEFORE_JOURNAL = (
+    "This change was made before Undo kept the rows it changed; it can no longer be undone."
+)
 _UNSET = object()
 _SUBJECT_FIELDS = ("id", "name", "description", "keeps", "identity_asset_id")
 
@@ -200,7 +209,7 @@ def _bump(session, row, expected, **values):
 
 
 def _receipt(session, movie_id, command, kind, target_id, before, after, undoes=None):
-    if command in _CREATIONS:
+    if command in _CREATIONS and not undoes:
         after = {
             **after,
             "created_revision": after["record"]["revision"],
@@ -220,7 +229,33 @@ def _receipt(session, movie_id, command, kind, target_id, before, after, undoes=
     )
     session.add(row)
     session.flush()
+    if (active := session.info.get(journal.KEY)) is not None:
+        active["receipts"].append(row)
     return _record(row)
+
+
+def _public(receipt):
+    """A receipt as callers read it: its journal is Undo's own."""
+    for side in ("before", "after"):
+        receipt[side] = {key: value for key, value in receipt[side].items() if key != journal.KEY}
+    return receipt
+
+
+def _journaled(kind):
+    """Run a command inside a journal on the movie or the place its first argument belongs to (journal.py)."""
+
+    def decorate(command):
+        name = list(inspect.signature(command).parameters)[2]
+
+        @functools.wraps(command)
+        def journaled(self, session, *args, **kwargs):
+            record_id = args[0] if args else kwargs[name]
+            with self._journal(session, **self._scope(session, kind, record_id)):
+                return command(self, session, *args, **kwargs)
+
+        return journaled
+
+    return decorate
 
 
 def _revision_restored(session, kind, record_id, current, expected):
@@ -236,6 +271,9 @@ def _revision_restored(session, kind, record_id, current, expected):
         state = getattr(receipt, side)
         if receipt.target_kind == kind and receipt.target_id == record_id:
             return state["revision"]
+        proven = journal.revision(receipt, side, kind, record_id)
+        if proven is not None:
+            return proven
         return state.get("revision_proofs", {}).get(kind, {}).get(record_id)
 
     history = [
@@ -276,7 +314,7 @@ def revision_restored(session, kind, record_id, current, expected):
     return _revision_restored(session, kind, record_id, current, expected)
 
 
-def _updated(session, row, expected, changes, movie_id, kind, undoes):
+def _updated(session, row, expected, changes, movie_id, kind):
     if not changes:
         raise ApplicationError(f"Specify at least one {kind} field to change.", 422)
     before = {"revision": expected, **{key: deepcopy(getattr(row, key)) for key in changes}}
@@ -289,7 +327,6 @@ def _updated(session, row, expected, changes, movie_id, kind, undoes):
         row.id,
         before,
         {"revision": expected + 1, **changes},
-        undoes,
     )
     return {**_record(row), "receipt": receipt}
 
@@ -341,14 +378,12 @@ def _title(value):
     return value
 
 
-def _new_record(values, restore=None):
-    """Undo reuses identity and metadata, after the ordinary command validated the values."""
+def _new_record(values):
     return {
         "id": new_id(),
         "revision": 1,
         "created_at": timestamp(),
         "updated_at": timestamp(),
-        **(restore or {}),
         **deepcopy(values),
     }
 
@@ -676,7 +711,7 @@ class DirectionService:
         if type(limit) is not int or limit < 1:
             raise ApplicationError("limit must be a positive integer.", 422)
         return [
-            _record(row)
+            _public(_record(row))
             for row in session.scalars(
                 select(ReceiptRecord)
                 .where(ReceiptRecord.movie_id == movie_id)
@@ -686,7 +721,7 @@ class DirectionService:
         ]
 
     def read_receipt(self, session, receipt_id):
-        return _record(_get(session, ReceiptRecord, receipt_id))
+        return _public(_record(_get(session, ReceiptRecord, receipt_id)))
 
     def assemble_segment(self, session, segment_id):
         segment = self.read_segment(session, segment_id)
@@ -726,13 +761,15 @@ class DirectionService:
         )
         return {**_record(row), "receipt": receipt}
 
-    def update_movie(self, session, movie_id, expected_revision, *, title, _undoes=None):
+    @_journaled("movie")
+    def update_movie(self, session, movie_id, expected_revision, *, title):
         row = _get(session, MovieRecord, movie_id)
         _check_revision(row, expected_revision)
         return _updated(
-            session, row, expected_revision, {"title": _title(title)}, movie_id, "movie", _undoes
+            session, row, expected_revision, {"title": _title(title)}, movie_id, "movie"
         )
 
+    @_journaled("movie")
     def add_subject(
         self,
         session,
@@ -744,8 +781,6 @@ class DirectionService:
         keeps,
         identity_asset_id,
         subject_id=None,
-        _restore=None,
-        _undoes=None,
     ):
         movie = _get(session, MovieRecord, movie_id)
         _check_revision(movie, expected_revision)
@@ -760,7 +795,7 @@ class DirectionService:
         if session.get(SubjectRecord, values["id"]) is not None:
             raise ApplicationError(f"Subject id {values['id']} already exists.", 409)
         _bump(session, movie, expected_revision)
-        row = SubjectRecord(**_new_record({**values, "movie_id": movie_id}, _restore))
+        row = SubjectRecord(**_new_record({**values, "movie_id": movie_id}))
         session.add(row)
         receipt = _receipt(
             session,
@@ -770,10 +805,10 @@ class DirectionService:
             movie_id,
             {"revision": expected_revision},
             {"revision": expected_revision + 1, "record": _record(row)},
-            _undoes,
         )
         return {**_record(row), "receipt": receipt}
 
+    @_journaled("subject")
     def update_subject(
         self,
         session,
@@ -784,7 +819,6 @@ class DirectionService:
         description=None,
         keeps=None,
         identity_asset_id=_UNSET,
-        _undoes=None,
     ):
         row = _get(session, SubjectRecord, subject_id)
         _check_revision(row, expected_revision)
@@ -800,9 +834,10 @@ class DirectionService:
         )
         if "keeps" in changes:
             changes["keeps"] = list(member.keeps)
-        return _updated(session, row, expected_revision, changes, row.movie_id, "subject", _undoes)
+        return _updated(session, row, expected_revision, changes, row.movie_id, "subject")
 
-    def remove_subject(self, session, subject_id, expected_revision, *, _undoes=None):
+    @_journaled("subject")
+    def remove_subject(self, session, subject_id, expected_revision):
         row = _get(session, SubjectRecord, subject_id)
         movie = _get(session, MovieRecord, row.movie_id)
         _check_revision(movie, expected_revision)
@@ -824,7 +859,6 @@ class DirectionService:
             movie.id,
             {"revision": expected_revision, "record": before},
             {"revision": expected_revision + 1},
-            _undoes,
         )
         return {"id": subject_id, "removed": True, "receipt": receipt}
 
@@ -837,6 +871,7 @@ class DirectionService:
             row.ordinal = index
         session.flush()
 
+    @_journaled("movie")
     def add_segment(
         self,
         session,
@@ -850,8 +885,6 @@ class DirectionService:
         at=None,
         continuation_method=None,
         context_frames=None,
-        _restore=None,
-        _undoes=None,
     ):
         movie = _get(session, MovieRecord, movie_id)
         _check_revision(movie, expected_revision)
@@ -879,9 +912,6 @@ class DirectionService:
         if type(at) is not int or not 0 <= at <= len(rows):
             raise ApplicationError("at must be an ordinal between 0 and the segment count.", 422)
         _bump(session, movie, expected_revision)
-        restored = {
-            key: value for key, value in (_restore or {}).items() if key not in {"phases", "cuts"}
-        }
         row = SegmentRecord(
             **_new_record(
                 {
@@ -890,20 +920,15 @@ class DirectionService:
                     "delivered_frames": delivered_frames,
                     "continues": continues,
                     "content": content,
-                    "content_schema": restored.get(
-                        "content_schema", authored.segment_schema(content)
-                    ),
-                    # Absent, a restored segment keeps the handoff it was removed with.
+                    "content_schema": authored.segment_schema(content),
                     **handoff,
-                },
-                restored,
+                }
             )
         )
         session.add(row)
         session.flush()
         rows.insert(at, row)
         self._reorder(session, rows)
-        restored_phases = {p["start_frame"]: p for p in (_restore or {}).get("phases", [])}
         for start, document, schema in phases:
             session.add(
                 PhaseRecord(
@@ -913,8 +938,7 @@ class DirectionService:
                             "start_frame": start,
                             "content": document,
                             "content_schema": schema,
-                        },
-                        restored_phases.get(start),
+                        }
                     )
                 )
             )
@@ -928,10 +952,10 @@ class DirectionService:
             movie_id,
             {"revision": expected_revision},
             {"revision": expected_revision + 1, "record": result},
-            _undoes,
         )
         return {**result, "receipt": receipt}
 
+    @_journaled("segment")
     def update_segment(
         self,
         session,
@@ -945,7 +969,6 @@ class DirectionService:
         opening_technique=_UNSET,
         continuation_method=_UNSET,
         context_frames=_UNSET,
-        _undoes=None,
     ):
         row = _get(session, SegmentRecord, segment_id)
         _check_revision(row, expected_revision)
@@ -990,12 +1013,11 @@ class DirectionService:
                 raise ApplicationError("Only a continuing segment hands over motion context.", 422)
             # A segment that stops continuing drops its handoff in the same receipt, so Undo restores both.
             changes |= {key: None for key in _HANDOFF if getattr(row, key) is not None}
-        result = _updated(
-            session, row, expected_revision, changes, row.movie_id, "segment", _undoes
-        )
+        result = _updated(session, row, expected_revision, changes, row.movie_id, "segment")
         return {**self.read_segment(session, segment_id), "receipt": result["receipt"]}
 
-    def remove_segment(self, session, segment_id, expected_revision, *, _undoes=None):
+    @_journaled("segment")
+    def remove_segment(self, session, segment_id, expected_revision):
         row = _get(session, SegmentRecord, segment_id)
         movie = _get(session, MovieRecord, row.movie_id)
         _check_revision(movie, expected_revision)
@@ -1017,11 +1039,11 @@ class DirectionService:
             movie.id,
             {"revision": expected_revision, "record": before},
             {"revision": expected_revision + 1},
-            _undoes,
         )
         return {"id": segment_id, "removed": True, "receipt": receipt}
 
-    def move_segment(self, session, segment_id, expected_revision, *, ordinal, _undoes=None):
+    @_journaled("segment")
+    def move_segment(self, session, segment_id, expected_revision, *, ordinal):
         row = _get(session, SegmentRecord, segment_id)
         movie = _get(session, MovieRecord, row.movie_id)
         _check_revision(movie, expected_revision)
@@ -1041,7 +1063,6 @@ class DirectionService:
             movie.id,
             {"revision": expected_revision, "segment_id": segment_id, "ordinal": previous},
             {"revision": expected_revision + 1, "segment_id": segment_id, "ordinal": ordinal},
-            _undoes,
         )
         return {**self.read_segment(session, segment_id), "receipt": receipt}
 
@@ -1126,23 +1147,8 @@ class DirectionService:
                 rows.update({(kind, row["id"]): row for row in segment[collection]})
         return rows
 
-    def _guard_split_state(self, session, expected, current):
-        for key in ("order", "keyframes", "suitability"):
-            if current[key] != expected[key]:
-                raise ApplicationError(_CHANGED_AFTER, 409)
-        rows = self._split_rows(current)
-        expected_rows = self._split_rows(expected)
-        if rows.keys() != expected_rows.keys():
-            raise ApplicationError(_CHANGED_AFTER, 409)
-        for (kind, rid), before in expected_rows.items():
-            row = rows[kind, rid]
-            if any(row[k] != v for k, v in before.items() if k not in {"revision", "updated_at"}):
-                raise ApplicationError(_CHANGED_AFTER, 409)
-            if not _revision_restored(session, kind, rid, row["revision"], before["revision"]):
-                raise ApplicationError(_CHANGED_AFTER, 409)
-
     def _apply_split_state(self, session, current, desired):
-        """Apply an already validated split/merge, preserving identities and metadata."""
+        """Apply an already validated split, preserving identities and metadata."""
         previous = self._split_rows(current)
         wanted = self._split_rows(desired)
         # Vacate child positions before moving rows between the halves (SQLite uniqueness).
@@ -1183,7 +1189,6 @@ class DirectionService:
                 else:
                     for key, value in changes.items():
                         setattr(row, key, deepcopy(value))
-                # Undo restores authored metadata exactly; only revision counters advance.
                 row.updated_at = values["updated_at"]
                 session.flush()
         for kind in ("cut", "phase", "segment"):
@@ -1193,7 +1198,7 @@ class DirectionService:
             session.flush()
         self._reorder(session, [_get(session, SegmentRecord, sid) for sid in desired["order"]])
 
-    def _split_receipt(self, session, segment_id, before, after, undoes=None):
+    def _split_receipt(self, session, segment_id, before, after):
         previous, current = self._split_rows(before), self._split_rows(after)
         proofs = [{}, {}]
         for kind, rid in previous.keys() | current.keys():
@@ -1218,9 +1223,9 @@ class DirectionService:
                 "split_state": after,
                 "revision_proofs": proofs[1],
             },
-            undoes,
         )
 
+    @_journaled("segment")
     def split_segment(self, session, segment_id, expected_revision, frame):
         row = _get(session, SegmentRecord, segment_id)
         _check_revision(row, expected_revision)
@@ -1297,18 +1302,12 @@ class DirectionService:
         desired["movie"]["updated_at"] = timestamp()
         self._apply_split_state(session, before, desired)
         after = self._split_state(session, row.movie_id, before["segment_ids"])
+        # Undo merges both halves back, so a later edit to any of their rows, changed by the split or not, waits.
+        session.info[journal.KEY]["watch"] |= self._split_rows(after).keys()
         receipt = self._split_receipt(session, segment_id, before, after)
         return {"segments": after["segments"], "receipt": receipt}
 
-    def _merge_split(self, session, receipt):
-        expected = receipt.after["split_state"]
-        current = self._split_state(session, receipt.movie_id, expected["segment_ids"])
-        self._guard_split_state(session, expected, current)
-        self._apply_split_state(session, current, receipt.before["split_state"])
-        after = self._split_state(session, receipt.movie_id, expected["segment_ids"])
-        inverse = self._split_receipt(session, receipt.target_id, current, after, receipt.id)
-        return {"segments": after["segments"], "receipt": inverse}
-
+    @_journaled("segment")
     def add_phase(
         self,
         session,
@@ -1317,8 +1316,6 @@ class DirectionService:
         *,
         start_frame,
         content,
-        _restore=None,
-        _undoes=None,
     ):
         segment = _get(session, SegmentRecord, segment_id)
         _check_revision(segment, expected_revision)
@@ -1330,9 +1327,8 @@ class DirectionService:
                     "segment_id": segment_id,
                     "start_frame": start_frame,
                     "content": content,
-                    "content_schema": (_restore or {}).get("content_schema", authored.PHASE_SCHEMA),
-                },
-                _restore,
+                    "content_schema": authored.PHASE_SCHEMA,
+                }
             )
         )
         session.add(row)
@@ -1344,13 +1340,11 @@ class DirectionService:
             segment_id,
             {"revision": expected_revision},
             {"revision": expected_revision + 1, "record": _record(row)},
-            _undoes,
         )
         return {**_record(row), "receipt": receipt}
 
-    def update_phase(
-        self, session, phase_id, expected_revision, *, start_frame=None, content=None, _undoes=None
-    ):
+    @_journaled("phase")
+    def update_phase(self, session, phase_id, expected_revision, *, start_frame=None, content=None):
         row = _get(session, PhaseRecord, phase_id)
         _check_revision(row, expected_revision)
         segment = _get(session, SegmentRecord, row.segment_id)
@@ -1366,11 +1360,10 @@ class DirectionService:
             changes.update(content=content, content_schema=authored.PHASE_SCHEMA)
         if start_frame is not None:
             changes["start_frame"] = start_frame
-        return _updated(
-            session, row, expected_revision, changes, segment.movie_id, "phase", _undoes
-        )
+        return _updated(session, row, expected_revision, changes, segment.movie_id, "phase")
 
-    def remove_phase(self, session, phase_id, expected_revision, *, _undoes=None):
+    @_journaled("phase")
+    def remove_phase(self, session, phase_id, expected_revision):
         row = _get(session, PhaseRecord, phase_id)
         segment = _get(session, SegmentRecord, row.segment_id)
         _check_revision(segment, expected_revision)
@@ -1385,7 +1378,6 @@ class DirectionService:
             segment.id,
             {"revision": expected_revision, "record": before},
             {"revision": expected_revision + 1},
-            _undoes,
         )
         return {"id": phase_id, "removed": True, "receipt": receipt}
 
@@ -1424,6 +1416,7 @@ class DirectionService:
         session.refresh(row)
         return _record(row)
 
+    @_journaled("place")
     def update_place(
         self,
         session,
@@ -1435,7 +1428,6 @@ class DirectionService:
         overhead=None,
         movie_id=None,
         cast_of=None,
-        _undoes=None,
     ):
         """`movie_id` records the edit in that movie's history; the words may name none of the cast of `cast_of`,
         which defaults to that movie."""
@@ -1464,10 +1456,10 @@ class DirectionService:
                 place_id,
                 {"revision": expected_revision, **{key: before[key] for key in changes}},
                 {"revision": result["revision"], **changes},
-                _undoes,
             )
         return result
 
+    @_journaled("angle")
     def update_angle(
         self,
         session,
@@ -1479,7 +1471,6 @@ class DirectionService:
         name=None,
         movie_id=None,
         cast_of=None,
-        _undoes=None,
     ):
         self._empty_place(session, cast_of or movie_id, name=name, description=description)
         changes = {}
@@ -1504,7 +1495,6 @@ class DirectionService:
                 angle_id,
                 {"revision": expected_revision, **{key: before[key] for key in changes}},
                 {"revision": result["revision"], **changes},
-                _undoes,
             )
         return result
 
@@ -1604,7 +1594,11 @@ class DirectionService:
             )
         return self._replace_plate(session, place, asset_id, angle_id, movie_id)
 
-    def _replace_plate(self, session, place, asset_id, angle_id, movie_id, undoes=None):
+    def _replace_plate(self, session, place, asset_id, angle_id, movie_id):
+        with self._journal(session, movie_id=movie_id, place_id=place.id):
+            return self._replace_plate_journaled(session, place, asset_id, angle_id, movie_id)
+
+    def _replace_plate_journaled(self, session, place, asset_id, angle_id, movie_id):
         movie = _get(session, MovieRecord, movie_id)
 
         def snapshot():
@@ -1631,7 +1625,7 @@ class DirectionService:
         session.refresh(place)
         _bump(session, movie, movie.revision)
         receipt = _receipt(
-            session, movie_id, "replace_plate", "movie", movie_id, before, snapshot(), undoes
+            session, movie_id, "replace_plate", "movie", movie_id, before, snapshot()
         )
         return {**_record(place), "receipt": receipt}
 
@@ -1829,7 +1823,9 @@ class DirectionService:
         session.flush()
         return self._replace_keyframe(session, current[0]["id"], row.id)
 
-    def _replace_keyframe(self, session, old_id, new_id, undoes=None):
+    def _replace_keyframe(self, session, old_id, new_id):
+        """The journal opens here, after the new pin's approval: Undo puts the old pin back but keeps that
+        approval on record."""
         old = _get(session, KeyframeRecord, old_id)
         new = _get(session, KeyframeRecord, new_id)
         cut = _get(session, CutRecord, old.cut_id)
@@ -1838,15 +1834,17 @@ class DirectionService:
         def snapshot():
             return {"revision": cut.revision, "pins": [_record(old), _record(new)]}
 
-        before = snapshot()
-        _bump(session, cut, cut.revision)
-        old.approved, new.approved = False, True
-        session.flush()
-        receipt = _receipt(
-            session, segment.movie_id, "replace_pin", "cut", cut.id, before, snapshot(), undoes
-        )
+        with self._journal(session, movie_id=segment.movie_id):
+            before = snapshot()
+            _bump(session, cut, cut.revision)
+            old.approved, new.approved = False, True
+            session.flush()
+            receipt = _receipt(
+                session, segment.movie_id, "replace_pin", "cut", cut.id, before, snapshot()
+            )
         return {**_record(new), "receipt": receipt}
 
+    @_journaled("segment")
     def create_cut(
         self,
         session: Session,
@@ -1863,8 +1861,6 @@ class DirectionService:
         side_facts: bool = False,
         fidelity: bool = False,
         override_technique: str | None = None,
-        _restore=None,
-        _undoes=None,
     ) -> dict:
         segment = _get(session, SegmentRecord, segment_id)
         _check_revision(segment, expected_revision)
@@ -1892,7 +1888,6 @@ class DirectionService:
                 "id": new_id(),
                 "revision": 1,
                 "updated_at": timestamp(),
-                **(_restore or {}),
                 "segment_id": segment_id,
                 **values,
             }
@@ -1907,7 +1902,6 @@ class DirectionService:
             segment_id,
             {"revision": expected_revision},
             {"revision": expected_revision + 1, "record": _record(row)},
-            _undoes,
         )
         return {**_record(row), "receipt": receipt}
 
@@ -1946,9 +1940,8 @@ class DirectionService:
         ]
         return validate_insertion_wording(wording, keeps=keeps)
 
-    def update_cut(
-        self, session: Session, cut_id: str, expected_revision: int, *, _undoes=None, **changes
-    ) -> dict:
+    @_journaled("cut")
+    def update_cut(self, session: Session, cut_id: str, expected_revision: int, **changes) -> dict:
         row = _get(session, CutRecord, cut_id)
         _check_revision(row, expected_revision)
         old = self.read_cut(session, cut_id)
@@ -2002,7 +1995,7 @@ class DirectionService:
         self._cut_frame(session, segment, values["frame"], cut_id)
         self._cut_chain(session, segment.id, values, cut_id)
         if values["frame"] != old["frame"]:
-            result = self._move_cut(session, row, segment, values, _undoes)
+            result = self._move_cut(session, row, segment, values)
         else:
             result = _updated(
                 session,
@@ -2011,7 +2004,6 @@ class DirectionService:
                 {key: values[key] for key in changes},
                 segment.movie_id,
                 "cut",
-                _undoes,
             )
         self._sync_opening(session, segment.id)
         return result
@@ -2024,7 +2016,7 @@ class DirectionService:
             "phases": self.phases(session, segment.id),
         }
 
-    def _cut_move_receipt(self, session, row, segment, before, undoes):
+    def _cut_move_receipt(self, session, row, segment, before):
         after = self._cut_move_state(session, row, segment)
 
         def state(value):
@@ -2045,10 +2037,9 @@ class DirectionService:
             row.id,
             state(before),
             state(after),
-            undoes,
         )
 
-    def _move_cut(self, session, row, segment, values, undoes):
+    def _move_cut(self, session, row, segment, values):
         before = self._cut_move_state(session, row, segment)
         phases = before["phases"]
         target = next((p for p in phases if p["start_frame"] == values["frame"]), None)
@@ -2086,58 +2077,11 @@ class DirectionService:
         _bump(session, segment, segment.revision)
         _bump(session, row, row.revision, **values)
         session.flush()
-        receipt = self._cut_move_receipt(session, row, segment, before, undoes)
+        receipt = self._cut_move_receipt(session, row, segment, before)
         return {**_record(row), "receipt": receipt}
 
-    def _undo_cut_move(self, session, receipt):
-        expected = receipt.after["cut_move"]
-        desired = receipt.before["cut_move"]
-        row = _get(session, CutRecord, receipt.target_id)
-        segment = _get(session, SegmentRecord, row.segment_id)
-        current = self._cut_move_state(session, row, segment)
-        for kind, actual, recorded in (
-            ("segment", segment.revision, expected["segment_revision"]),
-            ("cut", row.revision, expected["revision"]),
-        ):
-            if not _revision_restored(
-                session, kind, segment.id if kind == "segment" else row.id, actual, recorded
-            ):
-                raise ApplicationError(_CHANGED_AFTER, 409)
-        actual_phases = {p["id"]: p for p in current["phases"]}
-        if actual_phases.keys() != {p["id"] for p in expected["phases"]}:
-            raise ApplicationError(_CHANGED_AFTER, 409)
-        for phase in expected["phases"]:
-            actual = actual_phases[phase["id"]]
-            if not _revision_restored(
-                session, "phase", phase["id"], actual["revision"], phase["revision"]
-            ):
-                raise ApplicationError(_CHANGED_AFTER, 409)
-        self._cut_frame(session, segment, desired["cut"]["frame"], row.id)
-        self._cut_chain(session, segment.id, desired["cut"], row.id)
-        wanted = {p["id"]: p for p in desired["phases"]}
-        for phase in current["phases"]:
-            child = _get(session, PhaseRecord, phase["id"])
-            if phase["id"] not in wanted:
-                session.delete(child)
-            elif phase["start_frame"] != wanted[phase["id"]]["start_frame"]:
-                _bump(
-                    session, child, child.revision, start_frame=wanted[phase["id"]]["start_frame"]
-                )
-        for phase in desired["phases"]:
-            if phase["id"] not in actual_phases:
-                session.add(PhaseRecord(**phase))
-        changes = {
-            k: v
-            for k, v in desired["cut"].items()
-            if k not in {"id", "revision", "updated_at", "segment_id"}
-        }
-        _bump(session, row, row.revision, **changes)
-        _bump(session, segment, segment.revision)
-        self._sync_opening(session, segment.id)
-        inverse = self._cut_move_receipt(session, row, segment, current, receipt.id)
-        return {**_record(row), "receipt": inverse}
-
-    def remove_cut(self, session, cut_id, expected_revision, *, _undoes=None):
+    @_journaled("cut")
+    def remove_cut(self, session, cut_id, expected_revision):
         """Remove with the segment revision; keep authored phases and dependent history."""
         row = _get(session, CutRecord, cut_id)
         segment = _get(session, SegmentRecord, row.segment_id)
@@ -2161,203 +2105,221 @@ class DirectionService:
             segment.id,
             {"revision": expected_revision, "record": before},
             {"revision": expected_revision + 1},
-            _undoes,
         )
         return {"id": cut_id, "removed": True, "receipt": receipt}
 
+    def read_cut(self, session: Session, cut_id: str) -> dict:
+        return _record(_get(session, CutRecord, cut_id))
+
+    @contextmanager
+    def _journal(self, session, *, movie_id=None, place_id=None):
+        """Keep the rows the command inside changes on the receipt it writes, for Undo (journal.py). Inside an open
+        journal this adds nothing: a command writes one receipt."""
+        if journal.KEY in session.info:
+            yield
+            return
+        scope = {
+            key: value for key, value in (("movie_id", movie_id), ("place_id", place_id)) if value
+        }
+        active = session.info[journal.KEY] = {
+            "before": journal.snapshot(session, scope),
+            "receipts": [],
+            "watch": set(),
+        }
+        try:
+            yield
+            if active["receipts"]:
+                (receipt,) = active["receipts"]
+                rows_before, rows_after, hanging = journal.changes(
+                    session, active["before"], journal.snapshot(session, scope)
+                )
+                receipt.before = {**receipt.before, journal.KEY: rows_before}
+                receipt.after = {
+                    **receipt.after,
+                    journal.KEY: {
+                        "rows": rows_after,
+                        "children": hanging,
+                        "watch": journal.revisions(session, active["watch"]),
+                        "scope": scope,
+                    },
+                }
+                session.flush()
+        finally:
+            session.info.pop(journal.KEY, None)
+
+    def _scope(self, session, kind, record_id):
+        if kind == "place":
+            return {"place_id": record_id}
+        if kind == "angle":
+            return {"place_id": _get(session, AngleRecord, record_id).place_id}
+        row = _get(session, _MODELS[kind], record_id)
+        if kind in {"phase", "cut"}:
+            row = _get(session, SegmentRecord, row.segment_id)
+        return {"movie_id": row.id if kind == "movie" else row.movie_id}
+
+    def undo_targets(self, session, movie_id):
+        """What Undo and Redo reverse next in the movie's history: Undo, the newest command still in effect (a redo
+        counts as one); Redo, the newest Undo still in effect while no command came after it."""
+        history = session.scalars(
+            select(ReceiptRecord)
+            .where(ReceiptRecord.movie_id == movie_id)
+            .order_by(ReceiptRecord.created_at.desc(), ReceiptRecord.id.desc())
+        ).all()
+        by_id = {receipt.id: receipt for receipt in history}
+
+        def an_undo(receipt):
+            depth = 0
+            while receipt.undoes:
+                depth += 1
+                receipt = by_id.get(receipt.undoes) or _get(session, ReceiptRecord, receipt.undoes)
+            return depth % 2 == 1
+
+        undo = redo = None
+        edited = False
+        for receipt in history:
+            if receipt.undone_at is not None:
+                continue
+            if an_undo(receipt):
+                if not edited and redo is None:
+                    redo = receipt.id
+            else:
+                edited = True
+                if (
+                    undo is None
+                    and receipt.command != "create_movie"
+                    and journal.KEY in receipt.after
+                ):
+                    undo = receipt.id
+            if undo is not None and (redo is not None or edited):
+                break
+        return {"undo": undo, "redo": redo}
+
+    def _target_revision(self, session, receipt):
+        model = PlaceRecord if receipt.target_kind == "place" else _MODELS[receipt.target_kind]
+        row = session.get(model, receipt.target_id)
+        return row.revision if row is not None else None
+
     def undo(self, session, receipt_id):
+        """Put back the rows a command changed, while they are as it left them. Undoing an Undo redoes."""
         original = _get(session, ReceiptRecord, receipt_id)
         if original.undone_at is not None:
             raise ApplicationError("This command was already undone.", 409)
         if "record" in original.after and "title" in original.after["record"]:
             raise ApplicationError("A movie is not removed by undo.", 409)
-        model = PlaceRecord if original.target_kind == "place" else _MODELS[original.target_kind]
-        target = session.get(model, original.target_id)
-        guarded_creation = "created_revision" in original.after
-        guarded_split = "split_state" in original.after or "cut_move" in original.after
-        guarded_pins = "pins" in original.after
-        # Later creations may already have been undone. Parent revisions remain
-        # monotonic; use the same inverse-receipt proof as the child guard.
-        if target is None or not (
-            _revision_restored(
+        if journal.KEY not in original.after:
+            raise ApplicationError(_BEFORE_JOURNAL, 409)
+        if not journal.unchanged_since(session, original, _revision_restored):
+            raise ApplicationError(_CHANGED_AFTER, 409)
+        if problem := self._undo_problem(original, journal.preview(session, original)):
+            raise problem
+        if not journal.nothing_new_hangs(session, original):
+            raise ApplicationError(_CHANGED_AFTER, 409)
+
+        def side(state, revision):
+            described = {
+                key: value
+                for key, value in state.items()
+                if key not in {journal.KEY, "created_revision", "created_kind"}
+            }
+            return described | ({"revision": revision} if "revision" in described else {})
+
+        with self._journal(session, **original.after[journal.KEY]["scope"]):
+            before = side(original.after, self._target_revision(session, original))
+            journal.restore(session, original)
+            original = _get(session, ReceiptRecord, receipt_id)
+            original.undone_at = timestamp()
+            receipt = _receipt(
                 session,
+                original.movie_id,
+                original.command,
                 original.target_kind,
                 original.target_id,
-                target.revision,
-                original.after["revision"],
+                before,
+                side(original.before, self._target_revision(session, original)),
+                undoes=original.id,
             )
-            if guarded_creation or guarded_split or guarded_pins
-            else target.revision == original.after["revision"]
-        ):
-            raise ApplicationError(_CHANGED_AFTER, 409)
-        if guarded_creation:
-            self._check_created(session, original)
-        # The inverse validates before writing and shares the caller's transaction, just
-        # like any command. In particular it must never commit via an outermost savepoint.
-        result = self._inverse(session, original, target.revision)
-        original.undone_at = timestamp()
-        session.flush()
-        receipt = result.pop("receipt")
-        return {**receipt, "record": result}
+        return {**receipt, "record": self._undo_record(session, original)}
 
-    def _check_created(self, session, receipt):
-        kind = receipt.after["created_kind"]
-        before = receipt.after["record"]
-        row = session.get(_MODELS[kind], before["id"])
-        if row is None or not _revision_restored(
-            session, kind, before["id"], row.revision, receipt.after["created_revision"]
-        ):
-            raise ApplicationError(_CHANGED_AFTER, 409)
-        if kind == "segment":
-            # add_segment creates its initial phases in the same command. Phase/cut
-            # prose edits do not bump their parent, so protect those children too.
-            current = self.read_segment(session, row.id)
-            for collection, child_kind in (("phases", "phase"), ("cuts", "cut")):
-                children = {child["id"]: child for child in current[collection]}
-                if set(children) != {child["id"] for child in before[collection]}:
-                    raise ApplicationError(_CHANGED_AFTER, 409)
-                for child in before[collection]:
-                    if not _revision_restored(
-                        session,
-                        child_kind,
-                        child["id"],
-                        children[child["id"]]["revision"],
-                        child["revision"],
-                    ):
-                        raise ApplicationError(_CHANGED_AFTER, 409)
+    def _undo_problem(self, receipt, rows):
+        """Why putting the receipt's rows back would break the movie, checked on the rows as they would be: a removal
+        in the words of the command that removes, anything else as a later change."""
 
-    def _inverse(self, session, receipt, revision):
-        options = {"_undoes": receipt.id}
-        if "pins" in receipt.after:
-            old, new = receipt.after["pins"]
-            if any(
-                _record(_get(session, KeyframeRecord, pin["id"])) != pin for pin in (old, new)
-            ) or [k["id"] for k in self.keyframes(session, receipt.target_id) if k["approved"]] != [
-                new["id"]
-            ]:
-                raise ApplicationError(_CHANGED_AFTER, 409)
-            return self._replace_keyframe(session, new["id"], old["id"], receipt.id)
-        if "cut_move" in receipt.after:
-            return self._undo_cut_move(session, receipt)
-        if receipt.target_kind == "place":
-            return self.update_place(
-                session,
-                receipt.target_id,
-                revision,
-                movie_id=receipt.movie_id,
-                **{k: v for k, v in receipt.before.items() if k != "revision"},
-                **options,
-            )
-        if "plate" in receipt.after:
-            previous, current = receipt.before["plate"], receipt.after["plate"]
-            place = _get(session, PlaceRecord, current["place_id"])
-            if (
-                place.revision != current["revision"]
-                or place.plate_asset_id != current["asset_id"]
-                or place.plate_angle_id != current["angle_id"]
-            ):
-                raise ApplicationError(_CHANGED_AFTER, 409)
-            return self._replace_plate(
-                session,
-                place,
-                previous["asset_id"],
-                previous["angle_id"],
-                receipt.movie_id,
-                receipt.id,
-            )
-        if receipt.target_kind == "angle":
-            return self.update_angle(
-                session,
-                receipt.target_id,
-                revision,
-                movie_id=receipt.movie_id,
-                **{k: v for k, v in receipt.before.items() if k != "revision"},
-                **options,
-            )
-        if "split_state" in receipt.after:
-            return self._merge_split(session, receipt)
-        if "record" in receipt.after:
-            record = receipt.after["record"]
-            if "ordinal" in record:
-                return self.remove_segment(session, record["id"], revision, **options)
-            if "keeps" in record:
-                return self.remove_subject(session, record["id"], revision, **options)
-            if "start_frame" in record:
-                return self.remove_phase(session, record["id"], revision, **options)
-            return self.remove_cut(session, record["id"], revision, **options)
-        if "record" in receipt.before:
-            record = receipt.before["record"]
-            options["_restore"] = record
-            if "ordinal" in record:
-                return self.add_segment(
-                    session,
-                    record["movie_id"],
-                    revision,
-                    content=record["content"],
-                    delivered_frames=record["delivered_frames"],
-                    continues=record["continues"],
-                    at=record["ordinal"],
-                    phases=[
-                        (p["start_frame"], p["content"], p["content_schema"])
-                        for p in record["phases"]
-                    ],
-                    **options,
-                )
-            if "keeps" in record:
-                return self.add_subject(
-                    session,
-                    record["movie_id"],
-                    revision,
-                    subject_id=record["id"],
-                    **{key: record[key] for key in _SUBJECT_FIELDS if key != "id"},
-                    **options,
-                )
-            if "start_frame" in record:
-                return self.add_phase(
-                    session,
-                    record["segment_id"],
-                    revision,
-                    start_frame=record["start_frame"],
-                    content=record["content"],
-                    **options,
-                )
-            return self.create_cut(
-                session,
-                record["segment_id"],
-                revision,
-                **{
-                    key: value
-                    for key, value in record.items()
-                    if key not in {"id", "segment_id", "revision", "updated_at", "insertion"}
-                },
-                **options,
-            )
-        if "ordinal" in receipt.before:
-            return self.move_segment(
-                session,
-                receipt.before["segment_id"],
-                revision,
-                ordinal=receipt.before["ordinal"],
-                **options,
-            )
-        changes = {
-            key: value
-            for key, value in receipt.before.items()
-            if key not in {"revision", "content_schema"}
-        }
-        commands = {
-            "movie": self.update_movie,
-            "subject": self.update_subject,
-            "segment": self.update_segment,
-            "phase": self.update_phase,
-            "cut": self.update_cut,
-        }
-        return commands[receipt.target_kind](
-            session, receipt.target_id, revision, **changes, **options
+        def kids(kind, column, parent):
+            return [row for (k, _), row in rows.items() if k == kind and row[column] == parent]
+
+        segments = sorted(
+            (row for (kind, _), row in rows.items() if kind == "segment"),
+            key=lambda s: s["ordinal"],
         )
+        cast = {record_id for kind, record_id in rows if kind == "subject"}
 
-    def read_cut(self, session: Session, cut_id: str) -> dict:
-        return _record(_get(session, CutRecord, cut_id))
+        def subjects(segment):
+            document = json.loads(segment["content"])
+            return set(authored.segment_content(document, segment["content_schema"]).subject_ids)
+
+        for kind, record_id in journal.created(receipt):
+            if kind == "subject":
+                for segment in segments:
+                    if record_id in subjects(segment):
+                        return ApplicationError(
+                            f"Subject {record_id} appears in segment {segment['ordinal']}; remove the "
+                            "reference first.",
+                            409,
+                        )
+            elif kind == "segment" and kids("cut", "segment_id", record_id):
+                return ApplicationError("Remove the segment's cuts first.", 409)
+            elif kind == "cut" and kids("keyframe", "cut_id", record_id):
+                return ApplicationError("A cut with recorded keyframes cannot be removed.", 409)
+            elif kind == "cut" and kids("suitability", "cut_id", record_id):
+                return ApplicationError("A cut with suitability history cannot be removed.", 409)
+        for segment in segments:
+            phases = [p["start_frame"] for p in kids("phase", "segment_id", segment["id"])]
+            cuts = sorted(kids("cut", "segment_id", segment["id"]), key=lambda c: c["frame"])
+            frames = [cut["frame"] for cut in cuts]
+            if (
+                not subjects(segment) <= cast
+                or len(set(phases)) != len(phases)
+                or len(set(frames)) != len(frames)
+                or any(not 0 <= frame < segment["delivered_frames"] for frame in phases)
+                or any(not 0 < frame < segment["delivered_frames"] for frame in frames)
+                or any(b["from_angle_id"] != a["to_angle_id"] for a, b in pairwise(cuts))
+            ):
+                return ApplicationError(_CHANGED_AFTER, 409)
+        return None
+
+    def _undo_record(self, session, receipt):
+        """What an Undo or a redo shows: the record its first command made, removed or changed, as it is now."""
+        while receipt.undoes:
+            receipt = _get(session, ReceiptRecord, receipt.undoes)
+        command, before, after = receipt.command, receipt.before, receipt.after
+        if command == "split_segment":
+            return {
+                "segments": [
+                    self.read_segment(session, segment_id)
+                    for segment_id in after["split_state"]["segment_ids"]
+                    if session.get(SegmentRecord, segment_id) is not None
+                ]
+            }
+        kind = _CREATIONS.get(command) or (
+            command.removeprefix("remove_") if command.startswith("remove_") else None
+        )
+        if kind is not None:
+            record_id = (after if command in _CREATIONS else before)["record"]["id"]
+            if session.get(_MODELS[kind], record_id) is None:
+                return {"id": record_id, "removed": True}
+            if kind == "segment":
+                return self.read_segment(session, record_id)
+            return _record(session.get(_MODELS[kind], record_id))
+        if command == "move_segment":
+            return self.read_segment(session, before["segment_id"])
+        if command == "replace_pin":
+            return next(k for k in self.keyframes(session, receipt.target_id) if k["approved"])
+        if command == "replace_plate":
+            return self.read_place(session, after["plate"]["place_id"])
+        if receipt.target_kind == "segment":
+            return self.read_segment(session, receipt.target_id)
+        model = PlaceRecord if receipt.target_kind == "place" else _MODELS[receipt.target_kind]
+        return _record(_get(session, model, receipt.target_id))
 
     def _place_evidence(self, session, place_id, inactive_view_assets):
         angle_ids = select(AngleRecord.id).where(AngleRecord.place_id == place_id)

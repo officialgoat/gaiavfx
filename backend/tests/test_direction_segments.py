@@ -49,10 +49,11 @@ def snapshot(session):
 
 
 @pytest.mark.parametrize("command", ["update", "remove"])
-def test_undo_legacy_receipts_restores_keeps_as_items(store, command):
+def test_a_receipt_written_before_the_journal_is_refused_without_writes(store, command):
+    """Undo puts back the rows a command recorded; a receipt from before it recorded them reads as history only."""
     db, service = store
     with db.transaction() as session:
-        movie = service.create_movie(session, "Legacy receipts")
+        movie = service.create_movie(session, "Older receipts")
         subject = service.add_subject(
             session,
             movie["id"],
@@ -66,15 +67,17 @@ def test_undo_legacy_receipts_restores_keeps_as_items(store, command):
             result = service.update_subject(session, subject["id"], 1, keeps=["hat", "bag"])
         else:
             result = service.remove_subject(session, subject["id"], 2)
-        receipt = session.get(ReceiptRecord, result["receipt"]["id"])
-        before = deepcopy(receipt.before)
-        target = before if command == "update" else before["record"]
-        target["keeps"] = "coat and scarf"
-        receipt.before = before
+        stored = session.get(ReceiptRecord, result["receipt"]["id"])
+        stored.before = {key: value for key, value in stored.before.items() if key != "journal"}
+        stored.after = {key: value for key, value in stored.after.items() if key != "journal"}
         session.flush()
-        service.undo(session, receipt.id)
-        assert service.read_subject(session, subject["id"])["keeps"] == ["coat and scarf"]
-        assert receipt.before == before  # Historical evidence stays as written.
+        fail_without_write(
+            session,
+            409,
+            "made before Undo kept the rows",
+            lambda: service.undo(session, stored.id),
+        )
+        assert service.read_receipt(session, stored.id) == result["receipt"]
 
 
 def receipt(result, kind, target):
@@ -583,8 +586,7 @@ def test_undo_creation_and_redo_preserve_identity(kind, store):
 
 
 @pytest.mark.parametrize("kind", ["subject", "segment", "phase", "cut"])
-@pytest.mark.parametrize("legacy", [False, True])
-def test_creation_undo_protects_edited_record_and_allows_ordered_undo(store, kind, legacy):
+def test_creation_undo_protects_edited_record_and_allows_ordered_undo(store, kind):
     db, service = store
     with db.transaction() as session:
         segment = make_segment(service, session)
@@ -615,24 +617,15 @@ def test_creation_undo_protects_edited_record_and_allows_ordered_undo(store, kin
         original = deepcopy(created["receipt"])
         assert original["after"]["created_revision"] == 1
         assert original["after"]["created_kind"] == kind
-        if legacy:
-            stored = session.get(ReceiptRecord, original["id"])
-            stored.after = {
-                key: value
-                for key, value in stored.after.items()
-                if key not in {"created_revision", "created_kind"}
-            }
-            session.flush()
-        else:
-            fail_without_write(
-                session,
-                409,
-                "The record changed after this command; undo the later command first.",
-                lambda: service.undo(session, original["id"]),
-            )
-            inverse = service.undo(session, changed["receipt"]["id"])
-            assert inverse["record"]["revision"] == 3
-            assert service.read_receipt(session, original["id"]) == original
+        fail_without_write(
+            session,
+            409,
+            "The record changed after this command; undo the later command first.",
+            lambda: service.undo(session, original["id"]),
+        )
+        inverse = service.undo(session, changed["receipt"]["id"])
+        assert inverse["record"]["revision"] == 3
+        assert service.read_receipt(session, original["id"]) == original
         removed = service.undo(session, original["id"])
         assert removed["record"] == {"id": created["id"], "removed": True}
 
@@ -694,19 +687,10 @@ def test_creation_undo_allows_reversed_child_commands_and_keeps_existing_phase(s
         assert service.undo(session, segment["receipt"]["id"])["record"]["removed"]
 
 
-@pytest.mark.parametrize("legacy", [False, True])
-def test_creation_guard_requires_parent_undo_with_legacy_strict_revisions(store, legacy):
+def test_creation_guard_requires_parent_undo_and_proves_restored_revisions(store):
     db, service = store
     with db.transaction() as session:
         segment = make_segment(service, session)
-        if legacy:
-            original = session.get(ReceiptRecord, segment["receipt"]["id"])
-            original.after = {
-                key: value
-                for key, value in original.after.items()
-                if key not in {"created_revision", "created_kind"}
-            }
-            session.flush()
         subject = service.add_subject(
             session,
             segment["movie_id"],
@@ -720,15 +704,7 @@ def test_creation_guard_requires_parent_undo_with_legacy_strict_revisions(store,
             session, 409, "changed after", lambda: service.undo(session, segment["receipt"]["id"])
         )
         service.undo(session, subject["receipt"]["id"])
-        if legacy:
-            fail_without_write(
-                session,
-                409,
-                "changed after",
-                lambda: service.undo(session, segment["receipt"]["id"]),
-            )
-        else:
-            assert service.undo(session, segment["receipt"]["id"])["record"]["removed"]
+        assert service.undo(session, segment["receipt"]["id"])["record"]["removed"]
 
 
 def test_storyline_creations_undo_in_order_with_monotonic_parent_revisions(store):
