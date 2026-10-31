@@ -97,6 +97,7 @@ def set_state(session, library, set_id: str, version_id: str | None = None) -> d
     if not row["versions"]:
         raise ApplicationError("This stage has no versions yet.", 409)
     shown = _shown_version(row, version_id)
+    fixes = STORE.fixes(session, set_id)
     splat = None
     if shown["splat_artifact_id"]:
         artifact = library.artifact(session, shown["splat_artifact_id"])
@@ -142,15 +143,54 @@ def set_state(session, library, set_id: str, version_id: str | None = None) -> d
                 | {"was": (key["info"] or {}).get("was")}
                 # a probe still filling set aside says why, and whether it can be kept (ADR 0020 §8)
                 | _set_aside(session, library, set_id, key)
+                | _keyframe_fixes(fixes, key)
                 for key in STORE.keyframes(session, shown["id"])
             ],
         },
-        "issues": STORE.issues(session, set_id),
-        "fixes": STORE.fixes(session, set_id),
+        "issues": [
+            issue | _in_review(fixes, row["versions"], issue)
+            for issue in STORE.issues(session, set_id)
+        ],
+        "fixes": fixes,
         "hide_regions": STORE.hide_regions(session, set_id, shown["id"]),
         "views": _views_with_angles(session, STORE.views(session, set_id)),
         "build": build_view(session, set_id),
-        "run": queued_run(session, set_id, shown),
+        "run": {k: v for k, v in run_plan(session, set_id, shown).items() if k in RUN_SHOWN},
+    }
+
+
+def _keyframe_fixes(fixes: list[dict], keyframe: dict) -> dict:
+    """What a keyframe's card shows of its fixes: whether it can be excluded (it shapes the stage and is not the
+    panorama), its exclusion (queued or running, else one that failed) and its kept still (queued or running)."""
+    own = [f for f in fixes if (f["target"] or {}).get("keyframe") == keyframe["id"]]
+
+    def first(action, states):
+        return next((f for f in own if f["action"] == action and f["state"] in states), None)
+
+    exclusion = first("retract", PENDING) or first("retract", ("failed",))
+    keeping = first("keep", PENDING)
+    return {
+        "can_exclude": keyframe["role"] not in ("observed", "appearance-only"),
+        "exclusion": exclusion and {"fix_id": exclusion["id"], "state": exclusion["state"]},
+        "keeping": keeping and keeping["state"],
+    }
+
+
+def _in_review(fixes: list[dict], versions: list[dict], issue: dict) -> dict:
+    """Whether an issue's fixes all ran into a version that waits for the user's review, and which version."""
+    own = [f for f in fixes if f["issue_id"] == issue["id"]]
+    waiting = (
+        issue["status"] == "queued"
+        and any(f["state"] == "done" for f in own)
+        and not any(f["state"] in PENDING for f in own)
+    )
+    built = {f["operation_id"] for f in own if f["state"] == "done" and f["operation_id"]}
+    version = next(
+        (v for v in versions if v["state"] == "proposed" and v["operation_id"] in built), None
+    )
+    return {
+        "in_review": waiting,
+        "review_version_id": version["id"] if waiting and version else None,
     }
 
 
@@ -241,7 +281,7 @@ def _check_keep(session, library, set_id, version_id, target, fix_id=None) -> di
     if any(
         f["action"] == "keep"
         and f["id"] != fix_id
-        and f["state"] in ("queued", "running")
+        and f["state"] in PENDING
         and (f["target"] or {}).get("keyframe") == keyframe["id"]
         for f in STORE.fixes(session, set_id)
     ):
@@ -256,14 +296,22 @@ def _check_keep(session, library, set_id, version_id, target, fix_id=None) -> di
     return geometry
 
 
-def queued_run(session, set_id: str, version: dict) -> dict:
-    """What Run queued fixes would do on `version`, in Python's words: the fixes it runs (exclusions of its keyframes,
-    kept stills and extensions, ADR 0020 §4 and §8; reshoots wait for a later step) and what that costs."""
+PENDING = ("queued", "running")
+PANORAMA = "The panorama is the stage's ground truth; it cannot be excluded."
+RUN_SHOWN = ("fix_ids", "words", "refusal")
+
+
+def run_plan(session, set_id: str, version: dict) -> dict:
+    """What Run queued fixes does on `version`, the one plan the workbench shows and `start_set_build` runs: the fixes
+    it runs (the exclusions and kept stills of the version's own keyframes, and the extensions, ADR 0020 §4 and §8;
+    reshoots wait for a later step, and a fix of a keyframe the version does not hold waits for its own version), the
+    fixes by action, Python's words for it, and why it cannot run now (`refusal`, None when it can)."""
     from gaiavfx.application import set_fill
     from gaiavfx.integrations.worldbuilder.fill import settings as fill_settings
 
-    members = {k["id"]: k["label"] for k in STORE.keyframes(session, version["id"])}
-    queued = [f for f in STORE.fixes(session, set_id) if f["state"] == "queued"]
+    members = {k["id"]: k for k in STORE.keyframes(session, version["id"])}
+    fixes = STORE.fixes(session, set_id)
+    queued = [f for f in fixes if f["state"] == "queued"]
 
     def of_version(action):
         return [
@@ -274,15 +322,44 @@ def queued_run(session, set_id: str, version: dict) -> dict:
 
     exclusions, keeps = of_version("retract"), of_version("keep")
     extensions = [f for f in queued if f["action"] == "extend"]
-    reshoots = [f for f in queued if f["action"] == "reshoot"]
-    later = " Queued reshoots wait for a later step." if reshoots else ""
-    if not exclusions and not keeps and not extensions:
-        return {
-            "fix_ids": [],
-            "words": "Exclude a keyframe, keep a still or fill more unseen space first." + later,
-        }
-    without = ", ".join(members[f["target"]["keyframe"]] for f in exclusions)
-    kept = ", ".join(members[f["target"]["keyframe"]] for f in keeps)
+    plan = {
+        "fix_ids": [f["id"] for f in exclusions + keeps + extensions],
+        "exclusions": exclusions,
+        "keeps": keeps,
+        "extensions": extensions,
+    }
+    later = (
+        " Queued reshoots wait for a later step."
+        if any(f["action"] == "reshoot" for f in queued)
+        else ""
+    )
+    nothing = (
+        "Nothing to run yet: exclude a keyframe, keep a still or fill more unseen space first."
+        + later
+    )
+    refusal = next(
+        (
+            words
+            for refused, words in (
+                (version["state"] == "discarded", "A discarded version cannot be built on."),
+                (
+                    any(f["state"] == "running" for f in fixes),
+                    "A build of this stage is already running.",
+                ),
+                (not plan["fix_ids"], nothing),
+                (
+                    any(members[f["target"]["keyframe"]]["kind"] == "erp" for f in exclusions),
+                    PANORAMA,
+                ),
+            )
+            if refused
+        ),
+        None,
+    )
+    if not plan["fix_ids"]:
+        return plan | {"words": refusal, "refusal": refusal}
+    without = ", ".join(members[f["target"]["keyframe"]]["label"] for f in exclusions)
+    kept = ", ".join(members[f["target"]["keyframe"]]["label"] for f in keeps)
     rounds = fill_settings()["rounds"]
     words = f"Rebuilds v{version['ordinal']}" + (f" without {without}" if exclusions else "")
     words += f" keeping {kept}" if keeps else ""
@@ -297,7 +374,7 @@ def queued_run(session, set_id: str, version: dict) -> dict:
         f", plus any wait for it. You get a proposed v{next_ordinal} to compare, then accept or discard. Nothing "
         "is deleted." + later
     )
-    return {"fix_ids": [f["id"] for f in exclusions + keeps + extensions], "words": words}
+    return plan | {"words": refusal or words, "refusal": refusal}
 
 
 def build_view(session, set_id: str) -> dict | None:
@@ -307,9 +384,8 @@ def build_view(session, set_id: str) -> dict | None:
     fixes = [f for f in STORE.fixes(session, set_id) if f["operation_id"]]
     if not fixes:
         return None
-    operation = OPERATIONS.operation(
-        session, max(fixes, key=lambda f: f["updated_at"])["operation_id"]
-    )
+    newest = max(fixes, key=lambda f: f["updated_at"])["operation_id"]
+    operation = OPERATIONS.operation(session, newest)
     jobs = operation["jobs"]
     current = next((j for j in jobs if j["state"] != "succeeded"), jobs[-1] if jobs else None)
 
@@ -357,6 +433,8 @@ def build_view(session, set_id: str) -> dict | None:
         "error": clip_words(error, 400) if error and not decision else None,
         "reason": stopped.get("reason"),
         "fix_ids": operation["request"].get("fix_ids", []),
+        # Retry build has failed fixes of this build to queue again
+        "retryable": any(f["state"] == "failed" and f["operation_id"] == newest for f in fixes),
     }
 
 
@@ -426,20 +504,19 @@ def set_issue_status(session, library, set_id, issue_id, *, status, expected_rev
 
 
 def _check_exclusion(session, set_id, version_id, target) -> None:
-    """An exclusion names one keyframe of the version it was queued in, never the panorama, and only once."""
+    """An exclusion names one keyframe of the version it was queued in that shapes the stage, never the panorama,
+    and only once."""
     members = {k["id"]: k for k in STORE.keyframes(session, version_id)}
     keyframe = members.get((target or {}).get("keyframe"))
     if keyframe is None:
         raise ApplicationError("Exclude a keyframe of the version you are looking at.", 422)
     if keyframe["kind"] == "erp":
-        raise ApplicationError(
-            "The panorama is the stage's ground truth; it cannot be excluded.", 422
-        )
+        raise ApplicationError(PANORAMA, 422)
     if keyframe["role"] == "appearance-only":
         raise ApplicationError(f"{keyframe['label']} is colour only already.", 409)
     if any(
         f["action"] == "retract"
-        and f["state"] in ("queued", "running")
+        and f["state"] in PENDING
         and (f["target"] or {}).get("keyframe") == keyframe["id"]
         for f in STORE.fixes(session, set_id)
     ):
@@ -449,37 +526,56 @@ def _check_exclusion(session, set_id, version_id, target) -> None:
 FILL_MORE = "What no view of the stage has seen yet, around it."
 
 
-def fill_more(session, library, set_id, *, version_id):
-    """Fill more unseen space (ADR 0020 §4): queue an extension that fills all round, which Run queued fixes runs
-    with any exclusions into one proposed version. One at a time: another is refused while one waits."""
-    if any(
-        f["state"] in ("queued", "running") and f["action"] == "extend"
-        for f in STORE.fixes(session, set_id)
+def enqueue_fix(
+    session, library, set_id, *, version_id, action, target, author, shows="", issue_id=None
+) -> str:
+    """Queue a fix as `author` (the human, or the agent filling more, ADR 0020 §8) on the version they are looking at,
+    once: an exclusion of one of its keyframes, a still filling set aside kept (ADR 0020 §8), filling more unseen
+    space one at a time (ADR 0020 §4), or a reshoot. Returns the fix's id."""
+    if action == "retract":
+        _check_exclusion(session, set_id, version_id, target)
+    if action == "keep":
+        _check_keep(session, library, set_id, version_id, target)
+    if action == "extend" and any(
+        f["state"] in PENDING and f["action"] == "extend" for f in STORE.fixes(session, set_id)
     ):
         raise ApplicationError("Filling more is queued already; run it with Run queued fixes.", 409)
-    return queue_fix(
+    return STORE.queue_fix(
+        session,
+        set_id,
+        action=action,
+        author=author,
+        target=target,
+        shows=shows,
+        issue_id=issue_id,
+    )
+
+
+def fill_more(session, library, set_id, *, version_id):
+    """Fill more unseen space (ADR 0020 §4): queue an extension that fills all round, which Run queued fixes runs
+    with any exclusions into one proposed version."""
+    enqueue_fix(
         session,
         library,
         set_id,
         version_id=version_id,
         action="extend",
         target={},
+        author="human",
         shows=FILL_MORE,
-        issue_id=None,
     )
+    return set_state(session, library, set_id, version_id)
 
 
 def queue_fix(session, library, set_id, *, version_id, action, target, shows, issue_id):
-    if action == "retract":
-        _check_exclusion(session, set_id, version_id, target)
-    if action == "keep":
-        _check_keep(session, library, set_id, version_id, target)
-    STORE.queue_fix(
+    enqueue_fix(
         session,
+        library,
         set_id,
+        version_id=version_id,
         action=action,
-        author="human",
         target=target,
+        author="human",
         shows=shows,
         issue_id=issue_id,
     )

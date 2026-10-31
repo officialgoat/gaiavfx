@@ -54,32 +54,28 @@ def _frozen(artifact: dict) -> dict:
     }
 
 
-def start_set_build(session, library, set_id: str, *, base_version_id: str) -> dict:
-    """Run the set's queued exclusions, kept stills and extensions against `base_version_id`, the version the user is
-    looking at: the user's Run queued fixes (ADR 0018 §5), or the agent's Fill more from the accepted version when
-    nothing else is queued (ADR 0020 §8). Refused while a build of the set runs, with nothing to run, or when a fix
-    names a keyframe the base version does not hold."""
+def start_set_build(
+    session, library, set_id: str, *, base_version_id: str, fix_ids: list[str] | None = None
+) -> dict:
+    """Run the plan Run queued fixes shows for `base_version_id`, the version the user is looking at (`sets.run_plan`):
+    the user's Run queued fixes (ADR 0018 §5), or the agent's Fill more from the accepted version when nothing else is
+    queued (ADR 0020 §8). Refused as the plan says, and, given the `fix_ids` the user saw, when the queue changed."""
     from gaiavfx.application.operations import PRODUCERS, create_operation
-    from gaiavfx.application.sets import _check_keep
+    from gaiavfx.application.sets import _check_keep, run_plan
 
     row = STORE.get(session, set_id)
     base = next((v for v in row["versions"] if v["id"] == base_version_id), None)
     if base is None:
         raise ApplicationError("This version is not part of the stage.", 404)
-    if base["state"] == "discarded":
-        raise ApplicationError("A discarded version cannot be built on.", 409)
-    fixes = STORE.fixes(session, set_id)
-    if any(f["state"] == "running" for f in fixes):
-        raise ApplicationError("A build of this stage is already running.", 409)
-    exclusions = [f for f in fixes if f["state"] == "queued" and f["action"] == "retract"]
-    keeps = [f for f in fixes if f["state"] == "queued" and f["action"] == "keep"]
-    extensions = [f for f in fixes if f["state"] == "queued" and f["action"] == "extend"]
-    if not exclusions and not keeps and not extensions:
+    plan = run_plan(session, set_id, base)
+    if plan["refusal"]:
+        raise ApplicationError(plan["refusal"], 409)
+    if fix_ids is not None and sorted(fix_ids) != sorted(plan["fix_ids"]):
         raise ApplicationError(
-            "Nothing to run yet: exclude a keyframe, keep a still or fill more unseen space first. Reshoots wait "
-            "for a later step.",
+            "The queued fixes changed since this page read them; look at Run queued fixes again.",
             409,
         )
+    exclusions, keeps, extensions = plan["exclusions"], plan["keeps"], plan["extensions"]
     # A kept still is checked again against this version, and its geometry pinned, before anything starts.
     kept = [
         (fix, _check_keep(session, library, set_id, base["id"], fix["target"], fix_id=fix["id"]))
@@ -88,18 +84,7 @@ def start_set_build(session, library, set_id: str, *, base_version_id: str) -> d
     members = {k["id"]: k for k in STORE.keyframes(session, base["id"])}
     retract, seen = [], set()
     for fix in exclusions:
-        keyframe = members.get((fix["target"] or {}).get("keyframe"))
-        if keyframe is None:
-            label = (fix["target"] or {}).get("label", "A keyframe")
-            raise ApplicationError(
-                f"{label} is not part of v{base['ordinal']}; cancel its exclusion or open the version it was "
-                "queued in.",
-                409,
-            )
-        if keyframe["kind"] == "erp":
-            raise ApplicationError(
-                "The panorama is the stage's ground truth; it cannot be excluded.", 409
-            )
+        keyframe = members[fix["target"]["keyframe"]]
         if keyframe["id"] not in seen:
             seen.add(keyframe["id"])
             retract.append(
@@ -117,7 +102,7 @@ def start_set_build(session, library, set_id: str, *, base_version_id: str) -> d
                 "reason": f"Kept in the workbench ({fix['id']})",
             }
         )
-    fix_ids = [f["id"] for f in exclusions + keeps + extensions]
+    fix_ids = plan["fix_ids"]
     existing, attempt = _attempt(session, set_id, base["id"], fix_ids)
     if existing is not None:
         return existing | {"_created": False}
@@ -434,15 +419,16 @@ def sweep_set_builds(session, *, library):
     return False
 
 
-def run_queued_fixes(session, library, set_id, *, version_id, retry=False):
-    """The workbench's Run queued fixes: start the build on the version the user is looking at. With `retry`
-    (Retry build), the newest build's failed fixes are queued again first."""
+def run_queued_fixes(session, library, set_id, *, version_id, retry=False, fix_ids=None):
+    """The workbench's Run queued fixes: start the build on the version the user is looking at, as its preview said
+    (`fix_ids`, the fixes the user saw). With `retry` (Retry build), the newest build's failed fixes are queued again
+    first."""
     if retry:
         build = build_view(session, set_id)
         for fix in STORE.fixes(session, set_id):
             if build and fix["id"] in build["fix_ids"] and fix["state"] == "failed":
                 STORE.retry_fix(session, set_id, fix["id"])
-    start_set_build(session, library, set_id, base_version_id=version_id)
+    start_set_build(session, library, set_id, base_version_id=version_id, fix_ids=fix_ids)
     return set_state(session, library, set_id, version_id)
 
 

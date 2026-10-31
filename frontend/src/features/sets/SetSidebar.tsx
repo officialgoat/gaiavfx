@@ -9,7 +9,6 @@ import {
   type SetState,
   type SetView,
 } from "./client";
-import { inReview } from "./SetBuild";
 import { useSetWorkbench, type SidebarTab } from "./set-workbench";
 
 /** The left column's lists. A row click selects and flies there; nothing moves the camera on its own. */
@@ -31,10 +30,10 @@ export function SetSidebar({
   const tab: SidebarTab = w.tab ?? (open.length ? "Issues" : "Views");
   const groups: [string, SetIssue[]][] = [
     ["Open", state.issues.filter((i) => i.status === "open")],
-    ["Waiting for your review", state.issues.filter((i) => inReview(state, i))],
+    ["Waiting for your review", state.issues.filter((i) => i.in_review)],
     [
       "Fix queued",
-      state.issues.filter((i) => i.status === "queued" && !inReview(state, i)),
+      state.issues.filter((i) => i.status === "queued" && !i.in_review),
     ],
     [
       "Done",

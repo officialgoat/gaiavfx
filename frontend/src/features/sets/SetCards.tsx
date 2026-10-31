@@ -14,7 +14,6 @@ import {
   type SetView,
 } from "./client";
 import type { SetController } from "./use-set";
-import { inReview } from "./SetBuild";
 import { useSetWorkbench, type SetSelection } from "./set-workbench";
 
 /** The card of the selected issue, keyframe or view; null when the selection no longer exists. */
@@ -79,18 +78,7 @@ function IssueCard({
   const failed = state.fixes.filter(
     (f) => f.issue_id === issue.id && f.state === "failed",
   );
-  const reviewed = inReview(state, issue)
-    ? state.versions.find(
-        (v) =>
-          v.state === "proposed" &&
-          state.fixes.some(
-            (f) =>
-              f.issue_id === issue.id &&
-              f.state === "done" &&
-              f.operation_id === v.operation_id,
-          ),
-      )
-    : undefined;
+  const reviewed = state.versions.find((v) => v.id === issue.review_version_id);
   const region = regionOf(issue);
   const hideable = issue.kind === "floaters" || issue.kind === "doubled";
   return (
@@ -367,22 +355,12 @@ function KeyframeCard({
   keyframe: SetKeyframe;
 }) {
   const w = useSetWorkbench();
-  const exclusions = state.fixes.filter(
-    (f) =>
-      f.action === "retract" &&
-      (f.target as { keyframe?: string }).keyframe === keyframe.id,
-  );
-  const pending = exclusions.find(
-    (f) => f.state === "queued" || f.state === "running",
-  );
-  const failed = !pending && exclusions.find((f) => f.state === "failed");
-  // Keep this still (ADR 0020 §8): a probe still filling set aside can shape the stage from the next build.
-  const keeping = state.fixes.find(
-    (f) =>
-      f.action === "keep" &&
-      (f.state === "queued" || f.state === "running") &&
-      (f.target as { keyframe?: string }).keyframe === keyframe.id,
-  );
+  // Python says where the keyframe's exclusion and kept still stand (ADR 0020 §8: a probe still filling set aside can
+  // shape the stage from the next build).
+  const exclusion = keyframe.exclusion;
+  const pending = exclusion?.state === "failed" ? null : exclusion;
+  const failed = exclusion?.state === "failed" ? exclusion : null;
+  const keeping = keyframe.keeping;
   return (
     <div className="set-inspector">
       <h2>
@@ -420,7 +398,7 @@ function KeyframeCard({
             disabled={s.busy}
             onClick={() =>
               void s.run(() =>
-                sets.retryFix(state.id, failed.id, state.version.id),
+                sets.retryFix(state.id, failed.fix_id, state.version.id),
               )
             }
           >
@@ -437,31 +415,29 @@ function KeyframeCard({
             {w.source ? "Close the wipe" : "Compare source"}
           </button>
         )}
-        {keyframe.role !== "observed" &&
-          keyframe.role !== "appearance-only" &&
-          !failed && (
-            <button
-              className="secondary-button"
-              disabled={s.busy || !!pending}
-              title="Its pixels stop shaping the stage from the next build; nothing is deleted."
-              onClick={() =>
-                void s.run(() =>
-                  sets.queueFix(state.id, {
-                    version_id: state.version.id,
-                    action: "retract",
-                    target: { keyframe: keyframe.id, label: keyframe.label },
-                    shows: "",
-                  }),
-                )
-              }
-            >
-              {pending?.state === "running"
-                ? "Exclusion building"
-                : pending
-                  ? "Exclusion queued"
-                  : "Exclude from stage"}
-            </button>
-          )}
+        {keyframe.can_exclude && !failed && (
+          <button
+            className="secondary-button"
+            disabled={s.busy || !!pending}
+            title="Its pixels stop shaping the stage from the next build; nothing is deleted."
+            onClick={() =>
+              void s.run(() =>
+                sets.queueFix(state.id, {
+                  version_id: state.version.id,
+                  action: "retract",
+                  target: { keyframe: keyframe.id, label: keyframe.label },
+                  shows: "",
+                }),
+              )
+            }
+          >
+            {pending?.state === "running"
+              ? "Exclusion building"
+              : pending
+                ? "Exclusion queued"
+                : "Exclude from stage"}
+          </button>
+        )}
         {keyframe.can_keep && (
           <button
             className="secondary-button"
@@ -478,7 +454,7 @@ function KeyframeCard({
               )
             }
           >
-            {keeping?.state === "running"
+            {keeping === "running"
               ? "Keeping, building"
               : keeping
                 ? "Keep queued"

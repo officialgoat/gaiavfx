@@ -89,8 +89,12 @@ def test_a_queued_keep_cannot_run_on_a_version_without_that_still(rejected):
             keyframe_ids=[k["id"] for k in state["version"]["keyframes"] if k["id"] != aside["id"]],
         )
     shown = transact(s.workspace, sets.set_state, s.workspace.library, state["id"], new_id)
+    # The keep waits for its own version: the shown version's preview and its Run both have nothing to run.
+    assert shown["run"]["fix_ids"] == [] and shown["run"]["refusal"].startswith(
+        "Nothing to run yet"
+    )
     before = operation_count(s)
-    with pytest.raises(ApplicationError, match="Keep a still of the version you are looking at"):
+    with pytest.raises(ApplicationError, match="Nothing to run yet"):
         run(s, shown)
     assert operation_count(s) == before
     with s.workspace.db.transaction() as session:

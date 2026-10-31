@@ -1,16 +1,17 @@
 import {
   keepPreviousData,
-  useMutation,
   useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useEditRunner } from "../../shared/edit-runner";
 import { BUILDING, sets, type SetState } from "./client";
 import { decodeMap } from "./set-map";
 
 /** One open set: its state for the shown version, the decoded map, and the human commands, each returning the new
- * state (the server's answer replaces the cache, so the page never shows a guess). While a build is on its way the
- * state is read again every two seconds; nothing it brings moves the camera or switches the version. */
+ * state (the server's answer replaces the cache, so the page never shows a guess). The commands run one at a time
+ * through the shared edit runner; a refusal says why in Python's words. While a build is on its way the state is read
+ * again every two seconds; nothing it brings moves the camera or switches the version. */
 export function useSet(setId: string, versionId: string | null) {
   const client = useQueryClient();
   const key = ["set", setId, versionId ?? "shown"];
@@ -38,35 +39,35 @@ export function useSet(setId: string, versionId: string | null) {
     () => (mapQuery.data ? decodeMap(mapQuery.data) : null),
     [mapQuery.data],
   );
-  const [error, setError] = useState("");
-  const command = useMutation({
-    mutationFn: (run: () => Promise<SetState>) => run(),
-    onMutate: () => setError(""),
-    onSuccess: (next) => {
-      // An answer can show another version (Retry build answers with its base): it belongs under that version.
-      client.setQueryData(["set", setId, next.version.id], next);
-      if (versionId === null || versionId === next.version.id)
-        client.setQueryData(key, next);
-      else void client.invalidateQueries({ queryKey: key, exact: true });
-      void client.invalidateQueries({ queryKey: ["sets"] });
-    },
-    onError: (failure) =>
-      setError(
-        failure instanceof Error
-          ? failure.message
-          : "That did not work. Try again.",
-      ),
+  const runner = useEditRunner(setId, {
+    failed: "That did not work. Try again.",
+    conflict: (message) => message,
   });
+  function land(next: SetState) {
+    // An answer can show another version (Retry build answers with its base): it belongs under that version.
+    client.setQueryData(["set", setId, next.version.id], next);
+    if (versionId === null || versionId === next.version.id)
+      client.setQueryData(key, next);
+    else void client.invalidateQueries({ queryKey: key, exact: true });
+    void client.invalidateQueries({ queryKey: ["sets"] });
+  }
   return {
     state: state.data ?? null,
     loading: state.isPending,
     loadError: state.error instanceof Error ? state.error.message : "",
     map,
-    error,
-    clearError: () => setError(""),
-    busy: command.isPending,
-    run: (call: () => Promise<SetState>) =>
-      command.mutateAsync(call).catch(() => null),
+    error: runner.error,
+    clearError: runner.clearError,
+    busy: runner.busy,
+    /** The new state, or null when the command was refused or another is still running. */
+    run: async (call: () => Promise<SetState>) => {
+      const result = await runner.run(async () => {
+        const next = await call();
+        land(next);
+        return next;
+      });
+      return result.ok ? result.value : null;
+    },
   };
 }
 

@@ -110,11 +110,12 @@ export const sets = {
       `/api/sets/${id}/fill-more`,
       json("POST", { version_id: versionId }),
     ),
-  /** `retry`: queue the newest build's failed fixes again first (Retry build). */
-  runFixes: (id: string, versionId: string, retry = false) =>
+  /** Run queued fixes as its preview said (`fixIds`, the run's `fix_ids`; refused when the queue changed since),
+   * or, with `retry` (Retry build), the newest build's failed fixes queued again first. */
+  runFixes: (id: string, versionId: string, retry = false, fixIds?: string[]) =>
     request<SetState>(
       `/api/sets/${id}/build`,
-      json("POST", { version_id: versionId, retry }),
+      json("POST", { version_id: versionId, retry, fix_ids: fixIds ?? null }),
     ),
   retryFix: (id: string, fixId: string, versionId: string) =>
     request<SetState>(

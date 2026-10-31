@@ -172,7 +172,7 @@ def agent_fill_more(session, library, set_id) -> dict:
     queued fixes do, from the stage's accepted version. Refused while any other fix is queued or runs: Run queued
     fixes would run the user's exclusions, kept stills and reshoots too. One transaction checks, queues and starts."""
     from gaiavfx.application.set_build import start_set_build
-    from gaiavfx.application.sets import FILL_MORE
+    from gaiavfx.application.sets import FILL_MORE, enqueue_fix
 
     row = STORE.get(session, set_id)
     if not row["current_version_id"]:
@@ -188,14 +188,15 @@ def agent_fill_more(session, library, set_id) -> dict:
             "the filling. Ask the user to run or cancel them first.",
             409,
         )
-    STORE.queue_fix(
+    enqueue_fix(
         session,
+        library,
         set_id,
+        version_id=row["current_version_id"],
         action="extend",
-        author="agent",
         target={},
+        author="agent",
         shows=FILL_MORE,
-        issue_id=None,
     )
     return start_set_build(session, library, set_id, base_version_id=row["current_version_id"])
 

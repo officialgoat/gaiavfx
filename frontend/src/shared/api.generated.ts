@@ -6218,6 +6218,13 @@ export interface components {
       shots_total: number;
       /** Current Shot Id */
       current_shot_id: string | null;
+      /**
+       * Analysing
+       * @default false
+       */
+      analysing: boolean;
+      /** Render Seconds */
+      render_seconds?: number | null;
     };
     /** RunInput */
     RunInput: {
@@ -6579,16 +6586,13 @@ export interface components {
       reason?: string | null;
       /** Fix Ids */
       fix_ids: string[];
+      /** Retryable */
+      retryable: boolean;
     };
     /** SetBuildInput */
     SetBuildInput: {
       /** Version Id */
       version_id: string;
-      /**
-       * Retry
-       * @default false
-       */
-      retry: boolean;
     };
     /** SetFixDTO */
     SetFixDTO: {
@@ -6738,6 +6742,10 @@ export interface components {
       created_at: string;
       /** Updated At */
       updated_at: string;
+      /** In Review */
+      in_review: boolean;
+      /** Review Version Id */
+      review_version_id: string | null;
     };
     /** SetIssueInput */
     SetIssueInput: {
@@ -6823,6 +6831,21 @@ export interface components {
        * @default false
        */
       can_keep: boolean;
+      /** Can Exclude */
+      can_exclude: boolean;
+      exclusion: components["schemas"]["SetKeyframeFixDTO"] | null;
+      /** Keeping */
+      keeping: ("queued" | "running") | null;
+    };
+    /** SetKeyframeFixDTO */
+    SetKeyframeFixDTO: {
+      /** Fix Id */
+      fix_id: string;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: "queued" | "running" | "failed";
     };
     /**
      * SetMapDTO
@@ -6899,13 +6922,28 @@ export interface components {
     };
     /**
      * SetRunDTO
-     * @description What Run queued fixes would do on the shown version: the fixes it runs and Python's words for it.
+     * @description What Run queued fixes would do on the shown version: the fixes it runs, Python's words for it, and why it
+     *     cannot run now (None when it can). Run sends the fixes back, and is refused if the queue changed since.
      */
     SetRunDTO: {
       /** Fix Ids */
       fix_ids: string[];
       /** Words */
       words: string;
+      /** Refusal */
+      refusal: string | null;
+    };
+    /** SetRunInput */
+    SetRunInput: {
+      /** Version Id */
+      version_id: string;
+      /**
+       * Retry
+       * @default false
+       */
+      retry: boolean;
+      /** Fix Ids */
+      fix_ids?: string[] | null;
     };
     /**
      * SetSeedInput
@@ -13506,7 +13544,7 @@ export interface operations {
     };
     requestBody: {
       content: {
-        "application/json": components["schemas"]["SetBuildInput"];
+        "application/json": components["schemas"]["SetRunInput"];
       };
     };
     responses: {

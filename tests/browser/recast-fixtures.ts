@@ -337,6 +337,7 @@ export function recastFixture(
       shots_done: 0,
       shots_total: count,
       current_shot_id: null,
+      analysing: false,
     },
     estimate: {
       shots: count,

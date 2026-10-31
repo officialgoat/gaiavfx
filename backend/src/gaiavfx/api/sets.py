@@ -63,6 +63,11 @@ class SetSummaryDTO(BaseModel):
     has_splat: bool
 
 
+class SetKeyframeFixDTO(BaseModel):
+    fix_id: str
+    state: Literal["queued", "running", "failed"]
+
+
 class SetKeyframeDTO(BaseModel):
     id: str
     label: str
@@ -80,6 +85,11 @@ class SetKeyframeDTO(BaseModel):
     # why filling set this probe still aside, in Python's words, and whether Keep this still can bring it back
     dropped: str | None = None
     can_keep: bool = False
+    # whether Exclude from stage is offered: the keyframe shapes the stage and is not the panorama
+    can_exclude: bool
+    # its exclusion, queued or running, else one that failed; its kept still, queued or running
+    exclusion: SetKeyframeFixDTO | None
+    keeping: Literal["queued", "running"] | None
 
 
 class SetSplatDTO(BaseModel):
@@ -112,6 +122,9 @@ class SetIssueDTO(BaseModel):
     note: str
     created_at: str
     updated_at: str
+    # its fixes all ran into a version that waits for the user's review: which one, while it is proposed
+    in_review: bool
+    review_version_id: str | None
 
 
 class SetFixDTO(BaseModel):
@@ -189,13 +202,16 @@ class SetBuildDTO(BaseModel):
     error: str | None
     reason: str | None = None  # why a build ended without a version, in Python's words
     fix_ids: list[str]
+    retryable: bool  # Retry build has failed fixes of this build to queue again
 
 
 class SetRunDTO(BaseModel):
-    """What Run queued fixes would do on the shown version: the fixes it runs and Python's words for it."""
+    """What Run queued fixes would do on the shown version: the fixes it runs, Python's words for it, and why it
+    cannot run now (None when it can). Run sends the fixes back, and is refused if the queue changed since."""
 
     fix_ids: list[str]
     words: str
+    refusal: str | None
 
 
 class SetStateDTO(BaseModel):
@@ -301,8 +317,13 @@ class SetAcceptInput(SetInputDTO):
 
 class SetBuildInput(SetInputDTO):
     version_id: str = Field(min_length=1, max_length=36)
+
+
+class SetRunInput(SetBuildInput):
     # queue the newest build's failed fixes again first (Retry build)
     retry: bool = False
+    # the fixes the preview named (`run.fix_ids`); Run is refused when the queue changed since
+    fix_ids: list[str] | None = Field(None, max_length=200)
 
 
 def sets_router(workspace, authenticate, token):
@@ -412,7 +433,7 @@ def sets_router(workspace, authenticate, token):
         return command(sets.retry_fix, set_id, fix_id, version_id=body.version_id)
 
     @router.post("/{set_id}/build", response_model=SetStateDTO)
-    def run_fixes(set_id: str, body: SetBuildInput):
+    def run_fixes(set_id: str, body: SetRunInput):
         """Human-only (ADR 0018 §5): run the queued fixes on this version; the result is a proposed version."""
         return command(set_build.run_queued_fixes, set_id, **body.model_dump())
 

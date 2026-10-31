@@ -292,6 +292,7 @@ export function compRecast(): S["RecastDTO"] {
       shots_done: 14,
       shots_total: 28,
       current_shot_id: `shot-${compShot + 1}`,
+      analysing: false,
     },
     estimate: {
       shots: 28,

@@ -25,16 +25,6 @@ export function nextOrdinal(state: SetState) {
   return Math.max(0, ...state.versions.map((v) => v.ordinal)) + 1;
 }
 
-/** An issue whose fixes ran into a version that waits for the user's review. */
-export function inReview(state: SetState, issue: SetIssue) {
-  const own = state.fixes.filter((f) => f.issue_id === issue.id);
-  return (
-    issue.status === "queued" &&
-    own.some((f) => f.state === "done") &&
-    !own.some((f) => f.state === "queued" || f.state === "running")
-  );
-}
-
 const sentence = (text: string | null | undefined) =>
   (text || "no reason given").replace(/[.\s]+$/, "");
 
@@ -150,11 +140,13 @@ export function BuildControl({
         </button>
       )}
       <button
-        className={ready.length ? "primary-button" : "secondary-button"}
-        disabled={!ready.length || s.busy}
+        className={state.run.refusal ? "secondary-button" : "primary-button"}
+        disabled={!!state.run.refusal || s.busy}
         title={state.run.words}
         onClick={() =>
-          void s.run(() => sets.runFixes(state.id, state.version.id))
+          void s.run(() =>
+            sets.runFixes(state.id, state.version.id, false, state.run.fix_ids),
+          )
         }
       >
         Run queued fixes ({ready.length})
@@ -181,9 +173,6 @@ export function BuildBanner({
     return null;
   const base = state.versions.find((v) => v.id === build.base_version_id);
   const kept = base ? ` v${base.ordinal} is unchanged.` : "";
-  const failed = state.fixes.some(
-    (f) => build.fix_ids.includes(f.id) && f.state === "failed",
-  );
   const message =
     build.state === "cancelled"
       ? `The build was cancelled.${kept}`
@@ -195,7 +184,7 @@ export function BuildBanner({
   return (
     <div className="studio-error" role="alert">
       <span>{message}</span>
-      {failed && base && (
+      {build.retryable && base && (
         <button
           disabled={s.busy}
           onClick={() =>

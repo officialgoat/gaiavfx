@@ -258,7 +258,7 @@ def reshoot(workspace, set_id, state):
 def test_reshoots_wait_for_a_later_step(room):
     workspace, set_id = room
     state = reshoot(workspace, set_id, call(workspace, sets.set_state, set_id))
-    with pytest.raises(ApplicationError, match="Reshoots wait for a later step"):
+    with pytest.raises(ApplicationError, match="reshoots wait for a later step"):
         call(workspace, set_build.run_queued_fixes, set_id, version_id=state["version"]["id"])
 
 
@@ -340,6 +340,53 @@ def test_run_queued_fixes_builds_a_proposed_version_on_the_base_grid(room):
     # A build of the built version starts from its atlas: the excluded keyframe stays excluded.
     with pytest.raises(ApplicationError, match="colour only already"):
         exclude(workspace, set_id, accepted, "A2")
+
+
+def test_the_run_preview_is_the_run_even_with_a_fix_queued_on_another_version(room):
+    """Run queued fixes runs exactly what its preview names: a fix queued on a version the run's base does not hold
+    waits for its own version, and a queue that changed since the preview is refused."""
+    workspace, set_id = room
+    v1 = call(workspace, sets.set_state, set_id)
+    issue = v1["issues"][0]
+    exclude(workspace, set_id, v1, "K2", issue_id=issue["id"])
+    call(workspace, set_build.run_queued_fixes, set_id, version_id=v1["version"]["id"])
+    drain(runner(workspace))
+    built = call(workspace, sets.set_state, set_id)
+    v2_id = built["build"]["version_id"]
+    reviewing = next(i for i in built["issues"] if i["id"] == issue["id"])
+    assert (reviewing["in_review"], reviewing["review_version_id"]) == (True, v2_id)
+
+    # Queued on v1: K1 (v2 holds it too) and K2 again (v2 holds it only as colour, under another label).
+    v1 = exclude(workspace, set_id, v1, "K1")
+    v1 = exclude(workspace, set_id, v1, "K2")
+    k1 = keyframe(v1, "K1")
+    assert (k1["can_exclude"], k1["exclusion"]["state"], k1["keeping"]) == (True, "queued", None)
+    assert keyframe(v1, "K0")["can_exclude"] is False  # the panorama
+    v2 = call(workspace, sets.set_state, set_id, v2_id)
+    on_v2 = v2["run"]
+    assert on_v2["words"].startswith("Rebuilds v2 without K1")
+    assert len(on_v2["fix_ids"]) == 1
+
+    with pytest.raises(ApplicationError, match="changed"):
+        call(workspace, set_build.run_queued_fixes, set_id, version_id=v2_id, fix_ids=[])
+    started = call(
+        workspace, set_build.run_queued_fixes, set_id, version_id=v2_id, fix_ids=on_v2["fix_ids"]
+    )
+    assert started["build"]["fix_ids"] == on_v2["fix_ids"]
+    # The K2 exclusion queued on v1 waits for a run on v1.
+    assert [f["state"] for f in started["fixes"] if f["id"] not in on_v2["fix_ids"]] == [
+        "done",
+        "queued",
+    ]
+
+
+def test_nothing_to_run_is_said_once_by_the_preview_and_the_run(room):
+    workspace, set_id = room
+    state = reshoot(workspace, set_id, call(workspace, sets.set_state, set_id))
+    with pytest.raises(ApplicationError) as refused:
+        call(workspace, set_build.run_queued_fixes, set_id, version_id=state["version"]["id"])
+    assert str(refused.value) == state["run"]["words"]
+    assert state["run"]["fix_ids"] == []
 
 
 @pytest.mark.parametrize("decision", ["discard", "accept unticked"])
