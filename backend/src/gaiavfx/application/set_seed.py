@@ -43,7 +43,6 @@ from gaiavfx.integrations.worldbuilder.graph import sampling, settings, take_geo
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
-from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -241,7 +240,7 @@ def estimate(frames: int, fill_unseen: bool) -> str:
     # The renders and the time lead: they are what filling costs (Astra's usability pass, 28 October).
     rounds = fill_settings()["rounds"]
     return (
-        f"Up to {rounds['renders']} renders, about 15 to 25 minutes of GPU work: {fit}, then up to "
+        f"Up to {rounds['renders']} renders, about {set_fill.FILL_TIME} of GPU work: {fit}, then up to "
         f"{rounds['rounds']} rounds of probes fill in what the take never saw around this shot. {after}"
     )
 
@@ -484,15 +483,8 @@ def _begin(
     )
 
 
-def _output(job, key) -> dict:
-    matches = [o for o in job["outputs"] if o.get("output_key") == key and o.get("artifact_id")]
-    if len(matches) != 1:
-        raise ApplicationError(f"The seed lacks its {key} artifact.", 409)
-    return matches[0]
-
-
 def _summary(session, library, job) -> dict:
-    return json.loads(library.read_blob(session, _output(job, "summary")["artifact_id"]))
+    return json.loads(library.read_blob(session, set_fill.output(job, "summary")["artifact_id"]))
 
 
 def _decision(stage: str, **fields) -> dict:
@@ -529,9 +521,7 @@ def advance_seed(session, operation, *, library):
     name, _, group = set_fill.latest(operation)
     if name in ("atlas", "splat"):
         current = jobs[:2] if name == "atlas" else [job for _, job in group]
-        if any(job["state"] != "succeeded" for job in current):
-            if any(job["state"] not in STOPPED for job in current if job["state"] != "succeeded"):
-                raise ApplicationError("The seed cannot advance an incomplete stage.", 409)
+        if set_fill.stopped(current, "seed"):
             return operations.resume(session, operation["id"], _decision("stopped"), jobs=[])
     if name == "atlas":
         summary = _summary(session, library, jobs[1])
@@ -595,7 +585,7 @@ def _write_set(session, library, operation, filled: set_fill.Done | None = None)
     stills = [
         library.prepare(
             library.artifact_path(
-                session, _output(atlas_job, f"still:{entry['key']}")["artifact_id"]
+                session, set_fill.output(atlas_job, f"still:{entry['key']}")["artifact_id"]
             ),
             f"{request['name']} {entry['label']}.png",
         )
@@ -631,20 +621,14 @@ def _write_set(session, library, operation, filled: set_fill.Done | None = None)
         keyframes=summary["keyframes"],
         stills=stills,
         depth_ids=[
-            _output(atlas_job, f"data:{entry['key']}")["artifact_id"]
+            set_fill.output(atlas_job, f"data:{entry['key']}")["artifact_id"]
             for entry in summary["keyframes"]
         ],
-        atlas_id=_output(atlas_job, "atlas")["artifact_id"],
-        map_id=_output(atlas_job, "map")["artifact_id"],
-        splat_id=_output(splat_job, "splat")["artifact_id"],
+        atlas_id=set_fill.output(atlas_job, "atlas")["artifact_id"],
+        map_id=set_fill.output(atlas_job, "map")["artifact_id"],
+        splat_id=set_fill.output(splat_job, "splat")["artifact_id"],
         map_meta=summary["map_meta"],
-        metrics={
-            "uncalibrated": True,
-            "heldout_psnr": fit.get("heldout_psnr_refined") or fit.get("heldout_psnr"),
-            "anchor_psnr": fit.get("anchor_psnr"),
-            "fill_psnr": fit.get("fill_psnr"),
-            "gaussians": fit.get("gaussians"),
-        },
+        metrics=set_fill.metrics(fit),
         note=f"Built from a take: f{request['start']}–f{request['end']}"
         + (f"; it {filled.words}." if filled else "."),
     )
@@ -671,25 +655,6 @@ def segment_seed(session, segment: dict) -> tuple[dict | None, str | None]:
 
 
 DECIDED = {"accepted": "v1 accepted", "discarded": "v1 discarded"}
-# Why a stage build stopped, for the user, when the cause is one they can act on (as the voice build's sentences).
-STOP_WORDS = {
-    "comfyui": "ComfyUI did not answer. Build again once it runs.",
-    "engines": "the stage engines are not set up. Build again once they are.",
-    "memory": "the GPU ran out of memory. Close other GPU work, then build again.",
-}
-
-
-def stop_cause(operation) -> str | None:
-    """Why a stage build stopped, when it is a cause someone can act on: the user stopped it, ComfyUI did not answer,
-    the stage engines are not set up, the GPU ran out of memory. None for anything else, which Jobs details. The live
-    trial's agent, told only that its build stopped, offered to build from the other scene against the same dead
-    ComfyUI."""
-    return {
-        "cancelled": "stopped",
-        "unreachable": "comfyui",
-        "engine_missing": "engines",
-        "out_of_memory": "memory",
-    }.get(failure(operation))
 
 
 def seed_state(session, operation) -> dict:
@@ -697,6 +662,8 @@ def seed_state(session, operation) -> dict:
     naming the set it builds and the shot it builds from. Building (and its stage), refused (the gate's reason),
     failed (`can_retry`), or done (the new set, and what the human made of its v1; `waiting` while they have not
     decided)."""
+    from gaiavfx.application.set_build import STOP_WORDS, stop_cause
+
     review = [d for d in (operation.get("review") or []) if d.get("decided_by") == "set_seed"]
     last = review[-1] if review else {}
     stage = last.get("stage")

@@ -24,6 +24,7 @@ from gaiavfx.application.sets import STORE, build_view, set_state
 from gaiavfx.integrations.worldbuilder import rules
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
+from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -202,15 +203,8 @@ def _toward(extensions) -> float | None:
     return round(math.degrees(math.atan2(x, z)) % 360, 2)
 
 
-def _output(job, key) -> dict:
-    matches = [o for o in job["outputs"] if o.get("output_key") == key and o.get("artifact_id")]
-    if len(matches) != 1:
-        raise ApplicationError(f"The set build lacks its {key} artifact.", 409)
-    return matches[0]
-
-
 def _json(session, library, job, key) -> dict:
-    return json.loads(library.read_blob(session, _output(job, key)["artifact_id"]))
+    return json.loads(library.read_blob(session, set_fill.output(job, key)["artifact_id"]))
 
 
 def _keyframes(
@@ -228,7 +222,7 @@ def _keyframes(
             # A keyframe the filling added: its still becomes an image asset, its depth stays the job's artifact.
             still = library.prepare(
                 library.artifact_path(
-                    session, _output(atlas_job, f"still:{entry['key']}")["artifact_id"]
+                    session, set_fill.output(atlas_job, f"still:{entry['key']}")["artifact_id"]
                 ),
                 f"{entry['label']}.png",
             )
@@ -255,7 +249,9 @@ def _keyframes(
                     height=int(entry["height"]),
                     heading=entry.get("heading"),
                     image_asset_id=asset["id"],
-                    depth_artifact_id=_output(atlas_job, f"data:{entry['key']}")["artifact_id"],
+                    depth_artifact_id=set_fill.output(atlas_job, f"data:{entry['key']}")[
+                        "artifact_id"
+                    ],
                     supersedes_id=None,
                     info=entry.get("info") or {},
                 )
@@ -285,7 +281,7 @@ def _keyframes(
                 height=previous["height"],
                 heading=entry.get("heading"),
                 image_asset_id=previous["image_asset_id"],
-                depth_artifact_id=_output(prepare_job or atlas_job, f"data:{entry['key']}")[
+                depth_artifact_id=set_fill.output(prepare_job or atlas_job, f"data:{entry['key']}")[
                     "artifact_id"
                 ],
                 supersedes_id=previous["id"],
@@ -343,21 +339,15 @@ def _write_version(session, library, operation, filled: set_fill.Done | None = N
         session,
         set_id,
         origin="repair",
-        atlas_artifact_id=_output(prepare, "atlas")["artifact_id"],
+        atlas_artifact_id=set_fill.output(prepare, "atlas")["artifact_id"],
         keyframe_ids=ids,
         labels=labels,
         parent_id=base_id,
         operation_id=operation["id"],
-        map_artifact_id=_output(prepare, "map")["artifact_id"],
-        splat_artifact_id=_output(splat, "splat")["artifact_id"],
+        map_artifact_id=set_fill.output(prepare, "map")["artifact_id"],
+        splat_artifact_id=set_fill.output(splat, "splat")["artifact_id"],
         map_meta=summary["map_meta"],
-        metrics={
-            "uncalibrated": True,
-            "heldout_psnr": fit.get("heldout_psnr_refined") or fit.get("heldout_psnr"),
-            "anchor_psnr": fit.get("anchor_psnr"),
-            "fill_psnr": fit.get("fill_psnr"),
-            "gaussians": fit.get("gaussians"),
-        },
+        metrics=set_fill.metrics(fit),
         note=note,
     )
     STORE.end_fixes(session, set_id, operation["id"], "done")
@@ -381,9 +371,7 @@ def _advance_repair(session, operation, *, library):
         raise ApplicationError("The set build has no stage to advance.", 409)
     name, _, _ = set_fill.latest(operation)
     base = [job for job in jobs if set_fill.stage(job).get("name") in ("prepare", "splat")]
-    if name in ("prepare", "splat") and any(job["state"] != "succeeded" for job in base):
-        if any(job["state"] not in STOPPED for job in base if job["state"] != "succeeded"):
-            raise ApplicationError("The set build cannot advance an incomplete stage.", 409)
+    if name in ("prepare", "splat") and set_fill.stopped(base, "set build"):
         return _stopped(session, operation)
     filled = None
     if request.get("fill"):
@@ -456,3 +444,217 @@ def run_queued_fixes(session, library, set_id, *, version_id, retry=False):
                 STORE.retry_fix(session, set_id, fix["id"])
     start_set_build(session, library, set_id, base_version_id=version_id)
     return set_state(session, library, set_id, version_id)
+
+
+# --- a build in words ----------------------------------------------------------------------------------------------
+# One stage build read for the user (its References row and dialog, the workbench) and for Gaia (its turns): from a
+# take (`set_seed.seed_state`) or filling more of a stage, why it stopped, and what it spent.
+
+
+# Why a stage build stopped, for the user, when the cause is one they can act on (as the voice build's sentences).
+STOP_WORDS = {
+    "comfyui": "ComfyUI did not answer. Build again once it runs.",
+    "engines": "the stage engines are not set up. Build again once they are.",
+    "memory": "the GPU ran out of memory. Close other GPU work, then build again.",
+}
+
+
+def stop_cause(operation) -> str | None:
+    """Why a stage build stopped, when it is a cause someone can act on: the user stopped it, ComfyUI did not answer,
+    the stage engines are not set up, the GPU ran out of memory. None for anything else, which Jobs details. The live
+    trial's agent, told only that its build stopped, offered to build from the other scene against the same dead
+    ComfyUI."""
+    return {
+        "cancelled": "stopped",
+        "unreachable": "comfyui",
+        "engine_missing": "engines",
+        "out_of_memory": "memory",
+    }.get(failure(operation))
+
+
+# Why a build stopped, in the agent's words; a stop the next build would meet the same way is not retried blindly.
+STOP_CAUSES = {
+    "stopped": "the user stopped it",
+    "comfyui": "ComfyUI did not answer",
+    "engines": "the stage engines are not set up",
+    "memory": "the GPU ran out of memory",
+}
+
+
+def after_stop(operation, verb: str, reserved: bool, reason: str = "") -> str:
+    """The end of a stopped build's sentence and what the agent may do next: build once more only when nothing it
+    knows would stop the next build the same way. `reason` is the build's own, for a cause not named here."""
+
+    cause = stop_cause(operation)
+    # The build's own reason is a sentence of its own (the live trial read "…: The build stopped … as it was..").
+    said = f": {STOP_CAUSES[cause]}." if cause else f". {reason.rstrip('.')}." if reason else "."
+    if cause == "stopped":
+        return f"{said} The build step stays open: ask the user before you {verb} again."
+    if cause:
+        return (
+            f"{said} Another build stops the same way until that changes: tell the user, and {verb} once more in "
+            "this step only when they say it is fixed."
+        )
+    if not reserved:
+        return (
+            f"{said} The build step stays open: {verb} once more in it, or tell the user and ask."
+        )
+    return (
+        f"{said} The build step stays open with the rest: {verb} once more in it if they are enough, propose a "
+        "revised plan if not, or tell the user and ask."
+    )
+
+
+def seed_outcome(session, operation) -> dict:
+    """A system turn for a build from a take that ended or was decided: the agent's words as its message, the user's
+    as its notice, and a receipt that keeps the stage in the agent's context. `decided` is the user's decision on v1
+    (accepted or discarded), None before it."""
+    from gaiavfx.application import set_agent as agent
+    from gaiavfx.application.set_seed import seed_state
+
+    seed = seed_state(session, operation)
+    receipt = {"kind": "set_build", "set_id": seed["set_id"], "operation_id": operation["id"]}
+    decided = None
+    if seed["state"] == "done" and not seed["waiting"]:
+        decided = STORE.get(session, seed["set_id"])["versions"][0]["state"]
+    return {
+        "action": {"message": agent.seed_words(session, operation), "notice": seed["message"]},
+        "receipts": ([receipt] if seed["set_id"] else [])
+        + ([settled(operation)] if seed["state"] == "failed" else []),
+        "decided": decided,
+    }
+
+
+def repair_state(session, operation) -> dict:
+    """A build that fills more of a stage (a repair, ADR 0020 §8) in the user's words, in `seed_state`'s shape:
+    building, failed (stopped) or done, with the version it proposed and whether it still waits for the user."""
+    from gaiavfx.application import set_fill
+
+    row = STORE.get(session, operation["request"]["set_id"])
+    name = row["name"]
+    decided = [d for d in operation.get("review") or [] if d.get("decided_by") == "set_build"]
+    last = decided[-1] if decided else {}
+    base = {
+        "operation_id": operation["id"],
+        "set_id": row["id"],
+        "name": name,
+        "shot": None,
+        "waiting": False,
+        "can_retry": False,
+    }
+    if last.get("stage") == "done":
+        version = next(v for v in row["versions"] if v["id"] == last["version_id"])
+        n, waiting = version["ordinal"], version["state"] == "proposed"
+        return base | {
+            "state": "done",
+            "label": f"v{n} to review" if waiting else f"v{n} {version['state']}",
+            "message": f"{name} v{n} is built: {version['note']} "
+            + (
+                "It waits for you in the stage workbench."
+                if waiting
+                else f"v{n} {version['state']}."
+            ),
+            "waiting": waiting,
+        }
+    if last.get("stage") == "stopped" or operation["state"] in STOPPED:
+        cause = stop_cause(operation)
+        reason = (
+            " was stopped before it finished."
+            if cause == "stopped"
+            else f" stopped before it finished: {STOP_WORDS[cause]}"
+            if cause
+            else f" stopped before it finished. {last['reason'].rstrip('.')}."
+            if last.get("reason")
+            else " stopped before it finished."
+        )
+        return base | {
+            "state": "failed",
+            "label": "Stopped before it finished",
+            "message": f"Filling more of {name}{reason}",
+        }
+    filling = set_fill.latest(operation)[0] not in ("prepare", "splat")
+    label = set_fill.progress(operation) if filling else "Rebuilding the stage…"
+    return base | {
+        "state": "building",
+        "label": label,
+        "message": f"{name}: {label[0].lower()}{label[1:]}",
+    }
+
+
+def repair_outcome(session, operation) -> dict:
+    """`seed_outcome` for a build that fills more of a stage: the agent's words, the user's, its receipts and the
+    user's decision on the version it proposed. A discarded version leaves the stage's accepted one in place."""
+    state = repair_state(session, operation)
+    name = state["name"]
+    receipts = [{"kind": "set_build", "set_id": state["set_id"], "operation_id": operation["id"]}]
+    decided = None
+    if state["state"] == "building":
+        words = (
+            f"{name}: {state['label'].rstrip('…')[0].lower()}{state['label'].rstrip('…')[1:]}; the "
+        )
+        words += "conversation waits for the build."
+    elif state["state"] == "failed":
+        receipts.append(settled(operation))
+        spent = receipts[-1]["budget_reserved"]
+        stops = [d for d in operation.get("review") or [] if d.get("stage") == "stopped"]
+        words = (
+            f"Filling more of {name} stopped before it finished, after {spent} of its "
+            f"{operation['budget_reserved']} renders"
+            + after_stop(operation, "fill", True, stops[-1].get("reason", "") if stops else "")
+        )
+    else:
+        row = STORE.get(session, state["set_id"])
+        version_id = operation["review"][-1]["version_id"]
+        version = next(v for v in row["versions"] if v["id"] == version_id)
+        n = version["ordinal"]
+        if state["waiting"]:
+            words = (
+                f"{name} v{n} is built ({version['note'].rstrip('.')}). It waits for the user's decision in the "
+                "stage workbench; the build step completes when they accept or discard it. Tell the user where it "
+                "waits: accepting is theirs."
+            )
+        elif version["state"] == "accepted":
+            decided = "accepted"
+            words = f"The user accepted v{n} of {name}; the scenes that use it read it now. Continue the plan."
+        else:
+            decided = "discarded"
+            base = next(v for v in row["versions"] if v["id"] == version["parent_id"])
+            words = (
+                f"The user discarded v{n} of {name}; v{base['ordinal']} stays the stage's. The build step is "
+                "skipped: tell the user and ask what they want."
+            )
+    return {
+        "action": {"message": words, "notice": state["message"]},
+        "receipts": receipts,
+        "decided": decided,
+    }
+
+
+def build_state(session, operation) -> dict:
+    """A stage build in the user's words: from a take (`seed_state`) or filling more of a stage."""
+    from gaiavfx.application.set_seed import seed_state
+
+    if operation["request"].get("mode") == "seed":
+        return seed_state(session, operation)
+    return repair_state(session, operation)
+
+
+def build_outcome(session, operation) -> dict:
+    """A stage build's system turn and the user's decision: from a take or filling more of a stage."""
+    if operation["request"].get("mode") == "seed":
+        return seed_outcome(session, operation)
+    return repair_outcome(session, operation)
+
+
+def settled(operation) -> dict:
+    """What a stopped build spent, as an operation receipt that settles its reservation (ADR 0020 §8): the probes it
+    allocated, a failed one included. The renders it never allocated return to its step and the conversation."""
+    from gaiavfx.application import set_fill
+
+    return {
+        "kind": "operation",
+        "id": operation["id"],
+        "operation_kind": operation["kind"],
+        "budget_reserved": min(operation["budget_reserved"], set_fill.renders_used(operation)),
+        "settled": True,
+    }

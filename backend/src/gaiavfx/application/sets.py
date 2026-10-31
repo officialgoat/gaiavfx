@@ -259,6 +259,7 @@ def _check_keep(session, library, set_id, version_id, target, fix_id=None) -> di
 def queued_run(session, set_id: str, version: dict) -> dict:
     """What Run queued fixes would do on `version`, in Python's words: the fixes it runs (exclusions of its keyframes,
     kept stills and extensions, ADR 0020 §4 and §8; reshoots wait for a later step) and what that costs."""
+    from gaiavfx.application import set_fill
     from gaiavfx.integrations.worldbuilder.fill import settings as fill_settings
 
     members = {k["id"]: k["label"] for k in STORE.keyframes(session, version["id"])}
@@ -287,7 +288,7 @@ def queued_run(session, set_id: str, version: dict) -> dict:
     words += f" keeping {kept}" if keeps else ""
     words += (
         f" and fills in what no view has seen around it: up to {rounds['rounds']} rounds and "
-        f"{rounds['renders']} renders, about 15 to 25 minutes on the GPU"
+        f"{rounds['renders']} renders, about {set_fill.FILL_TIME} on the GPU"
         if extensions
         else ", about 4 minutes on the GPU"
     )

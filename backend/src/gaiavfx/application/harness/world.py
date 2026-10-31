@@ -122,7 +122,7 @@ def build_words(session, operation) -> dict:
     """A stage build in the agent's words while it runs, stopped or waits for the user; None once the user decided,
     and for a refused build, whose reason the scene's line carries. `stopped` lets the view keep a stopped build's
     words to the build step it stopped in."""
-    from gaiavfx.application.set_agent import build_outcome, build_state
+    from gaiavfx.application.set_build import build_outcome, build_state
 
     state = build_state(session, operation)["state"]
     if state == "refused":

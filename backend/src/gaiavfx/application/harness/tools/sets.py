@@ -24,8 +24,9 @@ from gaiavfx.application.set_agent import (
     agent_save_view,
     agent_sets,
     agent_use_set,
-    repair_state,
 )
+from gaiavfx.application.set_build import repair_state
+from gaiavfx.application.set_fill import FILL_TIME
 from gaiavfx.application.set_seed import fill_renders, seed_preview, start_seed
 from gaiavfx.modules.sets.service import ISSUE_KINDS
 from gaiavfx.shared.contracts import StrictModel
@@ -229,7 +230,7 @@ class FillSetMore(TransactionTool):
     name = "fill_set_more"
     description = (
         "Fill more of a stage's unseen space from its accepted version, as the user's Fill more unseen space does: "
-        "15 to 25 minutes and up to 6 renders, which its build step reserves. Refused while the user has other "
+        f"{FILL_TIME} and up to {fill_renders()} renders, which its build step reserves. Refused while the user has other "
         "fixes queued on the stage. The user decides the new version."
     )
 
@@ -254,7 +255,7 @@ class FillSetMore(TransactionTool):
                 # The chat shows these words as the build's card, as build_set_from_take's (the live trial read "the
                 # user's decision" there).
                 "message": f"Filling more of {state['name']}: up to {operation['budget_reserved']} renders, about "
-                "15 to 25 minutes on the GPU. It runs in Jobs while you keep working, and you can cancel it there; "
+                f"{FILL_TIME} on the GPU. It runs in Jobs while you keep working, and you can cancel it there; "
                 "its new version waits for you in the stage workbench.",
             },
             receipts=[operation_receipt(operation)],
@@ -268,7 +269,7 @@ class BuildSetFromTake(TransactionTool):
     description = (
         "Build a new stage from one shot of a scene's selected take, as the user's Build stage does. With "
         "fill_unseen (on by default) it fills in what the take never saw, also from a camera that stands still or "
-        "only turns: 15 to 25 minutes and up to 6 renders, which its build step reserves. Without: about 3 "
+        f"only turns: {FILL_TIME} and up to {fill_renders()} renders, which its build step reserves. Without: about 3 "
         "minutes, and a still or turning camera is refused. The user decides its v1."
     )
 

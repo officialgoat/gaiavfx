@@ -215,7 +215,7 @@ class ConversationCommands:
     def build_progress(self, document):
         """The plan's stage build in the user's words, for the chat (ADR 0020 §8): its build step, the newest build
         of that step, and, while the conversation waits on it, why the agent is quiet."""
-        from gaiavfx.application.set_agent import build_state
+        from gaiavfx.application.set_build import build_state
 
         plan = document.plan
         steps = list(enumerate(plan.steps)) if plan else []

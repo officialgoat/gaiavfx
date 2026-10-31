@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from gaiavfx.application import set_fill
+from gaiavfx.application.set_build import after_stop, settled
 from gaiavfx.application.sets import STORE, aim_view, clip_words, list_sets, set_state
 from gaiavfx.modules.sets import cameras
 from gaiavfx.shared.errors import ApplicationError
@@ -99,7 +101,7 @@ def agent_read_set(session, library, set_id: str) -> dict:
         # The agent's own way to grow a stage (ADR 0020 §8); the live trial's model asked where instead.
         "fill_more": (
             f"To fill in what no view of it has seen yet, all around, propose a plan with one build step targeting "
-            f"{state['id']} ({fill_renders()} jobs); fill_set_more runs in it, about 15 to 25 minutes, and the user "
+            f"{state['id']} ({fill_renders()} jobs); fill_set_more runs in it, about {set_fill.FILL_TIME}, and the user "
             "decides the new version."
             if state["current_version_id"]
             else "It has no accepted version yet; filling more waits for the user to accept one."
@@ -165,59 +167,6 @@ def seed_words(session, operation) -> str:
     )
 
 
-# Why a build stopped, in the agent's words; a stop the next build would meet the same way is not retried blindly.
-STOP_CAUSES = {
-    "stopped": "the user stopped it",
-    "comfyui": "ComfyUI did not answer",
-    "engines": "the stage engines are not set up",
-    "memory": "the GPU ran out of memory",
-}
-
-
-def after_stop(operation, verb: str, reserved: bool, reason: str = "") -> str:
-    """The end of a stopped build's sentence and what the agent may do next: build once more only when nothing it
-    knows would stop the next build the same way. `reason` is the build's own, for a cause not named here."""
-    from gaiavfx.application.set_seed import stop_cause
-
-    cause = stop_cause(operation)
-    # The build's own reason is a sentence of its own (the live trial read "…: The build stopped … as it was..").
-    said = f": {STOP_CAUSES[cause]}." if cause else f". {reason.rstrip('.')}." if reason else "."
-    if cause == "stopped":
-        return f"{said} The build step stays open: ask the user before you {verb} again."
-    if cause:
-        return (
-            f"{said} Another build stops the same way until that changes: tell the user, and {verb} once more in "
-            "this step only when they say it is fixed."
-        )
-    if not reserved:
-        return (
-            f"{said} The build step stays open: {verb} once more in it, or tell the user and ask."
-        )
-    return (
-        f"{said} The build step stays open with the rest: {verb} once more in it if they are enough, propose a "
-        "revised plan if not, or tell the user and ask."
-    )
-
-
-def seed_outcome(session, operation) -> dict:
-    """A system turn for a build from a take that ended or was decided: the agent's words as its message, the user's
-    as its notice, and a receipt that keeps the stage in the agent's context. `decided` is the user's decision on v1
-    (accepted or discarded), None before it."""
-    from gaiavfx.application.set_seed import seed_state
-
-    seed = seed_state(session, operation)
-    receipt = {"kind": "set_build", "set_id": seed["set_id"], "operation_id": operation["id"]}
-    decided = None
-    if seed["state"] == "done" and not seed["waiting"]:
-        decided = STORE.get(session, seed["set_id"])["versions"][0]["state"]
-    return {
-        "action": {"message": seed_words(session, operation), "notice": seed["message"]},
-        "receipts": ([receipt] if seed["set_id"] else [])
-        + ([settled(operation)] if seed["state"] == "failed" else []),
-        "decided": decided,
-    }
-
-
 def agent_fill_more(session, library, set_id) -> dict:
     """The agent fills more of a stage's unseen space (ADR 0020 §8), as the user's Fill more unseen space and Run
     queued fixes do, from the stage's accepted version. Refused while any other fix is queued or runs: Run queued
@@ -249,144 +198,6 @@ def agent_fill_more(session, library, set_id) -> dict:
         issue_id=None,
     )
     return start_set_build(session, library, set_id, base_version_id=row["current_version_id"])
-
-
-def repair_state(session, operation) -> dict:
-    """A build that fills more of a stage (a repair, ADR 0020 §8) in the user's words, in `seed_state`'s shape:
-    building, failed (stopped) or done, with the version it proposed and whether it still waits for the user."""
-    from gaiavfx.application import set_fill
-    from gaiavfx.modules.generation.operations.lifecycle import STOPPED
-
-    row = STORE.get(session, operation["request"]["set_id"])
-    name = row["name"]
-    decided = [d for d in operation.get("review") or [] if d.get("decided_by") == "set_build"]
-    last = decided[-1] if decided else {}
-    base = {
-        "operation_id": operation["id"],
-        "set_id": row["id"],
-        "name": name,
-        "shot": None,
-        "waiting": False,
-        "can_retry": False,
-    }
-    if last.get("stage") == "done":
-        version = next(v for v in row["versions"] if v["id"] == last["version_id"])
-        n, waiting = version["ordinal"], version["state"] == "proposed"
-        return base | {
-            "state": "done",
-            "label": f"v{n} to review" if waiting else f"v{n} {version['state']}",
-            "message": f"{name} v{n} is built: {version['note']} "
-            + (
-                "It waits for you in the stage workbench."
-                if waiting
-                else f"v{n} {version['state']}."
-            ),
-            "waiting": waiting,
-        }
-    if last.get("stage") == "stopped" or operation["state"] in STOPPED:
-        from gaiavfx.application.set_seed import STOP_WORDS, stop_cause
-
-        cause = stop_cause(operation)
-        reason = (
-            " was stopped before it finished."
-            if cause == "stopped"
-            else f" stopped before it finished: {STOP_WORDS[cause]}"
-            if cause
-            else f" stopped before it finished. {last['reason'].rstrip('.')}."
-            if last.get("reason")
-            else " stopped before it finished."
-        )
-        return base | {
-            "state": "failed",
-            "label": "Stopped before it finished",
-            "message": f"Filling more of {name}{reason}",
-        }
-    filling = set_fill.latest(operation)[0] not in ("prepare", "splat")
-    label = set_fill.progress(operation) if filling else "Rebuilding the stage…"
-    return base | {
-        "state": "building",
-        "label": label,
-        "message": f"{name}: {label[0].lower()}{label[1:]}",
-    }
-
-
-def repair_outcome(session, operation) -> dict:
-    """`seed_outcome` for a build that fills more of a stage: the agent's words, the user's, its receipts and the
-    user's decision on the version it proposed. A discarded version leaves the stage's accepted one in place."""
-    state = repair_state(session, operation)
-    name = state["name"]
-    receipts = [{"kind": "set_build", "set_id": state["set_id"], "operation_id": operation["id"]}]
-    decided = None
-    if state["state"] == "building":
-        words = (
-            f"{name}: {state['label'].rstrip('…')[0].lower()}{state['label'].rstrip('…')[1:]}; the "
-        )
-        words += "conversation waits for the build."
-    elif state["state"] == "failed":
-        receipts.append(settled(operation))
-        spent = receipts[-1]["budget_reserved"]
-        stops = [d for d in operation.get("review") or [] if d.get("stage") == "stopped"]
-        words = (
-            f"Filling more of {name} stopped before it finished, after {spent} of its "
-            f"{operation['budget_reserved']} renders"
-            + after_stop(operation, "fill", True, stops[-1].get("reason", "") if stops else "")
-        )
-    else:
-        row = STORE.get(session, state["set_id"])
-        version_id = operation["review"][-1]["version_id"]
-        version = next(v for v in row["versions"] if v["id"] == version_id)
-        n = version["ordinal"]
-        if state["waiting"]:
-            words = (
-                f"{name} v{n} is built ({version['note'].rstrip('.')}). It waits for the user's decision in the "
-                "stage workbench; the build step completes when they accept or discard it. Tell the user where it "
-                "waits: accepting is theirs."
-            )
-        elif version["state"] == "accepted":
-            decided = "accepted"
-            words = f"The user accepted v{n} of {name}; the scenes that use it read it now. Continue the plan."
-        else:
-            decided = "discarded"
-            base = next(v for v in row["versions"] if v["id"] == version["parent_id"])
-            words = (
-                f"The user discarded v{n} of {name}; v{base['ordinal']} stays the stage's. The build step is "
-                "skipped: tell the user and ask what they want."
-            )
-    return {
-        "action": {"message": words, "notice": state["message"]},
-        "receipts": receipts,
-        "decided": decided,
-    }
-
-
-def build_state(session, operation) -> dict:
-    """A stage build in the user's words: from a take (`seed_state`) or filling more of a stage."""
-    from gaiavfx.application.set_seed import seed_state
-
-    if operation["request"].get("mode") == "seed":
-        return seed_state(session, operation)
-    return repair_state(session, operation)
-
-
-def build_outcome(session, operation) -> dict:
-    """A stage build's system turn and the user's decision: from a take or filling more of a stage."""
-    if operation["request"].get("mode") == "seed":
-        return seed_outcome(session, operation)
-    return repair_outcome(session, operation)
-
-
-def settled(operation) -> dict:
-    """What a stopped build spent, as an operation receipt that settles its reservation (ADR 0020 §8): the probes it
-    allocated, a failed one included. The renders it never allocated return to its step and the conversation."""
-    from gaiavfx.application import set_fill
-
-    return {
-        "kind": "operation",
-        "id": operation["id"],
-        "operation_kind": operation["kind"],
-        "budget_reserved": min(operation["budget_reserved"], set_fill.renders_used(operation)),
-        "settled": True,
-    }
 
 
 def _build_words(state: dict) -> str | None:

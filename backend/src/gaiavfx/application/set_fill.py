@@ -37,8 +37,9 @@ from gaiavfx.integrations import minimax_h3, worldbuilder
 from gaiavfx.integrations.minimax_h3 import probe as h3_probe
 from gaiavfx.integrations.minimax_h3.probe import build_probe_graph, compile_probe
 from gaiavfx.integrations.worldbuilder.fill import settings, still_geometry_graph
-from gaiavfx.modules.generation.operations.lifecycle import JobSpec
+from gaiavfx.modules.generation.operations.lifecycle import STOPPED, JobSpec
 from gaiavfx.modules.sets.probe import ProbeRequest
+from gaiavfx.shared.errors import ApplicationError
 
 EXPLORE = "worldbuilder.fill_explore"
 PATHS = "worldbuilder.fill_paths"
@@ -157,6 +158,37 @@ def _find(operation, name: str, rnd: int | None = None) -> list[tuple[int, dict]
         for index, job in enumerate(operation["jobs"])
         if stage(job).get("name") == name and (rnd is None or stage(job).get("round") == rnd)
     ]
+
+
+# How long filling unseen space takes on the GPU, as every message about a build says it.
+FILL_TIME = "15 to 25 minutes"
+
+
+def output(job, key) -> dict:
+    """A stage's one artifact named `key`; a build that lacks it cannot go on."""
+    found = _artifact(job, key)
+    if found is None:
+        raise ApplicationError(f"The build lacks its {key} artifact.", 409)
+    return found
+
+
+def metrics(fit) -> dict:
+    """A version's fit metrics, as the splat stage measured them."""
+    return {
+        "uncalibrated": True,
+        "heldout_psnr": fit.get("heldout_psnr_refined") or fit.get("heldout_psnr"),
+        "anchor_psnr": fit.get("anchor_psnr"),
+        "fill_psnr": fit.get("fill_psnr"),
+        "gaussians": fit.get("gaussians"),
+    }
+
+
+def stopped(jobs, what) -> bool:
+    """Whether one of a stage's jobs stopped; the stage cannot go on while one still runs."""
+    unfinished = [job for job in jobs if job["state"] != "succeeded"]
+    if any(job["state"] not in STOPPED for job in unfinished):
+        raise ApplicationError(f"The {what} cannot advance an incomplete stage.", 409)
+    return bool(unfinished)
 
 
 def _artifact(job, key) -> dict | None:

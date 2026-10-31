@@ -509,7 +509,7 @@ def ended_turn(session, operation) -> dict:
     """The system turn when the operation the agent waited on ends: a stage build in the agent's own words, with the
     user's as the turn's notice and a receipt that keeps the stage in context (ADR 0020 §8)."""
     if operation["kind"] == "set_build":
-        from gaiavfx.application.set_agent import build_outcome
+        from gaiavfx.application.set_build import build_outcome
 
         ended = build_outcome(session, operation)
         message = f"The stage build ended. {ended['action']['message']}"
