@@ -384,7 +384,8 @@ def shared_shapes(schema):
     # A shared shape can reuse smaller shared children. Strict subtree size
     # makes these references acyclic, without repeating their prose metadata.
     definitions = {}
-    while pending := [encoded for encoded in used if names[encoded] not in definitions]:
+    # In the order the shapes were found, not the set's: the bytes Gaia is sent stay the same in every process.
+    while pending := [e for e in names if e in used and names[e] not in definitions]:
         for encoded in pending:
             definitions[names[encoded]] = children(json.loads(encoded))
     result["$defs"] = definitions

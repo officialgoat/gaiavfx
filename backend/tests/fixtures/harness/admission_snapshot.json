@@ -1,0 +1,826 @@
+{
+ "film/executing": {
+  "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, start_recast_run, ask_human, propose_plan, plan_step, describe_reference.",
+  "schema_bytes": 3728,
+  "schema_sha256": "f7521d80de9dda98644fbc43394d1963d2ceee76261b56b35dcf41202741c19e",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Recast the first shot' targets film-recast, not elsewhere. Retry prepare_cut with film-recast.",
+   "render_candidates": "422: step_target_mismatch: 'Recast the first shot' targets film-recast, not elsewhere. Retry render_candidates with film-recast."
+  },
+  "tools": [
+   "read_recast",
+   "propose_cast",
+   "propose_appearance",
+   "start_recast_run",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "film/executing/review": {
+  "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, ask_human, say, propose_plan, plan_step, describe_reference.",
+  "schema_bytes": 3417,
+  "schema_sha256": "3eb60c187c005c0a28724a695cfe2e0df8ea93bc396d16dec6b5145ac2ab2561",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_recast",
+   "propose_cast",
+   "propose_appearance",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "film/no-plan": {
+  "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, board_write, ask_human, say, propose_plan, describe_reference.",
+  "schema_bytes": 3465,
+  "schema_sha256": "afa0b29a5a5ba8827d8e3974e91c818547ccf459b4fd5cc7753f56cce4d5b644",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_recast",
+   "propose_cast",
+   "propose_appearance",
+   "board_write",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "describe_reference"
+  ],
+  "truthful_refusal": "Use the required action, the required action and the required action, then say it."
+ },
+ "film/proposed": {
+  "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, board_write, ask_human, say, propose_plan, describe_reference.",
+  "schema_bytes": 3465,
+  "schema_sha256": "afa0b29a5a5ba8827d8e3974e91c818547ccf459b4fd5cc7753f56cce4d5b644",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_recast",
+   "propose_cast",
+   "propose_appearance",
+   "board_write",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "describe_reference"
+  ],
+  "truthful_refusal": "Use the required action, the required action and the required action, then say it."
+ },
+ "movie/autonomous/off": {
+  "absent_call": "422: Tool 'prepare_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_segment, edit_phase, edit_cast, board_write, ask_human, say, describe_reference, analyze_reference_video, draft_storyline.",
+  "schema_bytes": 13330,
+  "schema_sha256": "4197342d93aa5ccfef3ac46c593921faf2b555f8a7ae78f5f5163b1f8822ed69",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "edit_place",
+   "edit_segment",
+   "edit_phase",
+   "edit_cast",
+   "board_write",
+   "ask_human",
+   "say",
+   "describe_reference",
+   "analyze_reference_video",
+   "draft_storyline"
+  ],
+  "truthful_refusal": "Use the required action, the required action and the required action, then say it."
+ },
+ "movie/autonomous/prepare": {
+  "absent_call": "422: Tool 'read_candidates' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_segment, edit_phase, edit_cast, prepare_cut, board_write, ask_human, say, describe_reference, analyze_reference_video, draft_storyline.",
+  "schema_bytes": 13483,
+  "schema_sha256": "4ce4dcf6066df1e4e5ac2d9baf085fc53e835b3a6765ff636e39b1389ee4f044",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "edit_place",
+   "edit_segment",
+   "edit_phase",
+   "edit_cast",
+   "prepare_cut",
+   "board_write",
+   "ask_human",
+   "say",
+   "describe_reference",
+   "analyze_reference_video",
+   "draft_storyline"
+  ],
+  "truthful_refusal": "Use the required action, prepare_cut and the required action, then say it."
+ },
+ "movie/autonomous/render": {
+  "absent_call": "422: Tool 'read_candidates' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_segment, edit_phase, edit_cast, prepare_cut, board_write, ask_human, say, describe_reference, analyze_reference_video, draft_storyline.",
+  "schema_bytes": 13483,
+  "schema_sha256": "4ce4dcf6066df1e4e5ac2d9baf085fc53e835b3a6765ff636e39b1389ee4f044",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "edit_place",
+   "edit_segment",
+   "edit_phase",
+   "edit_cast",
+   "prepare_cut",
+   "board_write",
+   "ask_human",
+   "say",
+   "describe_reference",
+   "analyze_reference_video",
+   "draft_storyline"
+  ],
+  "truthful_refusal": "Use the required action, prepare_cut and the required action, then say it."
+ },
+ "movie/autonomous/unread-attachment": {
+  "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: ask_human, describe_reference, analyze_reference_video.",
+  "schema_bytes": 1076,
+  "schema_sha256": "11d7c1f09b05733eb2de7c7e644f138b1a9b59240fbabc2629c1f2610a11b538",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "ask_human",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/answer/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/answer/pending": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3040,
+  "schema_sha256": "727d68e886f009404198f7e133e73c478fe5ceba9aa618b60abc4b0eb7df68e3",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/build/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "Step target segment 1 (<id1>): has nothing left to prepare",
+   "fill_set_more": "segment 1 (<id1>) is outside this scope or has no preparable cut. Read its segment before revising the plan.",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": "422: step_target_mismatch: 'Build the first segment' targets segment 1 (<id1>), not elsewhere. Retry build_set_from_take with <id1>.",
+   "fill_set_more": "422: step_target_mismatch: 'Build the first segment' targets segment 1 (<id1>), not elsewhere. Retry fill_set_more with <id1>.",
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/build/pending": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3040,
+  "schema_sha256": "727d68e886f009404198f7e133e73c478fe5ceba9aa618b60abc4b0eb7df68e3",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "Step target segment 1 (<id1>): has nothing left to prepare",
+   "fill_set_more": "segment 1 (<id1>) is outside this scope or has no preparable cut. Read its segment before revising the plan.",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": "422: step_target_mismatch: 'Build the first segment' targets segment 1 (<id1>), not elsewhere. Retry build_set_from_take with <id1>.",
+   "fill_set_more": "422: step_target_mismatch: 'Build the first segment' targets segment 1 (<id1>), not elsewhere. Retry fill_set_more with <id1>.",
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/edit/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/edit/pending": {
+  "absent_call": "422: Tool 'prepare_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_segment, edit_phase, edit_cast, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video, draft_storyline.",
+  "schema_bytes": 12113,
+  "schema_sha256": "df2dc2e47bf4723061e62d322af3c9cdf5d38ddcfec413e740780512f64d4ade",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "edit_place",
+   "edit_segment",
+   "edit_phase",
+   "edit_cast",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video",
+   "draft_storyline"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/pick/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/pick/pending": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3040,
+  "schema_sha256": "727d68e886f009404198f7e133e73c478fe5ceba9aa618b60abc4b0eb7df68e3",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/prepare/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Prepare the first segment' targets cut <id1> at f36 in segment 1 (<id2>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an render step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/prepare/overflow-1": {
+  "absent_call": "422: Tool 'edit_segment' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_phase, edit_cast, prepare_cut, ask_human, propose_plan, plan_step, describe_reference.",
+  "schema_bytes": 10825,
+  "schema_sha256": "78c1b4e3df7f4bb2d221b6fa24fb08291919fa0c124a9dd50f3d95734585829b",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Prepare the first segment' targets cut <id1> at f36 in segment 1 (<id2>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "edit_place",
+   "edit_phase",
+   "edit_cast",
+   "prepare_cut",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an render step; the user approves it before execution. Use the required action, prepare_cut and the required action, then say it."
+ },
+ "movie/executing/prepare/overflow-1500": {
+  "absent_call": "422: Tool 'edit_place' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, prepare_cut, ask_human, propose_plan, plan_step.",
+  "schema_bytes": 6070,
+  "schema_sha256": "f4c30e179a6401526a1c4665b28f92eb8d405e25b91ebdbc59ea25b5d1cc7cc4",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Prepare the first segment' targets cut <id1> at f36 in segment 1 (<id2>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "prepare_cut",
+   "ask_human",
+   "propose_plan",
+   "plan_step"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an render step; the user approves it before execution. Use the required action, prepare_cut and the required action, then say it."
+ },
+ "movie/executing/prepare/pending": {
+  "absent_call": "422: Tool 'edit_segment' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_phase, edit_cast, prepare_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 11154,
+  "schema_sha256": "5eafb837715f54ef105f4f31d9c480632b9c321c9681afe546e94feb8cd087e4",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Prepare the first segment' targets cut <id1> at f36 in segment 1 (<id2>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "edit_cut",
+   "edit_place",
+   "edit_phase",
+   "edit_cast",
+   "prepare_cut",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an render step; the user approves it before execution. Use the required action, prepare_cut and the required action, then say it."
+ },
+ "movie/executing/render/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": "Step target segment 1 (<id1>): Cut 1 at f36: no reviewed view of the new angle exists; the subject is not yet in the new angle's view; no reviewed view of the place suits this cut; The first segment has no predecessor; give --context-artifact."
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Render the first segment' targets segment 1 (<id1>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": "422: step_target_mismatch: 'Render the first segment' targets segment 1 (<id1>), not elsewhere. Retry render_candidates with <id1>."
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/render/pending": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, render_candidates, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3389,
+  "schema_sha256": "87dd0d8bb181bf60256336ff312a195e7657bead4b24e4f52d1d7e0e7bbd0cca",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": "Step target segment 1 (<id1>): Cut 1 at f36: no reviewed view of the new angle exists; the subject is not yet in the new angle's view; no reviewed view of the place suits this cut; The first segment has no predecessor; give --context-artifact."
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Render the first segment' targets segment 1 (<id1>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": "422: step_target_mismatch: 'Render the first segment' targets segment 1 (<id1>), not elsewhere. Retry render_candidates with <id1>."
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "render_candidates",
+   "ask_human",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use render_candidates, the required action and the required action, then say it."
+ },
+ "movie/executing/render/unread-render": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, render_candidates, ask_human, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 2449,
+  "schema_sha256": "154480cbb7ec747b228b65d7dc671bf2599431ad1126aaa08c38483205f6aa0f",
+  "step_jobs_left": 2,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": "Step target segment 1 (<id1>): Cut 1 at f36: no reviewed view of the new angle exists; the subject is not yet in the new angle's view; no reviewed view of the place suits this cut; The first segment has no predecessor; give --context-artifact."
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": "422: step_target_mismatch: 'Render the first segment' targets segment 1 (<id1>), not elsewhere. Retry prepare_cut with <id1>.",
+   "render_candidates": "422: step_target_mismatch: 'Render the first segment' targets segment 1 (<id1>), not elsewhere. Retry render_candidates with <id1>."
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "render_candidates",
+   "ask_human",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Read any pending references or results, then propose a revised plan for user approval. Use render_candidates, the required action and the required action, then say it."
+ },
+ "movie/executing/review/awaiting_user": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/executing/review/pending": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3294,
+  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "plan_step",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use propose_plan to propose a revised plan adding an prepare step; the user approves it before execution. Use the required action, the required action and the required action, then say it."
+ },
+ "movie/plan-mode/no-plan": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, board_write, ask_human, say, propose_plan, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3359,
+  "schema_sha256": "27c53e57e7d6ffc3652dd3395817ac692c2f9a2fffc1e4a639db4b7c1fddb07a",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "board_write",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use the required action, the required action and the required action, then say it."
+ },
+ "movie/plan-mode/proposed": {
+  "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, board_write, ask_human, say, propose_plan, describe_reference, analyze_reference_video.",
+  "schema_bytes": 3359,
+  "schema_sha256": "27c53e57e7d6ffc3652dd3395817ac692c2f9a2fffc1e4a639db4b7c1fddb07a",
+  "step_jobs_left": null,
+  "target_problems": {
+   "build_set_from_take": "",
+   "fill_set_more": "",
+   "prepare_cut": "",
+   "render_candidates": ""
+  },
+  "targets": {
+   "build_set_from_take": null,
+   "fill_set_more": null,
+   "prepare_cut": null,
+   "render_candidates": null
+  },
+  "tools": [
+   "read_movie",
+   "read_segment",
+   "inspect_cut",
+   "board_write",
+   "ask_human",
+   "say",
+   "propose_plan",
+   "describe_reference",
+   "analyze_reference_video"
+  ],
+  "truthful_refusal": "Use the required action, the required action and the required action, then say it."
+ }
+}
