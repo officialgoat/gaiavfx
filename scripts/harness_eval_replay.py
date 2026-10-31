@@ -12,17 +12,11 @@ import httpx
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 
-from gaiavfx.application.harness.actions import action_schema
-from gaiavfx.application.harness.context import assemble, turn_messages
-from gaiavfx.application.harness.knowledge import (
-    cinematography_head,
-    unsupported_head,
-)
+from gaiavfx.application.harness.context import turn_messages
 from gaiavfx.application.harness.loop import Harness
-from gaiavfx.application.harness.prompt import system_prompt
+from gaiavfx.application.harness.request import turn_request
 from gaiavfx.application.harness.session import AgentSession
 from gaiavfx.application.harness.summary import conversation_summary
-from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.infrastructure.assistant import request_budget
 from gaiavfx.infrastructure.database import Database
 from gaiavfx.modules.agent.service import AgentStore
@@ -52,26 +46,18 @@ def replay(path):
             document = AgentSession.model_validate(row["document"])
             turns = harness.turns(session_id)
             context = harness.context(row, document, turns)
-            applicable = applicable_tools(context)
             for end in range(1, len(turns) + 1):
                 history = turn_messages(turns[:end])
                 current = history[history.starts[-1] :]
-                assembled = assemble(
-                    system_prompt(context, applicable),
-                    document.board.brief,
-                    "\n".join(
-                        f"{t.name}: {t.describe(context)}" for t, _ in applicable
-                    ),
-                    action_schema(applicable),
-                    document.board,
-                    context.view,
-                    history,
-                    32768,
-                    output=document.settings["assistant_max_tokens"],
+                # The production request: the same catalog, knowledge and view the loop sends.
+                _, _, assembled = turn_request(
+                    context,
+                    document,
+                    turns[:end],
+                    window=32768,
                     summary=conversation_summary(
                         document, turns[:end], context.state.operations
                     ),
-                    knowledge=unsupported_head() + "\n" + cinematography_head(),
                 )
                 assert assembled.report["total_reserved"] <= 32768
                 assert assembled.messages[-len(current) - 1 : -1] == current

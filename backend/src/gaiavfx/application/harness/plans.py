@@ -8,17 +8,13 @@ import logging
 import time
 from collections import Counter
 
+from gaiavfx.application.harness import turn_context
 from gaiavfx.application.harness.budget import reserved
 from gaiavfx.application.harness.conversation import Record
 from gaiavfx.application.harness.history import (
-    attachments,
     latest_user_message,
-    plate_rejections,
-    recent_user_words,
-    references_read,
 )
 from gaiavfx.application.harness.preparation import REVIEWED
-from gaiavfx.application.harness.scope import scope_state
 from gaiavfx.application.harness.session import (
     AgentSession,
     BuildReview,
@@ -284,30 +280,12 @@ class PlanCommands:
                 turns = self.store.turns(session, row["id"])
                 user_message = latest_user_message(turns)
                 if prepare_step_finished(step, user_message, operation):
-                    from types import SimpleNamespace
-
                     index = plan.steps.index(step)
                     following = next(
                         (s for s in plan.steps[index + 1 :] if s.status == "pending"), None
                     )
-                    state = scope_state(
-                        session,
-                        row["movie_id"],
-                        row["scope_kind"],
-                        row["scope_id"],
-                        "off",
-                        self.library,
-                    )
                     reason = completion_refusal(
-                        SimpleNamespace(
-                            state=state,
-                            document=document,
-                            attachments=attachments(turns),
-                            latest_user_message=user_message,
-                            reference_notes=references_read(turns),
-                            recent_user_words=recent_user_words(turns),
-                            plate_rejections=plate_rejections(session, state),
-                        ),
+                        turn_context.for_plan_review(session, row, document, turns, self.library),
                         index,
                     )
                     message += (

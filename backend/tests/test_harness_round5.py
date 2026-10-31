@@ -10,9 +10,9 @@ from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import ToolResult, action_schema, inlined, parse_action
 from gaiavfx.application.harness.budget import Budget
-from gaiavfx.application.harness.context import assemble
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.prompt import system_prompt
+from gaiavfx.application.harness.request import turn_request
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.draft import DraftStoryline
@@ -356,7 +356,6 @@ def test_live_e7_waiting_human_completes_removal_review_before_continue(tmp_path
 def test_large_library_200_assets_30_segments_fits_and_unknown_ids_refuse(world, tmp_path):
     from harness_eval_tasks import png
 
-    from gaiavfx.application.harness.knowledge import cinematography_head, unsupported_head
     from gaiavfx.application.harness.tools.reads import ReadSegment
 
     work, setup = world
@@ -394,22 +393,11 @@ def test_large_library_200_assets_30_segments_fits_and_unknown_ids_refuse(world,
     harness = Harness(work.db, AgentStore(), None, work.settings)
     opened = harness.open(setup["movie_id"])
     for plan_mode in (False, True):
-        ctx = harness.context(opened, AgentSession(plan_mode=plan_mode), [])
-        applicable = applicable_tools(ctx)
-        schema = action_schema(applicable)
-        report = assemble(
-            system_prompt(ctx, applicable),
-            "Continue the movie",
-            "\n".join(f"{t.name}: {t.description}" for t, _ in applicable),
-            schema,
-            ctx.board,
-            ctx.view,
-            [],
-            32768,
-            output=2400,
-            schema_billed=True,
-            knowledge=unsupported_head() + "\n" + cinematography_head(),
-        ).report
+        document = AgentSession(plan_mode=plan_mode, settings={"assistant_max_tokens": 2400})
+        document.board.brief = "Continue the movie"
+        ctx = harness.context(opened, document, [])
+        applicable, schema, assembly = turn_request(ctx, document, [], window=32768, billed=True)
+        report = assembly.report
         assert report["schema"] <= 4500 and report["view"] <= 2000
         assert report["total_reserved"] <= 32768
         shape = next(

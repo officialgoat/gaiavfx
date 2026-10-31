@@ -13,13 +13,11 @@ from test_harness_round5 import executing
 from test_harness_round6 import drafted
 from test_harness_tools import context_for
 
-from gaiavfx.application.harness.actions import action_schema, parse_action
+from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.budget import Budget
-from gaiavfx.application.harness.context import assemble
-from gaiavfx.application.harness.knowledge import cinematography_head, unsupported_head
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.plans import review_outcome
-from gaiavfx.application.harness.prompt import system_prompt
+from gaiavfx.application.harness.request import turn_request
 from gaiavfx.application.harness.session import OperationReview, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.candidates import ReadCandidates
@@ -77,20 +75,8 @@ def plan_context(work, setup, *, render=False):
 
 
 def check_budget(ctx):
-    tools = applicable_tools(ctx)
-    report = assemble(
-        system_prompt(ctx, tools),
-        ctx.board.brief,
-        "\n".join(f"{tool.name}: {tool.description}" for tool, _ in tools),
-        action_schema(tools),
-        ctx.board,
-        render_view(ctx.state, ctx.autonomy, ctx.budget, document=ctx.document),
-        [],
-        32768,
-        output=2400,
-        schema_billed=True,
-        knowledge=unsupported_head() + "\n" + cinematography_head(),
-    ).report
+    document = ctx.document.model_copy(update={"settings": {"assistant_max_tokens": 2400}})
+    report = turn_request(ctx, document, [], window=32768, billed=True)[2].report
     assert report["total_reserved"] <= 32768
     print("S7q budget:", {k: report[k] for k in ("head", "schema", "view", "total_reserved")})
 

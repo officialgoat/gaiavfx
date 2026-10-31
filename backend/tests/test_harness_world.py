@@ -52,7 +52,7 @@ def test_other_movie_operations_cannot_hide_scope_review(kernel):
                 jobs=[JobSpec("image", "local", "test", step="test")],
                 budget_limit=None,
             )
-        state = world_state(session, kernel.movie["id"], "movie", kernel.movie["id"], "off")
+        state = world_state(session, kernel.movie["id"], "movie", kernel.movie["id"])
         assert [o["id"] for o in state.operations] == [own["id"]]
         assert service.for_request(session, "unknown") is None
 
@@ -80,7 +80,7 @@ def test_cut_scope_filters_before_the_movie_list_limit(kernel):
                 relation_source="authored",
             )
             revision += 1
-        state = world_state(session, kernel.movie["id"], "cut", cut["id"], "off")
+        state = world_state(session, kernel.movie["id"], "cut", cut["id"])
         assert [row["id"] for row in state.cuts] == [cut["id"]]
         assert cut["id"] in state.plans
 
@@ -122,7 +122,7 @@ def test_shots_are_each_segments_first_shot_then_its_cuts_and_stay_out_of_the_pa
         direction.update_segment(
             session, still["id"], still["revision"], opening_angle_id=stove["id"]
         )
-        state = world_state(session, kernel.movie["id"], "movie", kernel.movie["id"], "off")
+        state = world_state(session, kernel.movie["id"], "movie", kernel.movie["id"])
         found = {shot["id"]: shot for shot in shots(state)}
         assert list(found) == [cut_segment["id"], cut["id"], still["id"]]
         assert {k: v for k, v in found[cut_segment["id"]].items()} == {
@@ -151,5 +151,5 @@ def test_shots_are_each_segments_first_shot_then_its_cuts_and_stay_out_of_the_pa
         payload = state.payload()
         assert "shots" not in payload and "scope_kind" not in payload
         # A cut scope holds its cut alone, not its segment's first shot.
-        scoped = world_state(session, kernel.movie["id"], "cut", cut["id"], "off")
+        scoped = world_state(session, kernel.movie["id"], "cut", cut["id"])
         assert [s["id"] for s in shots(scoped)] == [cut["id"]]

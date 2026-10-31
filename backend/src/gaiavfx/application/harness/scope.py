@@ -8,12 +8,9 @@ recast, refresh adds nothing, and its view names the film instead of a movie.
 from dataclasses import dataclass
 
 from gaiavfx.application.harness.context import VIEW_CEILING, estimate
-from gaiavfx.application.harness.history import latest_user_message
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX
 from gaiavfx.application.harness.tools import FILM_TOOLS
 from gaiavfx.application.harness.tools.recast import compact
-from gaiavfx.application.harness.tools.replacement import refresh_analyses
-from gaiavfx.application.harness.tools.sets import refresh_sets
 from gaiavfx.application.harness.view import render_view
 from gaiavfx.application.harness.world import LIST, WorldState, clip, world_state
 from gaiavfx.application.recast import recast_state
@@ -23,7 +20,6 @@ from gaiavfx.shared.errors import ApplicationError
 __all__ = [
     "FILM_TOOLS",
     "FilmState",
-    "refresh_scope",
     "scope_state",
     "scope_view",
     "state_label",
@@ -42,9 +38,9 @@ class FilmState(WorldState):
     recast_id: str = ""
 
 
-def scope_state(session, movie_id, scope_kind, scope_id, autonomy, library=None):
+def scope_state(session, movie_id, scope_kind, scope_id, library=None):
     if scope_kind != "film":
-        return world_state(session, movie_id, scope_kind, scope_id, autonomy)
+        return world_state(session, movie_id, scope_kind, scope_id)
     if library is None:
         raise ApplicationError("Open a Library before talking to a film.", 409)
     # A missing recast is a 404 from its own reader; the agent never sees another recast.
@@ -55,13 +51,6 @@ def scope_state(session, movie_id, scope_kind, scope_id, autonomy, library=None)
         recasts=[compact(state)],
         assets=[a for a in MediaLibrary.imported_sources(session, LIST) if a["kind"] == "image"],
     )
-
-
-def refresh_scope(session, state, attachments, library, turns):
-    # The film's recast is already in state.recasts, and no other recast may enter it.
-    if not isinstance(state, FilmState):
-        refresh_analyses(session, state, attachments, library, turns)
-        refresh_sets(session, state, library, turns, latest_user_message(turns))
 
 
 def target_text(target):

@@ -209,7 +209,7 @@ class WorldState:
         return value
 
 
-def world_state(session, movie_id, scope_kind, scope_id, autonomy):
+def world_state(session, movie_id, scope_kind, scope_id):
     from gaiavfx.application.selected_takes import selection_state
 
     movie = direction.read_movie(session, movie_id)

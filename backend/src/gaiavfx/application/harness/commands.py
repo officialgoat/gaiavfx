@@ -143,7 +143,7 @@ class ConversationCommands:
             # A film's conversation belongs to its recast; opening it creates no movie records.
             movie_id = ""
         with self._open_lock, self.db.transaction() as session:
-            scope_state(session, movie_id, scope_kind, scope_id, "off", library=self.library)
+            scope_state(session, movie_id, scope_kind, scope_id, library=self.library)
             row = self.store.find_session(session, movie_id, scope_kind, scope_id)
             if row:
                 return {**row, "_created": False}
@@ -286,7 +286,7 @@ class ConversationCommands:
         )
         row = self.store.read_session(session, session_id)
         state = scope_state(
-            session, row["movie_id"], row["scope_kind"], row["scope_id"], "off", self.library
+            session, row["movie_id"], row["scope_kind"], row["scope_id"], self.library
         )
         document.summary = conversation_summary(
             document,
@@ -361,7 +361,7 @@ class ConversationCommands:
                 action["plan_revision_of"] = document.plan.id
             record.turn("human", action=action, turn_id=turn_id)
             state = scope_state(
-                session, row["movie_id"], row["scope_kind"], row["scope_id"], "off", self.library
+                session, row["movie_id"], row["scope_kind"], row["scope_id"], self.library
             )
             notes = plate_survey_notes(state)
             if notes:

@@ -41,16 +41,10 @@ def render_view(state, autonomy, budget, *, document=None):
                 )
     # Keep fresh human selections ahead of expandable production detail.
     if document and document.plan_mode and document.plan and document.plan.state == "executing":
-        from types import SimpleNamespace
-
         from gaiavfx.application.harness.tools.step_targets import target_problem
+        from gaiavfx.application.harness.turn_context import for_view
 
-        context = SimpleNamespace(
-            state=state,
-            document=document,
-            budget=budget,
-            attachments=[],
-        )
+        context = for_view(state, document, budget)
         for name in ("render_candidates", "prepare_cut"):
             if problem := target_problem(context, name):
                 lines.append(problem)

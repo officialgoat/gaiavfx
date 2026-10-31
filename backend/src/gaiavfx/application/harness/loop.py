@@ -4,12 +4,9 @@ import hashlib
 import json
 import threading
 
-from gaiavfx.application.harness import history
+from gaiavfx.application.harness import request, turn_context
 from gaiavfx.application.harness.actions import (
-    ToolContext,
     ToolResult,
-    action_schema,
-    parse_action,
 )
 from gaiavfx.application.harness.budget import Budget, limit_of
 from gaiavfx.application.harness.commands import (
@@ -19,15 +16,12 @@ from gaiavfx.application.harness.commands import (
     frozen_settings,  # noqa: F401
 )
 from gaiavfx.application.harness.context import (
-    assemble,
     assemble_reading,
     call_with_window,
-    turn_messages,
 )
-from gaiavfx.application.harness.knowledge import knowledge_head
 from gaiavfx.application.harness.model import RETRYABLE_REPLY_PREFIXES
 from gaiavfx.application.harness.plans import PlanCommands
-from gaiavfx.application.harness.prompt import SYSTEM, system_prompt
+from gaiavfx.application.harness.prompt import SYSTEM
 from gaiavfx.application.harness.reading import (
     TEXT,
     load_parts,
@@ -36,37 +30,21 @@ from gaiavfx.application.harness.reading import (
     validate_notes,
 )
 from gaiavfx.application.harness.scope import (
-    refresh_scope,
-    scope_state,
-    scope_view,
     state_label,
 )
 from gaiavfx.application.harness.session import AgentSession
-from gaiavfx.application.harness.tools import DEFAULT_TOOLS, applicable_tools
+from gaiavfx.application.harness.tools import DEFAULT_TOOLS
 from gaiavfx.application.harness.tools.common import operation_receipt
-from gaiavfx.application.harness.tools.render import reported_reviews
 from gaiavfx.application.harness.tools.replacement import completed_analysis
-from gaiavfx.application.harness.world import FINISHED, LIST, operation_view, operations
+from gaiavfx.application.harness.world import operations
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.infrastructure.requests import Requests
 from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.library.media_application import MediaLibrary
-from gaiavfx.shared.assistant import connection_for
 from gaiavfx.shared.errors import ApplicationError
 
 STALLED = 2
-
-
-def schema_billed(settings):
-    try:
-        connection = connection_for(settings, "agent")
-    except ApplicationError:
-        return False
-    return (
-        connection["provider"] != "managed_local"
-        and connection.get("structured_output") == "json_schema"
-    )
 
 
 class Harness(ConversationCommands, PlanCommands):
@@ -126,63 +104,16 @@ class Harness(ConversationCommands, PlanCommands):
             return record.save(document, "running" if retry else "failed")
 
     def context(self, row, document, turns, turn_id=""):
-        autonomy = self._authority(document)
-        budget = Budget.of(document, turns, self.settings())
-        read = reported_reviews(turns)
-        started = history.message_renders(turns)
-        with self.db.transaction() as session:
-            state = scope_state(
-                session,
-                row["movie_id"],
-                row["scope_kind"],
-                row["scope_id"],
-                autonomy,
-                library=self.library,
-            )
-            # Keep unread operations reachable even after their segment is removed.
-            visible = {o["id"]: o for o in state.operations}
-            owed = [
-                visible[op_id]
-                if op_id in visible
-                else operation_view(session, operations.operation(session, op_id))
-                for op_id in sorted(started - read)
-            ]
-            owed.sort(key=lambda o: o["state"] not in FINISHED)
-            owed_ids = {o["id"] for o in owed}
-            state.operations = [*owed, *(o for o in state.operations if o["id"] not in owed_ids)][
-                :LIST
-            ]
-            rejections = history.plate_rejections(session, state)
-            refresh_scope(session, state, history.attachments(turns), self.library, turns)
-        state.reported_reviews = read
-        return ToolContext(
-            db=self.db,
-            session_id=row["id"],
-            movie_id=row["movie_id"],
-            scope_kind=row["scope_kind"],
-            scope_id=row["scope_id"],
-            board=document.board,
-            view=scope_view(state, autonomy, budget, document=document),
-            turn=len(turns),
-            turn_id=turn_id,
-            state=state,
-            settings={
-                **document.settings,
-                "agent_budget_jobs": self.settings().get("agent_budget_jobs", 6),
-            },
-            autonomy=autonomy,
-            budget=budget,
+        return turn_context.assemble(
+            self.db,
+            self.library,
+            self.settings(),
+            row,
+            document,
+            turns,
+            autonomy=self._authority(document),
             cancelled=lambda: self.cancelled(row["id"]),
-            document=document,
-            library=self.library,
-            latest_user_message=history.latest_user_message(turns),
-            reference_notes=history.references_read(turns),
-            recent_user_words=history.recent_user_words(turns),
-            plate_rejections=rejections,
-            report_turns=turns,
-            unread_attachments=history.unread_attachments(turns),
-            unread_renders=[o["id"] for o in owed if o["state"] in FINISHED],
-            attachments=history.attachments(turns),
+            turn_id=turn_id,
         )
 
     @staticmethod
@@ -301,30 +232,13 @@ class Harness(ConversationCommands, PlanCommands):
                         schema,
                         document.settings["assistant_context"],
                         document.settings["assistant_max_tokens"],
-                        schema_billed=schema_billed(document.settings),
+                        schema_billed=request.schema_billed(document.settings),
                         state=state_label(context, []).rsplit("/", 1)[0] + "/reading",
                     )
                     applicable = []
                 else:
-                    applicable = applicable_tools(context, self.tools)
-                    schema = action_schema(applicable)
-                    catalog = "\n".join(
-                        f"{tool.name}: {tool.describe(context)}" for tool, _ in applicable
-                    )
-                    assembly = assemble(
-                        system_prompt(context, applicable),
-                        document.board.brief,
-                        catalog,
-                        schema,
-                        document.board,
-                        context.view,
-                        turn_messages(turns),
-                        document.settings["assistant_context"],
-                        output=document.settings["assistant_max_tokens"],
-                        schema_billed=schema_billed(document.settings),
-                        state=state_label(context, applicable),
-                        summary=document.summary,
-                        knowledge=knowledge_head(context),
+                    applicable, schema, assembly = request.turn_request(
+                        context, document, turns, self.tools
                     )
             except Exception as exc:  # noqa: BLE001 - retain assembly failures for recovery
                 return self._context_failure(session_id, document, exc)
@@ -432,8 +346,7 @@ class Harness(ConversationCommands, PlanCommands):
                 context.autonomy = self._authority(document)
                 limit = limit_of(document, self.settings())
                 context.budget = Budget(limit, context.budget.spent)
-                tools = applicable_tools(context, self.tools)
-                tool, value = parse_action(reply.raw, tools, context)
+                tool, value = request.parse(reply.raw, context, self.tools)
                 result = tool.run(context, value)
             except ApplicationError as exc:
                 result = ToolResult(ok=False, discrepancy=str(exc)[:2000])

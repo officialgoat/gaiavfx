@@ -17,7 +17,6 @@ from gaiavfx.application.harness.prompt import PROMPTS, system_prompt
 from gaiavfx.application.harness.scope import (
     FILM_TOOLS,
     FilmState,
-    refresh_scope,
     scope_view,
     state_label,
 )
@@ -33,6 +32,7 @@ from gaiavfx.application.harness.tools import DEFAULT_TOOLS, applicable_tools
 from gaiavfx.application.harness.tools import recast as tools
 from gaiavfx.application.harness.tools.common import tool_schema
 from gaiavfx.application.harness.tools.plan import ProposePlan
+from gaiavfx.application.harness.turn_context import refresh
 from gaiavfx.application.recast_run import estimate_run
 from gaiavfx.shared.errors import ApplicationError
 
@@ -353,7 +353,7 @@ def test_film_view_prompt_knowledge_and_labels(film):
     for movie_example in ("story_plan", "render_plan", "techniques", "replacement", "story_cut"):
         assert PROMPTS["examples"][movie_example] not in prompt
     # A film session sees exactly its recast: refreshing adds nothing, even with a video attached.
-    refresh_scope(None, film.world, context.attachments, object(), [])
+    refresh(None, film.world, context.attachments, object(), [])
     assert [r["id"] for r in film.world.recasts] == [RECAST] and not film.world.people_analyses
 
 
@@ -417,11 +417,11 @@ def test_film_scope_needs_a_library_and_reads_only_its_recast(kernel, monkeypatc
         scope, "recast_state", lambda session, library, recast_id, **kw: reads.append(recast_id)
     )
     with pytest.raises(ApplicationError, match="Open a Library") as missing:
-        scope.scope_state(None, "", "film", RECAST, "off")
+        scope.scope_state(None, "", "film", RECAST)
     assert missing.value.status == 409 and not reads
     monkeypatch.setattr(scope, "recast_state", lambda *args, **kw: film_recast())
     with kernel.db.transaction() as session:
-        state = scope.scope_state(session, "", "film", RECAST, "off", kernel.harness.library)
+        state = scope.scope_state(session, "", "film", RECAST, kernel.harness.library)
     assert isinstance(state, FilmState) and state.recast_id == RECAST
     assert state.movie == {"id": "", "title": "Harbor film", "revision": 3}
     assert [r["id"] for r in state.recasts] == [RECAST] and "conforms" not in state.recasts[0]
