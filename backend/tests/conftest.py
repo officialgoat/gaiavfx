@@ -27,6 +27,8 @@ def pytest_configure(config):
 def isolated_setup_file(tmp_path, monkeypatch):
     # The developer's own .runtime/setup.json must not seed the libraries tests create.
     monkeypatch.setenv("GAIAVFX_SETUP_FILE", str(tmp_path / "setup.json"))
+    # Nor may a test wait on the machine's GPU lease, which a running app or another test process holds.
+    monkeypatch.setenv("GAIAVFX_GPU_LOCK", str(tmp_path / "gpu.lock"))
 
 
 @pytest.fixture
