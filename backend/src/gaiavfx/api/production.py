@@ -5,7 +5,14 @@ from __future__ import annotations
 from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, Query, Response
-from pydantic import BaseModel, ConfigDict, Field, model_serializer, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    model_serializer,
+    model_validator,
+)
 
 from gaiavfx.api.direction import PlaceDTO, ReceiptDTO, SelectionDTO, SelectionsDTO
 from gaiavfx.application import set_seed, set_views
@@ -43,6 +50,7 @@ from gaiavfx.application.replace_character import (
 )
 from gaiavfx.application.replacement_review import blind, reveal
 from gaiavfx.application.selected_takes import selection_state
+from gaiavfx.modules.generation.operations import outcome
 from gaiavfx.modules.generation.operations.service import OperationService
 
 
@@ -397,6 +405,20 @@ class OperationDTO(BaseModel):
     updated_at: str
     jobs: list[JobDTO]
     candidates: list[CandidateDTO]
+
+    @computed_field
+    @property
+    def settled(self) -> bool:
+        """Whether the operation has stopped running: succeeded, partial, failed, cancelled or needing attention."""
+        return outcome.settled(self.model_dump(include={"state"}))
+
+    @computed_field
+    @property
+    def failure(self) -> Literal[outcome.FAILURES] | None:
+        """Why it stopped, as a kind the renderer can word (Generation reads the recorded errors)."""
+        return outcome.failure(
+            self.model_dump(include={"state", "cancel_requested", "error", "jobs"})
+        )
 
 
 class ReplacementCheckDTO(BaseModel):

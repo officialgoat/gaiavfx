@@ -255,7 +255,7 @@ def repair_state(session, operation) -> dict:
     """A build that fills more of a stage (a repair, ADR 0020 §8) in the user's words, in `seed_state`'s shape:
     building, failed (stopped) or done, with the version it proposed and whether it still waits for the user."""
     from gaiavfx.application import set_fill
-    from gaiavfx.application.set_build import STOPPED
+    from gaiavfx.modules.generation.operations.lifecycle import STOPPED
 
     row = STORE.get(session, operation["request"]["set_id"])
     name = row["name"]

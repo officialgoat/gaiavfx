@@ -22,6 +22,7 @@ from gaiavfx.modules.direction.application import replacement_policy_text
 from gaiavfx.modules.direction.portrait import VIEWS, Portrait
 from gaiavfx.modules.direction.replacement import parse_replacement_policy
 from gaiavfx.modules.direction.target_face import classify_target_faces
+from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
@@ -58,17 +59,11 @@ def _key(asset, attempt):
 
 
 def _latest(session, library, asset, policy):
-    attempt = 1
-    operation = operations.for_request(session, _key(asset, attempt))
-    while operation is not None:
-        report = _report(session, library, operation, policy)
-        if operation["state"] not in OPERATION_TERMINAL or report["state"] != "failed":
-            return operation, attempt, report
-        following = operations.for_request(session, _key(asset, attempt + 1))
-        if following is None:
-            return operation, attempt, report
-        operation, attempt = following, attempt + 1
-    return None, attempt, None
+    operation, attempt = attempts(operations, session, lambda n: _key(asset, n)).current(
+        lambda operation: _report(session, library, operation, policy)["state"] != "failed"
+    )
+    report = _report(session, library, operation, policy) if operation else None
+    return operation, attempt, report
 
 
 def start_target_report(session, library, asset_id, *, retry_failed=False):

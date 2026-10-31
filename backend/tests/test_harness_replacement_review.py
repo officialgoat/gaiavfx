@@ -175,7 +175,6 @@ def test_analysis_schema_is_one_bounded_union_with_runtime_per_analysis_validati
     "error,code",
     [
         ("Source contains a cut at relative frames [12]", "cross_cut"),
-        ({"code": "cross_cut"}, "cross_cut"),
         ("Execution failed", "analysis_failed"),
     ],
 )

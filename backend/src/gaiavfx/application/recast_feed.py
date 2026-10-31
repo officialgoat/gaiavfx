@@ -13,6 +13,7 @@ from gaiavfx.application.target_faces import (
     target_report,
 )
 from gaiavfx.infrastructure.database import timestamp
+from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
@@ -453,13 +454,10 @@ def reference_operations(session, recast, character):
     """Recover the latest durable attempt without storing operation ids in Editing."""
     asset = MediaLibrary.asset_info(session, character["target_asset_id"])
     identity = (recast["id"], character["id"], asset["sha256"])
-    attempt = 1
-    portraits = p.operations.for_request(session, planning.key(*identity, "portraits", attempt))
-    while next_operation := p.operations.for_request(
-        session, planning.key(*identity, "portraits", attempt + 1)
-    ):
-        portraits = next_operation
-        attempt += 1
+    portraits, attempt = attempts(
+        p.operations, session, lambda n: planning.key(*identity, "portraits", n)
+    ).newest()
+    # The sheet of an attempt shares its portraits' number.
     sheet = p.operations.for_request(session, planning.key(*identity, "sheet", attempt))
     return identity, attempt, portraits, sheet
 

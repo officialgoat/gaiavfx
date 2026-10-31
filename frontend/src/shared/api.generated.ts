@@ -5215,6 +5215,25 @@ export interface components {
       jobs: components["schemas"]["JobDTO"][];
       /** Candidates */
       candidates: components["schemas"]["CandidateDTO"][];
+      /**
+       * Settled
+       * @description Whether the operation has stopped running: succeeded, partial, failed, cancelled or needing attention.
+       */
+      readonly settled: boolean;
+      /**
+       * Failure
+       * @description Why it stopped, as a kind the renderer can word (Generation reads the recorded errors).
+       */
+      readonly failure:
+        | (
+            | "cancelled"
+            | "unreachable"
+            | "engine_missing"
+            | "out_of_memory"
+            | "missing_file"
+            | "other"
+          )
+        | null;
     };
     /**
      * OperationSummaryDTO

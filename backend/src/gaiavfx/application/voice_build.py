@@ -38,7 +38,9 @@ from weakref import WeakKeyDictionary
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import engines as voice_engines
 from gaiavfx.integrations.voice import spec as voice_spec
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
+from gaiavfx.modules.generation.operations.attempts import attempts
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
+from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -52,7 +54,6 @@ GAP_SECONDS = 0.3  # silence between the recordings in the joined samples
 SAMPLE_TOLERANCE_SECONDS = 0.1
 # A long library clip is cut at its quietest frame within this many seconds of the even split.
 PIECE_WINDOW_SECONDS = 2.0
-STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
 STAGES = ("samples", "seed", "material", "convert", "filter", "train", "package")
 STAGE_WORDS = {
     "samples": "reading the recordings",
@@ -293,10 +294,7 @@ def piece_spans(
 def latest(session, shas) -> tuple[dict | None, int]:
     """(the newest attempt that exists, its attempt); (None, 1) without one. A rebuild after the expressive library
     changed is a newer attempt and wins even over a succeeded one."""
-    found, attempt = None, 1
-    while (following := operations.for_request(session, key(shas, attempt))) is not None:
-        found, attempt = following, attempt + 1
-    return (found, attempt - 1) if found else (None, 1)
+    return attempts(operations, session, lambda n: key(shas, n)).newest()
 
 
 def _stage_of(job) -> tuple[str | None, str | None]:
@@ -427,12 +425,10 @@ def _sentence(operation, stage, current) -> str:
     stopped = _root_failures([j for j in current.values() if j["state"] in STOPPED])
     errors = " ".join(str(j.get("error") or "") for j in stopped).lower()
     errors += " " + str(operation.get("error") or "").lower()
-    if any(
-        words in errors
-        for words in ("not installed", "engines root", "engine worker", "no command for engine")
-    ):
+    cause = failure(operation)
+    if cause == "engine_missing":
         return ENGINES
-    if "out of memory" in errors:
+    if cause == "out_of_memory":
         return MEMORY
     steps = {j["step"] for j in stopped}
     if "voice_library" in steps:

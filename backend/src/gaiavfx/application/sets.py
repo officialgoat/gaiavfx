@@ -10,7 +10,7 @@ import numpy as np
 from PIL import Image
 
 from gaiavfx.modules.direction.service import DirectionService
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.sets.cameras import rigid
 from gaiavfx.modules.sets.service import SetStore
@@ -19,7 +19,6 @@ from gaiavfx.shared.errors import ApplicationError
 STORE = SetStore()
 DIRECTION = DirectionService()
 OPERATIONS = OperationService()
-BUILD_STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
 
 
 def clip_words(text: str, limit: int) -> str:
@@ -321,7 +320,7 @@ def build_view(session, set_id: str) -> dict | None:
     decision = next(
         (d for d in reversed(operation.get("review") or []) if d.get("stage") == "done"), {}
     )
-    error = next((j["error"] for j in jobs if j["state"] in BUILD_STOPPED and j["error"]), None)
+    error = next((j["error"] for j in jobs if j["state"] in STOPPED and j["error"]), None)
     # an engine's error ends with the worker's own last line (its exception), after the log's header
     error = (
         next((line for line in reversed(error.splitlines()) if line.strip()), error)

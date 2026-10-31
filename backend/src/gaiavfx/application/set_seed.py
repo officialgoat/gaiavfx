@@ -41,7 +41,9 @@ from gaiavfx.integrations.worldbuilder import rules
 from gaiavfx.integrations.worldbuilder.fill import settings as fill_settings
 from gaiavfx.integrations.worldbuilder.graph import sampling, settings, take_geometry_graph
 from gaiavfx.modules.direction.service import DirectionService
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
+from gaiavfx.modules.generation.operations.attempts import attempts
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
+from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -50,7 +52,6 @@ BUILD_VERSION = 1
 ATLAS = "worldbuilder.atlas_from_frames"
 SPLAT = "worldbuilder.splat_init_atlas"
 GEOMETRY_OUTPUT = "save:geometry:0"
-STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
 direction = DirectionService()  # plain reads, and building a place as the new set
 operations = OperationService()
 
@@ -124,17 +125,8 @@ def _attempt(
 ) -> tuple[dict | None, int, dict | None]:
     """The seed of this interval and settings still under way, the first unused attempt number, and the newest
     finished seed."""
-    attempt, last = 1, None
-    while (
-        found := operations.for_request(
-            session, _key(candidate_id, start, end, fingerprint, attempt)
-        )
-    ) is not None:
-        if found["state"] not in OPERATION_TERMINAL:
-            return found, attempt, last
-        last = found
-        attempt += 1
-    return None, attempt, last
+    chain = attempts(operations, session, lambda n: _key(candidate_id, start, end, fingerprint, n))
+    return (*chain.in_flight(), chain.newest_settled())
 
 
 def take_refusal(session, take: dict | None) -> str | None:
@@ -692,28 +684,12 @@ def stop_cause(operation) -> str | None:
     the stage engines are not set up, the GPU ran out of memory. None for anything else, which Jobs details. The live
     trial's agent, told only that its build stopped, offered to build from the other scene against the same dead
     ComfyUI."""
-    if operation["state"] == "cancelled" or operation.get("cancel_requested"):
-        return "stopped"
-    errors = " ".join(
-        str(j.get("error") or "") for j in operation.get("jobs") or [] if j["state"] in STOPPED
-    )
-    errors = f"{errors} {operation.get('error') or ''}".lower()
-    if any(
-        text in errors
-        for text in (
-            "[winerror 10061]",
-            "[winerror 10054]",
-            "connection refused",
-            "connection reset",
-        )
-    ):
-        return "comfyui"
-    if any(
-        text in errors
-        for text in ("not installed", "engines root", "engine worker", "no command for engine")
-    ):
-        return "engines"
-    return "memory" if "out of memory" in errors else None
+    return {
+        "cancelled": "stopped",
+        "unreachable": "comfyui",
+        "engine_missing": "engines",
+        "out_of_memory": "memory",
+    }.get(failure(operation))
 
 
 def seed_state(session, operation) -> dict:

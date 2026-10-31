@@ -5,6 +5,8 @@ from typing import Literal
 
 JOB_TERMINAL = frozenset({"succeeded", "failed", "cancelled", "needs_attention"})
 OPERATION_TERMINAL = frozenset({"succeeded", "partial", "failed", "cancelled", "needs_attention"})
+# A job or operation that ended without succeeding: the producers read their stop from these.
+STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
 JOB_TRANSITIONS = {
     "queued": frozenset({"claimed", "cancelled", "failed"}),
     "claimed": frozenset({"queued", "submitting", "running", "cancelled", "failed"}),

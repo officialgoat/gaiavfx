@@ -9,6 +9,7 @@ from fractions import Fraction
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
+from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -27,8 +28,7 @@ def _conform_error(op):
     FFmpeg output with file names and paths, so only an actionable sentence leaves the service."""
     if op["state"] != "failed":
         return None
-    error = (op.get("error") or "").lower()
-    if "missing" in error or "not found" in error or "no such file" in error:
+    if failure(op) == "missing_file":
         return (
             "A file the conform needs is missing. Check that the film and its versions are still in the "
             "Library, then conform again."

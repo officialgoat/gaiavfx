@@ -33,6 +33,7 @@ from gaiavfx.integrations.voice import expressive
 from gaiavfx.integrations.voice import spec as voice_spec
 from gaiavfx.modules.direction import dialogue as rule
 from gaiavfx.modules.direction.application import default_voice_policy
+from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.shared.errors import ApplicationError
 
 MAX_SAMPLES = 12
@@ -140,14 +141,11 @@ def _audition_key(recast, character, manifest_artifact_id, attempt):
 
 def current_audition(session, recast, character, manifest_artifact_id) -> tuple[dict | None, int]:
     """(the newest audition of this character with this voice model, its attempt); (None, 1) without one."""
-    found, attempt = None, 1
-    while (
-        following := p.operations.for_request(
-            session, _audition_key(recast, character, manifest_artifact_id, attempt)
-        )
-    ) is not None:
-        found, attempt = following, attempt + 1
-    return (found, attempt - 1) if found else (None, 1)
+    return attempts(
+        p.operations,
+        session,
+        lambda n: _audition_key(recast, character, manifest_artifact_id, n),
+    ).newest()
 
 
 def build_failed(build) -> bool:

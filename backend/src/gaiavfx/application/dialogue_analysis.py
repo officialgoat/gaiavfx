@@ -19,7 +19,9 @@ import numpy as np
 
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import spec as voice_spec
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
+from gaiavfx.modules.generation.operations.attempts import attempts
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
+from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -43,7 +45,6 @@ STAGES = {
     "analysis.tag": "speakers",
     "dialogue_envelope": "speakers",
 }
-STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
 operations = OperationService()
 _CACHES = WeakKeyDictionary()
 
@@ -55,17 +56,10 @@ def _key(asset, attempt):
 
 
 def latest(session, asset) -> tuple[dict | None, int]:
-    """The current attempt: walk the attempts until one is not settled-failed or has no successor."""
-    attempt = 1
-    operation = operations.for_request(session, _key(asset, attempt))
-    while operation is not None:
-        if operation["state"] not in OPERATION_TERMINAL or operation["state"] == "succeeded":
-            return operation, attempt
-        following = operations.for_request(session, _key(asset, attempt + 1))
-        if following is None:
-            return operation, attempt
-        operation, attempt = following, attempt + 1
-    return None, attempt
+    """The current attempt: the first still under way or succeeded, else the newest."""
+    return attempts(operations, session, lambda n: _key(asset, n)).current(
+        lambda operation: operation["state"] == "succeeded"
+    )
 
 
 def gap_for(info: dict) -> dict | None:
@@ -328,9 +322,10 @@ def _sentence(operation, stage):
     errors += " " + str(operation.get("error") or "").lower()
     if "channels" in errors:
         return "This film's audio has more than two channels; dialogue analysis supports mono and stereo for now."
-    if "not installed" in errors or "engines root" in errors or "engine worker" in errors:
+    cause = failure(operation)
+    if cause == "engine_missing":
         return "The voice engines are not set up. Run the voice engine setup, then retry."
-    if "out of memory" in errors:
+    if cause == "out_of_memory":
         return "The GPU ran out of memory during the dialogue analysis. Close other GPU work, then retry."
     step = {
         "audio": "reading the film's audio",

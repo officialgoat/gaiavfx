@@ -22,14 +22,14 @@ from gaiavfx.application import set_fill
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.application.sets import STORE, build_view, set_state
 from gaiavfx.integrations.worldbuilder import rules
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
+from gaiavfx.modules.generation.operations.attempts import attempts
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
 NAME = "set_build"
 BUILD_VERSION = 1
 STEPS = ("worldbuilder.atlas_prepare", "worldbuilder.splat_init_atlas")
-STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
 operations = OperationService()
 
 
@@ -41,14 +41,7 @@ def _key(set_id, base_id, fix_ids, attempt) -> str:
 
 def _attempt(session, set_id, base_id, fix_ids) -> tuple[dict | None, int]:
     """The build for these fixes that is still under way, or the first attempt number not yet used."""
-    attempt = 1
-    while (
-        found := operations.for_request(session, _key(set_id, base_id, fix_ids, attempt))
-    ) is not None:
-        if found["state"] not in OPERATION_TERMINAL:
-            return found, attempt
-        attempt += 1
-    return None, attempt
+    return attempts(operations, session, lambda n: _key(set_id, base_id, fix_ids, n)).in_flight()
 
 
 def _frozen(artifact: dict) -> dict:

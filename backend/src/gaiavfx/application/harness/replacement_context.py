@@ -94,8 +94,6 @@ def selectable_tracks(analysis, turns):
 
 def cut_failure(operation):
     return any(
-        job.get("error_code") == "cross_cut"
-        or (isinstance(job.get("error"), dict) and job["error"].get("code") == "cross_cut")
-        or "contains a cut at relative frames" in str(job.get("error", "")).lower()
+        "contains a cut at relative frames" in str(job.get("error", "")).lower()
         for job in operation.get("jobs", [])
     )
