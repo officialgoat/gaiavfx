@@ -215,7 +215,7 @@ def test_prepare_reviews_pause_own_step_then_resume_and_leave_render_review_pend
         op = operations.operation(session, result.waits_on)
         harness._link_review(doc, op, session)
     assert [s.status for s in doc.plan.steps] == ["awaiting_user", "pending", "pending"]
-    assert doc.plan.steps[0].review_of == op["id"] and not doc.plan.steps[2].review_of
+    assert doc.plan.steps[0].reviews(op["id"]) and doc.plan.steps[2].review is None
     step = PlanStepTool()
     assert not step.run(ctx, step.Input(step=0, status="done")).ok
     with work.db.transaction() as session:
@@ -224,7 +224,7 @@ def test_prepare_reviews_pause_own_step_then_resume_and_leave_render_review_pend
     with work.db.transaction() as session:
         assert harness._complete_reviews(session, row, doc)
     assert [s.status for s in doc.plan.steps] == ["pending", "pending", "pending"]
-    assert doc.plan.steps[0].review_of == op["id"]
+    assert doc.plan.steps[0].reviews(op["id"])
     with work.db.transaction() as session:
         harness._link_review(doc, op, session)
     assert doc.plan.steps[0].status == "pending"

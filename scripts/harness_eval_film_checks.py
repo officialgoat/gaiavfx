@@ -418,8 +418,13 @@ def evaluate(task, data):
         require(
             "review_waits",
             review.get("status") == "awaiting_user"
-            and review.get("review_of")
-            == f"recast:{facts['recast_id']}@{frames['start']}-{frames['end']}",
+            and review.get("review")
+            == {
+                "kind": "recast",
+                "recast_id": facts["recast_id"],
+                "start": frames["start"],
+                "end": frames["end"],
+            },
         )
         approvals = [
             (t["action"] or {}).get("message", "")

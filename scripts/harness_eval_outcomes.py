@@ -651,7 +651,8 @@ def evaluate(task, data):
                 has(kind)
                 and any(
                     s["status"] == "awaiting_user"
-                    and s["review_of"] in {o["id"] for o in has(kind)}
+                    and (s.get("review") or {}).get("operation_id")
+                    in {o["id"] for o in has(kind)}
                     for s in pending.get("steps", [])
                 )
                 and setup.get("no_false_resume")

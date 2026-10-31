@@ -468,10 +468,21 @@ def test_a_recast_run_puts_the_next_review_in_the_users_hands(film_session):
     document, receipt = started(film_session)
     render, review = document.plan.steps
     assert render.status == "pending" and render.receipts == [receipt]
-    assert review.status == "awaiting_user" and review.review_of == f"recast:{RECAST}"
+    assert review.status == "awaiting_user"
+    assert review.review.model_dump() == {
+        "kind": "recast",
+        "recast_id": RECAST,
+        "start": None,
+        "end": None,
+    }
     # A ranged run records its own range with the step.
     document, _ = started(film_session, tools.FrameRange(start=0, end=150))
-    assert document.plan.steps[1].review_of == f"recast:{RECAST}@0-150"
+    assert document.plan.steps[1].review.model_dump() == {
+        "kind": "recast",
+        "recast_id": RECAST,
+        "start": 0,
+        "end": 150,
+    }
 
 
 def save(f, document):

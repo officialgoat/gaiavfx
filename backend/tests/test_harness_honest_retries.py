@@ -469,7 +469,7 @@ def test_h4_real_resume_refuses_run7_claim_then_reports_zero_usable(tmp_path):
                     kind="review",
                     title="Review",
                     status="awaiting_user",
-                    review_of=setup["fixture_render"],
+                    review={"kind": "operation", "operation_id": setup["fixture_render"]},
                 ),
             ],
         )

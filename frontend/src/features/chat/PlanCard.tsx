@@ -180,7 +180,7 @@ export function PlanCard({
                     </div>
                   ))}
                 {step.kind === "review" &&
-                  (step.review_of?.startsWith("recast:") ? (
+                  (step.review?.kind === "recast" ? (
                     // A recast run's results wait in the film's own review queue, not in Review.
                     <div className="plan-review">
                       {step.status === "awaiting_user"
@@ -200,7 +200,10 @@ export function PlanCard({
                         id="chat.review"
                         target={{
                           kind: "chat",
-                          reviewOperationId: step.review_of,
+                          reviewOperationId:
+                            step.review?.kind === "operation"
+                              ? step.review.operation_id
+                              : undefined,
                         }}
                       />
                     </div>

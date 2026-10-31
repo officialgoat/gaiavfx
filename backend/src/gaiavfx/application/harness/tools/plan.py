@@ -370,18 +370,14 @@ class PlanStepTool(Tool):
         doc = context.document
         if not doc or not doc.plan_mode or not doc.plan or doc.plan.state != "executing":
             return None
-        indices = [
-            i
-            for i, step in enumerate(doc.plan.steps)
-            if step.status in {"pending", "awaiting_user"}
-        ]
+        indices = [i for i, step in enumerate(doc.plan.steps) if step.open]
         return pin_enum(self.Input.model_json_schema(), "step", indices) if indices else None
 
     def _run(self, context, value):
         if self.narrow(context) is None or value.step >= len(context.document.plan.steps):
             return refuse("step_unavailable")
         step = context.document.plan.steps[value.step]
-        if step.status not in {"pending", "awaiting_user"}:
+        if not step.open:
             return refuse("step_complete")
         if step.kind == "review" or step.status == "awaiting_user":
             return refuse("user_review")

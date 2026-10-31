@@ -333,7 +333,7 @@ test("a recast run's review step waits in the film's review queue, not in Review
             jobs: 2,
             status: "done",
             receipts: [],
-            review_of: "",
+            review: null,
           },
           {
             kind: "review",
@@ -342,7 +342,12 @@ test("a recast run's review step waits in the film's review queue, not in Review
             jobs: 0,
             status: "awaiting_user",
             receipts: [],
-            review_of: `recast:${recastId}`,
+            review: {
+              kind: "recast",
+              recast_id: recastId,
+              start: null,
+              end: null,
+            },
           },
         ],
       },

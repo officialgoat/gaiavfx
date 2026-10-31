@@ -944,7 +944,9 @@ def check_s7d(task, work, setup, harness, recorder):
             and (flow != "render" or pending["steps"][0]["status"] == "done")
             and pending["steps"][0 if flow == "survey" else 1]["status"]
             == "awaiting_user"
-            and pending["steps"][0 if flow == "survey" else 1]["review_of"]
+            and (
+                pending["steps"][0 if flow == "survey" else 1].get("review") or {}
+            ).get("operation_id")
             in {o["id"] for o in ops}
         ),
         "Review step was not attached",
@@ -2017,7 +2019,11 @@ CONTINUATION_TASKS = (
         ("edit_segment", "say"),
         {"autonomy": "off"},
         {
-            "continuation": {"method": None, "context_frames": None, "reason": "pinned keyframe"},
+            "continuation": {
+                "method": None,
+                "context_frames": None,
+                "reason": "pinned keyframe",
+            },
             "rejected": 1,
         },
     ),

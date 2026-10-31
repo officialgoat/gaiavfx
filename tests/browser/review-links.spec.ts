@@ -30,7 +30,7 @@ test("chat review links open the exact older operation or review receipt", async
         target: data.cut.id,
         jobs: 0,
         status: "awaiting_user",
-        review_of: data.survey.id,
+        review: { kind: "operation", operation_id: data.survey.id },
       },
     ],
   };

@@ -19,7 +19,7 @@ from gaiavfx.application.harness.knowledge import cinematography_head, unsupport
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.plans import review_outcome
 from gaiavfx.application.harness.prompt import system_prompt
-from gaiavfx.application.harness.session import PlanStep
+from gaiavfx.application.harness.session import OperationReview, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.candidates import ReadCandidates
 from gaiavfx.application.harness.tools.insertion import resolve_insertion
@@ -194,7 +194,7 @@ def test_q1_run8_pin_resume_does_not_instruct_premature_completion(world):
     run_idle(work, setup["fake"])
     ctx = plan_context(work, setup)
     ctx.document.plan.steps[1].status = "awaiting_user"
-    ctx.document.plan.steps[1].review_of = pin.waits_on
+    ctx.document.plan.steps[1].review = OperationReview(operation_id=pin.waits_on)
     harness = Harness(work.db, AgentStore(), None, work.settings)
     with work.db.transaction() as session:
         review = open_insertion_review(session, pin.waits_on)

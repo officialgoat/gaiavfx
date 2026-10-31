@@ -218,7 +218,7 @@ test("empty plate is fitted for review; rejecting wrong views resumes the agent'
       })
       .toBe("awaiting_user");
     const waiting = await data.session();
-    const oldSurvey = waiting.plan.steps[0].review_of;
+    const oldSurvey = waiting.plan.steps[0].review?.operation_id;
     await flow
       .getByRole("button", { name: "Reference flow", exact: true })
       .click();
@@ -311,9 +311,12 @@ test("empty plate is fitted for review; rejecting wrong views resumes the agent'
       .getByRole("button", { name: "Approve", exact: true })
       .click();
     await expect
-      .poll(async () => (await data.session()).plan?.steps[0].review_of, {
-        timeout: 60_000,
-      })
+      .poll(
+        async () => (await data.session()).plan?.steps[0].review?.operation_id,
+        {
+          timeout: 60_000,
+        },
+      )
       .not.toBe(oldSurvey);
     const resumed = await data.session();
     await expect
@@ -332,7 +335,7 @@ test("empty plate is fitted for review; rejecting wrong views resumes the agent'
       ),
     ).toBeTruthy();
     const newer = await get<S["OperationDTO"]>(
-      `/api/production/operations/${(await data.session()).plan.steps[0].review_of}`,
+      `/api/production/operations/${(await data.session()).plan.steps[0].review?.operation_id}`,
     );
     expect(newer.kind).toBe("survey");
     expect(newer.request.seed).toBe(312);

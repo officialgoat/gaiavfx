@@ -186,7 +186,7 @@ def test_run4_wrong_reverse_rejected_resumes_prepare_and_offers_new_survey(world
     assert not runner.run_once()
     note = "The reverse looks along the gallery; it must look across the railing."
     with work.db.transaction() as session:
-        review = ReviewService().blind(session, step["review_of"])
+        review = ReviewService().blind(session, step["review"]["operation_id"])
         reject_reference_review(
             session, review["id"], expected_revision=review["revision"], note=note
         )

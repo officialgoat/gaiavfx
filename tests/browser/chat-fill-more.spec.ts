@@ -156,9 +156,7 @@ test("Fill more waits, shows its next version, and opens the stage in both theme
     );
     for (const theme of ["dark", "light"] as const) {
       await page.evaluate((value) => {
-        const saved = JSON.parse(
-          localStorage.getItem("gaiavfx-preferences")!,
-        );
+        const saved = JSON.parse(localStorage.getItem("gaiavfx-preferences")!);
         localStorage.setItem(
           "gaiavfx-preferences",
           JSON.stringify({ ...saved, state: { ...saved.state, theme: value } }),
@@ -238,7 +236,7 @@ test("a proposed Fill more step describes a new version of an existing stage", a
         jobs: 6,
         status: "pending",
         receipts: [],
-        review_of: "",
+        review: null,
       },
     ],
     budget_jobs: 6,

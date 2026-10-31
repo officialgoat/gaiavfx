@@ -367,7 +367,7 @@ def test_user_plate_and_pin_review_resumes_only_executing_plan(
             harness.store.update_session(
                 session, row["id"], row["revision"], state=wait_state, document=row["document"]
             )
-            review = ReviewService().blind(session, plan["steps"][0]["review_of"])
+            review = ReviewService().blind(session, plan["steps"][0]["review"]["operation_id"])
             (approve_plate if kind == "removal" else approve_pin)(
                 session, candidate_id=review["members"][0]["candidate_id"]
             )
@@ -467,7 +467,7 @@ def test_either_take_ranking_or_user_selection_resumes_and_continue_wins(tmp_pat
         else:
             drive(work, setup, harness, runner)
         row = harness.read(row["id"])
-        review_id = row["document"]["plan"]["steps"][1]["review_of"]
+        review_id = row["document"]["plan"]["steps"][1]["review"]["operation_id"]
         assert review_id
         if decision != "early_rank":
             assert not runner.run_once()

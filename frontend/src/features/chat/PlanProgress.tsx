@@ -46,7 +46,7 @@ export function PlanProgress({
                 <StageBuild build={build} />
               ) : (
                 step.status === "awaiting_user" &&
-                (step.review_of?.startsWith("recast:") ? (
+                (step.review?.kind === "recast" ? (
                   <span>Awaiting your review in the film's review queue</span>
                 ) : (
                   <CommandButton id="chat.review">

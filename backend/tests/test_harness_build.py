@@ -136,7 +136,10 @@ def test_a_build_step_builds_the_set_and_waits_for_the_user_s_decision_on_its_v1
         {"kind": "set_build", "set_id": set_id, "operation_id": seed["id"]}
     ]
     step = document.plan.steps[0]
-    assert (step.status, step.review_of) == ("awaiting_user", f"seed:{seed['id']}")
+    assert (step.status, step.review.model_dump()) == (
+        "awaiting_user",
+        {"kind": "seed", "operation_id": seed["id"]},
+    )
     with s.workspace.db.transaction() as session:
         assert not h._complete_reviews(session, row, document)
     # The user accepts v1 in the set workbench; the step completes and the agent hears it.
@@ -549,7 +552,10 @@ def test_the_agent_fills_more_of_an_accepted_stage_in_a_build_step(scene):
         h._link_review(document, built, session)
         ended = ended_turn(session, built)
     step = document.plan.steps[0]
-    assert (step.status, step.review_of) == ("awaiting_user", f"build:{built['id']}")
+    assert (step.status, step.review.model_dump()) == (
+        "awaiting_user",
+        {"kind": "build", "operation_id": built["id"]},
+    )
     assert ended["action"]["message"].startswith(
         "The stage build ended. Box room from a take v2 is built (v1 rebuilt; filled its unseen space in 2 rounds). "
         "It waits for the user's decision in the stage workbench"

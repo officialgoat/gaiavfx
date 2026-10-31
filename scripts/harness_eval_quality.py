@@ -44,9 +44,11 @@ def auto_approve(work, setup, harness, runner, drive):
             approved = True
         elif plan and plan["state"] == "executing":
             pending = [
-                s["review_of"]
+                review["operation_id"]
                 for s in plan["steps"]
-                if s["status"] == "awaiting_user" and s["review_of"] not in reviewed
+                if s["status"] == "awaiting_user"
+                and (review := s.get("review") or {}).get("kind") == "operation"
+                and review["operation_id"] not in reviewed
             ]
             if not pending:
                 break

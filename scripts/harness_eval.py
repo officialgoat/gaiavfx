@@ -468,11 +468,12 @@ def exercise_plan(task, work, setup, harness, runner):
     if not plan or plan["state"] != "executing":
         return
     step = next((s for s in plan["steps"] if s["status"] == "awaiting_user"), None)
-    if not step:
+    review = (step or {}).get("review") or {}
+    if review.get("kind") != "operation":
         return
     setup["no_false_resume"] = not runner.run_once()
     setup.setdefault("human_actions", []).extend(
-        complete_review(work, step["review_of"])
+        complete_review(work, review["operation_id"])
     )
     human_decided(work, setup)
     before_resume = len(harness.turns(sid))

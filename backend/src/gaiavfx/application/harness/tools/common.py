@@ -51,7 +51,7 @@ def current_step(context):
         return None
     if document.plan.state != "executing":
         return None
-    return next((s for s in document.plan.steps if s.status in {"pending", "awaiting_user"}), None)
+    return document.plan.current()
 
 
 # Edits that supply a preparation's missing inputs (place and angle text, phase

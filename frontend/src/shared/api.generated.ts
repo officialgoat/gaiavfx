@@ -3327,11 +3327,14 @@ export interface components {
       receipts?: {
         [key: string]: unknown;
       }[];
-      /**
-       * Review Of
-       * @default
-       */
-      review_of: string;
+      /** Review */
+      review?:
+        | (
+            | components["schemas"]["OperationReview"]
+            | components["schemas"]["BuildReview"]
+            | components["schemas"]["RecastReview"]
+          )
+        | null;
     };
     /** AnalysisStatusDTO */
     AnalysisStatusDTO: {
@@ -3660,6 +3663,19 @@ export interface components {
     Body_set_view_still: {
       /** File */
       file: string;
+    };
+    /**
+     * BuildReview
+     * @description A stage version a build proposed (`seed` from a take, `build` filling more), waiting in the stage workbench.
+     */
+    BuildReview: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "build" | "seed";
+      /** Operation Id */
+      operation_id: string;
     };
     /**
      * BuildSetPreviewDTO
@@ -5236,6 +5252,19 @@ export interface components {
         | null;
     };
     /**
+     * OperationReview
+     * @description Candidates of a prepare or render operation, waiting in Review.
+     */
+    OperationReview: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "operation";
+      /** Operation Id */
+      operation_id: string;
+    };
+    /**
      * OperationSummaryDTO
      * @description Enough to route a review link without loading candidate provenance into the UI.
      */
@@ -5599,6 +5628,23 @@ export interface components {
       code: string;
       /** Message */
       message: string;
+    };
+    /**
+     * RecastReview
+     * @description A recast run's versions over its range (none: the whole film), waiting in the film's review queue.
+     */
+    RecastReview: {
+      /**
+       * @description discriminator enum property added by openapi-typescript
+       * @enum {string}
+       */
+      kind: "recast";
+      /** Recast Id */
+      recast_id: string;
+      /** Start */
+      start?: number | null;
+      /** End */
+      end?: number | null;
     };
     /** RecastShotDTO */
     RecastShotDTO: {

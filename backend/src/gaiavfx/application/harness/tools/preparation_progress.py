@@ -59,7 +59,7 @@ def completion_refusal(context, index):
     later = {
         c["id"]
         for s in plan.steps[index + 1 :]
-        if s.kind == "prepare" and s.status in {"pending", "awaiting_user"}
+        if s.kind == "prepare" and s.open
         for c in targeted_shots(context.state, s.target)
     }
     problems = []

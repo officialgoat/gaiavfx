@@ -76,7 +76,7 @@ def render_view(state, autonomy, jobs_reserved, jobs_limit, *, document=None):
     open_builds = {
         receipt.get("id") or receipt.get("operation_id")
         for step in (executing.steps if executing and executing.state == "executing" else [])
-        if step.kind == "build" and step.status in {"pending", "awaiting_user"}
+        if step.kind == "build" and step.open
         for receipt in step.receipts
     }
     for operation in state.operations:

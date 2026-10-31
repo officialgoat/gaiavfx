@@ -19,7 +19,13 @@ from gaiavfx.application.harness.history import (
 )
 from gaiavfx.application.harness.preparation import REVIEWED
 from gaiavfx.application.harness.scope import scope_state
-from gaiavfx.application.harness.session import AgentSession, PlanGrant
+from gaiavfx.application.harness.session import (
+    AgentSession,
+    BuildReview,
+    OperationReview,
+    PlanGrant,
+    RecastReview,
+)
 from gaiavfx.application.harness.tools.plan import archive, finish_plan
 from gaiavfx.application.harness.tools.plan_scope import prepare_step_finished
 from gaiavfx.application.harness.tools.preparation_progress import completion_refusal
@@ -213,12 +219,12 @@ class PlanCommands:
             if (
                 step.kind not in {"prepare", "review", "build"}
                 or step.status != "awaiting_user"
-                or not step.review_of
+                or not step.review
             ):
                 continue
-            if step.review_of.startswith(("seed:", "build:")):
+            if isinstance(step.review, BuildReview):
                 outcome = build_outcome(
-                    session, operations.operation(session, step.review_of.partition(":")[2])
+                    session, operations.operation(session, step.review.operation_id)
                 )
                 if outcome["decided"] is None:
                     continue
@@ -231,8 +237,13 @@ class PlanCommands:
                 )
                 changed = True
                 continue
-            if step.review_of.startswith("recast:"):
-                recast_id, _, span = step.review_of.removeprefix("recast:").partition("@")
+            if isinstance(step.review, RecastReview):
+                recast_id = step.review.recast_id
+                span = (
+                    f"{step.review.start}-{step.review.end}"
+                    if step.review.start is not None
+                    else ""
+                )
                 message = self._recast_reviewed(session, row, recast_id, span, throttle)
                 if not message:
                     continue
@@ -243,7 +254,7 @@ class PlanCommands:
                 )
                 changed = True
                 continue
-            operation = operations.operation(session, step.review_of)
+            operation = operations.operation(session, step.review.operation_id)
             if operation["state"] not in FINISHED or not operation["candidates"]:
                 continue
             complete = not review_pending(session, operation)
@@ -338,7 +349,7 @@ class PlanCommands:
         plan = document.plan
         if not plan or plan.state != "executing":
             return
-        current = next((s for s in plan.steps if s.status in {"pending", "awaiting_user"}), None)
+        current = plan.current()
         if current:
             current.receipts.extend(receipts)
 
@@ -357,9 +368,7 @@ class PlanCommands:
         if tool.name == "start_recast_run":
             # The run's results wait in the recast's own review queue, not a Generation review
             # set: the render step's next review waits for the user there.
-            producer = next(
-                (s for s in plan.steps if s.status in {"pending", "awaiting_user"}), None
-            )
+            producer = plan.current()
             if producer and producer.kind == "render":
                 start = plan.steps.index(producer) + 1
                 review = next(
@@ -369,9 +378,12 @@ class PlanCommands:
                 if review:
                     # The run's own range goes with the step: a later run over other shots must not
                     # complete this review (Astra R-C). No range is the whole film.
-                    span = f"@{value.range.start}-{value.range.end}" if value.range else ""
                     review.status = "awaiting_user"
-                    review.review_of = f"recast:{value.recast_id}{span}"
+                    review.review = RecastReview(
+                        recast_id=value.recast_id,
+                        start=value.range.start if value.range else None,
+                        end=value.range.end if value.range else None,
+                    )
             return
         if tool.name == "edit_place" and value.op in {"add_place", "add_angle"}:
             current = next((s for s in plan.steps if s.status == "pending"), None)
@@ -404,7 +416,7 @@ class PlanCommands:
         )
         # The user may act before the reading turn. Bind the review even then;
         # the driver's authoritative check will complete it on its next poll.
-        if reviewable and not any(s.review_of == operation_id for s in plan.steps):
+        if reviewable and not any(s.reviews(operation_id) for s in plan.steps):
             kind = (
                 "render" if operation["kind"] in {"render", "character_replacement"} else "prepare"
             )
@@ -427,7 +439,8 @@ class PlanCommands:
                     None,
                 )
             if step:
-                step.status, step.review_of = "awaiting_user", operation_id
+                step.status = "awaiting_user"
+                step.review = OperationReview(operation_id=operation_id)
 
 
 def review_outcome(session, movie_id, operation):
@@ -508,7 +521,7 @@ def link_build(document, operation, session):
             s
             for s in document.plan.steps
             if s.kind == "build"
-            and s.status in {"pending", "awaiting_user"}
+            and s.open
             and any(r.get("id") == operation["id"] for r in s.receipts)
         ),
         None,
@@ -523,7 +536,7 @@ def link_build(document, operation, session):
             "awaiting_user" if decided is None else "done" if decided == "accepted" else "skipped"
         )
         mode = "seed" if operation["request"].get("mode") == "seed" else "build"
-        step.review_of = f"{mode}:{operation['id']}"
+        step.review = BuildReview(kind=mode, operation_id=operation["id"])
     elif built["state"] == "refused":
         step.status = "skipped"
     elif built["state"] == "failed" and not any(
