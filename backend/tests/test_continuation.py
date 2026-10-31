@@ -426,7 +426,7 @@ def test_the_api_sets_refuses_and_reports_the_handoff(tmp_path):
         assert plan["continuation"]["method"] == "masked"
         assert plan["continuation"]["explicit_method"] == "masked"
         assert plan["continuation"]["recommended"] == "masked"
-        movie = client.get(f"/api/direction/movies/{body['movie_id']}").json()
+        movie = client.get(f"/api/direction/movies/{body['movie_id']}/read").json()["movie"]
         assert movie["segments"][1]["continuation_method"] == "masked"
         undone = client.post(f"/api/direction/receipts/{body['receipt']['id']}/undo")
         assert undone.status_code == 200, undone.text

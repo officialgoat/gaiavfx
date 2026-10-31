@@ -170,7 +170,7 @@ def test_persisted_authoring_receipts_and_undo_over_http(tmp_path):
         )
         assert cleared["identity_asset_id"] is None
         assert read(f"movies/{mid}/subjects")[0]["revision"] == 3
-        assert read(f"movies/{mid}")["segments"][0]["cuts"][0]["movie_id"] == mid
+        assert read(f"movies/{mid}/read")["movie"]["segments"][0]["cuts"][0]["movie_id"] == mid
         extra = command(f"movies/{mid}/segments", {**data, "expected_revision": 4})
         moved = command(
             f"segments/{extra['id']}/move", {"expected_revision": 5, "ordinal": 0}, status=200
@@ -188,7 +188,7 @@ def test_persisted_authoring_receipts_and_undo_over_http(tmp_path):
         )
         command(f"phases/{new_phase['id']}/remove", {"expected_revision": 3}, status=200)
         command(f"segments/{extra['id']}/remove", {"expected_revision": 6}, status=200)
-        assert len(read(f"movies/{mid}")["segments"]) == 1
+        assert len(read(f"movies/{mid}/read")["movie"]["segments"]) == 1
         assert client.get(f"/api/direction/movies/{mid}/receipts?limit=0").status_code == 422
         assert client.get("/api/direction/segments/missing").status_code == 404
         command("receipts/missing/undo", status=404)
@@ -312,7 +312,9 @@ def test_schema_two_typed_content_survives_api_writes_and_reads(tmp_path):
         )
         assert cleared_subject["keeps"] == []
         assert (
-            client.get(f"/api/direction/movies/{movie['id']}").json()["segments"][0]["content"]
+            client.get(f"/api/direction/movies/{movie['id']}/read").json()["movie"]["segments"][0][
+                "content"
+            ]
             == cleared
         )
         assert client.get(f"/api/direction/segments/{sid}/assembled").json() == {
@@ -436,7 +438,12 @@ def test_the_movie_read_equals_the_reads_it_replaces(tmp_path):
             assert response.status_code == 200, response.text
             return response.json()
 
-        assert read["movie"] == get(f"/api/direction/movies/{movie_id}")
+        assert read["movie"]["fps"] == 24
+        assert all(
+            cut["movie_id"] == movie_id
+            for segment in read["movie"]["segments"]
+            for cut in segment["cuts"]
+        )
         assert read["segment_plans"] == {
             segment["id"]: get(f"/api/direction/segments/{segment['id']}/plan")
         }

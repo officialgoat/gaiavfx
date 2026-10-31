@@ -36,8 +36,6 @@ const D = "/api/direction";
 // Every route is typed from the generated contracts (shared/routes.ts): a renamed route or body fails `tsc`.
 export const direction = {
   movies: () => route("get", `${D}/movies`),
-  movie: (id: string) =>
-    route("get", `${D}/movies/{movie_id}`, { path: { movie_id: id } }),
   /** The movie as the workspace reads it, in one read: plans, pins, selections, history and Undo's targets. */
   read: (id: string) =>
     route("get", `${D}/movies/{movie_id}/read`, { path: { movie_id: id } }),

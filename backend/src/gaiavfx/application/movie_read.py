@@ -5,6 +5,7 @@ each cut's pins, each segment's selections with whether the take is still curren
 Redo reverse next. The renderer presents it and works none of it out.
 """
 
+from gaiavfx.application.continuation import grid
 from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION as direction
 from gaiavfx.application.selected_takes import selection_state
@@ -26,7 +27,8 @@ def movie_read(session, movie_id):
     }
     pictured = {subject["id"] for subject in movie["subjects"] if subject["identity_asset_id"]}
     return {
-        "movie": movie,
+        # Segments are authored and delivered at the integration's grid frame rate.
+        "movie": movie | {"fps": grid().fps},
         "segment_plans": plans,
         # Where a cut's pin sits: its recommended technique's offset, or, while a pin exists, the first offset
         # another technique would use.

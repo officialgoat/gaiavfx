@@ -500,24 +500,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/direction/movies/{movie_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Movie */
-    get: operations["movie_api_direction_movies__movie_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update Movie */
-    patch: operations["update_movie_api_direction_movies__movie_id__patch"];
-    trace?: never;
-  };
   "/api/direction/movies/{movie_id}/read": {
     parameters: {
       query?: never;
@@ -536,6 +518,23 @@ export interface paths {
     options?: never;
     head?: never;
     patch?: never;
+    trace?: never;
+  };
+  "/api/direction/movies/{movie_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    /** Update Movie */
+    patch: operations["update_movie_api_direction_movies__movie_id__patch"];
     trace?: never;
   };
   "/api/direction/movies/{movie_id}/subjects": {
@@ -8874,7 +8873,7 @@ export interface operations {
       };
     };
   };
-  movie_api_direction_movies__movie_id__get: {
+  read_movie_api_direction_movies__movie_id__read_get: {
     parameters: {
       query?: never;
       header?: never;
@@ -8891,7 +8890,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["MovieDetailDTO"];
+          "application/json": components["schemas"]["MovieReadDTO"];
         };
       };
       /** @description Validation Error */
@@ -8927,37 +8926,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["MovieCommandDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  read_movie_api_direction_movies__movie_id__read_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        movie_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["MovieReadDTO"];
         };
       };
       /** @description Validation Error */

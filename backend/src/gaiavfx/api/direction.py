@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.application import set_scenes, set_seed, sets
 from gaiavfx.application.authored import segment_to_dict
-from gaiavfx.application.continuation import METHODS, grid, set_continuation
+from gaiavfx.application.continuation import METHODS, set_continuation
 from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.movie_read import movie_read
@@ -694,7 +694,8 @@ def direction_router(workspace, authenticate):
         return cut | {"movie_id": direction.read_segment(session, cut["segment_id"])["movie_id"]}
 
     def segment_dto(session, segment):
-        return segment | {"cuts": [cut_dto(session, cut) for cut in segment["cuts"]]}
+        movie = {"movie_id": segment["movie_id"]}
+        return segment | {"cuts": [cut | movie for cut in segment["cuts"]]}
 
     @router.post("/movies", response_model=MovieCommandDTO, status_code=201)
     def create_movie(body: MovieInput):
@@ -707,17 +708,6 @@ def direction_router(workspace, authenticate):
             return direction.movies(session)
 
     @router.get(
-        "/movies/{movie_id}", response_model=MovieDetailDTO, response_model_exclude_unset=True
-    )
-    def movie(movie_id: str):
-        with workspace.db.transaction() as session:
-            row = direction.read_movie(session, movie_id)
-            return row | {
-                "segments": [segment_dto(session, seg) for seg in row["segments"]],
-                "fps": grid().fps,
-            }
-
-    @router.get(
         "/movies/{movie_id}/read", response_model=MovieReadDTO, response_model_exclude_unset=True
     )
     def read_movie(movie_id: str):
@@ -725,13 +715,8 @@ def direction_router(workspace, authenticate):
         with workspace.db.transaction() as session:
             read = movie_read(session, movie_id)
             movie = read["movie"]
-            return read | {
-                "movie": movie
-                | {
-                    "segments": [segment_dto(session, seg) for seg in movie["segments"]],
-                    "fps": grid().fps,
-                }
-            }
+            segments = [segment_dto(session, seg) for seg in movie["segments"]]
+            return read | {"movie": movie | {"segments": segments}}
 
     @router.patch("/movies/{movie_id}", response_model=MovieCommandDTO)
     def update_movie(movie_id: str, body: MoviePatch):
