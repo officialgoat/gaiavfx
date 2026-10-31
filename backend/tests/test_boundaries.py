@@ -243,6 +243,7 @@ DIRECTION_STDLIB = {
     "statistics",
     "__future__",
     "collections",
+    "contextlib",
     "copy",
     "datetime",
     "dataclasses",
@@ -250,6 +251,8 @@ DIRECTION_STDLIB = {
     "fractions",
     "functools",
     "importlib",
+    "itertools",
+    "json",
     "math",
     "re",
     "tomllib",
@@ -264,7 +267,8 @@ def test_direction_core_is_model_free_and_pure():
         relative = file.relative_to(SOURCE)
         for name in imported_names(file):
             top = name.split(".")[0]
-            if file.name in {"service.py", "persistence.py"} and (
+            # The journal is Direction storage too: it reads and writes its own rows for Undo.
+            if file.name in {"service.py", "persistence.py", "journal.py"} and (
                 top == "sqlalchemy"
                 or name in {"gaiavfx.infrastructure.database", "gaiavfx.shared.errors"}
             ):

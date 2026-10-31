@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import functools
-import inspect
 import json
 from contextlib import contextmanager
 from copy import deepcopy
@@ -241,15 +240,14 @@ def _public(receipt):
     return receipt
 
 
-def _journaled(kind):
-    """Run a command inside a journal on the movie or the place its first argument belongs to (journal.py)."""
+def _journaled(kind, argument):
+    """Run a command inside a journal on the movie or the place its `argument`, a `kind` id, belongs to
+    (journal.py)."""
 
     def decorate(command):
-        name = list(inspect.signature(command).parameters)[2]
-
         @functools.wraps(command)
         def journaled(self, session, *args, **kwargs):
-            record_id = args[0] if args else kwargs[name]
+            record_id = args[0] if args else kwargs[argument]
             with self._journal(session, **self._scope(session, kind, record_id)):
                 return command(self, session, *args, **kwargs)
 
@@ -761,7 +759,7 @@ class DirectionService:
         )
         return {**_record(row), "receipt": receipt}
 
-    @_journaled("movie")
+    @_journaled("movie", "movie_id")
     def update_movie(self, session, movie_id, expected_revision, *, title):
         row = _get(session, MovieRecord, movie_id)
         _check_revision(row, expected_revision)
@@ -769,7 +767,7 @@ class DirectionService:
             session, row, expected_revision, {"title": _title(title)}, movie_id, "movie"
         )
 
-    @_journaled("movie")
+    @_journaled("movie", "movie_id")
     def add_subject(
         self,
         session,
@@ -808,7 +806,7 @@ class DirectionService:
         )
         return {**_record(row), "receipt": receipt}
 
-    @_journaled("subject")
+    @_journaled("subject", "subject_id")
     def update_subject(
         self,
         session,
@@ -836,7 +834,7 @@ class DirectionService:
             changes["keeps"] = list(member.keeps)
         return _updated(session, row, expected_revision, changes, row.movie_id, "subject")
 
-    @_journaled("subject")
+    @_journaled("subject", "subject_id")
     def remove_subject(self, session, subject_id, expected_revision):
         row = _get(session, SubjectRecord, subject_id)
         movie = _get(session, MovieRecord, row.movie_id)
@@ -871,7 +869,7 @@ class DirectionService:
             row.ordinal = index
         session.flush()
 
-    @_journaled("movie")
+    @_journaled("movie", "movie_id")
     def add_segment(
         self,
         session,
@@ -955,7 +953,7 @@ class DirectionService:
         )
         return {**result, "receipt": receipt}
 
-    @_journaled("segment")
+    @_journaled("segment", "segment_id")
     def update_segment(
         self,
         session,
@@ -1016,7 +1014,7 @@ class DirectionService:
         result = _updated(session, row, expected_revision, changes, row.movie_id, "segment")
         return {**self.read_segment(session, segment_id), "receipt": result["receipt"]}
 
-    @_journaled("segment")
+    @_journaled("segment", "segment_id")
     def remove_segment(self, session, segment_id, expected_revision):
         row = _get(session, SegmentRecord, segment_id)
         movie = _get(session, MovieRecord, row.movie_id)
@@ -1042,7 +1040,7 @@ class DirectionService:
         )
         return {"id": segment_id, "removed": True, "receipt": receipt}
 
-    @_journaled("segment")
+    @_journaled("segment", "segment_id")
     def move_segment(self, session, segment_id, expected_revision, *, ordinal):
         row = _get(session, SegmentRecord, segment_id)
         movie = _get(session, MovieRecord, row.movie_id)
@@ -1225,7 +1223,7 @@ class DirectionService:
             },
         )
 
-    @_journaled("segment")
+    @_journaled("segment", "segment_id")
     def split_segment(self, session, segment_id, expected_revision, frame):
         row = _get(session, SegmentRecord, segment_id)
         _check_revision(row, expected_revision)
@@ -1307,7 +1305,7 @@ class DirectionService:
         receipt = self._split_receipt(session, segment_id, before, after)
         return {"segments": after["segments"], "receipt": receipt}
 
-    @_journaled("segment")
+    @_journaled("segment", "segment_id")
     def add_phase(
         self,
         session,
@@ -1343,7 +1341,7 @@ class DirectionService:
         )
         return {**_record(row), "receipt": receipt}
 
-    @_journaled("phase")
+    @_journaled("phase", "phase_id")
     def update_phase(self, session, phase_id, expected_revision, *, start_frame=None, content=None):
         row = _get(session, PhaseRecord, phase_id)
         _check_revision(row, expected_revision)
@@ -1362,7 +1360,7 @@ class DirectionService:
             changes["start_frame"] = start_frame
         return _updated(session, row, expected_revision, changes, segment.movie_id, "phase")
 
-    @_journaled("phase")
+    @_journaled("phase", "phase_id")
     def remove_phase(self, session, phase_id, expected_revision):
         row = _get(session, PhaseRecord, phase_id)
         segment = _get(session, SegmentRecord, row.segment_id)
@@ -1416,7 +1414,7 @@ class DirectionService:
         session.refresh(row)
         return _record(row)
 
-    @_journaled("place")
+    @_journaled("place", "place_id")
     def update_place(
         self,
         session,
@@ -1459,7 +1457,7 @@ class DirectionService:
             )
         return result
 
-    @_journaled("angle")
+    @_journaled("angle", "angle_id")
     def update_angle(
         self,
         session,
@@ -1844,7 +1842,7 @@ class DirectionService:
             )
         return {**_record(new), "receipt": receipt}
 
-    @_journaled("segment")
+    @_journaled("segment", "segment_id")
     def create_cut(
         self,
         session: Session,
@@ -1940,7 +1938,7 @@ class DirectionService:
         ]
         return validate_insertion_wording(wording, keeps=keeps)
 
-    @_journaled("cut")
+    @_journaled("cut", "cut_id")
     def update_cut(self, session: Session, cut_id: str, expected_revision: int, **changes) -> dict:
         row = _get(session, CutRecord, cut_id)
         _check_revision(row, expected_revision)
@@ -2080,7 +2078,7 @@ class DirectionService:
         receipt = self._cut_move_receipt(session, row, segment, before)
         return {**_record(row), "receipt": receipt}
 
-    @_journaled("cut")
+    @_journaled("cut", "cut_id")
     def remove_cut(self, session, cut_id, expected_revision):
         """Remove with the segment revision; keep authored phases and dependent history."""
         row = _get(session, CutRecord, cut_id)
