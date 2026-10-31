@@ -41,7 +41,7 @@ from gaiavfx.application.prepare_references import (
     start_insertion,
     view_producer,
 )
-from gaiavfx.modules.direction.planning import Binding, binding_problem
+from gaiavfx.modules.direction.planning import Binding
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
@@ -55,13 +55,10 @@ def preparation_actions(plan):
         kinds.update({"view", "sheet"})
     if "pinned_frame" in choice["blocks"]:
         kinds.add("pin")
-    excluded = [
-        Binding(**binding)
-        for binding in plan["bindings"]
-        if binding["kind"] in kinds and (binding["stale"] or binding["suitability"] == "unsuitable")
-    ]
+    bindings = [Binding(**binding) for binding in plan["bindings"]]
+    excluded = [b for b in bindings if b.kind in kinds and not b.usable]
     review = [
-        binding_problem(binding)
+        binding.problem
         for binding in excluded
         if binding.kind != "sheet" or binding.suitability == "unsuitable"
     ]
@@ -343,11 +340,7 @@ class PrepareCut(TransactionTool):
                     reason
                     for tile in tiles
                     if isinstance(tile, str)
-                    and (
-                        reason := binding_problem(
-                            direction.reference_binding(session, "view", tile)
-                        )
-                    )
+                    and (reason := direction.reference_binding(session, "view", tile).problem)
                 ]
             )
             operation = assemble_sheet(

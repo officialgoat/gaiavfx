@@ -7,25 +7,21 @@ know (the candidates Review set aside, the place's latest sheet), so openings an
 way.
 """
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 
 from gaiavfx.application.direction_reading import DIRECTION as direction
-from gaiavfx.application.direction_reading import sheet_reference
 from gaiavfx.application.prepare_references import (
     current_sheet,
     inactive_reference_assets,
     inactive_view_assets,
-    latest_sheet,
-    sheet_staleness,
+    latest_sheet_asset,
 )
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.prompt import gaps
 from gaiavfx.modules.direction.application import default_policy
 from gaiavfx.modules.direction.planning import (
-    Binding,
     CutPlan,
     OpeningPlan,
-    binding_problem,
     plan_cut,
     plan_opening,
 )
@@ -73,18 +69,20 @@ def plan_for_cut(session, cut_id) -> CutPlan:
     cut = direction.read_cut(session, cut_id)
     place_id = direction.read_angle(session, cut["to_angle_id"])["place_id"]
     views, pins = inactive_reference_assets(session, place_id=place_id, cut_id=cut_id)
-    context, available, bindings = direction.context_and_available(
-        session, cut_id, inactive_view_assets=views, inactive_pin_assets=pins
+    found = direction.shot_references(
+        session,
+        cut_id=cut_id,
+        inactive_view_assets=views,
+        inactive_pin_assets=pins,
+        sheet_asset=latest_sheet_asset(session, place_id),
     )
-    judgments = direction.suitability(session, cut_id)
-    available, bindings = _with_sheet(session, place_id, available, bindings, judgments)
     return _planned(
         plan_cut,
-        context,
-        available,
+        found.context,
+        found.available,
         fidelity=cut["fidelity"],
         override=cut["override_technique"],
-        bindings=bindings,
+        bindings=found.bindings,
     )
 
 
@@ -94,12 +92,18 @@ def plan_for_opening(session, segment_id) -> OpeningPlan | None:
     if segment["opening_angle_id"] is None:
         return None
     place_id = direction.read_angle(session, segment["opening_angle_id"])["place_id"]
-    context, available, bindings = direction.opening_context_and_available(
-        session, segment_id, inactive_view_assets=inactive_view_assets(session, place_id)
+    found = direction.shot_references(
+        session,
+        segment_id=segment_id,
+        inactive_view_assets=inactive_view_assets(session, place_id),
+        sheet_asset=latest_sheet_asset(session, place_id),
     )
-    available, bindings = _with_sheet(session, place_id, available, bindings)
     return _planned(
-        plan_opening, context, available, override=segment["opening_technique"], bindings=bindings
+        plan_opening,
+        found.context,
+        found.available,
+        override=segment["opening_technique"],
+        bindings=found.bindings,
     )
 
 
@@ -117,45 +121,11 @@ def _planned(planner, context, available, **choices):
         raise ApplicationError(f"Invalid direction technique: {exc}", 422) from exc
 
 
-def sheet_binding(session, place_id, asset_id, recipe, judgments=()):
-    """A sheet's freshness and the shot's verdict on it, as Direction words a view's or a pin's. `judgments` are the
-    shot's suitability judgments (a cut's; an opening has none yet)."""
-    reasons = sheet_staleness(session, place_id, recipe["tiles"])
-    judgment = next(
-        (j for j in judgments if j["reference_kind"] == "sheet" and j["reference_id"] == asset_id),
-        None,
-    )
-    return Binding(
-        "sheet",
-        asset_id,
-        asset_id,
-        None,
-        bool(reasons),
-        reasons,
-        judgment["verdict"] if judgment and not judgment["stale"] else "unjudged",
-        judgment["note"] if judgment else "",
-    )
-
-
-def _with_sheet(session, place_id, available, bindings, judgments=()):
-    """Add the place's latest sheet to a shot's bindings; a stale or unsuitable one supplies no place views."""
-    sheet = latest_sheet(session, place_id)
-    if not sheet:
-        return available, bindings
-    binding = sheet_binding(
-        session, place_id, sheet["candidates"][0]["asset_id"], sheet["request"], judgments
-    )
-    if binding.stale or binding.suitability == "unsuitable":
-        available = replace(available, place_views=0)
-    return available, bindings + (binding,)
-
-
 def lower(session, shot, sheet_asset, *, strict):
     """The pictures and pinned keyframes the window binds for the shot's recommended technique. A render lowers
     strictly and refuses a missing or unusable reference; inspection skips it."""
     choice = shot.plan.recommended
     place_id = direction.read_angle(session, shot.angle_id)["place_id"]
-    judgments = direction.suitability(session, shot.id) if shot.cut else ()
     pictures, keyframes = [], []
 
     def missing(problem):
@@ -167,9 +137,18 @@ def lower(session, shot, sheet_asset, *, strict):
             if not sheet_asset:
                 missing("A views-only sheet is required: assemble it with prepare_cut (no jobs)")
                 continue
-            recipe = sheet_reference(session, sheet_asset, place_id)
-            binding = sheet_binding(session, place_id, sheet_asset, recipe, judgments)
-            if problem := binding_problem(binding):
+            recipe = direction.sheet_recipe(session, sheet_asset, place_id)
+            # The plan judged the place's latest sheet; a render may bind an older one of its own.
+            binding = next(
+                (b for b in shot.plan.bindings if b.kind == "sheet" and b.id == sheet_asset), None
+            ) or direction.reference_binding(
+                session,
+                "sheet",
+                sheet_asset,
+                direction.suitability(session, shot.id) if shot.cut else (),
+                place_id=place_id,
+            )
+            if problem := binding.problem:
                 missing(problem[0].upper() + problem[1:])
                 continue
             pictures.append(
@@ -187,7 +166,7 @@ def lower(session, shot, sheet_asset, *, strict):
             if len(approved) != 1:
                 missing("The cut needs one approved keyframe.")
                 continue
-            if problem := binding_problem(approved[0]):
+            if problem := approved[0].problem:
                 missing(problem[0].upper() + problem[1:])
                 continue
             keyframes.append(

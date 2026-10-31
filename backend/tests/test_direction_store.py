@@ -184,7 +184,8 @@ def test_reverse_plan_moves_through_review_to_ready(store):
         assert ready["assessment"]["coverage"] == "established"
         assert ready["recommended"]["ready"] is True
         assert actions(ready) == []
-        context, available, _bindings = service.context_and_available(session, cut["id"])
+        found = service.shot_references(session, cut_id=cut["id"])
+        context, available, _bindings = found.context, found.available, found.bindings
         assert available.place_views == 1
         assert target["id"] in available.approved_view_angles
         assert context.evidence[0].id == evidence["id"]
@@ -266,7 +267,8 @@ def test_place_views_count_approved_evidence_across_all_place_angles(store):
         _, source, target, cut = make_cut(service, session)
         other_view = service.record_evidence(session, source["id"], "survey_view", "other-view")
         service.approve_evidence(session, other_view["id"])
-        _, available, _bindings = service.context_and_available(session, cut["id"])
+        found = service.shot_references(session, cut_id=cut["id"])
+        _, available, _bindings = found.context, found.available, found.bindings
         assert available.place_views == 1
         assert source["id"] in available.approved_view_angles
         assert target["id"] not in available.approved_view_angles

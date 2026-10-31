@@ -19,7 +19,6 @@ from gaiavfx.integrations.minimax_h3.window import Window, compile_window
 from gaiavfx.modules.direction.planning import (
     CutPlan,
     OpeningPlan,
-    binding_problem,
 )
 from gaiavfx.modules.direction.techniques import Block
 from gaiavfx.modules.library.media_application import MediaLibrary
@@ -128,7 +127,7 @@ def segment_render_inputs(session, segment_id, *, sheet_asset=None, context_arti
                     "cut_not_ready" if shot.cut else "opening_not_ready",
                     f"{shot.label}: " + "; ".join(action.reason for action in choice.actions),
                     shot.cut_ids,
-                    422 if any(binding_problem(b) for b in shot.plan.bindings) else 409,
+                    422 if any(b.problem for b in shot.plan.bindings) else 409,
                 )
             )
         if choice and Block.PLACE_VIEWS in choice.blocks:

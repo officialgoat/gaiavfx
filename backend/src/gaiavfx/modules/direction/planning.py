@@ -90,18 +90,25 @@ class Binding:
     suitability: Literal["suits", "unsuitable", "unjudged"] = "unjudged"
     suitability_note: str = ""
 
+    @property
+    def problem(self) -> str | None:
+        """Why a shot may not use this reference: it went stale, or the user judged it unsuitable."""
+        label = {
+            "view": "approved view of the new angle",
+            "pin": "cut's pinned frame",
+            "sheet": "assembled sheet",
+        }[self.kind]
+        if self.stale:
+            return f"the {label} is stale: {'; '.join(self.reasons)}"
+        if self.suitability == "unsuitable":
+            return (
+                f"the user judged this {self.kind} unsuitable for this cut: {self.suitability_note}"
+            )
+        return None
 
-def binding_problem(binding: Binding) -> str | None:
-    label = {
-        "view": "approved view of the new angle",
-        "pin": "cut's pinned frame",
-        "sheet": "assembled sheet",
-    }[binding.kind]
-    if binding.stale:
-        return f"the {label} is stale: {'; '.join(binding.reasons)}"
-    if binding.suitability == "unsuitable":
-        return f"the user judged this {binding.kind} unsuitable for this cut: {binding.suitability_note}"
-    return None
+    @property
+    def usable(self) -> bool:
+        return self.problem is None
 
 
 @dataclass(frozen=True)
@@ -144,10 +151,7 @@ class _Target:
 
 def _missing(technique, target, available, bindings):
     def problem(kind, fallback):
-        return (
-            "; ".join(p for b in bindings if b.kind == kind and (p := binding_problem(b)))
-            or fallback
-        )
+        return "; ".join(p for b in bindings if b.kind == kind and (p := b.problem)) or fallback
 
     actions = []
     angle, shot = target.angle, target.id
@@ -203,7 +207,7 @@ def _missing(technique, target, available, bindings):
         for binding in bindings:
             if (
                 binding.kind in {"sheet", "view"}
-                and (reason := binding_problem(binding))
+                and (reason := binding.problem)
                 and not any(a.action == Action.VIEW_PLACE for a in actions)
             ):
                 actions.append(NextAction(Action.VIEW_PLACE, angle, reason))

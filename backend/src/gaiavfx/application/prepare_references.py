@@ -161,29 +161,17 @@ def latest_sheet(session, place_id):
     return None
 
 
-def sheet_staleness(session, place_id, tiles):
-    """Stale when the sheet's views differ from the place's approved views, or one went stale.
-
-    The arrangement (order, blanks) is the assembly's own choice, e.g. the research sheets'
-    order and grey blank; ADR 0010 lets it inherit approval for exactly that arrangement.
-    """
-    approved = {tile for tile in sheet_tiles_for_place(session, place_id) if isinstance(tile, str)}
-    used = {tile for tile in tiles if isinstance(tile, str)}
-    reasons = []
-    if used != approved:
-        reasons.append("an approved view was added or changed since the sheet was assembled")
-    for tile in tiles:
-        if isinstance(tile, str):
-            binding = direction.reference_binding(session, "view", tile)
-            if binding.stale:
-                reasons.extend(f"a sheet view is stale: {reason}" for reason in binding.reasons)
-    return tuple(dict.fromkeys(reasons))
+def latest_sheet_asset(session, place_id):
+    """The picture of the place's latest assembled sheet, or None; Direction judges whether a shot may use it."""
+    operation = latest_sheet(session, place_id)
+    return operation["candidates"][0]["asset_id"] if operation else None
 
 
 def current_sheet(session, place_id):
-    operation = latest_sheet(session, place_id)
-    if operation and not sheet_staleness(session, place_id, operation["request"]["tiles"]):
-        return operation["candidates"][0]["asset_id"]
+    """The place's latest sheet while it is fresh."""
+    asset = latest_sheet_asset(session, place_id)
+    if asset and not direction.reference_binding(session, "sheet", asset, place_id=place_id).stale:
+        return asset
     return None
 
 

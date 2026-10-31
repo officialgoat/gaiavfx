@@ -67,15 +67,23 @@ def sheets(monkeypatch):
     """Stand in for the sheet media lookups alone: each place's current sheet is `sheet`, fresh, with the given
     panels. Assembly, binding judgments, lowering and H3's capability checks run for real."""
     from gaiavfx.application import direction_plans, shot_references
+    from gaiavfx.application.direction_reading import DIRECTION
 
     def use(panels):
         for module in (direction_plans, shot_references):
             monkeypatch.setattr(module, "current_sheet", lambda *args: "sheet")
-        monkeypatch.setattr(shot_references, "sheet_staleness", lambda *args: ())
-        monkeypatch.setattr(
-            shot_references,
-            "sheet_reference",
-            lambda *args: {"tiles": [], "panels": panels, "blank_panels": 0, "origin": "survey"},
-        )
+        monkeypatch.setattr(shot_references, "latest_sheet_asset", lambda *args: "sheet")
+
+        def recipe(session, asset_id, place_id):
+            # Every approved view of the place, as a fresh assembly would hold them.
+            tiles = [
+                evidence["id"]
+                for angle in DIRECTION.angles(session, place_id)
+                for evidence in DIRECTION.evidence(session, angle["id"])
+                if evidence["approved"]
+            ]
+            return {"tiles": tiles, "panels": panels, "blank_panels": 0, "origin": "survey"}
+
+        monkeypatch.setattr(DIRECTION, "sheet_reader", recipe)
 
     return use

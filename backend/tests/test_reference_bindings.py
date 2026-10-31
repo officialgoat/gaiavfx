@@ -15,7 +15,6 @@ from gaiavfx.application.prepare_references import (
     approve_view,
     assemble_sheet,
     current_sheet,
-    sheet_staleness,
     sheet_tiles_for_place,
 )
 from gaiavfx.application.render_cut import start_render
@@ -55,7 +54,7 @@ def references(service, session, *, view_asset="view", pin_asset="pin", subject_
 
 
 def binding_map(service, session, cut):
-    return {b.kind: b for b in service.context_and_available(session, cut["id"])[2]}
+    return {b.kind: b for b in service.shot_references(session, cut_id=cut["id"]).bindings}
 
 
 def test_view_inputs_stale_dependencies_and_reapproval(store):
@@ -78,7 +77,8 @@ def test_view_inputs_stale_dependencies_and_reapproval(store):
         assert not any(b.stale for b in initial.values())
         assert initial == binding_map(service, session, cut)
         service.update_angle(session, target["id"], 1, description="The reverse view")
-        context, available, bindings = service.context_and_available(session, cut["id"])
+        found = service.shot_references(session, cut_id=cut["id"])
+        context, available, bindings = found.context, found.available, found.bindings
         assert all(b.stale for b in bindings)
         assert "the angle's description changed since approval" in bindings[0].reasons
         assert assess_cut(context).coverage == Coverage.NEW
@@ -127,7 +127,8 @@ def test_pin_wording_target_and_subject_staleness(store):
         assert error.value.status == 409
         target = service.add_angle(session, place["id"], "Closer reverse")
         cut = service.update_cut(session, cut["id"], cut["revision"], to_angle_id=target["id"])
-        _, available, bindings = service.context_and_available(session, cut["id"])
+        found = service.shot_references(session, cut_id=cut["id"])
+        _, available, bindings = found.context, found.available, found.bindings
         assert not available.approved_keyframe_cuts
         assert len(bindings) == 1 and bindings[0].kind == "pin"
         assert "the cut's target angle changed" in bindings[0].reasons
@@ -364,7 +365,7 @@ def test_sheets_suitability_and_render_through_api(tmp_path):
         with db.transaction() as session:
             # The arrangement is the assembly's choice (the research sheets differ in order).
             tiles = sheet_tiles_for_place(session, place["id"])
-            assert not sheet_staleness(session, place["id"], list(reversed(tiles)))
+            assert not service._sheet_staleness(session, place["id"], list(reversed(tiles)))[0]
             other = service.record_evidence(session, source["id"], "imported", assets[2])
             service.approve_evidence(session, other["id"])
             assert current_sheet(session, place["id"]) is None
@@ -430,7 +431,8 @@ def test_coverage_ignores_only_stale_approved_evidence(store):
     db, service = store
     with db.transaction() as session:
         _, _, _, cut, _, _ = references(service, session)
-        context, _, _ = service.context_and_available(session, cut["id"])
+        found = service.shot_references(session, cut_id=cut["id"])
+        context, _, _ = found.context, found.available, found.bindings
         assert assess_cut(context).coverage == Coverage.ESTABLISHED
         assert (
             assess_cut(

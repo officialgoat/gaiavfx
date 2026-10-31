@@ -5,7 +5,7 @@ from __future__ import annotations
 import functools
 from contextlib import contextmanager
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 
 from sqlalchemy import null, or_, select, update
@@ -177,11 +177,6 @@ class SegmentSplitRefusal(ApplicationError):
         self.code = code
 
 
-def _usable(binding):
-    """A reference a shot may use: fresh, and not judged unsuitable for it."""
-    return not binding.stale and binding.suitability != "unsuitable"
-
-
 def _refuse(problem):
     """Raise a structure problem as the command's refusal, its code and the ids it names alongside."""
     if problem:
@@ -262,6 +257,16 @@ class Intent:
     command: str
     target_kind: str
     target_id: str
+
+
+@dataclass(frozen=True)
+class ShotReferences:
+    """What one shot may use, judged once (DirectionService.shot_references)."""
+
+    context: OpeningContext | CutContext
+    available: Available
+    bindings: tuple[Binding, ...]
+    judgments: tuple = ()
 
 
 def _public(receipt):
@@ -534,12 +539,8 @@ class DirectionService:
                 raise ApplicationError("The pinned frame is not a binding of this cut.", 422)
             return row.inputs
         if kind == "sheet":
-            if self.sheet_reader is None:
-                raise ApplicationError(
-                    "Sheet judgments require the application's sheet reader.", 422
-                )
             angle = _get(session, AngleRecord, cut.to_angle_id)
-            return self.sheet_reader(session, reference_id, angle.place_id)["tiles"]
+            return self.sheet_recipe(session, reference_id, angle.place_id)["tiles"]
         raise ApplicationError("Unknown reference kind.", 422)
 
     def judge_suitability(self, session, cut_id, *, reference_kind, reference_id, verdict, note=""):
@@ -600,32 +601,69 @@ class DirectionService:
             results.append(_record(row) | {"stale": stale})
         return results
 
-    def reference_binding(self, session, kind, reference_id, judgments=()):
-        if kind not in {"view", "pin"}:
-            raise ApplicationError(
-                "Direction bindings are views or pins; the application composes sheets.", 422
+    def sheet_recipe(self, session, asset_id, place_id):
+        """An assembled sheet of the place: its tiles, panels and origin, read through the sheet reader."""
+        if self.sheet_reader is None:
+            raise ApplicationError("Sheets need the application's sheet reader.", 422)
+        return self.sheet_reader(session, asset_id, place_id)
+
+    def reference_binding(self, session, kind, reference_id, judgments=(), *, place_id=None):
+        """A reference a shot may bind, its freshness and the shot's verdict on it: a view, a pin, or an assembled
+        sheet of `place_id`, stale when its views are not the place's approved views or one went stale."""
+        if kind == "sheet":
+            asset_id, approved_at = reference_id, None
+            try:
+                tiles = self.sheet_recipe(session, reference_id, place_id)["tiles"]
+                stale, reasons = self._sheet_staleness(session, place_id, tiles)
+            except ApplicationError as exc:
+                # A sheet whose tile is no longer approved evidence of the place is stale, not an error.
+                if exc.status != 422:
+                    raise
+                stale, reasons = True, (str(exc)[0].lower() + str(exc)[1:].rstrip("."),)
+        elif kind in {"view", "pin"}:
+            row = _get(session, EvidenceRecord if kind == "view" else KeyframeRecord, reference_id)
+            stale, reasons = (
+                self._view_staleness(session, row)
+                if kind == "view"
+                else self._pin_staleness(session, row)
             )
-        model = EvidenceRecord if kind == "view" else KeyframeRecord
-        row = _get(session, model, reference_id)
-        stale, reasons = (
-            self._view_staleness(session, row)
-            if kind == "view"
-            else self._pin_staleness(session, row)
-        )
+            asset_id, approved_at = row.asset_id, row.approved_at
+        else:
+            raise ApplicationError("Unknown reference kind.", 422)
         judgment = next(
-            (j for j in judgments if j["reference_kind"] == kind and j["reference_id"] == row.id),
+            (
+                j
+                for j in judgments
+                if j["reference_kind"] == kind and j["reference_id"] == reference_id
+            ),
             None,
         )
         return Binding(
             kind,
-            row.id,
-            row.asset_id,
-            row.approved_at,
+            reference_id,
+            asset_id,
+            approved_at,
             stale,
             reasons,
             judgment["verdict"] if judgment and not judgment["stale"] else "unjudged",
             judgment["note"] if judgment else "",
         )
+
+    def _sheet_staleness(self, session, place_id, tiles):
+        """A sheet inherits approval for exactly its arrangement of the place's approved views (ADR 0010): it is
+        stale when they differ, or when one of its views went stale."""
+        approved = {
+            row.id for row in self._place_evidence(session, place_id, frozenset()) if row.approved
+        }
+        used = [tile for tile in tiles if isinstance(tile, str)]
+        reasons = []
+        if set(used) != approved:
+            reasons.append("an approved view was added or changed since the sheet was assembled")
+        for tile in used:
+            stale, view_reasons = self._view_staleness(session, _get(session, EvidenceRecord, tile))
+            if stale:
+                reasons.extend(f"a sheet view is stale: {reason}" for reason in view_reasons)
+        return bool(reasons), tuple(dict.fromkeys(reasons))
 
     def movies(self, session):
         return [
@@ -2317,7 +2355,7 @@ class DirectionService:
             for row in place_evidence
             if row.approved
         }
-        usable = [row for row in place_evidence if row.approved and _usable(bindings[row.id])]
+        usable = [row for row in place_evidence if row.approved and bindings[row.id].usable]
         target_evidence = [row for row in place_evidence if row.angle_id == angle_id]
         evidence = tuple(
             Evidence(
@@ -2344,79 +2382,91 @@ class DirectionService:
             {row.id for row in target_evidence},
         )
 
-    def opening_context_and_available(
-        self, session: Session, segment_id: str, *, inactive_view_assets=frozenset()
-    ) -> tuple[OpeningContext, Available, tuple[Binding, ...]] | None:
-        """The opening shot's coverage facts (ADR 0019 §1), or None while the segment names no opening angle.
-        Openings carry no pins or suitability judgments yet."""
-        segment = self.read_segment(session, segment_id)
-        angle_id = segment["opening_angle_id"]
-        if angle_id is None:
-            return None
-        evidence, bindings, views, _ = self._shot_views(session, angle_id, inactive_view_assets)
-        before = self.predecessor(session, segment)
-        context = OpeningContext(
-            segment_id=segment_id,
-            angle=angle_id,
-            previous_angle=last_angle(before) if before else None,
-            receives_predecessor=segment["continues"],
-            evidence=evidence,
-        )
-        return context, Available(**views), bindings
-
-    def context_and_available(
+    def shot_references(
         self,
         session: Session,
-        cut_id: str,
         *,
+        segment_id: str | None = None,
+        cut_id: str | None = None,
         inactive_view_assets=frozenset(),
         inactive_pin_assets=frozenset(),
-    ) -> tuple[CutContext, Available, tuple[Binding, ...]]:
-        """The shot after a cut: its target angle's views as an opening's, plus the cut's pins."""
-        cut = self.read_cut(session, cut_id)
-        judgments = self.suitability(session, cut_id)
-        evidence, view_bindings, views, target_ids = self._shot_views(
-            session, cut["to_angle_id"], inactive_view_assets, judgments
-        )
-        keyframes = session.scalars(
-            select(KeyframeRecord)
-            .where(KeyframeRecord.cut_id == cut_id)
-            .order_by(KeyframeRecord.created_at, KeyframeRecord.id)
-        ).all()
-        valid_keyframes = [
-            row
-            for row in keyframes
-            if row.evidence_id in target_ids
-            and (row.approved or row.approved_at is None)
-            and (row.approved or row.asset_id not in inactive_pin_assets)
-        ]
-        pin_bindings = {
-            row.id: self.reference_binding(session, "pin", row.id, judgments)
-            for row in keyframes
-            if row.approved
-        }
-        context = CutContext(
-            cut_id=cut_id,
-            from_angle=cut["from_angle_id"],
-            to_angle=cut["to_angle_id"],
-            relation=AngleRelation(
-                Relation(cut["relation"]) if cut["relation"] else None,
-                cut["crosses_barrier"],
-                cut["relation_source"],
-            ),
-            receives_predecessor=cut["receives_predecessor"],
-            evidence=evidence,
-            side_facts=cut["side_facts"],
-        )
-        available = Available(
-            **views,
-            approved_keyframe_cuts=frozenset(
-                {cut_id}
-                if any(row.approved and _usable(pin_bindings[row.id]) for row in valid_keyframes)
-                else ()
-            ),
-            pending_keyframe_cuts=frozenset(
-                {cut_id} if any(not row.approved for row in valid_keyframes) else ()
-            ),
-        )
-        return context, available, view_bindings + tuple(pin_bindings.values())
+        sheet_asset: str | None = None,
+    ) -> ShotReferences | None:
+        """What one shot may use, judged once: the opening of `segment_id` (None while it names no opening angle) or
+        the shot after `cut_id`. Its coverage facts, what is available, and the bindings of its views, its cut's
+        pins and `sheet_asset`, the place's sheet the caller chose, each with its freshness and the shot's verdict;
+        a sheet the shot may not use supplies no place views. Openings carry no pins or judgments yet."""
+        if cut_id is None:
+            segment = self.read_segment(session, segment_id)
+            angle_id = segment["opening_angle_id"]
+            if angle_id is None:
+                return None
+            judgments = ()
+            evidence, bindings, views, _ = self._shot_views(session, angle_id, inactive_view_assets)
+            before = self.predecessor(session, segment)
+            context = OpeningContext(
+                segment_id=segment_id,
+                angle=angle_id,
+                previous_angle=last_angle(before) if before else None,
+                receives_predecessor=segment["continues"],
+                evidence=evidence,
+            )
+            available = Available(**views)
+        else:
+            cut = self.read_cut(session, cut_id)
+            angle_id = cut["to_angle_id"]
+            judgments = tuple(self.suitability(session, cut_id))
+            evidence, view_bindings, views, target_ids = self._shot_views(
+                session, angle_id, inactive_view_assets, judgments
+            )
+            keyframes = session.scalars(
+                select(KeyframeRecord)
+                .where(KeyframeRecord.cut_id == cut_id)
+                .order_by(KeyframeRecord.created_at, KeyframeRecord.id)
+            ).all()
+            valid_keyframes = [
+                row
+                for row in keyframes
+                if row.evidence_id in target_ids
+                and (row.approved or row.approved_at is None)
+                and (row.approved or row.asset_id not in inactive_pin_assets)
+            ]
+            pin_bindings = {
+                row.id: self.reference_binding(session, "pin", row.id, judgments)
+                for row in keyframes
+                if row.approved
+            }
+            context = CutContext(
+                cut_id=cut_id,
+                from_angle=cut["from_angle_id"],
+                to_angle=angle_id,
+                relation=AngleRelation(
+                    Relation(cut["relation"]) if cut["relation"] else None,
+                    cut["crosses_barrier"],
+                    cut["relation_source"],
+                ),
+                receives_predecessor=cut["receives_predecessor"],
+                evidence=evidence,
+                side_facts=cut["side_facts"],
+            )
+            available = Available(
+                **views,
+                approved_keyframe_cuts=frozenset(
+                    {cut_id}
+                    if any(row.approved and pin_bindings[row.id].usable for row in valid_keyframes)
+                    else ()
+                ),
+                pending_keyframe_cuts=frozenset(
+                    {cut_id} if any(not row.approved for row in valid_keyframes) else ()
+                ),
+            )
+            bindings = view_bindings + tuple(pin_bindings.values())
+        if sheet_asset:
+            place_id = _get(session, AngleRecord, angle_id).place_id
+            sheet = self.reference_binding(
+                session, "sheet", sheet_asset, judgments, place_id=place_id
+            )
+            if not sheet.usable:
+                available = replace(available, place_views=0)
+            bindings += (sheet,)
+        return ShotReferences(context, available, bindings, judgments)
