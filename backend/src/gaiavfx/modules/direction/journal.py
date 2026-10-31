@@ -105,6 +105,18 @@ def snapshot(session, scope):
     return rows
 
 
+def segment_rows(session, segment_id):
+    """A segment's rows: the segment, its phases and cuts, and the keyframes and suitability judgments on its cuts."""
+    session.flush()
+    rows = _rows(session, "segment", SegmentRecord.id == segment_id)
+    rows |= _rows(session, "phase", PhaseRecord.segment_id == segment_id)
+    rows |= _rows(session, "cut", CutRecord.segment_id == segment_id)
+    cuts = select(CutRecord.id).where(CutRecord.segment_id == segment_id)
+    rows |= _rows(session, "keyframe", KeyframeRecord.cut_id.in_(cuts))
+    rows |= _rows(session, "suitability", SuitabilityRecord.cut_id.in_(cuts))
+    return rows
+
+
 def _children(session, kind, record_id):
     return {
         child: sorted(

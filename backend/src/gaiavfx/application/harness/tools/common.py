@@ -8,7 +8,11 @@ from gaiavfx.shared.errors import ApplicationError, StaleRevision
 
 
 def refusal(message):
-    return ToolResult(ok=False, discrepancy=str(message))
+    """A refused call, in the refusal's words and with the records it names (a segment's cuts, say)."""
+    ids = getattr(message, "payload", {}).get("ids")
+    return ToolResult(
+        ok=False, discrepancy=str(message) + (f" Ids: {', '.join(ids)}." if ids else "")
+    )
 
 
 def current_step(context):

@@ -324,13 +324,6 @@ class EditSegment(TransactionTool):
                         session, value.segment_id, value.expected_revision, ordinal=value.ordinal
                     )
                 else:
-                    if segment["cuts"]:
-                        raise ApplicationError(
-                            "Remove the segment's cuts first: "
-                            + ", ".join(c["id"] for c in segment["cuts"])
-                            + ". The user can undo their creation receipts.",
-                            409,
-                        )
                     row = direction.remove_segment(
                         session, value.segment_id, value.expected_revision
                     )

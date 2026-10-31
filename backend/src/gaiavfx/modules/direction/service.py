@@ -3,18 +3,16 @@
 from __future__ import annotations
 
 import functools
-import json
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
-from itertools import pairwise
 
 from sqlalchemy import null, or_, select, update
 from sqlalchemy.orm import Session
 
 from gaiavfx.infrastructure.database import new_id, timestamp
 from gaiavfx.modules.direction import content as authored
-from gaiavfx.modules.direction import journal
+from gaiavfx.modules.direction import journal, structure
 from gaiavfx.modules.direction.application import default_policy
 from gaiavfx.modules.direction.coverage import (
     AngleRelation,
@@ -42,7 +40,6 @@ from gaiavfx.modules.direction.planning import Available, Binding
 from gaiavfx.modules.direction.segment import (
     require_continues,
     require_delivered_frames,
-    require_frame,
     require_in_cast,
 )
 from gaiavfx.shared.errors import ApplicationError, StaleRevision
@@ -156,11 +153,18 @@ _CREATIONS = {
     "add_phase": "phase",
     "create_cut": "cut",
 }
-_CHANGED_AFTER = "The record changed after this command; undo the later command first."
+_CHANGED_AFTER = structure.CHANGED_AFTER
 _BEFORE_JOURNAL = (
     "This change was made before Undo kept the rows it changed; it can no longer be undone."
 )
 _UNSET = object()
+# Why a split keeps a cut at its boundary, by what removing the cut would leave hanging.
+_SPLIT_ANCHORS = {
+    "cut_has_keyframes": "This cut has keyframes that require a cut anchor. Split at another phase boundary instead.",
+    "cut_has_suitability_history": (
+        "This cut has suitability history that must keep its cut. Split at another phase boundary instead."
+    ),
+}
 _SUBJECT_FIELDS = ("id", "name", "description", "keeps", "identity_asset_id")
 
 
@@ -175,6 +179,13 @@ class SegmentSplitRefusal(ApplicationError):
 def _usable(binding):
     """A reference a shot may use: fresh, and not judged unsuitable for it."""
     return not binding.stale and binding.suitability != "unsuitable"
+
+
+def _refuse(problem):
+    """Raise a structure problem as the command's refusal, its code and the ids it names alongside."""
+    if problem:
+        ids = {"ids": list(problem.ids)} if problem.ids else {}
+        raise ApplicationError(problem.message, problem.status, {"code": problem.code, **ids})
 
 
 def _validated(function, *args):
@@ -337,10 +348,6 @@ def _updated(session, row, expected, changes, movie_id, kind):
 
 def _frames(value):
     _validated(require_delivered_frames, value)
-
-
-def _frame(value, delivered, *, cut=False):
-    _validated(lambda: require_frame(value, delivered, cut=cut))
 
 
 def _continues(value):
@@ -845,13 +852,8 @@ class DirectionService:
         row = _get(session, SubjectRecord, subject_id)
         movie = _get(session, MovieRecord, row.movie_id)
         _check_revision(movie, expected_revision)
-        for segment in self._segments(session, movie.id):
-            content = _validated(authored.segment_content, segment.content, segment.content_schema)
-            if subject_id in content.subject_ids:
-                raise ApplicationError(
-                    f"Subject {subject_id} appears in segment {segment.ordinal}; remove the reference first.",
-                    409,
-                )
+        rows = journal.snapshot(session, {"movie_id": movie.id})
+        _refuse(structure.removal_problem(rows, "subject", subject_id))
         before = _record(row)
         _bump(session, movie, expected_revision)
         session.delete(row)
@@ -903,14 +905,13 @@ class DirectionService:
         }
         if handoff and not continues:
             raise ApplicationError("Only a continuing segment hands over motion context.", 422)
-        starts = set()
         phases = [authored.phase_record(phase) for phase in phases]
-        for start, document, schema in phases:
+        new = {("segment", "new"): {"id": "new", "delivered_frames": delivered_frames}}
+        for index, (start, document, schema) in enumerate(phases):
             _validated(authored.phase_content, document, schema)
-            _frame(start, delivered_frames)
-            if start in starts:
-                raise ApplicationError(f"Phase frame {start} already exists.", 409)
-            starts.add(start)
+            phase = {"segment_id": "new", "start_frame": start}
+            new = structure.with_row(new, "phase", f"new-{index}", phase)
+        _refuse(structure.segment_problem(new, "new"))
         rows = self._segments(session, movie_id)
         at = len(rows) if at is None else at
         if type(at) is not int or not 0 <= at <= len(rows):
@@ -982,10 +983,11 @@ class DirectionService:
             changes.update(content=content, content_schema=authored.SEGMENT_SCHEMA)
         if delivered_frames is not None:
             _frames(delivered_frames)
-            for phase in self._phases(session, segment_id):
-                _frame(phase["start_frame"], delivered_frames)
-            for cut in self._cuts(session, segment_id):
-                _frame(cut["frame"], delivered_frames, cut=True)
+            length = {"delivered_frames": delivered_frames}
+            rows = structure.with_row(
+                journal.segment_rows(session, segment_id), "segment", segment_id, length
+            )
+            _refuse(structure.segment_problem(rows, segment_id))
             changes["delivered_frames"] = delivered_frames
         if continues is not None:
             _continues(continues)
@@ -1026,8 +1028,8 @@ class DirectionService:
         movie = _get(session, MovieRecord, row.movie_id)
         _check_revision(movie, expected_revision)
         before = self.read_segment(session, segment_id)
-        if before["cuts"]:
-            raise ApplicationError("Remove the segment's cuts first.", 409)
+        rows = journal.segment_rows(session, segment_id)
+        _refuse(structure.removal_problem(rows, "segment", segment_id))
         _bump(session, movie, expected_revision)
         for phase in before["phases"]:
             session.delete(_get(session, PhaseRecord, phase["id"]))
@@ -1072,19 +1074,15 @@ class DirectionService:
 
     def _phase_values(self, session, segment, start_frame, content, phase_id=None):
         _validated(authored.phase_content, content, authored.PHASE_SCHEMA)
-        _frame(start_frame, segment.delivered_frames)
-        if session.scalar(
-            select(PhaseRecord.id).where(
-                PhaseRecord.segment_id == segment.id,
-                PhaseRecord.start_frame == start_frame,
-                PhaseRecord.id != phase_id,
-            )
-        ):
-            raise ApplicationError(f"Phase frame {start_frame} already exists.", 409)
+        phase = {"segment_id": segment.id, "start_frame": start_frame}
+        rows = journal.segment_rows(session, segment.id)
+        rows = structure.with_row(rows, "phase", phase_id or "new", phase)
+        _refuse(structure.segment_problem(rows, segment.id))
 
     def split_points(self, session, segment_id):
         """Authoritative boundary availability, shared by the command and the editor."""
         segment = self.read_segment(session, segment_id)
+        rows = journal.segment_rows(session, segment_id)
         cuts = {cut["frame"]: cut for cut in segment["cuts"]}
         frames = sorted(set(cuts) | {p["start_frame"] for p in segment["phases"]})
         points = []
@@ -1093,14 +1091,10 @@ class DirectionService:
                 continue
             code = reason = None
             cut = cuts.get(frame)
-            if cut and self.keyframes(session, cut["id"]):
-                code = "cut_has_keyframes"
-                reason = "This cut has keyframes that require a cut anchor. Split at another phase boundary instead."
-            elif cut and session.scalar(
-                select(SuitabilityRecord.id).where(SuitabilityRecord.cut_id == cut["id"]).limit(1)
-            ):
-                code = "cut_has_suitability_history"
-                reason = "This cut has suitability history that must keep its cut. Split at another phase boundary instead."
+            # A split takes the cut off its boundary: what removing it would leave hanging keeps it there.
+            if cut and (anchored := structure.removal_problem(rows, "cut", cut["id"])):
+                code = anchored.code
+                reason = _SPLIT_ANCHORS[code]
             if not segment["phases"] or segment["phases"][0]["start_frame"] != 0:
                 code = "missing_initial_phase"
                 reason = "Add a phase at frame 0 before splitting this segment."
@@ -1863,8 +1857,9 @@ class DirectionService:
         )
         _get(session, AngleRecord, values["from_angle_id"])
         _get(session, AngleRecord, values["to_angle_id"])
-        self._cut_frame(session, segment, frame)
-        self._cut_chain(session, segment_id, values)
+        cut = {"segment_id": segment_id, **values}
+        rows = structure.with_row(journal.segment_rows(session, segment_id), "cut", "new", cut)
+        _refuse(structure.segment_problem(rows, segment_id))
         _bump(session, segment, expected_revision)
         row = CutRecord(
             **{
@@ -1887,30 +1882,6 @@ class DirectionService:
             {"revision": expected_revision + 1, "record": _record(row)},
         )
         return {**_record(row), "receipt": receipt}
-
-    def _cut_frame(self, session, segment, frame, cut_id=None):
-        _frame(frame, segment.delivered_frames, cut=True)
-        if session.scalar(
-            select(CutRecord.id).where(
-                CutRecord.segment_id == segment.id, CutRecord.frame == frame, CutRecord.id != cut_id
-            )
-        ):
-            raise ApplicationError(f"Cut frame {frame} already exists.", 409)
-
-    def _cut_chain(self, session, segment_id, replacement=None, cut_id=None):
-        cuts = [c for c in self._cuts(session, segment_id) if c["id"] != cut_id]
-        if replacement is not None:
-            cuts.append(replacement)
-        cuts.sort(key=lambda c: c["frame"])
-        for index, current in enumerate(cuts[1:]):
-            previous = cuts[index]
-            if current["from_angle_id"] != previous["to_angle_id"]:
-                raise ApplicationError(
-                    f"Cuts chain: the cut at frame {current['frame']} must start from the "
-                    f"previous cut's target angle {previous['to_angle_id']}. "
-                    "Move or remove the existing cut instead of creating a duplicate reverse.",
-                    422,
-                )
 
     def validate_cut_insertion(self, session, cut_id, wording):
         """Scene retention must exclude the cast's personal keeps as well as clothing."""
@@ -1975,8 +1946,8 @@ class DirectionService:
         _get(session, AngleRecord, values["from_angle_id"])
         _get(session, AngleRecord, values["to_angle_id"])
         segment = _get(session, SegmentRecord, row.segment_id)
-        self._cut_frame(session, segment, values["frame"], cut_id)
-        self._cut_chain(session, segment.id, values, cut_id)
+        rows = structure.with_row(journal.segment_rows(session, segment.id), "cut", cut_id, values)
+        _refuse(structure.segment_problem(rows, segment.id))
         if values["frame"] != old["frame"]:
             result = self._move_cut(session, row, segment, values)
         else:
@@ -2069,13 +2040,11 @@ class DirectionService:
         row = _get(session, CutRecord, cut_id)
         segment = _get(session, SegmentRecord, row.segment_id)
         _check_revision(segment, expected_revision)
-        if self.keyframes(session, cut_id):
-            raise ApplicationError("A cut with recorded keyframes cannot be removed.", 409)
-        if session.scalar(
-            select(SuitabilityRecord.id).where(SuitabilityRecord.cut_id == cut_id).limit(1)
-        ):
-            raise ApplicationError("A cut with suitability history cannot be removed.", 409)
-        self._cut_chain(session, segment.id, cut_id=cut_id)
+        rows = journal.segment_rows(session, segment.id)
+        _refuse(
+            structure.removal_problem(rows, "cut", cut_id)
+            or structure.segment_problem(structure.without(rows, "cut", cut_id), segment.id)
+        )
         before = _record(row)
         _bump(session, segment, expected_revision)
         session.delete(row)
@@ -2193,8 +2162,8 @@ class DirectionService:
             raise ApplicationError(_BEFORE_JOURNAL, 409)
         if not journal.unchanged_since(session, original, _revision_restored):
             raise ApplicationError(_CHANGED_AFTER, 409)
-        if problem := self._undo_problem(original, journal.preview(session, original)):
-            raise problem
+        preview = journal.preview(session, original)
+        _refuse(structure.undo_problem(preview, journal.created(original)))
         if not journal.nothing_new_hangs(session, original):
             raise ApplicationError(_CHANGED_AFTER, 409)
 
@@ -2222,53 +2191,6 @@ class DirectionService:
                 undoes=original.id,
             )
         return {**receipt, "record": self._undo_record(session, original)}
-
-    def _undo_problem(self, receipt, rows):
-        """Why putting the receipt's rows back would break the movie, checked on the rows as they would be: a removal
-        in the words of the command that removes, anything else as a later change."""
-
-        def kids(kind, column, parent):
-            return [row for (k, _), row in rows.items() if k == kind and row[column] == parent]
-
-        segments = sorted(
-            (row for (kind, _), row in rows.items() if kind == "segment"),
-            key=lambda s: s["ordinal"],
-        )
-        cast = {record_id for kind, record_id in rows if kind == "subject"}
-
-        def subjects(segment):
-            document = json.loads(segment["content"])
-            return set(authored.segment_content(document, segment["content_schema"]).subject_ids)
-
-        for kind, record_id in journal.created(receipt):
-            if kind == "subject":
-                for segment in segments:
-                    if record_id in subjects(segment):
-                        return ApplicationError(
-                            f"Subject {record_id} appears in segment {segment['ordinal']}; remove the "
-                            "reference first.",
-                            409,
-                        )
-            elif kind == "segment" and kids("cut", "segment_id", record_id):
-                return ApplicationError("Remove the segment's cuts first.", 409)
-            elif kind == "cut" and kids("keyframe", "cut_id", record_id):
-                return ApplicationError("A cut with recorded keyframes cannot be removed.", 409)
-            elif kind == "cut" and kids("suitability", "cut_id", record_id):
-                return ApplicationError("A cut with suitability history cannot be removed.", 409)
-        for segment in segments:
-            phases = [p["start_frame"] for p in kids("phase", "segment_id", segment["id"])]
-            cuts = sorted(kids("cut", "segment_id", segment["id"]), key=lambda c: c["frame"])
-            frames = [cut["frame"] for cut in cuts]
-            if (
-                not subjects(segment) <= cast
-                or len(set(phases)) != len(phases)
-                or len(set(frames)) != len(frames)
-                or any(not 0 <= frame < segment["delivered_frames"] for frame in phases)
-                or any(not 0 < frame < segment["delivered_frames"] for frame in frames)
-                or any(b["from_angle_id"] != a["to_angle_id"] for a, b in pairwise(cuts))
-            ):
-                return ApplicationError(_CHANGED_AFTER, 409)
-        return None
 
     def _undo_record(self, session, receipt):
         """What an Undo or a redo shows: the record its first command made, removed or changed, as it is now."""
