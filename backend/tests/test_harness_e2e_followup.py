@@ -327,7 +327,7 @@ def test_k10_continuing_cut_uses_predecessor_when_no_phase_precedes_it(monkeypat
     previous = {"phases": [{"start_frame": 0, "content": {"screen_direction": "left to right"}}]}
     monkeypatch.setattr(insertion.direction, "read_segment", lambda *_: segment)
     monkeypatch.setattr(
-        insertion.direction, "read_movie", lambda *_: {"segments": [previous, segment]}
+        insertion.direction, "predecessor", lambda _, s: previous if s is segment else None
     )
     monkeypatch.setattr(insertion.direction, "read_angle", lambda *_: {})
     assert (
