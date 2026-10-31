@@ -599,13 +599,11 @@ def test_agent_api_uses_only_public_harness_interfaces():
         } or name.startswith(allowed), name
 
 
-def test_harness_units_bounded_and_knowledge_has_one_loader():
+def test_harness_knowledge_has_one_loader():
     root = SOURCE / "application" / "harness"
     for path in root.rglob("*.py"):
-        source = path.read_text("utf-8")
-        assert len(source.splitlines()) <= 600, path
         if path != root / "knowledge" / "__init__.py":
-            assert "tomllib" not in source, path
+            assert "tomllib" not in path.read_text("utf-8"), path
 
 
 def test_person_analysis_integration_boundaries():

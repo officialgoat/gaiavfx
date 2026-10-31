@@ -17,6 +17,7 @@ Prepare, Direct, Agent, Review, Sets/Stages, Recast, replacement and voice share
 
 ## Architecture
 - Maintain a modular monolith, with explicit public module services.
+- Split modules by concept; a file past about 1000 lines is a prompt to look for a missing concept.
 - Library, Catalog, Generation and Editing own their persistence.
 - Application services own use cases and transaction boundaries.
 - Domain rules are plain Python, independent of HTTP, UI and inference runtimes.
