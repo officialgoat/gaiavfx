@@ -9,7 +9,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from gaiavfx.modules.direction.service import DirectionService
+from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.sets.cameras import rigid
@@ -17,7 +17,6 @@ from gaiavfx.modules.sets.service import SetStore
 from gaiavfx.shared.errors import ApplicationError
 
 STORE = SetStore()
-DIRECTION = DirectionService()
 OPERATIONS = OperationService()
 
 

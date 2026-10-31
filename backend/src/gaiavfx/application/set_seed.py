@@ -32,6 +32,7 @@ import json
 from hashlib import sha256
 
 from gaiavfx.application import set_fill
+from gaiavfx.application.direction_reading import DIRECTION as direction
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.application.selected_takes import current_take
 from gaiavfx.application.set_bundles import register_new_set
@@ -40,7 +41,6 @@ from gaiavfx.integrations import worldbuilder
 from gaiavfx.integrations.worldbuilder import rules
 from gaiavfx.integrations.worldbuilder.fill import settings as fill_settings
 from gaiavfx.integrations.worldbuilder.graph import sampling, settings, take_geometry_graph
-from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
@@ -51,7 +51,6 @@ BUILD_VERSION = 1
 ATLAS = "worldbuilder.atlas_from_frames"
 SPLAT = "worldbuilder.splat_init_atlas"
 GEOMETRY_OUTPUT = "save:geometry:0"
-direction = DirectionService()  # plain reads, and building a place as the new set
 operations = OperationService()
 
 # The gate's reasons for the person who chose the take, and the few words the References row shows.

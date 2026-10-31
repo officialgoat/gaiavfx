@@ -3,7 +3,7 @@
 import shutil
 
 from gaiavfx.application import take_basis
-from gaiavfx.modules.direction.service import DirectionService
+from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
@@ -11,7 +11,7 @@ from gaiavfx.shared.errors import ApplicationError
 
 
 def movie_export_state(session, library, movie_id):
-    movie = DirectionService().read_movie(session, movie_id)
+    movie = DIRECTION.read_movie(session, movie_id)
     segments = []
     for segment in movie["segments"]:
         selected = SelectionService().current(session, movie_id, segment["id"])

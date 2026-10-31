@@ -9,14 +9,11 @@ A take rendered before cut revisions, the opening angle and pins were recorded i
 pins are the approved pins its job sent.
 """
 
-from gaiavfx.modules.direction.service import DirectionService, revision_restored
+from gaiavfx.application.direction_reading import DIRECTION as direction
+from gaiavfx.modules.direction.service import revision_restored
 from gaiavfx.modules.editing.selections.staleness import changed_since_take
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
-
-# Only Direction's own records are read: no sheet or stage-view readers are needed (and Export, which reads takes,
-# is imported before the configured service).
-direction = DirectionService()
 
 
 def record(session, row, keyframes) -> dict:
@@ -44,7 +41,9 @@ def judge(session, segment_id):
         if "pins" not in request and now is not None:
             sent = {
                 asset_id
-                for job in operations.operation(session, candidate["operation_id"])["jobs"]
+                for job in operations.operation(session, candidate["operation_id"])[
+                    "jobs"
+                ]
                 if job["id"] == candidate["job_id"]
                 for asset_id in job["inputs"]
             }

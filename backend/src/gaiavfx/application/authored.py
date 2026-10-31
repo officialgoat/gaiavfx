@@ -4,10 +4,10 @@ import json
 from dataclasses import fields
 from pathlib import Path
 
+from gaiavfx.application.direction_reading import DIRECTION as direction
 from gaiavfx.modules.direction import content
 from gaiavfx.modules.direction.content import assembled_to_dict as segment_to_dict
 from gaiavfx.modules.direction.insertion import Insertion, Removal
-from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.direction.survey import SurveyPlan
 from gaiavfx.shared.errors import ApplicationError
 
@@ -102,7 +102,6 @@ def load_segment(path: Path | str | dict) -> dict:
 
 def import_segment(session, movie_id, expected_revision, data_or_path, *, at=None) -> dict:
     """Import into one movie in the caller's transaction; cast identities are never overwritten."""
-    direction = DirectionService()
     movie = direction.read_movie(session, movie_id)
     if type(expected_revision) is not int or expected_revision < 1:
         raise ApplicationError("expected_revision must be a positive integer.", 422)
