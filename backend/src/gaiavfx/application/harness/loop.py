@@ -83,73 +83,38 @@ class Harness(ConversationCommands, PlanCommands):
         self.stopping = lambda: False
 
     def _adopt(self, session_id, document):
-        latest = AgentSession.model_validate(self.read(session_id)["document"])
-        if latest.board.revision > document.board.revision:
-            document.board = latest.board
-        document.cancel_requested = latest.cancel_requested
+        with self.db.transaction() as session:
+            self._record(session, session_id).adopt(document)
 
     def _save(self, session_id, state, document):
         with self.db.transaction() as session:
-            row = self.store.read_session(session, session_id)
-            latest = AgentSession.model_validate(row["document"])
-            if latest.board.revision > document.board.revision:
-                document.board = latest.board
-            document.cancel_requested = latest.cancel_requested
-            if state != "running":
-                self._summarize(session, session_id, document)
-            return self.store.update_session(
-                session, session_id, row["revision"], state=state, document=document.model_dump()
-            )
+            return self._record(session, session_id).save(document, state)
 
     def _turn(self, session_id, role, state, **kwargs):
         with self.db.transaction() as session:
-            return self.store.create_turn(
-                session,
-                session_id,
-                len(self.store.turns(session, session_id)),
-                role,
-                state,
-                **kwargs,
-            )
+            return self._record(session, session_id).turn(role, state, **kwargs)
 
     def _update_turn(self, turn_id, state, *, session_id=None, document=None, **kwargs):
         with self.db.transaction() as session:
-            turn = self.store.update_turn(session, turn_id, state, **kwargs)
-            if document is not None:
-                row = self.store.read_session(session, session_id)
-                latest = AgentSession.model_validate(row["document"])
-                if latest.board.revision > document.board.revision:
-                    document.board = latest.board
-                document.cancel_requested = latest.cancel_requested
-                self.store.update_session(
-                    session,
-                    session_id,
-                    row["revision"],
-                    state="running",
-                    document=document.model_dump(),
-                )
+            if document is None:
+                return self.store.update_turn(session, turn_id, state, **kwargs)
+            record = self._record(session, session_id)
+            turn = record.update_turn(turn_id, state, **kwargs)
+            record.save(document, "running")
             return turn
 
     def _reject_reply(self, session_id, turn_id, document, error):
         """Keep the rejection, retry marker and allowance atomic across recovery."""
         retry = document.model_retries == 0
         with self.db.transaction() as session:
-            row = self.store.read_session(session, session_id)
-            latest = AgentSession.model_validate(row["document"])
-            if latest.board.revision > document.board.revision:
-                document.board = latest.board
-            document.cancel_requested = latest.cancel_requested
-            self.store.update_turn(
-                session, turn_id, "rejected", result={"ok": False, "discrepancy": str(error)[:2000]}
+            record = self._record(session, session_id)
+            record.update_turn(
+                turn_id, "rejected", result={"ok": False, "discrepancy": str(error)[:2000]}
             )
             if retry:
                 document.model_retries = 1
-                self.store.create_turn(
-                    session,
-                    session_id,
-                    len(self.store.turns(session, session_id)),
+                record.turn(
                     "system",
-                    "accepted",
                     action={
                         "message": TEXT["retry"]
                         if document.focus
@@ -159,14 +124,7 @@ class Harness(ConversationCommands, PlanCommands):
                 )
             else:
                 document.stop_reason = ("model call failed: " + str(error))[:400]
-                self._summarize(session, session_id, document)
-            return self.store.update_session(
-                session,
-                session_id,
-                row["revision"],
-                state="running" if retry else "failed",
-                document=document.model_dump(),
-            )
+            return record.save(document, "running" if retry else "failed")
 
     def context(self, row, document, turns, turn_id=""):
         autonomy, limit = self._authority(document)
@@ -267,9 +225,9 @@ class Harness(ConversationCommands, PlanCommands):
             )
             document.stop_reason = "interrupted before its turn was retained"
             with self.db.transaction() as session:
+                record = self._record(session, session_id)
                 for turn in orphans:
-                    self.store.update_turn(
-                        session,
+                    record.update_turn(
                         turn["id"],
                         "failed",
                         result={
@@ -283,25 +241,14 @@ class Harness(ConversationCommands, PlanCommands):
                         # or running the interrupted producer again.
                         receipt = operation_receipt(operation)
                         self._link_receipts(document, [receipt])
-                        self.store.create_turn(
-                            session,
-                            session_id,
-                            len(self.store.turns(session, session_id)),
+                        record.turn(
                             "system",
-                            "accepted",
                             action={
                                 "message": f"Recovered committed operation {operation['id']} from interrupted turn {turn['id']}."
                             },
                             receipts=[receipt],
                         )
-                self._summarize(session, session_id, document)
-                return self.store.update_session(
-                    session,
-                    session_id,
-                    row["revision"],
-                    state="failed",
-                    document=document.model_dump(),
-                )
+                return record.save(document, "failed")
         if not document.waiting_on:
             last = next((t for t in reversed(turns) if t["role"] in {"agent", "system"}), None)
             if last and last["state"] == "accepted":
@@ -316,24 +263,15 @@ class Harness(ConversationCommands, PlanCommands):
                     self._link_review(document, operation, session)
                     # Resume marker and clearing waiting_on are atomic; restart cannot duplicate it.
                     ended = ended_turn(session, operation)
-                    self.store.create_turn(
-                        session,
-                        session_id,
-                        len(turns),
+                    record = self._record(session, session_id)
+                    record.turn(
                         "system",
-                        "accepted",
                         action=ended["action"],
                         receipts=ended.get("receipts", ()),
                         result=completed_analysis(session, operation, self.library),
                     )
                     document.waiting_on = ""
-                    row = self.store.update_session(
-                        session,
-                        session_id,
-                        row["revision"],
-                        state="running",
-                        document=document.model_dump(),
-                    )
+                    row = record.save(document, "running")
             if document.waiting_on and not self.cancelled(session_id):
                 return self._save(session_id, "waiting_operation", document)
         while True:
@@ -395,14 +333,10 @@ class Harness(ConversationCommands, PlanCommands):
                 return self._context_failure(session_id, document, exc)
             # Persist both the requested turn and its charge before any external call.
             with self.db.transaction() as session:
-                current = self.store.read_session(session, session_id)
-                latest = AgentSession.model_validate(current["document"])
-                if latest.board.revision > document.board.revision or latest.cancel_requested:
+                record = self._record(session, session_id)
+                if record.changed_since(document):
                     continue
-                self.store.create_turn(
-                    session,
-                    session_id,
-                    len(turns),
+                record.turn(
                     "agent",
                     "requested",
                     turn_id=turn_id,
@@ -417,13 +351,7 @@ class Harness(ConversationCommands, PlanCommands):
                 )
                 document.budgets.request_turns += 1
                 document.budgets.turns_spent += 1
-                self.store.update_session(
-                    session,
-                    session_id,
-                    current["revision"],
-                    state="running",
-                    document=document.model_dump(),
-                )
+                record.save(document, "running")
             try:
                 log_path = self.db.root / "cache" / "assistant" / f"{session_id}-{len(turns)}.log"
                 log_path.parent.mkdir(parents=True, exist_ok=True)

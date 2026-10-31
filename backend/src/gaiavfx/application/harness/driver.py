@@ -115,11 +115,7 @@ class AgentRunner:
                     self.harness.model.begin(claimed["document"]["settings"], cancelled)
                 self.harness.advance(row["id"])
             except Exception as exc:
-                from gaiavfx.application.harness.session import AgentSession
-
-                document = AgentSession.model_validate(self.harness.read(row["id"])["document"])
-                document.stop_reason = "cancelled by the user" if cancelled() else str(exc)[:400]
-                self.harness._save(row["id"], "stopped" if cancelled() else "failed", document)
+                self.harness.record_failure(row["id"], str(exc), cancelled=cancelled())
                 logger.exception("Agent session %s failed", row["id"])
             finally:
                 state = self.harness.read(row["id"])["state"]

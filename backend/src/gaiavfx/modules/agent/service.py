@@ -177,12 +177,19 @@ class AgentStore:
         session.flush()
         return _record(row)
 
-    def update_turn(self, session, turn_id, state, *, action=None, result=None, receipts=None):
+    def update_turn(
+        self, session, turn_id, state, *, action=None, result=None, receipts=None, provenance=None
+    ):
         row = _get(session, TurnRecord, turn_id)
         if state not in TURN_STATES:
             raise ApplicationError("Invalid agent turn state.", 422)
         row.state, row.updated_at = state, timestamp()
-        for key, value in (("action", action), ("result", result), ("receipts", receipts)):
+        for key, value in (
+            ("action", action),
+            ("result", result),
+            ("receipts", receipts),
+            ("provenance", provenance),
+        ):
             if value is not None:
                 setattr(row, key, deepcopy(value))
         session.flush()

@@ -9,6 +9,7 @@ import time
 from collections import Counter
 
 from gaiavfx.application.harness.commands import jobs_reserved
+from gaiavfx.application.harness.conversation import Record
 from gaiavfx.application.harness.history import (
     attachments,
     latest_user_message,
@@ -63,18 +64,9 @@ class PlanCommands:
         document.plan.revision_requested = True
 
     def _command_save(self, session, row, document, state, role, action):
-        self.store.create_turn(
-            session,
-            row["id"],
-            len(self.store.turns(session, row["id"])),
-            role,
-            "accepted",
-            action=action,
-        )
-        self._summarize(session, row["id"], document)
-        return self.store.update_session(
-            session, row["id"], row["revision"], state=state, document=document.model_dump()
-        )
+        record = Record(self.store, session, row, self._summarize)
+        record.turn(role, action=action)
+        return record.save(document, state, adopt=False)
 
     def approve_plan(self, session_id, expected_revision):
         with self.db.transaction() as session:
@@ -216,6 +208,7 @@ class PlanCommands:
         if not document.plan_mode or not plan or plan.state != "executing":
             return False
         changed = False
+        record = Record(self.store, session, row, self._summarize)
         for step in plan.steps:
             if (
                 step.kind not in {"prepare", "review", "build"}
@@ -231,12 +224,8 @@ class PlanCommands:
                     continue
                 # A discarded version leaves nothing for the plan to build on (ADR 0020 §8).
                 step.status = "done" if outcome["decided"] == "accepted" else "skipped"
-                self.store.create_turn(
-                    session,
-                    row["id"],
-                    len(self.store.turns(session, row["id"])),
+                record.turn(
                     "system",
-                    "accepted",
                     action=outcome["action"],
                     receipts=outcome["receipts"],
                 )
@@ -248,12 +237,8 @@ class PlanCommands:
                 if not message:
                     continue
                 step.status = "done"
-                self.store.create_turn(
-                    session,
-                    row["id"],
-                    len(self.store.turns(session, row["id"])),
+                record.turn(
                     "system",
-                    "accepted",
                     action={"message": message, "review_recast_id": recast_id},
                 )
                 changed = True
@@ -327,17 +312,13 @@ class PlanCommands:
                             )
                         )
                     )
-            self.store.create_turn(
-                session,
-                row["id"],
-                len(self.store.turns(session, row["id"])),
+            record.turn(
                 "system",
-                "accepted",
                 action={"message": message, "review_operation_id": operation["id"]},
             )
             changed = True
         if changed:
-            finish_plan(document, len(self.store.turns(session, row["id"])))
+            finish_plan(document, len(record.turns()))
         return changed
 
     def resume_reviewed(self, session_id):
@@ -349,10 +330,7 @@ class PlanCommands:
             if not self._complete_reviews(session, row, document, throttle=True):
                 return False
             self._reset(document)
-            self._summarize(session, session_id, document)
-            self.store.update_session(
-                session, session_id, row["revision"], state="queued", document=document.model_dump()
-            )
+            Record(self.store, session, row, self._summarize).save(document, "queued", adopt=False)
             return True
 
     @staticmethod

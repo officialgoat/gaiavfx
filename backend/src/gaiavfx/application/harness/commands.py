@@ -1,5 +1,6 @@
 """Conversation commands and payloads for the durable Harness session."""
 
+from gaiavfx.application.harness.conversation import Record
 from gaiavfx.application.harness.scope import scope_state
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX, AgentSession
 from gaiavfx.application.harness.summary import conversation_summary
@@ -50,29 +51,29 @@ class ConversationCommands:
         """Persist the diagnostic and recovery state without assembling context again."""
         reason = ("Context assembly failed: " + str(error))[:1800]
         with self.db.transaction() as session:
-            row = self.store.read_session(session, session_id)
-            latest = AgentSession.model_validate(row["document"])
-            if latest.board.revision > document.board.revision:
-                document.board = latest.board
-            document.cancel_requested = latest.cancel_requested
+            record = self._record(session, session_id)
             document.stop_reason = reason[:400]
-            self.store.create_turn(
-                session,
-                session_id,
-                len(self.store.turns(session, session_id)),
+            record.turn(
                 "system",
-                "accepted",
                 action={"message": reason + ". Post a message to retry."},
                 result={"ok": False, "discrepancy": reason},
                 provenance={"synthetic": True, "reason": "context assembly failed"},
             )
-            return self.store.update_session(
-                session,
-                session_id,
-                row["revision"],
-                state="waiting_human",
-                document=document.model_dump(),
-            )
+            # The retrying message refreshes the summary.
+            return record.save(document, "waiting_human", summarize=False)
+
+    def _record(self, session, session_id):
+        return Record(
+            self.store, session, self.store.read_session(session, session_id), self._summarize
+        )
+
+    def record_failure(self, session_id, reason, *, cancelled):
+        """End a session the runner could not advance, keeping the user's board edits."""
+        with self.db.transaction() as session:
+            record = self._record(session, session_id)
+            document = record.stored()
+            document.stop_reason = "cancelled by the user" if cancelled else reason[:400]
+            return record.save(document, "stopped" if cancelled else "failed")
 
     def _require_current(self, session, row):
         rows = (
@@ -368,41 +369,19 @@ class ConversationCommands:
                 )
             self._reset(document)
             self._complete_reviews(session, row, document)
-            turns = self.store.turns(session, session_id)
+            record = Record(self.store, session, row, self._summarize)
             action = {"message": text.strip(), "attachments": attached}
             if document.plan and document.plan.state == "proposed":
                 self._revision_note(document, text.strip())
                 action["plan_revision_of"] = document.plan.id
-            self.store.create_turn(
-                session,
-                session_id,
-                len(turns),
-                "human",
-                "accepted",
-                action=action,
-                turn_id=turn_id,
-            )
+            record.turn("human", action=action, turn_id=turn_id)
             state = scope_state(
                 session, row["movie_id"], row["scope_kind"], row["scope_id"], "off", self.library
             )
             notes = plate_survey_notes(state)
             if notes:
-                self.store.create_turn(
-                    session,
-                    session_id,
-                    len(self.store.turns(session, session_id)),
-                    "system",
-                    "accepted",
-                    action={"message": " ".join(notes)},
-                )
-            self._summarize(session, session_id, document)
-            return self.store.update_session(
-                session,
-                session_id,
-                row["revision"],
-                state="queued",
-                document=document.model_dump(),
-            )
+                record.turn("system", action={"message": " ".join(notes)})
+            return record.save(document, "queued", adopt=False)
 
     def edit_board(self, session_id, expected_revision, board):
         with self.db.transaction() as session:
