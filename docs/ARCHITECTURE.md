@@ -18,6 +18,31 @@ Paths below are under [backend/src/gaiavfx](../backend/src/gaiavfx).
 
 [frontend/](../frontend) consumes generated Python API contracts; do not hand-edit generated TypeScript. [desktop/](../desktop) hosts the renderer and local service. [comfy_nodes/gaiavfx/](../comfy_nodes/gaiavfx) is the single maintained custom node pack (nine nodes); third-party packs are installed separately.
 
+### Where a concept lives
+
+Each of these concepts has one module, and its callers and tests go through that module's interface. The terms are in [GLOSSARY.md](../GLOSSARY.md).
+
+| Concept | Module | What it owns |
+|---|---|---|
+| Place text | `modules/direction/place_text.py` | The empty-place rule for a place's and an angle's text, enforced by Direction's commands. |
+| Direction journal | `modules/direction/journal.py` | Each command's before and after rows; Undo restores them and refuses when a later edit changed them. |
+| Shot references | `application/shot_references.py` | An opening's or a cut's views, pins and sheet, bound once and lowered into a render's pictures. |
+| Take basis | `application/take_basis.py` | What a take was rendered from, and why it is no longer current, for Program, Export and the Join. |
+| Movie read | `application/movie_read.py` | One read of a movie for the workspace: plans, pins, lanes, selections, receipts and undo targets. |
+| Attempts and outcome | `modules/generation/operations/attempts.py`, `outcome.py` | A producer's tries at one product, and why an operation stopped, as a kind. |
+| Stage build | `application/set_build.py` | A stage build's operation and its readings: state, stop cause, spend. |
+| Stage run plan | `application/sets.py` (`run_plan`, `enqueue_fix`) | What Run queued fixes runs on a version, and the one admission for a fix. |
+| Character derivatives | `application/recast_derivatives.py` | A character's face sheet and voice model: feed, approval, cancel and reconcile. |
+| Run scope | `application/recast_run.py` | Which shots a Recast run renders, its reservation and its estimate. |
+| Shot work | `application/recast_take.py` | The seam through which Recast asks for analyses, replacements, bridges and assembly. |
+| Conversation record | `application/harness/conversation.py` | A session's turns, its saved document and its summary. |
+| Plan proposal checker | `application/harness/tools/plan_check.py` | Completing and checking a proposed plan. |
+| Plan review | `application/harness/session.py` (`ReviewRef`, `Plan.current`) | What the user reviews to finish a step, and the step a plan is on. |
+| Tool admission | each tool's declaration (`application/harness/actions.py` `Tool`) | Which step kind, scope and overflow rank admit a tool; the registry derives its tables. |
+| Process files | `application/process_media.py` | Which media are process files the Library hides. |
+| Typed routes | `frontend/src/shared/routes.ts` | Requests typed from the generated contracts. |
+| Navigator | `frontend/src/app/navigator.ts` | The shell's workspace, Library section, open document and open stage. |
+
 ## From conversation to a take
 
 ```mermaid

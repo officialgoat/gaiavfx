@@ -112,6 +112,9 @@ What answers an Issue: reshoot, extend, retract (exclude) or keep.
 **Build**:
 The work that writes a Stage version: a seed from a Take, or a repair from queued Fixes.
 
+**Run plan**:
+What Run queued fixes would run on the Version the user looks at: its Fixes, in words, or why it cannot run.
+
 **Fill more**:
 A queued extension that fills the space no view has seen.
 _Avoid_: extend (as a user word)
@@ -147,6 +150,9 @@ What is made from a Character's chosen input and waits for the user's approval: 
 **Run**:
 A Recast's render pass over a frame range, in draft or final mode, within a budget.
 
+**Run scope**:
+The Shots a Run renders over its range, what it reserves for each, and what that costs.
+
 **Version (Recast)**:
 One complete, assembled coverage of a Shot, shown blind with a letter.
 
@@ -167,6 +173,12 @@ A list of Steps Gaia proposes and the user approves with a job budget.
 
 **Step**:
 One kind of work in a Plan: edit, prepare, render, pick, review, answer or build.
+
+**Current step**:
+The first Step of a Plan that is not finished; no later Step runs before it.
+
+**Review (of a Step)**:
+What the user reviews to finish a Step: an Operation's candidates, a Stage version a Build proposed, or a Run's versions.
 
 **Grant**:
 What the user's approval of a Plan permits: the step kinds and the job budget.
