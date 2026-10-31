@@ -164,6 +164,11 @@ class SegmentSplitRefusal(ApplicationError):
         self.code = code
 
 
+def _usable(binding):
+    """A reference a shot may use: fresh, and not judged unsuitable for it."""
+    return not binding.stale and binding.suitability != "unsuitable"
+
+
 def _validated(function, *args):
     try:
         return function(*args)
@@ -2365,58 +2370,62 @@ class DirectionService:
         # asks for review. An explicit approval always remains authoritative.
         return [row for row in rows if row.approved or row.asset_id not in inactive_view_assets]
 
+    def _shot_views(self, session, angle_id, inactive_view_assets, judgments=()):
+        """What the place of the shot's angle offers it: the shot's own angle's views as evidence, the bindings of
+        its approved ones, and the place views the planner may use (approved, fresh and not judged unsuitable)."""
+        target = _get(session, AngleRecord, angle_id)
+        place_evidence = self._place_evidence(session, target.place_id, inactive_view_assets)
+        bindings = {
+            row.id: self.reference_binding(session, "view", row.id, judgments)
+            for row in place_evidence
+            if row.approved
+        }
+        usable = [row for row in place_evidence if row.approved and _usable(bindings[row.id])]
+        target_evidence = [row for row in place_evidence if row.angle_id == angle_id]
+        evidence = tuple(
+            Evidence(
+                row.id,
+                row.angle_id,
+                row.kind,
+                row.asset_id,
+                row.approved,
+                bindings[row.id].stale if row.approved else False,
+            )
+            for row in target_evidence
+        )
+        views = {
+            "approved_view_angles": frozenset(row.angle_id for row in usable),
+            "pending_view_angles": frozenset(
+                row.angle_id for row in place_evidence if not row.approved
+            ),
+            "place_views": len(usable),
+        }
+        return (
+            evidence,
+            tuple(bindings[row.id] for row in target_evidence if row.approved),
+            views,
+            {row.id for row in target_evidence},
+        )
+
     def opening_context_and_available(
         self, session: Session, segment_id: str, *, inactive_view_assets=frozenset()
     ) -> tuple[OpeningContext, Available, tuple[Binding, ...]] | None:
         """The opening shot's coverage facts (ADR 0019 §1), or None while the segment names no opening angle.
-        Openings carry no suitability judgments yet."""
+        Openings carry no pins or suitability judgments yet."""
         segment = self.read_segment(session, segment_id)
         angle_id = segment["opening_angle_id"]
         if angle_id is None:
             return None
-        target = _get(session, AngleRecord, angle_id)
-        place_evidence = self._place_evidence(session, target.place_id, inactive_view_assets)
+        evidence, bindings, views, _ = self._shot_views(session, angle_id, inactive_view_assets)
         before = self.predecessor(session, segment)
-        previous = last_angle(before) if before else None
-        bindings = {
-            row.id: self.reference_binding(session, "view", row.id)
-            for row in place_evidence
-            if row.approved
-        }
-
-        def usable(row):
-            return row.approved and not bindings[row.id].stale
-
-        target_evidence = [row for row in place_evidence if row.angle_id == angle_id]
         context = OpeningContext(
             segment_id=segment_id,
             angle=angle_id,
-            previous_angle=previous,
+            previous_angle=last_angle(before) if before else None,
             receives_predecessor=segment["continues"],
-            evidence=tuple(
-                Evidence(
-                    row.id,
-                    row.angle_id,
-                    row.kind,
-                    row.asset_id,
-                    row.approved,
-                    bindings[row.id].stale if row.approved else False,
-                )
-                for row in target_evidence
-            ),
+            evidence=evidence,
         )
-        available = Available(
-            approved_view_angles=frozenset(row.angle_id for row in place_evidence if usable(row)),
-            pending_view_angles=frozenset(
-                row.angle_id for row in place_evidence if not row.approved
-            ),
-            place_views=sum(usable(row) for row in place_evidence),
-        )
-        return (
-            context,
-            available,
-            tuple(bindings[row.id] for row in target_evidence if row.approved),
-        )
+        return context, Available(**views), bindings
 
     def context_and_available(
         self,
@@ -2426,83 +2435,51 @@ class DirectionService:
         inactive_view_assets=frozenset(),
         inactive_pin_assets=frozenset(),
     ) -> tuple[CutContext, Available, tuple[Binding, ...]]:
+        """The shot after a cut: its target angle's views as an opening's, plus the cut's pins."""
         cut = self.read_cut(session, cut_id)
-        target = _get(session, AngleRecord, cut["to_angle_id"])
-        place_evidence = self._place_evidence(session, target.place_id, inactive_view_assets)
-        target_evidence = tuple(row for row in place_evidence if row.angle_id == target.id)
+        judgments = self.suitability(session, cut_id)
+        evidence, view_bindings, views, target_ids = self._shot_views(
+            session, cut["to_angle_id"], inactive_view_assets, judgments
+        )
         keyframes = session.scalars(
             select(KeyframeRecord)
             .where(KeyframeRecord.cut_id == cut_id)
             .order_by(KeyframeRecord.created_at, KeyframeRecord.id)
         ).all()
-        current_evidence_ids = {row.id for row in target_evidence}
         valid_keyframes = [
             row
             for row in keyframes
-            if row.evidence_id in current_evidence_ids
+            if row.evidence_id in target_ids
             and (row.approved or row.approved_at is None)
             and (row.approved or row.asset_id not in inactive_pin_assets)
         ]
-        judgments = self.suitability(session, cut_id)
-        view_bindings = {
-            row.id: self.reference_binding(session, "view", row.id, judgments)
-            for row in place_evidence
-            if row.approved
-        }
         pin_bindings = {
             row.id: self.reference_binding(session, "pin", row.id, judgments)
             for row in keyframes
             if row.approved
         }
-
-        def usable(binding):
-            return not binding.stale and binding.suitability != "unsuitable"
-
-        bindings = tuple(view_bindings[row.id] for row in target_evidence if row.approved) + tuple(
-            pin_bindings.values()
-        )
         context = CutContext(
             cut_id=cut_id,
             from_angle=cut["from_angle_id"],
-            to_angle=target.id,
+            to_angle=cut["to_angle_id"],
             relation=AngleRelation(
                 Relation(cut["relation"]) if cut["relation"] else None,
                 cut["crosses_barrier"],
                 cut["relation_source"],
             ),
             receives_predecessor=cut["receives_predecessor"],
-            evidence=tuple(
-                Evidence(
-                    row.id,
-                    row.angle_id,
-                    row.kind,
-                    row.asset_id,
-                    row.approved,
-                    view_bindings[row.id].stale if row.approved else False,
-                )
-                for row in target_evidence
-            ),
+            evidence=evidence,
             side_facts=cut["side_facts"],
         )
         available = Available(
-            approved_view_angles=frozenset(
-                row.angle_id
-                for row in place_evidence
-                if row.approved and usable(view_bindings[row.id])
-            ),
-            pending_view_angles=frozenset(
-                row.angle_id for row in place_evidence if not row.approved
-            ),
+            **views,
             approved_keyframe_cuts=frozenset(
                 {cut_id}
-                if any(row.approved and usable(pin_bindings[row.id]) for row in valid_keyframes)
+                if any(row.approved and _usable(pin_bindings[row.id]) for row in valid_keyframes)
                 else ()
             ),
             pending_keyframe_cuts=frozenset(
                 {cut_id} if any(not row.approved for row in valid_keyframes) else ()
             ),
-            place_views=sum(
-                row.approved and usable(view_bindings[row.id]) for row in place_evidence
-            ),
         )
-        return context, available, bindings
+        return context, available, view_bindings + tuple(pin_bindings.values())

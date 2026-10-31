@@ -156,13 +156,9 @@ class PrepareCut(TransactionTool):
             raise ApplicationError("Preparation autonomy is off.", 422)
         # A cut, or a segment's first shot (its id the segment's).
         shot = scoped(shots(context.state), value.cut_id, "Cut")
-        from gaiavfx.application.direction_plans import (
-            plan_for_cut,
-            plan_for_opening,
-            plan_for_segment,
-            plan_to_dict,
-        )
+        from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
         from gaiavfx.application.harness.world import operation_view
+        from gaiavfx.application.shot_references import plan_for_cut, plan_for_opening
 
         if value.plate and value.plate.angle_id not in {None, shot["plate_angle_id"]}:
             raise ApplicationError(

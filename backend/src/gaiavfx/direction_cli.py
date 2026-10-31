@@ -14,7 +14,8 @@ from gaiavfx.application.authored import (
     load_survey,
     segment_to_dict,
 )
-from gaiavfx.application.direction_plans import plan_for_cut, plan_to_dict
+from gaiavfx.application.direction_plans import plan_to_dict
+from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.operations import OperationRunner
 from gaiavfx.application.prepare_references import (
     approve_pin,
@@ -26,6 +27,7 @@ from gaiavfx.application.prepare_references import (
     start_survey,
 )
 from gaiavfx.application.render_cut import open_takes_review, start_render
+from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.infrastructure.comfy import ComfyGateway
 from gaiavfx.infrastructure.database import Database
 from gaiavfx.infrastructure.media import MediaTools
@@ -521,7 +523,8 @@ def main(argv: list[str] | None = None, *, comfy=None) -> int:
                 result = {"stopped": True}
         else:
             with db.transaction() as session:
-                result = _dispatch(DirectionService(), session, args)
+                # The configured service: approving a stage view's evidence reads its inputs from Sets.
+                result = _dispatch(DIRECTION, session, args)
         print(json.dumps(result, indent=2))
         return 0
     except (ApplicationError, LibraryError) as exc:

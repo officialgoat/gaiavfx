@@ -2,10 +2,11 @@
 
 from dataclasses import asdict, dataclass, field
 
-from gaiavfx.application.direction_plans import plan_for_cut, plan_for_segment, plan_to_dict
+from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.harness.preparation import PREPARATION, REVIEWED, VIEW_KINDS
 from gaiavfx.application.prepare_references import current_sheet
+from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.service import predecessor_ordinal
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.review import ReviewService

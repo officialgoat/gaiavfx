@@ -2,12 +2,7 @@
 
 from dataclasses import replace
 
-from gaiavfx.application.direction_plans import (
-    cut_gaps,
-    plan_for_cut,
-    plan_for_segment,
-    plan_to_dict,
-)
+from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.harness.actions import Tool, ToolResult, pin_enum
 from gaiavfx.application.harness.shots import take_shots
 from gaiavfx.application.harness.tools.common import TransactionTool, scoped
@@ -19,6 +14,7 @@ from gaiavfx.application.harness.world import (
     operations_for_shot,
     selections,
 )
+from gaiavfx.application.shot_references import cut_gaps, plan_for_cut
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 

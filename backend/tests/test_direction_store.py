@@ -3,7 +3,8 @@
 import pytest
 from sqlalchemy import func, select
 
-from gaiavfx.application.direction_plans import plan_for_cut, plan_to_dict
+from gaiavfx.application.direction_plans import plan_to_dict
+from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.persistence import CutRecord, PlaceRecord
 from gaiavfx.shared.errors import ApplicationError
 

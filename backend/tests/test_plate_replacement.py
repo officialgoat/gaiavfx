@@ -4,7 +4,6 @@ import harness_support
 import pytest
 from harness_eval_tasks import run_idle
 
-from gaiavfx.application.direction_plans import plan_for_cut
 from gaiavfx.application.prepare_references import (
     approve_plate,
     assemble_sheet,
@@ -14,6 +13,7 @@ from gaiavfx.application.prepare_references import (
     start_removal,
 )
 from gaiavfx.application.sheet_recipes import sheet_reference
+from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.shared.errors import ApplicationError
 

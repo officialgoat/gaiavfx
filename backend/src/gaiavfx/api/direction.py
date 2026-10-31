@@ -9,13 +9,10 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field
 from gaiavfx.application import set_scenes, set_seed, sets
 from gaiavfx.application.authored import segment_to_dict
 from gaiavfx.application.continuation import METHODS, grid, set_continuation
-from gaiavfx.application.direction_plans import (
-    plan_for_cut,
-    plan_for_segment,
-    plan_to_dict,
-)
+from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.prepare_references import view_producer
+from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.coverage import COVERAGE_WORDS, Coverage
 from gaiavfx.modules.direction.planning import Action
 from gaiavfx.modules.direction.service import SegmentSplitRefusal

@@ -1182,9 +1182,9 @@ def check(task, work, setup, harness, recorder):
 
 def check_s7b(task, work, setup, harness, recorder):
     from gaiavfx.application.candidate_review import select_take
-    from gaiavfx.application.direction_plans import plan_for_cut
     from gaiavfx.application.harness.session import AgentSession
     from gaiavfx.application.harness.tools.picks import PickProvisional
+    from gaiavfx.application.shot_references import plan_for_cut
     from gaiavfx.modules.editing.selections.service import SelectionService
 
     reasons = []

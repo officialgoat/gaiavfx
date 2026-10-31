@@ -64,13 +64,14 @@ def media(monkeypatch):
 def sheets(monkeypatch):
     """Stand in for the sheet media lookups alone: each place's current sheet is `sheet`, fresh, with the given
     panels. Assembly, binding judgments, lowering and H3's capability checks run for real."""
-    from gaiavfx.application import direction_plans
+    from gaiavfx.application import direction_plans, shot_references
 
     def use(panels):
-        monkeypatch.setattr(direction_plans, "current_sheet", lambda *args: "sheet")
-        monkeypatch.setattr(direction_plans, "sheet_staleness", lambda *args: ())
+        for module in (direction_plans, shot_references):
+            monkeypatch.setattr(module, "current_sheet", lambda *args: "sheet")
+        monkeypatch.setattr(shot_references, "sheet_staleness", lambda *args: ())
         monkeypatch.setattr(
-            direction_plans,
+            shot_references,
             "sheet_reference",
             lambda *args: {"tiles": [], "panels": panels, "blank_panels": 0, "origin": "survey"},
         )

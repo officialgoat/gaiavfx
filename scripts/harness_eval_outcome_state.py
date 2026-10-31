@@ -2,9 +2,10 @@
 
 import json
 
-from gaiavfx.application.direction_plans import plan_for_cut, plan_to_dict
+from gaiavfx.application.direction_plans import plan_to_dict
 from gaiavfx.application.harness.world import maybe_review, review_pending
 from gaiavfx.application.prepare_references import current_sheet
+from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.service import OperationService

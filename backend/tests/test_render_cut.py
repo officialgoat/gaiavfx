@@ -256,7 +256,7 @@ def test_render_refusals_leave_no_operations(store, monkeypatch):
 
 
 def test_compiler_gaps_report_structure_without_rendering(store):
-    from gaiavfx.application.direction_plans import cut_gaps as compiler_gaps
+    from gaiavfx.application.shot_references import cut_gaps as compiler_gaps
 
     db, service = store
     with db.transaction() as session:
@@ -272,7 +272,7 @@ def test_compiler_gaps_report_structure_without_rendering(store):
 
 
 def test_compiler_gaps_use_render_references_and_sheet_capability(store, sheets):
-    from gaiavfx.application import direction_plans
+    from gaiavfx.application import shot_references
 
     db, service = store
     with db.transaction() as session:
@@ -314,7 +314,7 @@ def test_compiler_gaps_use_render_references_and_sheet_capability(store, sheets)
             content={**row["content"], "subjects": ["s1", subject["id"]]},
         )
         sheets(panels=2)
-        result = direction_plans.cut_gaps(session, cut["id"])
+        result = shot_references.cut_gaps(session, cut["id"])
         assert "sheet_several_subjects" in {gap["code"] for gap in result}
         assert all(set(gap) == {"code", "message"} for gap in result)
         assert OperationService().recent(session) == []
