@@ -1,292 +1,31 @@
 """Fingerprinted orchestration tasks on the fake ComfyUI, never inference-quality tests.
 
 Fingerprints cover the parsed task contract and the authored fixture data, not Python
-source formatting. Checks use only public services and durable turns.
+source formatting. Checks use only public services and durable turns. The fixtures
+themselves are built by harness_eval_fixtures.
 """
 
 import hashlib
-import io
 import json
-import struct
-import subprocess
-import sys
-from copy import deepcopy
 from dataclasses import dataclass, field
-from pathlib import Path
-from threading import Lock
 
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "backend" / "tests"))
-
-from fake_comfy import FakeComfy
-from gaiavfx.application.authored import import_segment
-from gaiavfx.application.operations import OperationRunner
-from gaiavfx.application.workspace import Workspace
-from gaiavfx.modules.direction.service import DirectionService, last_angle
+from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
-from gaiavfx.modules.library.application import LibraryService
 from gaiavfx.shared.errors import ApplicationError
-from PIL import Image
+from harness_eval_fixtures import (
+    FIXTURE_DEFAULTS,
+    MEDIA,
+    authored,
+    dz_library,
+    prepare_fixture,
+    prepare_segment_fixture,
+    uncut_second_segment,
+)
 
-AUTHORED = ROOT / "backend" / "tests" / "fixtures" / "parity" / "authored"
-MEDIA = ROOT / "backend" / "tests" / "fixtures" / "harness"
-MIGRATIONS = ROOT / "backend" / "migrations"
 direction = DirectionService()
 operations = OperationService()
 reviews = ReviewService()
-_MIGRATION_LOCK = (
-    Lock()
-)  # Alembic's context proxy is process-global, even for distinct DBs.
-FIXTURE_DEFAULTS = {
-    "relation": "reverse",
-    "place_text": True,
-    "plate": True,
-    "insertion": True,
-    "autonomy": "prepare",
-    "budget": 6,
-    "second_segment": False,
-    "empty_movie": False,
-}
-
-
-def authored(name):
-    return json.loads((AUTHORED / (name + ".json")).read_text("utf-8"))
-
-
-def png(color):
-    stream = io.BytesIO()
-    Image.new("RGB", (32, 24), color).save(stream, "PNG")
-    return stream.getvalue()
-
-
-def context_bytes():
-    header = json.dumps(
-        {
-            "__metadata__": {"format": "h3_motion_context_av_v1"},
-            "video": {"shape": [1, 1, 1, 1, 1]},
-            "audio": {"shape": [1, 1, 1, 1]},
-        }
-    ).encode()
-    return struct.pack("<Q", len(header)) + header
-
-
-def dz_library(
-    tmp_path,
-    *,
-    relation="reverse",
-    place_text=True,
-    plate=True,
-    insertion=True,
-    autonomy="prepare",
-    budget=6,
-    second_segment=False,
-    empty_movie=False,
-    plan_mode=False,
-    attachments=(),
-    no_cast=False,
-):
-    tmp_path.mkdir(parents=True, exist_ok=True)
-    root = tmp_path / "library"
-    with _MIGRATION_LOCK:
-        LibraryService(root, MIGRATIONS).create("Harness eval")
-    work = Workspace(root)
-    settings = {
-        **work.settings(),
-        "agent_autonomy": autonomy,
-        "agent_budget_jobs": budget,
-    }
-    work.save_settings(settings)
-
-    def image_asset(name, color):
-        path = tmp_path / (name + ".png")
-        path.write_bytes(png(color))
-        prepared = work.library.prepare(path, path.name)
-        with work.db.transaction() as session:
-            return work.library.register(session, prepared, {"type": "import"})["id"]
-
-    identity_path = tmp_path / "Walker.jpg"
-    identity_path.write_bytes((MEDIA / "Walker.jpg").read_bytes())
-    prepared = work.library.prepare(identity_path, identity_path.name)
-    with work.db.transaction() as session:
-        identity = work.library.register(session, prepared, {"type": "import"})["id"]
-    plate_asset = image_asset("Empty courtyard", (80, 100, 120))
-    video = tmp_path / "take.mp4"
-    video.write_bytes((MEDIA / "take.mp4").read_bytes())
-    prepared = work.library.prepare(video, video.name)
-    with work.db.transaction() as session:
-        take = work.library.register(session, prepared, {"type": "import"})["id"]
-    # Fake producer output must cover the survey's extraction offsets (through
-    # frame 102). Reference reading still receives the original three-second clip.
-    produced_video = tmp_path / "fake-take.mp4"
-    subprocess.run(
-        [
-            str(work.media.ffmpeg),
-            "-loglevel",
-            "error",
-            "-i",
-            str(video),
-            "-vf",
-            "tpad=stop_mode=clone:stop_duration=3",
-            "-frames:v",
-            "124",
-            "-c:v",
-            "libx264",
-            "-crf",
-            "29",
-            str(produced_video),
-        ],
-        check=True,
-        stdin=subprocess.DEVNULL,
-        capture_output=True,
-    )
-    latent = tmp_path / "context.safetensors"
-    latent.write_bytes(context_bytes())
-    prepared = work.library.prepare_artifact(latent)
-    with work.db.transaction() as session:
-        artifact = work.library.register_artifact(session, prepared)["id"]
-
-    def outputs_for(graph):
-        classes = {node["class_type"] for node in graph.values()}
-        if "TextEncodeQwenImageEditPlus" in classes:
-            seed = graph["sample"]["inputs"]["seed"]
-            return {"save": {"images": [{"filename": "edit.png", "type": "output"}]}}, {
-                "save:images:0": png((seed % 256, 40, 60))
-            }
-        return {
-            "save_video": {
-                "images": [{"filename": "take.mp4", "type": "output"}],
-                "animated": [True],
-            }
-        }, {
-            "save_video:images:0": produced_video.read_bytes(),
-            "context": context_bytes(),
-        }
-
-    fake = FakeComfy(outputs_for, polls_to_complete=1)
-    survey_text = authored("SV-C2B")
-    wording = {
-        key: value
-        for key, value in authored("IN-DZ").items()
-        if key not in {"seed", "view", "subject"} and value is not None
-    }
-    with work.db.transaction() as session:
-        movie = direction.create_movie(session, "Courtyard")
-        place = direction.create_place(session, "Courtyard")
-        angles = [
-            direction.add_angle(session, place["id"], name)
-            for name in ("gate", "along", "reverse")
-        ]
-        if place_text:
-            direction.update_place(
-                session,
-                place["id"],
-                1,
-                description=survey_text["what"],
-                sound=survey_text["sound"],
-                overhead=survey_text["overhead"],
-            )
-            for angle, description in zip(
-                angles,
-                [survey_text["first_view"], *[v[1] for v in survey_text["views"]]],
-                strict=False,
-            ):
-                direction.update_angle(session, angle["id"], 1, description=description)
-        if plate:
-            direction.set_plate(
-                session, place["id"], asset_id=plate_asset, angle_id=angles[0]["id"]
-            )
-        if empty_movie and not no_cast:
-            direction.add_subject(
-                session,
-                movie["id"],
-                1,
-                name="Arin",
-                description="A walker",
-                keeps=["plaid shirt"],
-                identity_asset_id=identity,
-            )
-        if empty_movie:
-            segment, cut = None, None
-        else:
-            segment_doc = deepcopy(authored("DZ")["segment"])
-            segment_doc["subjects"][0]["identity_asset"] = identity
-            segment = import_segment(session, movie["id"], 1, segment_doc)
-            cut = direction.create_cut(
-                session,
-                segment["id"],
-                segment["revision"],
-                frame=36,
-                from_angle_id=angles[0]["id"],
-                to_angle_id=angles[2]["id"],
-                relation=relation,
-                crosses_barrier=(relation == "reverse") if relation else None,
-                relation_source="authored" if relation else "unknown",
-                receives_predecessor=True,
-            )
-            if insertion:
-                cut = direction.update_cut(
-                    session, cut["id"], cut["revision"], insertion=wording
-                )
-        second, second_cut = None, None
-        if second_segment:
-            second_doc = deepcopy(authored("TC")["segment"])
-            second_doc["subjects"][0]["identity_asset"] = identity
-            revision = direction.read_movie(session, movie["id"])["revision"]
-            second = import_segment(session, movie["id"], revision, second_doc)
-            second_cut = direction.create_cut(
-                session,
-                second["id"],
-                second["revision"],
-                frame=36,
-                from_angle_id=angles[0]["id"],
-                to_angle_id=angles[1]["id"],
-                relation="same_direction",
-                crosses_barrier=False,
-                relation_source="authored",
-                receives_predecessor=True,
-            )
-    return work, {
-        "plan_mode": plan_mode,
-        "attachments": [
-            {"Walker": identity, "Empty courtyard": plate_asset, "take": take}[name]
-            for name in attachments
-        ],
-        "movie_id": movie["id"],
-        "segment_id": segment["id"] if segment else None,
-        "cut_id": cut["id"] if cut else None,
-        "place_id": place["id"],
-        "angles": [a["id"] for a in angles],
-        "take": take,
-        "identity": identity,
-        "plate": plate_asset,
-        "artifact": artifact,
-        "wording": wording,
-        "fake": fake,
-        "second_segment_id": second["id"] if second else None,
-        "second_cut_id": second_cut["id"] if second_cut else None,
-        "settings": settings,
-    }
-
-
-def run_idle(work, fake):
-    from harness_eval_replacement import SyntheticReplacement
-
-    if isinstance(fake, SyntheticReplacement):
-        return fake.drain(work)
-    runner = OperationRunner(
-        work.db, fake, work.library, "http://fake-comfy", poll_seconds=0
-    )
-    for _ in range(60):
-        if not runner.run_once():
-            return
-    raise AssertionError("Fake operation queue did not drain")
-
-
-def close(work):
-    work.telemetry.close()
-    work.credentials.close()
-    work.db.close()
 
 
 @dataclass(frozen=True)
@@ -389,16 +128,12 @@ class Task:
 
             return build(self, path)
         work, setup = dz_library(path, **self.fixture)
-        prepare_fixture(self, work, setup)
+        if (
+            self.id in S7B_IDS or self.criteria.get("preselect")
+        ) and not self.fixture.get("empty_movie"):
+            prepare_fixture(self, work, setup)
         if self.id == "hard-cut-at-frame-36":
-            with work.db.transaction() as session:
-                receipt = next(
-                    r
-                    for r in direction.receipts(session, setup["movie_id"])
-                    if r["command"] == "create_cut"
-                    and r["after"]["record"]["id"] == setup["second_cut_id"]
-                )
-                direction.undo(session, receipt["id"])
+            uncut_second_segment(work, setup)
         if "segment_cuts" in self.criteria:
             prepare_segment_fixture(self, work, setup)
         return work, setup
@@ -734,89 +469,6 @@ S7D2_TASKS = (
 )
 S7D2_IDS = {task.id for task in S7D2_TASKS}
 TASKS += S7D2_TASKS
-
-
-def prepare_fixture(task, work, setup):
-    """Real public flows build predecessor takes and stale sheets on the fake."""
-    from gaiavfx.application.candidate_review import select_take
-    from gaiavfx.application.prepare_references import (
-        assemble_sheet,
-        sheet_tiles_for_place,
-    )
-    from gaiavfx.application.render_cut import open_takes_review, start_render
-
-    if (
-        task.id not in S7B_IDS and not task.criteria.get("preselect")
-    ) or task.fixture.get("empty_movie"):
-        return
-    with work.db.transaction() as session:
-        if task.fixture.get("second_segment"):
-            source_cut = setup["cut_id"]
-            setup["first_segment_id"] = setup["segment_id"]
-            setup["first_cut_id"] = source_cut
-            setup["cut_id"] = setup["second_cut_id"]
-            setup["segment_id"] = setup["second_segment_id"]
-        else:
-            doc = deepcopy(authored("TC")["segment"])
-            doc["subjects"][0]["identity_asset"] = setup["identity"]
-            movie = direction.read_movie(session, setup["movie_id"])
-            first = import_segment(session, movie["id"], movie["revision"], doc, at=0)
-            setup["first_segment_id"] = first["id"]
-            source = direction.create_cut(
-                session,
-                first["id"],
-                first["revision"],
-                frame=36,
-                from_angle_id=setup["angles"][0],
-                to_angle_id=setup["angles"][1],
-                relation="same_direction",
-                crosses_barrier=False,
-                relation_source="authored",
-                receives_predecessor=True,
-            )
-            source_cut = source["id"]
-        rendered = start_render(
-            session,
-            cut_id=source_cut,
-            seeds=[901, 902],
-            context_artifact=setup["artifact"],
-        )
-        setup["fixture_render"] = rendered["id"]
-    run_idle(work, setup["fake"])
-    with work.db.transaction() as session:
-        review = open_takes_review(session, rendered["id"])
-        if task.criteria.get("preselect", True):
-            select_take(
-                session,
-                review_set_id=review["id"],
-                candidate_id=review["members"][0]["candidate_id"],
-                authority="user",
-                expected_revision=0,
-            )
-        if task.criteria.get("stale_sheet"):
-            evidence = []
-            for angle in setup["angles"][1:]:
-                row = direction.record_evidence(
-                    session, angle, "imported", setup["plate"]
-                )
-                evidence.append(direction.approve_evidence(session, row["id"]))
-            pin = direction.record_keyframe(
-                session, setup["cut_id"], setup["plate"], evidence[-1]["id"]
-            )
-            direction.approve_keyframe(session, pin["id"])
-            assemble_sheet(
-                session,
-                place_id=setup["place_id"],
-                tiles=sheet_tiles_for_place(session, setup["place_id"]),
-                origin="survey",
-            )
-    if task.criteria.get("stale_sheet"):
-        run_idle(work, setup["fake"])
-        with work.db.transaction() as session:
-            row = direction.record_evidence(
-                session, setup["angles"][0], "imported", setup["plate"]
-            )
-            direction.approve_evidence(session, row["id"])
 
 
 def fingerprints():
@@ -1583,82 +1235,6 @@ SEGMENT_TASKS = tuple(
     for count in (0, 2)
 )
 TASKS += SEGMENT_TASKS
-
-
-def prepare_segment_fixture(task, work, setup):
-    with work.db.transaction() as session:
-        segment = direction.read_segment(session, setup["segment_id"])
-        if task.criteria["segment_cuts"] == 0:
-            receipt = next(
-                r
-                for r in direction.receipts(session, setup["movie_id"])
-                if r["command"] == "create_cut"
-                and r["after"]["record"]["id"] == setup["cut_id"]
-            )
-            direction.undo(session, receipt["id"])
-            # An uncut continuation of the same shot opens where its predecessor ends; a new angle at the join
-            # is a cut, which the rule hands over by paired latents (docs/CONTINUATION.md).
-            segment = direction.read_segment(session, segment["id"])
-            direction.update_segment(
-                session,
-                segment["id"],
-                segment["revision"],
-                opening_angle_id=last_angle(direction.predecessor(session, segment)),
-            )
-        else:
-            direction.add_phase(
-                session,
-                segment["id"],
-                segment["revision"],
-                start_frame=72,
-                content={
-                    "description": "The walker pauses.",
-                    "screen_direction": "",
-                    "sound": "Wind.",
-                },
-            )
-            segment = direction.read_segment(session, segment["id"])
-            direction.create_cut(
-                session,
-                segment["id"],
-                segment["revision"],
-                frame=72,
-                from_angle_id=segment["cuts"][-1]["to_angle_id"],
-                to_angle_id=setup["angles"][0],
-                relation="same_direction",
-                crosses_barrier=False,
-                relation_source="authored",
-                receives_predecessor=True,
-            )
-
-            # Both pins and the one shared sheet travel through the product path.
-            for cut in direction.read_segment(session, segment["id"])["cuts"]:
-                direction.update_cut(
-                    session,
-                    cut["id"],
-                    cut["revision"],
-                    override_technique="views_and_pin",
-                )
-                view = direction.record_evidence(
-                    session, cut["to_angle_id"], "imported", setup["plate"]
-                )
-                direction.approve_evidence(session, view["id"])
-                pin = direction.record_keyframe(
-                    session, cut["id"], setup["plate"], view["id"]
-                )
-                direction.approve_keyframe(session, pin["id"])
-            from gaiavfx.application.prepare_references import (
-                assemble_sheet,
-                sheet_tiles_for_place,
-            )
-
-            assemble_sheet(
-                session,
-                place_id=setup["place_id"],
-                tiles=sheet_tiles_for_place(session, setup["place_id"]),
-                origin="survey",
-            )
-    run_idle(work, setup["fake"])
 
 
 def check_segment_render(task, work, setup, harness, recorder):

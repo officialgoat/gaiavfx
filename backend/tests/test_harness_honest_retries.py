@@ -5,7 +5,7 @@ from pathlib import Path
 
 import harness_support
 import pytest
-from harness_eval_tasks import run_idle
+from harness_eval_fixtures import run_idle
 from harness_kernel_support import approved_views, context_for, post, prepare, prepare_grant, survey
 from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from harness_support import action
@@ -415,7 +415,8 @@ def test_h3_rejection_note_alone_requires_crossing_edit(world):
 
 
 def test_h4_real_resume_refuses_run7_claim_then_reports_zero_usable(tmp_path):
-    from harness_eval_tasks import TASKS, close
+    from harness_eval_fixtures import close
+    from harness_eval_tasks import TASKS
     from harness_support import ScriptedClient
 
     from gaiavfx.application.harness.driver import AgentRunner

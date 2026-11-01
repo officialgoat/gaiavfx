@@ -11,11 +11,8 @@ from unittest.mock import patch
 from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.tools import recast as tools
-from gaiavfx.application.workspace import Workspace
 from gaiavfx.modules.agent.service import AgentStore
-from gaiavfx.modules.direction.service import DirectionService
-from gaiavfx.modules.library.application import LibraryService
-from PIL import Image
+from harness_eval_fixtures import close, recast_library, recast_study
 
 SCENARIOS = {
     "recast-lookalikes": (
@@ -120,87 +117,14 @@ def sequence(mode):
     ]
 
 
-def state(mode, identity):
-    character = {
-        "id": "c01",
-        "label": "First guide" if mode == "lookalikes" else "Lead",
-        "hidden": False,
-        "screen_time_frames": 200,
-        "target": None,
-    }
-    if mode == "over_budget":
-        character["target"] = {
-            "asset_id": identity,
-            "label": "Osvin",
-            "state": "confirmed",
-            "proposed_by": "user",
-        }
-    return {
-        "id": "fixture-recast",
-        "title": "Recast study",
-        "revision": 1,
-        "film": {"frame_count": 200, "asset_id": "fixture-film"},
-        "characters": [
-            character,
-            *(
-                [{**character, "id": "c02", "label": "Second guide"}]
-                if mode == "lookalikes"
-                else []
-            ),
-        ],
-        "shots": [
-            {
-                "id": f"s{i}",
-                "start": i * 50,
-                "end": (i + 1) * 50,
-                "included": True,
-                "status": "planned",
-                "choice": None,
-                "versions": [],
-                "plan": {
-                    "performers": ["c01"],
-                    "gaps": [],
-                    "renders_per_window": 2,
-                    "windows": [{"start": i * 50, "end": (i + 1) * 50, "length": 56}],
-                },
-            }
-            for i in range(4)
-        ],
-        "run": {"state": "idle", "mode": "draft", "renders_used": 0},
-        "estimate": {"renders": 8},
-    }
-
-
 def run_task(task, sequence, path, *, evidence=None, **unused):
     from harness_eval import Recorder, scripted_model
-    from harness_eval_tasks import _MIGRATION_LOCK, MIGRATIONS, close
 
     if unused.get("model_factory") is not None:
         raise ValueError("Recast evals currently support the scripted backend only.")
-    path.mkdir(parents=True, exist_ok=True)
-    with _MIGRATION_LOCK:
-        LibraryService(path / "library", MIGRATIONS).create("Recast scripted eval")
-    work = Workspace(path / "library")
-    work.save_settings(
-        {**work.settings(), "agent_autonomy": "off", "agent_budget_jobs": RENDER_GRANT}
-    )
-    identity = path / "identity.png"
-    Image.new("RGB", (32, 48), (33, 104, 166)).save(identity)
-    prepared = work.library.prepare(identity, "Target portrait")
-    with work.db.transaction() as session:
-        asset = work.library.register(session, prepared, {"type": "import"})
-        movie = DirectionService().create_movie(session, "Recast conversation")
-        DirectionService().add_subject(
-            session,
-            movie["id"],
-            movie["revision"],
-            name="Target performer",
-            description="A performer",
-            keeps=[],
-            identity_asset_id=asset["id"],
-        )
+    work, movie, asset = recast_library(path, budget=RENDER_GRANT)
     mode = SCENARIOS[task.id][1]
-    current = state(mode, asset["id"])
+    current = recast_study(mode, asset["id"])
     setup = {"mode": mode, "identity": asset["id"]}
     events = []
     recorder = Recorder()

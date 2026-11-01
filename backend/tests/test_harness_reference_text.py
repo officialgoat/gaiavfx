@@ -10,7 +10,7 @@ from dataclasses import replace
 
 import harness_support
 import pytest
-from harness_eval_tasks import run_idle
+from harness_eval_fixtures import run_idle
 from harness_kernel_support import ANGLE, call, context_for, prepare_grant
 from harness_kernel_support import insertion_ready as insertion_ready  # noqa: PLC0414 - fixture
 from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export

@@ -8,7 +8,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
 
-from harness_eval_tasks import close, dz_library
+from harness_eval_fixtures import close, dz_library
 
 from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness

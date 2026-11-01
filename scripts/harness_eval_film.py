@@ -33,9 +33,8 @@ from gaiavfx.application.recast import named_character
 from gaiavfx.application.recast_run import estimate_run
 from gaiavfx.application.workspace import Workspace
 from gaiavfx.modules.agent.service import AgentStore
-from gaiavfx.modules.library.application import LibraryService
-from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
+from harness_eval_fixtures import close, film_workspace, import_image, library_image
 
 ROOT = Path(__file__).resolve().parents[1]
 USABILITY = ROOT / ".cache" / "usability"
@@ -795,35 +794,6 @@ def fresh_copy(library, snapshot):
         lock.release()
 
 
-def seeded_workspace(path):
-    from harness_eval_tasks import _MIGRATION_LOCK, MIGRATIONS
-
-    with _MIGRATION_LOCK:
-        LibraryService(path / "library", MIGRATIONS).create("Film scripted eval")
-    work = Workspace(path / "library")
-    work.save_settings(
-        {**work.settings(), "agent_autonomy": "off", "agent_budget_jobs": 6}
-    )
-    return work
-
-
-def import_image(work, name):
-    prepared = work.library.prepare(IMAGE, name)
-    with work.db.transaction() as session:
-        asset = work.library.register(session, prepared, {"type": "import"})
-    return {"id": asset["id"], "name": name}
-
-
-def library_image(work):
-    with work.db.transaction() as session:
-        images = [
-            a
-            for a in MediaLibrary.imported_sources(session, 24)
-            if a["kind"] == "image"
-        ]
-    return images[0] if images else None
-
-
 class Conversation:
     """The eval as the user: messages, plan approvals and reviews through the harness's public commands."""
 
@@ -914,7 +884,6 @@ def run_task(
     from harness_eval_film_checks import evaluate
     from harness_eval_outcomes import DEFINITIONS
     from harness_eval_scripts import FILM_PRELUDE
-    from harness_eval_tasks import close
 
     path.mkdir(parents=True, exist_ok=True)
     label = f"library:{Path(film_library).name}" if film_library else film
@@ -932,7 +901,7 @@ def run_task(
                 raise ValueError(
                     f"Unknown film {film!r}; choose one of {', '.join(FILMS)}."
                 )
-            work = seeded_workspace(path)
+            work = film_workspace(path)
             stack.callback(close, work)
             store = SeededFilm(film, FILMS[film])
             image = import_image(work, FILMS[film]["image"])

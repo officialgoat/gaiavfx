@@ -29,6 +29,7 @@ from gaiavfx.application.prepare_references import (
 from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.generation.operations.service import OperationService
+from harness_eval_fixtures import close, run_idle
 from harness_eval_hooks import ConcurrentCutEdit
 from harness_eval_outcome_state import (
     audit,
@@ -38,14 +39,7 @@ from harness_eval_outcome_state import (
     read_state,
 )
 from harness_eval_scripts import GOOD, SAY, candidates, prepare
-from harness_eval_tasks import (
-    FILM_TASKS,
-    QUALITY_TASKS,
-    STAGE_TASKS,
-    TASKS,
-    close,
-    run_idle,
-)
+from harness_eval_tasks import FILM_TASKS, QUALITY_TASKS, STAGE_TASKS, TASKS
 
 
 def missing_required(raw, schema=None, prefix=""):

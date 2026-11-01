@@ -2,7 +2,7 @@
 
 import harness_support
 import pytest
-from harness_eval_tasks import run_idle
+from harness_eval_fixtures import run_idle
 
 from gaiavfx.application.prepare_references import (
     approve_pin,

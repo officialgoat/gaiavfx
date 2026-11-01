@@ -303,8 +303,8 @@ def test_user_plate_and_pin_review_resumes_only_executing_plan(
     tmp_path, monkeypatch, kind, wait_state
 ):
     from harness_eval import ScriptedModel, drive
+    from harness_eval_fixtures import close, dz_library
     from harness_eval_scripts import SAY, STEP_DONE, candidates, plate, prepare
-    from harness_eval_tasks import close, dz_library
 
     from gaiavfx.application.harness.driver import AgentRunner
     from gaiavfx.application.harness.loop import Harness
@@ -424,8 +424,9 @@ def test_user_plate_and_pin_review_resumes_only_executing_plan(
 @pytest.mark.parametrize("decision", ["rank", "select", "early_rank"])
 def test_either_take_ranking_or_user_selection_resumes_and_continue_wins(tmp_path, decision):
     from harness_eval import ScriptedModel, drive
+    from harness_eval_fixtures import close, run_idle
     from harness_eval_scripts import SAY, STEP_DONE, candidates, one_render, smaller_render_plan
-    from harness_eval_tasks import TASKS, close, run_idle
+    from harness_eval_tasks import TASKS
 
     from gaiavfx.application.candidate_review import select_take
     from gaiavfx.application.harness.driver import AgentRunner

@@ -136,8 +136,8 @@ def test_rejection_api_is_required_guarded_durable_and_blind(tmp_path, purpose):
 
 def test_run4_wrong_reverse_rejected_resumes_prepare_and_offers_new_survey(world):
     from harness_eval import ScriptedModel, drive
+    from harness_eval_fixtures import run_idle
     from harness_eval_scripts import SAY, candidates, prepare
-    from harness_eval_tasks import run_idle
 
     from gaiavfx.application.harness.driver import AgentRunner
     from gaiavfx.application.harness.loop import Harness

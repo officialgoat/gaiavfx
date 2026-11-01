@@ -6,7 +6,7 @@ from pathlib import Path
 
 import harness_support
 import pytest
-from harness_eval_tasks import run_idle
+from harness_eval_fixtures import run_idle
 from harness_kernel_support import approved_views, context_for, drafted, executing, prepare
 from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from harness_support import action
@@ -115,7 +115,8 @@ def test_q1_earlier_prepare_can_finish_but_unrelated_later_step_cannot_hide_need
 
 
 def test_q1_render_focus_allows_only_zero_job_sheet_with_existing_prepare_grant(world):
-    from harness_eval_tasks import TASKS, prepare_fixture
+    from harness_eval_fixtures import prepare_fixture
+    from harness_eval_tasks import TASKS
 
     work, setup = world
     prepare_fixture(

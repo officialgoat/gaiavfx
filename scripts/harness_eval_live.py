@@ -15,7 +15,8 @@ from gaiavfx.application.harness.model import (
 from gaiavfx.application.workspace import DEFAULT_SETTINGS, Workspace
 from gaiavfx.infrastructure.assistant_gateway import AssistantGateway
 from gaiavfx.shared.assistant import connection_for
-from harness_eval_tasks import QUALITY_TASKS, TASKS, close
+from harness_eval_fixtures import close
+from harness_eval_tasks import QUALITY_TASKS, TASKS
 
 
 class RecordedAssistant(AssistantModel):
@@ -82,9 +83,7 @@ class RecordedAssistant(AssistantModel):
 
 
 def read_settings(args, cli):
-    library = args.library or Path(
-        os.environ.get("GAIAVFX_LIBRARY", ".cache/library")
-    )
+    library = args.library or Path(os.environ.get("GAIAVFX_LIBRARY", ".cache/library"))
     if args.settings:
         try:
             settings = json.loads(args.settings.read_text("utf-8"))

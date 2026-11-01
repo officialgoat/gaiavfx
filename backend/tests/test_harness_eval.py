@@ -332,7 +332,7 @@ def test_film_library_tier_refuses_unsafe_paths_and_restores_the_copy(tmp_path, 
         query(database, "update settings set value = 'changed'")
     assert query(database, "select value from settings") == [("{}",)]
     # A real library without a recast: the task opens it unpatched, refuses, and leaves it as it was.
-    from harness_eval_tasks import MIGRATIONS
+    from harness_eval_fixtures import MIGRATIONS
 
     from gaiavfx.modules.library.application import LibraryService
 
@@ -527,8 +527,8 @@ def test_local_gate_precedes_settings_or_model_access(capsys, monkeypatch):
 
 
 def test_quality_runner_reviews_an_already_selected_segment(tmp_path):
+    from harness_eval_fixtures import close
     from harness_eval_quality import complete_review
-    from harness_eval_tasks import close
 
     from gaiavfx.modules.editing.selections.service import SelectionService
 

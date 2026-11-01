@@ -484,7 +484,7 @@ def test_k11_prepare_call_must_match_step_target(world):
 
 
 def test_k11_real_stale_selection_keeps_requested_target_and_explains_it(tmp_path):
-    from harness_eval_tasks import close, dz_library
+    from harness_eval_fixtures import close, dz_library
 
     from gaiavfx.application.candidate_review import open_review, select_take
     from gaiavfx.application.harness.view import render_view

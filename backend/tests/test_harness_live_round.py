@@ -273,7 +273,8 @@ def test_l5_chain_request_explicitly_authorizes_render():
 
 
 def test_l5_reviewed_views_and_pin_still_need_free_sheet_assembly(tmp_path):
-    from harness_eval_tasks import TASKS, close, run_idle
+    from harness_eval_fixtures import close, run_idle
+    from harness_eval_tasks import TASKS
     from harness_kernel_support import context_for
 
     from gaiavfx.application.harness.tools.prepare import PrepareCut

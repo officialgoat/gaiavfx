@@ -15,7 +15,7 @@ from gaiavfx.application.prepare_references import (
 
 
 def test_a_newer_survey_supersedes_an_unapproved_older_one(world):  # noqa: F811
-    from harness_eval_tasks import run_idle
+    from harness_eval_fixtures import run_idle
 
     work, setup = world
     prepare = PrepareCut()

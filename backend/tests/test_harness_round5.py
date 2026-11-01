@@ -33,7 +33,7 @@ kernel = harness_support.kernel
 
 
 def test_wrong_plate_retry_uses_original_source_one_job_and_waits_for_its_approval(world):
-    from harness_eval_tasks import run_idle
+    from harness_eval_fixtures import run_idle
 
     work, setup = world
     tool = PrepareCut()
@@ -163,8 +163,8 @@ def test_draft_cuts_rollback_all_beats_and_receipts(kernel):
 
 @pytest.mark.parametrize("kind", ["survey", "removal"])
 def test_prepare_reviews_pause_own_step_then_resume_and_leave_render_review_pending(world, kind):
+    from harness_eval_fixtures import run_idle
     from harness_eval_quality import complete_review
-    from harness_eval_tasks import run_idle
 
     work, setup = world
     harness = Harness(work.db, AgentStore(), None, work.settings)
@@ -228,7 +228,8 @@ def test_orphan_or_reference_only_review_plan_refuses(kernel, kinds):
 
 
 def test_rank_resume_is_snapshot_and_next_model_call_sees_later_selection(tmp_path):
-    from harness_eval_tasks import TASKS, close
+    from harness_eval_fixtures import close
+    from harness_eval_tasks import TASKS
 
     from gaiavfx.application.candidate_review import select_take
     from gaiavfx.application.harness.driver import AgentRunner
@@ -336,7 +337,7 @@ def test_live_e7_waiting_human_completes_removal_review_before_continue(tmp_path
 
 
 def test_large_library_200_assets_30_segments_fits_and_unknown_ids_refuse(world, tmp_path):
-    from harness_eval_tasks import png
+    from harness_eval_fixtures import png
 
     from gaiavfx.application.harness.tools.reads import ReadSegment
 

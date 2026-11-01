@@ -223,7 +223,7 @@ def test_count_is_deterministic_bounded_and_explicit_seeds_are_reproducible():
 
 
 def test_render_count_narrowing_and_backstop(tmp_path):
-    from harness_eval_tasks import close
+    from harness_eval_fixtures import close
 
     from gaiavfx.application.harness.loop import Harness
 

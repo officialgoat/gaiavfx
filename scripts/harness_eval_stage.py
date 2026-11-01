@@ -23,11 +23,11 @@ from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.infrastructure import engines
 from gaiavfx.modules.agent.service import AgentStore
-from set_scene import OPERATIONS, build_scene
+from harness_eval_fixtures import STAGE, built_stage, close, stage_facts, stage_scene
+from set_scene import OPERATIONS
 
 FIXTURE_VERSION = 1
 NOTES = "Movie scope; a synthetic take and fakes for every build stage; no renders, no inference-quality claim."
-STAGE = "Box room stage"
 BUILD_TOOLS = {"build_set_from_take", "fill_set_more"}
 WRITES = BUILD_TOOLS | {"link_set", "save_set_view", "mark_set_issue", "propose_plan"}
 
@@ -72,52 +72,6 @@ def drain(run, rounds=600):
     for _ in range(rounds):
         if not run.run_once():
             return
-
-
-def built_stage(scene):
-    """A stage built from scene 1's first shot, without filling, its v1 accepted: the place is built as it."""
-    work = scene.workspace
-    started = transact(
-        work,
-        set_seed.start_seed,
-        work.library,
-        segment_id=scene.segment["id"],
-        shot=0,
-        name=STAGE,
-        use_for_place=True,
-        fill_unseen=False,
-    )
-    drain(scene.run)
-    set_id = transact(work, OPERATIONS.operation, started["id"])["review"][-1]["set_id"]
-    with work.db.transaction() as session:
-        first = sets.STORE.get(session, set_id)["versions"][0]
-        sets.accept_version(
-            session, work.library, set_id, first["id"], expected_current_id=None
-        )
-    return set_id
-
-
-def facts_of(scene, set_id):
-    """The ids and names a task's messages and scripted controls use."""
-    facts = {
-        "movie": scene.movie["id"],
-        "first": scene.segment["id"],
-        "second": scene.second["id"],
-        "corner": scene.angles["corner"]["id"],
-        "place": scene.place["name"],
-        "stage": set_id,
-        "stage_name": STAGE,
-        "camera": None,
-    }
-    if set_id:
-        state = transact(
-            scene.workspace, sets.set_state, scene.workspace.library, set_id
-        )
-        cameras = [
-            c["label"] for c in (state["version"]["map_meta"] or {}).get("cameras", [])
-        ]
-        facts["camera"] = cameras[min(1, len(cameras) - 1)] if cameras else None
-    return facts
 
 
 # ---------------------------------------------------------------- the user
@@ -412,18 +366,17 @@ def run_task(
     task, sequence, path, *, model_factory=None, settings=None, evidence=None, **unused
 ):
     from harness_eval import Recorder, context_failed, scripted_model
-    from harness_eval_tasks import close
 
     path.mkdir(parents=True, exist_ok=True)
     mode = task.criteria["stage"]
     with ExitStack() as stack:
         # The fakes' GPU stages take the lease of the fake endpoint, never the assistant's (ADR 0015).
         stack.enter_context(patch.object(engines, "free_vram_gb", lambda: None))
-        scene = build_scene(path, second_scene=True)
+        scene = stage_scene(path)
         work = scene.workspace
         stack.callback(close, work)
         set_id = built_stage(scene) if task.criteria.get("built") else None
-        facts = facts_of(scene, set_id)
+        facts = stage_facts(scene, set_id)
         if settings is not None:
             work.save_settings(
                 work.settings()

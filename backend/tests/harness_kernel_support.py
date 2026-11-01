@@ -85,7 +85,7 @@ def prepare(work, setup, **values):
 
 
 def survey(work, setup):
-    from harness_eval_tasks import run_idle
+    from harness_eval_fixtures import run_idle
 
     result = prepare(work, setup, seed=31)
     assert result.ok, result.discrepancy
@@ -106,7 +106,7 @@ def approved_views(work, setup):
 
 @pytest.fixture
 def unplated(tmp_path):
-    from harness_eval_tasks import close, dz_library
+    from harness_eval_fixtures import close, dz_library
 
     work, setup = dz_library(tmp_path, plate=False)
     try:
@@ -117,7 +117,7 @@ def unplated(tmp_path):
 
 @pytest.fixture
 def insertion_ready(tmp_path):
-    from harness_eval_tasks import close, dz_library
+    from harness_eval_fixtures import close, dz_library
 
     work, setup = dz_library(tmp_path, insertion=False)
     with work.db.transaction() as session:

@@ -362,7 +362,8 @@ def test_cut_add_atomic_two_receipts_and_existing_phase(world):
 
 
 def test_render_gating_blind_reads_and_ranked_provisional_picks(tmp_path):
-    from harness_eval_tasks import TASKS, close, run_idle
+    from harness_eval_fixtures import close, run_idle
+    from harness_eval_tasks import TASKS
 
     from gaiavfx.application.candidate_review import select_take
     from gaiavfx.application.harness.tools.picks import PickProvisional
@@ -521,7 +522,8 @@ def test_render_gating_blind_reads_and_ranked_provisional_picks(tmp_path):
 
 
 def test_segment_render_alias_scope_and_unread_guard(tmp_path):
-    from harness_eval_tasks import TASKS, close, run_idle
+    from harness_eval_fixtures import close, run_idle
+    from harness_eval_tasks import TASKS
 
     from gaiavfx.application.harness.tools.render import RenderCandidates
 
@@ -558,7 +560,8 @@ def test_segment_render_alias_scope_and_unread_guard(tmp_path):
 
 
 def test_stale_sheet_reassembly_waits_for_reference_review_and_plan(tmp_path):
-    from harness_eval_tasks import TASKS, close, run_idle
+    from harness_eval_fixtures import close, run_idle
+    from harness_eval_tasks import TASKS
 
     from gaiavfx.application.direction_reading import sheet_reference
 
@@ -751,7 +754,7 @@ def test_inspect_relation_scope_and_atomic_place_edits(world):
 
 
 def test_prepare_survey_review_insertion_and_sheet(world):
-    from harness_eval_tasks import run_idle
+    from harness_eval_fixtures import run_idle
 
     work, setup = world
     context = context_for(work, setup)

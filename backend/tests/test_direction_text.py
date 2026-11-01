@@ -12,7 +12,7 @@ kernel = harness_support.kernel
 
 
 def test_place_angle_text_revisions_and_survey_parity(kernel, monkeypatch):
-    from harness_eval_tasks import authored
+    from harness_eval_fixtures import authored
 
     db, service = kernel.db, DirectionService()
     source = authored("SV-C2B")
@@ -83,7 +83,7 @@ def test_place_angle_text_revisions_and_survey_parity(kernel, monkeypatch):
 
 
 def test_cut_wording_receipt_validation_and_undo(kernel):
-    from harness_eval_tasks import authored
+    from harness_eval_fixtures import authored
     from test_direction_store import make_cut
 
     service = DirectionService()
