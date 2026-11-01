@@ -184,6 +184,8 @@ class LibraryService:
         config.set_main_option(
             "sqlalchemy.url", "sqlite:///" + staging.as_posix().replace("%", "%%")
         )
+        # The staging file is migrated without syncing each statement (migrations/env.py) and synced once below.
+        config.attributes["staging"] = True
         try:
             command.upgrade(config, "head")
             engine = self._engine(staging)
@@ -196,6 +198,8 @@ class LibraryService:
                     session.commit()
             finally:
                 engine.dispose()
+            with staging.open("rb+") as file:
+                os.fsync(file.fileno())
             for folder in ("originals", "generated", "continuations", "exports", "cache"):
                 (self.root / folder).mkdir(exist_ok=True)
             # Windows rename fails if the destination exists. The single-process lock is also held.
