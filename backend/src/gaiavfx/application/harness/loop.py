@@ -429,7 +429,3 @@ def ended_turn(session, operation) -> dict:
         return {"action": ended["action"] | {"message": message}, "receipts": ended["receipts"]}
     message = f"Operation {operation['id']} ({operation['kind']}) ended {operation['state']}"
     return {"action": {"message": f"{message} with {len(operation['candidates'])} candidates."}}
-
-
-def ended_words(session, operation) -> str:
-    return ended_turn(session, operation)["action"]["message"]

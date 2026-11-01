@@ -19,6 +19,7 @@ from test_recast_service import world as world  # noqa: PLC0414 - shared fixture
 from gaiavfx.api.recast import LinesDTO, RecastDTO
 from gaiavfx.application import recast, recast_edits, recast_lines
 from gaiavfx.application import recast_projection as p
+from gaiavfx.infrastructure.database import timestamp
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.assets import AssetRecord
@@ -168,6 +169,38 @@ def analysed(world):
 def rows(world, state):
     with world.db.transaction() as session:
         return {r["segment_key"]: r for r in p.store.load(session, state["id"])["lines"]}
+
+
+def stored_line(world, state, key, character_id, decision, *, proposed_by="user"):
+    """A line row as the store keeps one (ADR 0016 §1), written outside any command."""
+
+    def write(session, library):
+        row, _report = recast.load(session, library, state["id"], state["revision"])
+        operation = state["dialogue"]["operation_id"]
+        now = timestamp()
+        row["lines"] = [
+            r
+            for r in row["lines"]
+            if (r["dialogue_operation_id"], r["segment_key"]) != (operation, key)
+        ]
+        row["lines"].append(
+            {
+                "recast_id": state["id"],
+                "dialogue_operation_id": operation,
+                "segment_key": key,
+                "character_id": character_id,
+                "state": decision,
+                "proposed_by": proposed_by,
+                "start_sample": None,
+                "end_sample": None,
+                "evidence": {},
+                "created_at": now,
+                "decided_at": None if decision == "proposed" else now,
+            }
+        )
+        return recast.finish(session, library, row)
+
+    return checked(world.invoke(write))
 
 
 def entry(world, edit_id):
@@ -408,6 +441,15 @@ def test_analysis_proposals_are_computed_views(world, voice):
         b: {"segments": 2, "seconds": pytest.approx(2.2)},
     }
     assert rows(world, state) == {}  # proposals are never stored
+    # A stored proposal (ADR 0016 §1) shows as its proposer's, and replaces nothing but the view.
+    state = stored_line(world, state, KEYS[0], b, "proposed", proposed_by="agent")
+    proposed = line(world, state, KEYS[0])
+    assert (proposed["character_id"], proposed["state"], proposed["proposed_by"]) == (
+        b,
+        "proposed",
+        "agent",
+    )
+    assert state["lines"]["proposed"] == 6
     # A second recast of the same film shows the analysis as done without asking.
     second = world.create("second")
     assert second["dialogue"]["operation_id"] == state["dialogue"]["operation_id"]
@@ -548,64 +590,6 @@ def test_bulk_confirmation(world, voice):
     assert missing.status == 404
     state = invoke(world, recast_lines.confirm_lines, state, character_id=b, segment_keys=[KEYS[5]])
     assert rows(world, state)[KEYS[5]]["state"] == "confirmed" and KEYS[4] not in rows(world, state)
-
-
-def test_agent_proposals_need_the_users_naming_and_never_override_a_decision(world, voice):
-    state, a, b = analysed(world)
-    unnamed = refused(
-        world,
-        state,
-        recast_lines.propose_line,
-        KEYS[0],
-        b,
-        proposed_by="agent",
-        evidence={"why": "voice"},
-        user_message="whose line is this?",
-    )
-    assert unnamed.status == 422
-    edits = len(state["edits"])
-    state = invoke(
-        world,
-        recast_lines.propose_line,
-        state,
-        KEYS[0],
-        b,
-        proposed_by="agent",
-        evidence={"why": "voice"},
-        user_message="That first line is Tom's.",
-    )
-    assert len(state["edits"]) == edits  # a proposal is not the user's edit
-    proposed = line(world, state, KEYS[0])
-    assert (proposed["character_id"], proposed["state"], proposed["proposed_by"]) == (
-        b,
-        "proposed",
-        "agent",
-    )
-    assert state["lines"]["proposed"] == 6  # the agent's proposal replaced nothing but the view
-    state = invoke(world, recast_lines.confirm_line, state, KEYS[0], character_id=b)
-    assert rows(world, state)[KEYS[0]]["state"] == "confirmed"
-    over = refused(
-        world,
-        state,
-        recast_lines.propose_line,
-        KEYS[0],
-        a,
-        proposed_by="agent",
-        evidence={},
-        user_message="It is Mara's.",
-    )
-    assert over.status == 409
-    bad = refused(
-        world,
-        state,
-        recast_lines.propose_line,
-        KEYS[1],
-        a,
-        proposed_by="agent",
-        evidence={"score": float("nan")},
-        user_message="Mara says it.",
-    )
-    assert bad.status == 422
 
 
 def test_every_line_command_waits_for_a_succeeded_analysis(world, voice):

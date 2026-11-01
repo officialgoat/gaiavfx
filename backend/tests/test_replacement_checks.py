@@ -11,7 +11,6 @@ from test_replacement_runner import work as replacement_work
 
 import gaiavfx.application.replace_character as replacement
 from gaiavfx.application.replacement_checks import face_checks
-from gaiavfx.application.replacement_pixels import invert_performer
 from gaiavfx.application.replacement_steps import inversion_score as REAL_INVERSION_SCORE
 from gaiavfx.modules.recast.application import replacement_policy_text
 from gaiavfx.modules.recast.replacement import (
@@ -28,6 +27,14 @@ from gaiavfx.modules.recast.replacement import (
 )
 
 work = replacement_work
+
+
+def invert_performer(frame, performer, protected):
+    """The frames as the inverted treatment shows them: the performer, less what is protected, in negative."""
+    out = frame.copy()
+    invert = performer & ~protected
+    out[invert] = 255 - out[invert]
+    return out
 
 
 @pytest.fixture

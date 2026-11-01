@@ -205,17 +205,3 @@ def sample_video(media, source: Path, folder: Path, start_us, end_us, cancelled,
         {**frame, "index": i, "path": str(folder / f"raw-{i}.jpg")}
         for i, frame in enumerate(selected)
     ]
-
-
-def overlapping_batches(frames, maximum):
-    if maximum < 1 or (len(frames) > 1 and maximum < 2):
-        raise ApplicationError(
-            "Increase the observation context to fit at least two ordered frames.", 422
-        )
-    offset = 0
-    while offset < len(frames):
-        batch = frames[offset : offset + maximum]
-        yield batch
-        if offset + maximum >= len(frames):
-            break
-        offset += maximum - 1

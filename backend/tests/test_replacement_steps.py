@@ -9,7 +9,6 @@ from gaiavfx.application.replacement_pixels import (
     cut_check,
     detect_letterbox,
     head_mask,
-    invert_performer,
     paste,
     uncrop,
 )
@@ -19,7 +18,7 @@ from gaiavfx.modules.recast.replacement import Box, CropPlan
 from gaiavfx.shared.errors import ApplicationError
 
 
-def test_pixel_centres_inverse_feather_and_inversion():
+def test_pixel_centres_inverse_and_feather():
     rng = np.random.default_rng(3)
     source = rng.integers(0, 256, (48, 64, 3), dtype=np.uint8)
     plan = CropPlan(
@@ -39,13 +38,6 @@ def test_pixel_centres_inverse_feather_and_inversion():
     generated = np.full_like(source, 210)
     composed = paste(source, generated, alpha)
     assert np.array_equal(composed[alpha == 0], source[alpha == 0])
-    performer = np.zeros((48, 64), bool)
-    performer[10:30, 12:32] = True
-    protected = np.zeros_like(performer)
-    protected[20:25, 20:40] = True
-    inverse = invert_performer(source, performer, protected)
-    assert np.array_equal(inverse[performer & ~protected], 255 - source[performer & ~protected])
-    assert np.array_equal(inverse[~performer | protected], source[~performer | protected])
 
 
 @pytest.mark.parametrize("size", [(1792, 1024), (1024, 1792), (1800, 800), (128, 64)])

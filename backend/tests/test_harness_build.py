@@ -11,7 +11,7 @@ from test_set_seed import scene as scene  # noqa: PLC0414 - pytest fixture expor
 from gaiavfx.api.agent import HarnessSessionDTO
 from gaiavfx.application import sets
 from gaiavfx.application.harness.budget import Budget
-from gaiavfx.application.harness.loop import Harness, ended_turn, ended_words
+from gaiavfx.application.harness.loop import Harness, ended_turn
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.plan import PlanStepTool
@@ -193,7 +193,7 @@ def test_a_refused_build_ends_its_step_in_the_seed_s_words(scene):
     seed = operation(s.workspace, started.waits_on)
     with s.workspace.db.transaction() as session:
         h._link_review(document, seed, session)
-        words = ended_words(session, seed)
+        words = ended_turn(session, seed)["action"]["message"]
     assert document.plan.steps[0].status == "skipped"
     assert "The camera stands still in this take" in words
     # Filling would have built it: the agent may offer that, and build again only in an approved plan.
@@ -220,7 +220,7 @@ def test_a_still_shot_builds_when_the_agent_fills_its_unseen_space(scene):
     assert seed["budget_reserved"] == 6
     with s.workspace.db.transaction() as session:
         h._link_review(document, seed, session)
-        assert "is built and filled" in ended_words(session, seed)
+        assert "is built and filled" in ended_turn(session, seed)["action"]["message"]
     assert document.plan.steps[0].status == "awaiting_user"
 
 

@@ -11,7 +11,6 @@ commands; reading the state finds the analysis another recast of the film ran, i
 replaces the analysis module through `sys.modules` (as it replaces film_analysis for `report_for`).
 """
 
-import json
 import logging
 from bisect import bisect_right
 from copy import deepcopy
@@ -393,7 +392,7 @@ def _row(ctx, segment_key):
     )
 
 
-def _new(ctx, segment_key, character_id, state, proposed_by="user", start=None, end=None):
+def _new(ctx, segment_key, character_id, state, start=None, end=None):
     now = timestamp()
     row = {
         "recast_id": ctx.recast["id"],
@@ -401,7 +400,7 @@ def _new(ctx, segment_key, character_id, state, proposed_by="user", start=None, 
         "segment_key": segment_key,
         "character_id": character_id,
         "state": state,
-        "proposed_by": proposed_by,
+        "proposed_by": "user",
         "start_sample": start,
         "end_sample": end,
         "evidence": {},
@@ -587,50 +586,6 @@ def confirm_lines(
         _decide(ctx, key, character_id, "confirmed")
     _no_overlap(ctx, set(keys))
     return _journaled(ctx, "confirm_lines", character_id=character_id, count=len(keys))
-
-
-def propose_line(
-    session,
-    library,
-    recast_id,
-    segment_key,
-    character_id,
-    *,
-    expected_revision,
-    proposed_by,
-    evidence,
-    user_message="",
-):
-    """A proposal (P9's agent tool; no route): never over a decision; an agent must have the user's naming."""
-    ctx = _deciding(session, library, recast_id, expected_revision)
-    _segment(ctx, segment_key)
-    _character(ctx, character_id, visible=True)
-    if proposed_by not in {"agent", "user"}:
-        raise ApplicationError("Unknown line proposer.", 422)
-    if proposed_by == "agent" and not ctx.commands.named_character(
-        ctx.recast, character_id, user_message
-    ):
-        raise ApplicationError("The user must name the character before an agent proposal.", 422)
-    if not isinstance(evidence, dict):
-        raise ApplicationError("Line evidence must be a JSON object.", 422)
-    try:
-        json.dumps(evidence, allow_nan=False)
-    except (TypeError, ValueError) as exc:
-        raise ApplicationError("Line evidence must be finite JSON.", 422) from exc
-    row = _row(ctx, segment_key)
-    if row is not None and row["state"] in {"confirmed", "rejected"}:
-        raise ApplicationError("Clear the line decision before proposing again.", 409)
-    if row is None:
-        row = _new(ctx, segment_key, character_id, "proposed", proposed_by)
-    row.update(
-        character_id=character_id,
-        proposed_by=proposed_by,
-        start_sample=None,
-        end_sample=None,
-        evidence=deepcopy(evidence),
-        decided_at=None,
-    )
-    return ctx.commands.finish(session, library, ctx.recast)  # a proposal is not the user's edit
 
 
 # --- merges -----------------------------------------------------------------------------------------------------------

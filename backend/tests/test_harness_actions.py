@@ -8,8 +8,8 @@ from gaiavfx.application.harness.actions import (
     action_schema,
     branch_by_op,
     parse_action,
-    pin_const,
     pin_enum,
+    pin_property,
 )
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
@@ -25,7 +25,7 @@ class Pick(Tool):
 
     def narrow(self, context):
         schema = pin_enum(self.Input.model_json_schema(), "segment_id", context["segments"])
-        return pin_const(schema, "locked", False)
+        return pin_property(schema, "locked", {"const": False})
 
     def run(self, context, value):
         return value

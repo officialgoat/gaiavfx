@@ -179,13 +179,6 @@ def paste(original, generated, alpha):
     return out
 
 
-def invert_performer(frame, performer, protected):
-    out = frame.copy()
-    invert = performer & ~protected
-    out[invert] = 255 - out[invert]
-    return out
-
-
 def prepare_crop(frame, plan, performer, protected, treatment):
     """Invert a hard mask on the resampled canvas, as in research suite_v2."""
     prepared = crop(frame, plan)

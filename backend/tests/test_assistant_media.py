@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from gaiavfx.infrastructure.assistant_media import overlapping_batches, sample_video
+from gaiavfx.infrastructure.assistant_media import sample_video
 from gaiavfx.infrastructure.media import MediaTools
 from gaiavfx.shared.errors import ApplicationError
 
@@ -29,9 +29,6 @@ def test_samples_include_actual_boundaries_and_deduplicate_pts(tmp_path):
     assert [f["source_us"] for f in frames] == [533333, 1533333, 2533333, 2700000]
     assert all(Path(f["path"]).is_file() for f in frames)
     assert len({f["pts"] for f in frames}) == len(frames)
-    batches = list(overlapping_batches(frames, 3))
-    assert batches[0][-1] == batches[1][0]
-    assert {f["pts"] for batch in batches for f in batch} == {f["pts"] for f in frames}
     short = sample_video(media, source, tmp_path / "short", 501000, 549000, lambda: False)
     assert len(short) == 1 and short[0]["source_us"] == 533333
     targeted = sample_video(
@@ -54,8 +51,6 @@ def test_samples_include_actual_boundaries_and_deduplicate_pts(tmp_path):
     ending = media.ending_frame(source, tmp_path / "ending.png", 501000, 2700000)
     assert ending["source_end_us"] == 2700000
     assert ending["frame_ordinal"] == 80  # 2.666667 s; exclude the frame exactly at out.
-    with pytest.raises(ApplicationError, match="two ordered frames"):
-        list(overlapping_batches(frames, 1))
     with pytest.raises(ApplicationError, match="stopped"):
         sample_video(media, source, tmp_path / "cancelled", 0, 1000000, lambda: True)
     media.stop()

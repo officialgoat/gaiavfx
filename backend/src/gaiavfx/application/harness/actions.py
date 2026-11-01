@@ -189,10 +189,6 @@ def pin_enum(schema, property_name, values):
     return pin_property(schema, property_name, {"enum": list(values)})
 
 
-def pin_const(schema, property_name, value):
-    return pin_property(schema, property_name, {"const": value})
-
-
 def inlined(schema, depth=8):
     """Substitute every ``$ref`` and drop the ``$defs`` it pointed into.
 
