@@ -39,7 +39,8 @@ Check contracts and renderer: `npm run check:contracts` and `npm run build`.
 Python checks: `.venv/Scripts/ruff.exe check backend`.
 Formatting: `.venv/Scripts/ruff.exe format --check backend`.
 Tests: `.venv/Scripts/python.exe -m pytest backend/tests -q -p no:cacheprovider -n 8 --dist worksteal --basetemp C:/gvt/a`.
-Give each run its own short writable `--basetemp`; on other platforms substitute a local temp directory.
+Use a short writable `--basetemp` (on other platforms a local temp directory); pytest clears it at the start of a
+run, so reuse it for runs one after another and give only concurrent runs their own. Full runs write gigabytes.
 Add `--eval` to also run the broad scripted-eval sequences (marked `eval`); the default run keeps one per family.
 Browser tests: `npx playwright install chromium`, then `npm run test:ui`.
 Hygiene: `npm run check:hygiene`; portable Windows build: `npm run package:win`.
