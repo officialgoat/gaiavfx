@@ -19,10 +19,10 @@ from test_recast_service import world as world  # noqa: PLC0414 - shared fixture
 from gaiavfx.api.recast import LinesDTO, RecastDTO
 from gaiavfx.application import recast, recast_edits, recast_lines
 from gaiavfx.application import recast_projection as p
-from gaiavfx.modules.direction import dialogue as rule
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.assets import AssetRecord
+from gaiavfx.modules.recast import dialogue as rule
 from gaiavfx.shared.errors import ApplicationError
 
 LATER = recast_edits.LATER

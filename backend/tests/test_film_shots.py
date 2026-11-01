@@ -10,12 +10,12 @@ import pytest
 
 from gaiavfx.application.recast_steps import detect_shots, scan_frames
 from gaiavfx.infrastructure.media import MediaTools
-from gaiavfx.modules.direction.film import parse_film_policy
+from gaiavfx.modules.recast.film import parse_film_policy
 
 
 def policy():
     return parse_film_policy(
-        resources.files("gaiavfx.modules.direction").joinpath("policy/film.toml").read_text()
+        resources.files("gaiavfx.modules.recast").joinpath("policy/film.toml").read_text()
     )
 
 
@@ -106,7 +106,7 @@ def test_min_scene_len_matches_pyscenedetect_071(cuts):
     ["stride = true", "tau = nan", "min_faces = 0", "min_face_px = -1", "stride = 0", "tau = 1.1"],
 )
 def test_policy_rejects_invalid_values(text):
-    source = resources.files("gaiavfx.modules.direction").joinpath("policy/film.toml").read_text()
+    source = resources.files("gaiavfx.modules.recast").joinpath("policy/film.toml").read_text()
     key = text.split(" = ")[0]
     source = "\n".join(
         text if line.startswith(key + " =") else line for line in source.splitlines()

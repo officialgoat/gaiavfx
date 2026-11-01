@@ -20,11 +20,11 @@ from gaiavfx.application.shot_replacement import (
     start_shot_replacement,
     start_window_analyses,
 )
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import CheckResult
-from gaiavfx.modules.direction.windows import shot_windows
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import CheckResult
+from gaiavfx.modules.recast.windows import shot_windows
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -335,7 +335,7 @@ def test_three_window_operations_assembly_and_lossless_patch(tmp_path, monkeypat
         from gaiavfx.application.shot_assembly import chain_take, window_takes
         from gaiavfx.application.shot_replacement import start_shot_bridge
         from gaiavfx.integrations.minimax_h3 import capabilities
-        from gaiavfx.modules.direction.replacement import (
+        from gaiavfx.modules.recast.replacement import (
             ReplacementFacts,
             from_record,
             parse_replacement_policy,
@@ -532,7 +532,7 @@ def test_shot_user_confirmation_and_typed_gap_rollback(monkeypatch, selected_by,
 
     from gaiavfx.application import shot_replacement as shot
     from gaiavfx.application.replace_character import ReplacementPlanningError
-    from gaiavfx.modules.direction.replacement import Gap
+    from gaiavfx.modules.recast.replacement import Gap
 
     reports = {
         str(i): {"source_asset": "source", "shot_start": a, "shot_end": b}
@@ -620,7 +620,7 @@ def test_latent_continuation_reuses_frozen_crop_policy_and_selection(
     from test_replacement_contract import mug_facts, plan
 
     from gaiavfx.application import shot_replacement as shot
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
 
     crop = plan(mug_facts()).arm.crop
     first = {
@@ -880,7 +880,7 @@ def test_assembly_preserves_plain_record_shape_and_handoff_provenance(monkeypatc
 
 def test_bridge_assembly_streams_delivery_plan_with_two_decoders(monkeypatch):
     from gaiavfx.application import shot_assembly as assembly
-    from gaiavfx.modules.direction.windows import bridge_layout, delivery_plan
+    from gaiavfx.modules.recast.windows import bridge_layout, delivery_plan
 
     windows = [
         {"start": a, "end": b, "asset": str(i)} for i, (a, b, _) in enumerate(shot_windows(0, 175))
@@ -1005,7 +1005,7 @@ def test_head_pass_creates_windows_and_bridge_parents(monkeypatch):
 )
 def test_versions_bind_each_last_take_to_its_bridge(monkeypatch, failed, head, draft):
     from gaiavfx.application import shot_assembly as assembly
-    from gaiavfx.modules.direction.windows import bridge_layout
+    from gaiavfx.modules.recast.windows import bridge_layout
 
     windows = shot_windows(0, 175)
     ops, tables = {}, {}

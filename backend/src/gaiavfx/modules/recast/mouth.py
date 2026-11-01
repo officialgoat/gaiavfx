@@ -7,7 +7,7 @@ the performer's lips, so the facts come from the measured source mouth, not from
 import math
 from dataclasses import dataclass
 
-from gaiavfx.modules.direction.replacement import MouthPolicy
+from gaiavfx.modules.recast.replacement import MouthPolicy
 
 
 @dataclass(frozen=True)

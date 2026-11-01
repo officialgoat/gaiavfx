@@ -27,15 +27,15 @@ from gaiavfx.application.shot_assembly import (
     window_takes,
 )
 from gaiavfx.integrations import minimax_h3
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import (
     CropPlan,
     from_record,
     parse_replacement_policy,
     to_record,
     union_crop,
 )
-from gaiavfx.modules.direction.windows import shot_handoff, shot_windows
+from gaiavfx.modules.recast.windows import shot_handoff, shot_windows
 from gaiavfx.shared.errors import ApplicationError
 
 __all__ = [

@@ -8,14 +8,14 @@ import pytest
 from test_direction_kernel import fake_capabilities
 
 from gaiavfx.integrations.minimax_h3 import capabilities
-from gaiavfx.modules.direction.application import (
+from gaiavfx.modules.recast.application import (
     default_replacement_policy,
 )
-from gaiavfx.modules.direction.application import (
+from gaiavfx.modules.recast.application import (
     replacement_policy_text as shipped_policy_text,
 )
-from gaiavfx.modules.direction.person_crop import to_native
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.person_crop import to_native
+from gaiavfx.modules.recast.replacement import (
     CHECKS,
     Arm,
     Attempt,
@@ -612,7 +612,7 @@ def test_canvas_search_parameters_come_only_from_capabilities():
     )
     restricted = replace(support, canvas_low=512, canvas_high=512, canvas_aspect=(1.0, 1.0))
     assert plan(support=restricted).arm.framing == "active"
-    from gaiavfx.modules.direction.person_crop import canvas_candidates
+    from gaiavfx.modules.recast.person_crop import canvas_candidates
 
     assert canvas_candidates(90000, 16, 300, 320, (0.9, 1.1)) == []
     assert canvas_candidates(100000, 16, 300, 320, (0.9, 1.1)) == [
@@ -631,7 +631,7 @@ def test_canvas_search_parameters_come_only_from_capabilities():
 
 
 def test_bystander_dilation_matches_step0b_without_mutating_track(monkeypatch):
-    from gaiavfx.modules.direction import person_crop
+    from gaiavfx.modules.recast import person_crop
 
     facts = mug_facts()
     original = facts.tracks[1].box
@@ -654,7 +654,7 @@ def test_gap_plans_are_equal_and_dataclass_records_are_safe():
     from dataclasses import asdict
 
     from gaiavfx.modules.direction.capabilities import CapabilityGap
-    from gaiavfx.modules.direction.replacement import ReplacementPlan, from_record, to_record
+    from gaiavfx.modules.recast.replacement import ReplacementPlan, from_record, to_record
 
     for factory in (
         lambda: plan(support=None),
@@ -679,8 +679,8 @@ def test_gap_plans_are_equal_and_dataclass_records_are_safe():
 def test_records_round_trip_typed_values_and_finite_clearance():
     from dataclasses import asdict
 
-    from gaiavfx.modules.direction.person_crop import fit
-    from gaiavfx.modules.direction.replacement import CropPlan, from_record, to_record
+    from gaiavfx.modules.recast.person_crop import fit
+    from gaiavfx.modules.recast.replacement import CropPlan, from_record, to_record
 
     arm = plan().arm
     f = replace(mug_facts(), silent_intervals=((36, 60),))
@@ -722,7 +722,7 @@ def test_records_round_trip_typed_values_and_finite_clearance():
 
 
 def test_motion_context_contract_and_old_facts():
-    from gaiavfx.modules.direction.replacement import from_record, to_record
+    from gaiavfx.modules.recast.replacement import from_record, to_record
 
     facts = replace(mug_facts(), context_frames=22)
     assert plan(facts).arm is not None
@@ -756,7 +756,7 @@ def test_handoff_request_validation():
 
 
 def test_shared_crop_covers_union_and_refuses_avoided_union():
-    from gaiavfx.modules.direction.replacement import union_crop
+    from gaiavfx.modules.recast.replacement import union_crop
 
     first = mug_facts()
     second = replace(first, required_context=(*first.required_context, Box(950, 50, 980, 500)))
@@ -798,7 +798,7 @@ def test_shared_crop_covers_union_and_refuses_avoided_union():
 
 
 def test_handoff_capability_and_old_facts_backfill():
-    from gaiavfx.modules.direction.replacement import from_record, to_record
+    from gaiavfx.modules.recast.replacement import from_record, to_record
 
     facts = replace(mug_facts(), handoff="latent")
     assert CAP.replacement.masked_span

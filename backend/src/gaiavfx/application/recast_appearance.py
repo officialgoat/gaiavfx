@@ -7,7 +7,7 @@ import numpy as np
 from gaiavfx.application import recast as app
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application.replacement_steps import _mask_data
-from gaiavfx.modules.direction.replacement import Box, Track, minor_bystander_reason
+from gaiavfx.modules.recast.replacement import Box, Track, minor_bystander_reason
 from gaiavfx.shared.errors import ApplicationError
 
 # Provisional clothing-similarity gate for suggestions, not a calibrated identity bound.

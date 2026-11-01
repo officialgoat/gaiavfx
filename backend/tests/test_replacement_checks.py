@@ -12,8 +12,8 @@ from test_replacement_runner import work as replacement_work
 import gaiavfx.application.replace_character as replacement
 from gaiavfx.application.replacement_checks import face_checks
 from gaiavfx.application.replacement_steps import inversion_score as REAL_INVERSION_SCORE
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import (
     Attempt,
     Box,
     Calibration,

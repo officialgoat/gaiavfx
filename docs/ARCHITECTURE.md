@@ -27,6 +27,7 @@ Each of these concepts has one module, and its callers and tests go through that
 | Place text | `modules/direction/place_text.py` | The empty-place rule for a place's and an angle's text, enforced by Direction's commands. |
 | Movie structure | `modules/direction/structure.py` | What a movie's rows must hold: nothing hangs on a removed row, and a segment's frames and cut chain hold. Commands check the rows they would leave; Undo the rows it would put back. |
 | Direction journal | `modules/direction/journal.py`, `DirectionService.authored` | The rows an authored intent changed, written as one Receipt; Undo restores them and refuses when a later edit changed them. |
+| Recast rules | `modules/recast/` | Shot replacement facts and planning, crops, head and mouth passes, replacement windows, and the film analysis and dialogue attribution policies, as pure rules with their shipped policies; Direction's timebase and capabilities are the kernel both share. |
 | Stale revision | `shared/errors.py` (`StaleRevision`) | A lost compare-and-set and the revision the record is at now, which the API returns and Gaia words once. |
 | Direction reading | `application/direction_reading.py` | The one configured Direction service and its sheet and set-view readers, which depend on modules only. |
 | Shot bindings | `DirectionService.shot_references`, `planning.Binding` | One shot's views, pins and chosen sheet, judged once for freshness and suitability; a binding words its own problem. |

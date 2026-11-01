@@ -4,9 +4,9 @@ from pathlib import Path
 
 import pytest
 
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.mouth import MouthSeries, quiet_facts
-from gaiavfx.modules.direction.replacement import MouthPolicy, parse_replacement_policy
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.mouth import MouthSeries, quiet_facts
+from gaiavfx.modules.recast.replacement import MouthPolicy, parse_replacement_policy
 
 ROOT = Path(__file__).parents[2]
 POLICY = parse_replacement_policy(replacement_policy_text()).mouth
@@ -60,7 +60,7 @@ def test_small_faces_abstain_instead_of_guessing():
 
 @pytest.mark.parametrize("shot,window", [("056", 0), ("058", 0), ("058", 1), ("053", 0)])
 def test_open_frames_count_measured_joint_lips(shot, window):
-    from gaiavfx.modules.direction.mouth import frame_states
+    from gaiavfx.modules.recast.mouth import frame_states
 
     series, presence = trial(shot, window)
     states = [frame_states(s, p, POLICY) for s, p in zip(series, presence)]

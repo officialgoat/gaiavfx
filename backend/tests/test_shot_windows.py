@@ -3,7 +3,7 @@ from itertools import pairwise
 
 import pytest
 
-from gaiavfx.modules.direction.windows import shot_crop_scale_loss, shot_windows
+from gaiavfx.modules.recast.windows import shot_crop_scale_loss, shot_windows
 
 
 @pytest.mark.parametrize(
@@ -70,7 +70,7 @@ def test_invalid_windows(start, end, length, overlap):
 @pytest.mark.parametrize("count", [3, 4, 7])
 @pytest.mark.parametrize("tail", [23, 30, 60, 73])
 def test_bridge_layout_clips_without_sliding(count, tail):
-    from gaiavfx.modules.direction.windows import bridge_layout, delivery_plan
+    from gaiavfx.modules.recast.windows import bridge_layout, delivery_plan
 
     end = (count - 1) * 51 + tail
     windows = shot_windows(0, end)
@@ -92,7 +92,7 @@ def test_bridge_layout_clips_without_sliding(count, tail):
 
 
 def test_delivery_crossfade_join_preserves_inclusive_weights():
-    from gaiavfx.modules.direction.windows import bridge_layout, delivery_plan
+    from gaiavfx.modules.recast.windows import bridge_layout, delivery_plan
 
     windows = shot_windows(0, 175)
     segments = delivery_plan(windows, bridge_layout(windows, 175)[:1])

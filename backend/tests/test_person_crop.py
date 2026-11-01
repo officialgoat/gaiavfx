@@ -1,6 +1,7 @@
 import pytest
 
-from gaiavfx.modules.direction.person_crop import (
+from gaiavfx.modules.direction.timebase import FrameGrid
+from gaiavfx.modules.recast.person_crop import (
     canvas_candidates,
     choose,
     fit,
@@ -13,8 +14,7 @@ from gaiavfx.modules.direction.person_crop import (
     to_source,
     union,
 )
-from gaiavfx.modules.direction.replacement import presence
-from gaiavfx.modules.direction.timebase import FrameGrid
+from gaiavfx.modules.recast.replacement import presence
 
 BUDGET = 896 * 512
 
@@ -112,7 +112,7 @@ def test_presence_never_treats_a_missing_face_as_absence():
 
 
 def test_scalar_feather_core_and_interior_margins():
-    from gaiavfx.modules.direction.person_crop import core_box, interior_margins, ramp
+    from gaiavfx.modules.recast.person_crop import core_box, interior_margins, ramp
 
     required, _, (chosen, _) = dev_mug()
     edges, box = chosen["interior_edges"], chosen["box"]

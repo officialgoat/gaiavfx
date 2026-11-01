@@ -4,7 +4,7 @@ import math
 from dataclasses import dataclass
 from statistics import median
 
-from gaiavfx.modules.direction import person_crop
+from gaiavfx.modules.recast import person_crop
 
 
 @dataclass(frozen=True)

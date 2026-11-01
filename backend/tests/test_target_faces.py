@@ -19,9 +19,9 @@ from gaiavfx.application.target_faces import (
     target_normalize,
     target_report,
 )
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import parse_replacement_policy
-from gaiavfx.modules.direction.target_face import classify_target_faces
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import parse_replacement_policy
+from gaiavfx.modules.recast.target_face import classify_target_faces
 from gaiavfx.shared.errors import ApplicationError
 
 EVIDENCE = "backend/tests/fixtures/replacement/target-faces-9oct.json"
@@ -311,7 +311,7 @@ def test_portrait_crop_and_sheet_pixels(tmp_path):
 def test_portrait_operation_contract(world):
     from gaiavfx.application.target_faces import start_face_portraits
     from gaiavfx.integrations.qwen_image_edit.prompt import compile_portrait
-    from gaiavfx.modules.direction.portrait import VIEWS, Portrait
+    from gaiavfx.modules.recast.portrait import VIEWS, Portrait
 
     operation = world.invoke(
         start_face_portraits, "picture", [0, 0, 97, 97], seed=271828, request_key="portraits"

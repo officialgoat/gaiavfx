@@ -12,8 +12,8 @@ from fractions import Fraction
 import numpy as np
 
 from gaiavfx.integrations import minimax_h3
-from gaiavfx.modules.direction.head import head_track
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.head import head_track
+from gaiavfx.modules.recast.replacement import (
     CHECKS,
     Arm,
     Box,
@@ -567,7 +567,7 @@ def analysis_extract(context):
         "variable_frame_rate"
     ]:
         from gaiavfx.application.replace_character import ReplacementPlanningError
-        from gaiavfx.modules.direction.replacement import Gap
+        from gaiavfx.modules.recast.replacement import Gap
 
         raise ReplacementPlanningError(
             (Gap("unsupported_fps", "Variable frame rate is unsupported."),)

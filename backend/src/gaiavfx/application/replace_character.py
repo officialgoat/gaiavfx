@@ -22,10 +22,14 @@ from gaiavfx.integrations.minimax_h3.replacement import (
 )
 from gaiavfx.integrations.person_analysis.face_check import build_face_check_graph
 from gaiavfx.integrations.person_analysis.graph import build_analysis_graph
-from gaiavfx.modules.direction import person_crop
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.mouth import MouthSeries, quiet_facts
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
+from gaiavfx.modules.generation.operations.review import ReviewService
+from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast import person_crop
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.mouth import MouthSeries, quiet_facts
+from gaiavfx.modules.recast.replacement import (
     Arm,
     Attempt,
     Box,
@@ -45,11 +49,7 @@ from gaiavfx.modules.direction.replacement import (
     plan_replacement,
     to_record,
 )
-from gaiavfx.modules.direction.windows import bridge_layout
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
-from gaiavfx.modules.generation.operations.review import ReviewService
-from gaiavfx.modules.generation.operations.service import OperationService
-from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast.windows import bridge_layout
 from gaiavfx.shared.errors import ApplicationError
 
 operations = OperationService()

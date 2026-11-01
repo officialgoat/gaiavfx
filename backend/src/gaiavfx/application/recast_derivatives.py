@@ -32,10 +32,10 @@ from gaiavfx.application.target_faces import (
     target_report,
 )
 from gaiavfx.infrastructure.database import timestamp
-from gaiavfx.modules.direction import dialogue as rule
-from gaiavfx.modules.direction.application import default_voice_policy
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast import dialogue as rule
+from gaiavfx.modules.recast.application import default_voice_policy
 from gaiavfx.shared.errors import ApplicationError
 
 NOT_BUILT = "Build the voice to hear an audition."

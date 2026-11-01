@@ -12,10 +12,10 @@ from test_recast_service import world as world  # noqa: PLC0414
 from gaiavfx.application import recast, recast_feed, recast_planning, recast_run, shot_assembly
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import replace_character as app
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import LatentChainPolicy, parse_replacement_policy
-from gaiavfx.modules.direction.windows import latent_chain_allowed, shot_windows
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import LatentChainPolicy, parse_replacement_policy
+from gaiavfx.modules.recast.windows import latent_chain_allowed, shot_windows
 
 TEXT = replacement_policy_text()
 OLD = re.sub(r"(?ms)^\[latent_chain\]\n.*?(?=^\[|\Z)", "", TEXT)
@@ -206,7 +206,7 @@ def test_continuation_checks_last_saved_latent_and_pins_first_snapshot(monkeypat
     from test_replacement_contract import mug_facts, plan
 
     from gaiavfx.application import shot_replacement as shot
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
     from gaiavfx.shared.errors import ApplicationError
 
     crop = to_record(plan(mug_facts()).arm.crop)

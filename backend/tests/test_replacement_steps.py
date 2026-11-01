@@ -16,7 +16,7 @@ from gaiavfx.application.replacement_steps import (
     uncrop,
 )
 from gaiavfx.infrastructure.media import MediaTools
-from gaiavfx.modules.direction.replacement import Box, CropPlan
+from gaiavfx.modules.recast.replacement import Box, CropPlan
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -75,7 +75,7 @@ def test_composite_keeps_native_delivery_and_legacy_geometry_but_bounds_evidence
 
     import gaiavfx.application.replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -302,7 +302,7 @@ def test_prepare_holds_last_frame_and_keeps_source_unchanged(tmp_path, monkeypat
 
     import gaiavfx.application.replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -376,7 +376,7 @@ def test_locked_guide_pads_real_silence_and_unlocked_guide_keeps_legacy_bytes(
 
     import gaiavfx.application.replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -523,8 +523,8 @@ def test_unmeasured_geometry_retries_only_textured_background(tmp_path, monkeypa
 
     import gaiavfx.application.replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.application import replacement_policy_text
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.application import replacement_policy_text
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -604,7 +604,7 @@ def test_bt709_limited_h264_aac_composite_rgb_pcm_and_click_sync(tmp_path, monke
 
     import gaiavfx.application.replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -859,8 +859,8 @@ def test_window_mouths_give_a_shared_face_to_the_track_it_overlaps_most():
 
 def test_head_alpha_has_finite_support_exact_core_and_parent_pixels():
     from gaiavfx.application.replacement_steps import head_alpha
-    from gaiavfx.modules.direction.head import HeadPolicy
-    from gaiavfx.modules.direction.person_crop import fit
+    from gaiavfx.modules.recast.head import HeadPolicy
+    from gaiavfx.modules.recast.person_crop import fit
 
     native = (256, 256)
     plan = CropPlan.from_geometry(fit((80, 80, 176, 176), native, native, 16, (0, 0, *native)), 16)
@@ -898,10 +898,10 @@ def test_negative_head_render_measures_inversion_on_head_canvas_without_body_cal
 
     from gaiavfx.application import replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.application import replacement_policy_text
-    from gaiavfx.modules.direction.head import head_track
-    from gaiavfx.modules.direction.person_crop import fit
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.application import replacement_policy_text
+    from gaiavfx.modules.recast.head import head_track
+    from gaiavfx.modules.recast.person_crop import fit
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -1002,7 +1002,7 @@ def test_prepare_context_is_lossless_masked_rgb_and_does_not_change_guide(
 
     from gaiavfx.application import replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.replacement import (
         Arm,
         Performer,
         ReplacementFacts,
@@ -1094,8 +1094,8 @@ def test_composite_tone_report_and_legacy_pixels(tmp_path, monkeypatch, anchored
     from gaiavfx.application import replacement_steps as steps
     from gaiavfx.application import tone_anchor as tone
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.application import replacement_policy_text
-    from gaiavfx.modules.direction.replacement import Arm, to_record
+    from gaiavfx.modules.recast.application import replacement_policy_text
+    from gaiavfx.modules.recast.replacement import Arm, to_record
 
     film = np.full((1, 96, 128, 3), 100, np.uint8)
     raw = np.full((1, 64, 64, 3), 80, np.uint8)
@@ -1201,7 +1201,7 @@ def test_bridge_prepare_rebuilds_raw_neighbours_and_pads_short_tail(tmp_path, mo
 
     from gaiavfx.application import replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext
-    from gaiavfx.modules.direction.replacement import Arm, to_record
+    from gaiavfx.modules.recast.replacement import Arm, to_record
 
     facts = mug_facts(48)
     facts = replace(

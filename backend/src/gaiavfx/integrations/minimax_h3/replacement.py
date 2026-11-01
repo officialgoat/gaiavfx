@@ -13,7 +13,7 @@ from gaiavfx.integrations.minimax_h3 import capabilities
 from gaiavfx.integrations.minimax_h3.graph import RenderPresets, render_presets
 from gaiavfx.integrations.minimax_h3.prompt import H3Prompt
 from gaiavfx.modules.direction.capabilities import CapabilityGap
-from gaiavfx.modules.direction.replacement import Arm, ReplacementFacts
+from gaiavfx.modules.recast.replacement import Arm, ReplacementFacts
 
 # Templates have closed names AND closed parameters; knowledge files are data.
 PARAMETERS = {

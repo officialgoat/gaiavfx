@@ -169,7 +169,7 @@ def test_knowledge_files_are_strict_and_packaged():
 
 def test_portrait_wording_is_generic_and_closed():
     from gaiavfx.integrations.qwen_image_edit.prompt import compile_portrait
-    from gaiavfx.modules.direction.portrait import VIEWS, Portrait
+    from gaiavfx.modules.recast.portrait import VIEWS, Portrait
 
     prompts = [compile_portrait(Portrait("target", "crop", view)) for view in VIEWS]
     assert len(set(prompts)) == 3

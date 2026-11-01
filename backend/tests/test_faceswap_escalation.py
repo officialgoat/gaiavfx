@@ -21,11 +21,11 @@ from gaiavfx.integrations.minimax_h3.replacement import (
     build_replacement_graph,
     compile_replacement,
 )
-from gaiavfx.modules.direction.application import (
+from gaiavfx.modules.direction.capabilities import CapabilityGap
+from gaiavfx.modules.recast.application import (
     replacement_policy_text as shipped_policy_text,
 )
-from gaiavfx.modules.direction.capabilities import CapabilityGap
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.replacement import (
     Arm,
     ReplacementFacts,
     ReplacementPlan,

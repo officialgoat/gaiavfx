@@ -6,9 +6,9 @@ from pathlib import Path
 
 from gaiavfx.application.replace_character import open_replacement_review
 from gaiavfx.application.workspace import Workspace
-from gaiavfx.modules.direction.application import replacement_policy_text
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.recast.application import replacement_policy_text
 
 root = Path(sys.argv[1])
 workspace = Workspace(root)

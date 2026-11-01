@@ -84,7 +84,7 @@ def test_user_confirmation_bypasses_missing_margin_in_the_real_planner():
     from test_replacement_contract import mug_facts
 
     from gaiavfx.application.replace_character import _plan
-    from gaiavfx.modules.direction.application import replacement_policy_text
+    from gaiavfx.modules.recast.application import replacement_policy_text
 
     facts = mug_facts()
     identity = replace(

@@ -24,9 +24,9 @@ from types import SimpleNamespace
 from gaiavfx.application import recast_edits as journaling
 from gaiavfx.application import recast_projection as p
 from gaiavfx.infrastructure.database import timestamp
-from gaiavfx.modules.direction import dialogue as rule
-from gaiavfx.modules.direction.application import default_voice_policy, voice_policy_text
 from gaiavfx.modules.direction.timebase import SampleGrid
+from gaiavfx.modules.recast import dialogue as rule
+from gaiavfx.modules.recast.application import default_voice_policy, voice_policy_text
 from gaiavfx.shared.errors import ApplicationError
 
 ANALYSE_FIRST = "Analyse the dialogue before deciding lines."

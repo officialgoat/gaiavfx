@@ -9,9 +9,10 @@ from itertools import pairwise
 
 import pytest
 
-from gaiavfx.modules.direction import dialogue
-from gaiavfx.modules.direction.application import default_voice_policy, voice_policy_text
-from gaiavfx.modules.direction.dialogue import (
+from gaiavfx.modules.direction.timebase import FrameGrid, SampleGrid
+from gaiavfx.modules.recast import dialogue
+from gaiavfx.modules.recast.application import default_voice_policy, voice_policy_text
+from gaiavfx.modules.recast.dialogue import (
     attribute,
     line_edges,
     onset,
@@ -20,7 +21,6 @@ from gaiavfx.modules.direction.dialogue import (
     refine_edges,
     separated,
 )
-from gaiavfx.modules.direction.timebase import FrameGrid, SampleGrid
 
 POLICY = default_voice_policy()
 GRID = SampleGrid(48000, Fraction(24))

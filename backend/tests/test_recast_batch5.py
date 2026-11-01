@@ -15,9 +15,9 @@ from gaiavfx.application import replace_character as app
 from gaiavfx.application import shot_replacement as shot
 from gaiavfx.application.operation_start import knowledge_snapshot
 from gaiavfx.integrations import minimax_h3
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.mouth import quiet_facts
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.mouth import quiet_facts
+from gaiavfx.modules.recast.replacement import (
     Arm,
     ReplacementFacts,
     from_record,

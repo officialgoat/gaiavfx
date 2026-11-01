@@ -12,6 +12,7 @@ export const packageData = [
     "integrations/voice/knowledge",
     "integrations/worldbuilder/knowledge",
     "modules/direction/policy",
+    "modules/recast/policy",
     "setup/manifest",
   ].map((directory) => [
     `backend/src/gaiavfx/${directory}`,

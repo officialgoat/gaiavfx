@@ -11,7 +11,7 @@ import gaiavfx.application.replace_character as replacement
 from gaiavfx.application import recast_planning
 from gaiavfx.application.replacement_steps import _pipe, decode_rgb
 from gaiavfx.integrations.minimax_h3.replacement import compile_replacement
-from gaiavfx.modules.direction.replacement import Arm, ReplacementFacts, from_record
+from gaiavfx.modules.recast.replacement import Arm, ReplacementFacts, from_record
 
 FACE = (100, 110, 136, 250)  # overlaps the fake performer 0 mask; 140 px tall
 QUIET = "keeps lips gently closed and jaw at rest throughout this quiet shot"

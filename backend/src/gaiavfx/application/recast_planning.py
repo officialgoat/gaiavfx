@@ -7,8 +7,8 @@ from math import isfinite
 
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import recast_take
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.windows import (
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.windows import (
     bridge_layout,
     latent_chain_allowed,
     shot_crop_scale_loss,

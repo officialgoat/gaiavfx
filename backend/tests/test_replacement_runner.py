@@ -38,7 +38,7 @@ def test_bridge_facts_rebases_presence_and_quiet_intervals():
     from test_replacement_contract import mug_facts
 
     from gaiavfx.application.replace_character import bridge_facts
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
 
     left = replace(mug_facts(), silent_intervals=((20, 60),))
     right = replace(
@@ -74,7 +74,7 @@ def test_bridge_facts_accepts_partial_presence_and_refuses_only_missing_or_unres
     from test_replacement_contract import CAP, POLICY, mug_facts
 
     from gaiavfx.application.replace_character import bridge_facts
-    from gaiavfx.modules.direction.replacement import scope_gaps, to_record
+    from gaiavfx.modules.recast.replacement import scope_gaps, to_record
 
     left, right = mug_facts(), replace(mug_facts(), shot_start=51, shot_end=124)
     left_presence = ("present",) * 40 + ("absent",) * 33
@@ -687,7 +687,7 @@ def test_advancer_uses_successful_composites_without_refunding_failed_take(
     from test_replacement_contract import mug_facts
 
     import gaiavfx.application.replace_character as replacement
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
 
     facts = mug_facts()
     text = replacement.replacement_policy_text()
@@ -759,7 +759,7 @@ def test_advancer_clamps_before_resume(monkeypatch, limit, reserved, expected):
     from test_replacement_contract import mug_facts
 
     import gaiavfx.application.replace_character as replacement
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
 
     facts = mug_facts()
     text = replacement.replacement_policy_text().replace(
@@ -916,8 +916,8 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
 
     from gaiavfx.application import operation_start
     from gaiavfx.application import replace_character as replacement
-    from gaiavfx.modules.direction.application import replacement_policy_text
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.application import replacement_policy_text
+    from gaiavfx.modules.recast.replacement import to_record
     from gaiavfx.shared.errors import ApplicationError
 
     facts = replace(mug_facts(), shot_start=51, shot_end=124, handoff="latent")
@@ -1049,7 +1049,7 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
     from gaiavfx.application import replace_character as replacement
     from gaiavfx.application.operation_start import knowledge_snapshot
     from gaiavfx.integrations import minimax_h3
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
 
     left = mug_facts()
     right = replace(left, shot_start=51, shot_end=124)
@@ -1118,7 +1118,7 @@ def test_bridge_freeze_validates_raw_renders_and_retains_neighbour_crops(monkeyp
     from test_replacement_contract import mug_facts, plan
 
     from gaiavfx.application import replace_character as replacement
-    from gaiavfx.modules.direction.replacement import to_record
+    from gaiavfx.modules.recast.replacement import to_record
 
     left = mug_facts()
     right = replace(left, shot_start=51, shot_end=124)

@@ -15,7 +15,7 @@ from gaiavfx.application.harness.replacement_context import user_confirmed
 from gaiavfx.application.harness.tools import applicable_tools, compact_schema
 from gaiavfx.application.harness.tools import replacement as tools
 from gaiavfx.application.harness.tools.plan import ProposePlan
-from gaiavfx.modules.direction.replacement import validate_selector
+from gaiavfx.modules.recast.replacement import validate_selector
 from gaiavfx.shared.errors import ApplicationError
 
 

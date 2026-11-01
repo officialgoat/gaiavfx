@@ -15,13 +15,13 @@ from gaiavfx.integrations.minimax_h3.replacement import (
     head_wording,
     replacement_wording,
 )
-from gaiavfx.modules.direction import head
-from gaiavfx.modules.direction.application import (
+from gaiavfx.modules.recast import head
+from gaiavfx.modules.recast.application import (
     default_replacement_policy,
     replacement_policy_text,
 )
-from gaiavfx.modules.direction.head import HeadGap, head_track
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.head import HeadGap, head_track
+from gaiavfx.modules.recast.replacement import (
     Arm,
     Box,
     Bystander,
@@ -148,8 +148,8 @@ def test_head_module_has_only_pure_imports():
         if isinstance(node, ast.Import):
             assert {n.name for n in node.names} <= {"math"}
         if isinstance(node, ast.ImportFrom):
-            assert node.module in {"dataclasses", "statistics", "gaiavfx.modules.direction"}
-            if node.module == "gaiavfx.modules.direction":
+            assert node.module in {"dataclasses", "statistics", "gaiavfx.modules.recast"}
+            if node.module == "gaiavfx.modules.recast":
                 assert [n.name for n in node.names] == ["person_crop"]
 
 
@@ -204,7 +204,7 @@ def test_head_plan_cannot_offer_canvas_above_budget():
 
 def test_application_never_continues_a_head_arm():
     from gaiavfx.application.replace_character import _plan, _request
-    from gaiavfx.modules.direction.replacement import Attempt, CheckResult
+    from gaiavfx.modules.recast.replacement import Attempt, CheckResult
     from gaiavfx.shared.errors import ApplicationError
 
     prior = (Attempt(planned().arm, ((CheckResult("residual_source", "fail", "none", 0.5),),)),)

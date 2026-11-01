@@ -7,11 +7,11 @@ import numpy as np
 import pytest
 
 from gaiavfx.application import tone_anchor as ta
-from gaiavfx.modules.direction.application import (
+from gaiavfx.modules.recast.application import (
     default_replacement_policy,
     replacement_policy_text,
 )
-from gaiavfx.modules.direction.replacement import parse_replacement_policy
+from gaiavfx.modules.recast.replacement import parse_replacement_policy
 
 POLICY = default_replacement_policy().tone_anchor
 

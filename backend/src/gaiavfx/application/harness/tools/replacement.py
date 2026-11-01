@@ -35,9 +35,9 @@ from gaiavfx.application.replace_character import (
     validate_concepts,
 )
 from gaiavfx.application.replacement_selectors import position, selector_positions
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import Box, parse_replacement_policy
 from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import Box, parse_replacement_policy
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 

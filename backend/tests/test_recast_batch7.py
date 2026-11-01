@@ -17,15 +17,15 @@ from gaiavfx.application import recast, recast_planning, recast_run
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application import replace_character as app
 from gaiavfx.application import shot_replacement as shot
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import (
     Box,
     ShotCropPolicy,
     parse_replacement_policy,
     to_record,
     union_crop,
 )
-from gaiavfx.modules.direction.windows import bridge_layout, shot_windows
+from gaiavfx.modules.recast.windows import bridge_layout, shot_windows
 
 TEXT = replacement_policy_text()
 WITHOUT_SHOT_CROP = re.sub(r"(?ms)^\[shot_crop\]\n.*?(?=^\[|\Z)", "", TEXT)

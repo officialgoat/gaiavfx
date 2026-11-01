@@ -25,7 +25,7 @@ from gaiavfx.integrations.minimax_h3.replacement import (
     replacement_wording,
 )
 from gaiavfx.modules.direction.capabilities import CapabilityGap
-from gaiavfx.modules.direction.replacement import Arm, Box, Occluder
+from gaiavfx.modules.recast.replacement import Arm, Box, Occluder
 
 FIXTURES = Path(__file__).parent / "fixtures" / "parity"
 GOLDEN = Path(__file__).parent / "golden" / "minimax_h3" / "replacement"
@@ -451,8 +451,8 @@ def test_old_request_and_plan_records_advance_and_lower_without_a_lock():
     from test_replacement_contract import POLICY, attempt, result
 
     from gaiavfx.application.replace_character import _plan, round_render
-    from gaiavfx.modules.direction.application import replacement_policy_text
-    from gaiavfx.modules.direction.replacement import (
+    from gaiavfx.modules.recast.application import replacement_policy_text
+    from gaiavfx.modules.recast.replacement import (
         ReplacementFacts,
         ReplacementPlan,
         from_record,
@@ -588,7 +588,7 @@ def test_render_presets_are_extended_without_changing_segment_graph():
         parse_render(text + "\nunknown = true\n")
 
 
-def test_new_direction_files_reject_every_forbidden_dependency(tmp_path):
+def test_recast_rule_files_reject_every_forbidden_dependency(tmp_path):
     # Exercise the actual allowlist rule with representative injected imports.
     from test_boundaries import DIRECTION_STDLIB, imported_names
 
@@ -596,10 +596,10 @@ def test_new_direction_files_reject_every_forbidden_dependency(tmp_path):
         probe = tmp_path / "replacement.py"
         probe.write_text(f"import {module}\n", encoding="utf-8")
         assert not all(
-            name.split(".")[0] in DIRECTION_STDLIB or name.startswith("gaiavfx.modules.direction.")
+            name.split(".")[0] in DIRECTION_STDLIB or name.startswith("gaiavfx.modules.recast.")
             for name in imported_names(probe)
         )
-    source = Path(__file__).parents[1] / "src" / "gaiavfx" / "modules" / "direction"
+    source = Path(__file__).parents[1] / "src" / "gaiavfx" / "modules" / "recast"
     for name in ("replacement", "person_crop"):
         text = (source / f"{name}.py").read_text(encoding="utf-8")
         assert not re.search(r"\b(?:H3|MiniMax)\b|<Video|<Picture", text, re.IGNORECASE)

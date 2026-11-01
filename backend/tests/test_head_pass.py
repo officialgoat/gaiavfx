@@ -11,8 +11,8 @@ from gaiavfx.application import replace_character as replacement
 from gaiavfx.application import replacement_steps as pixels
 from gaiavfx.application.shot_assembly import shot_versions, start_shot_assembly
 from gaiavfx.application.shot_replacement import start_shot_head_pass
-from gaiavfx.modules.direction.head import head_track
-from gaiavfx.modules.direction.replacement import CropPlan, from_record, parse_replacement_policy
+from gaiavfx.modules.recast.head import head_track
+from gaiavfx.modules.recast.replacement import CropPlan, from_record, parse_replacement_policy
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -214,10 +214,10 @@ def test_old_analysis_has_typed_gap_without_creating_operation(work):
 
 def test_third_window_gap_rolls_back_first_two_operations(work, monkeypatch):
     from gaiavfx.application import shot_replacement as shot
-    from gaiavfx.modules.direction.replacement import Gap
-    from gaiavfx.modules.direction.windows import shot_windows
     from gaiavfx.modules.generation.operations.lifecycle import JobSpec
     from gaiavfx.modules.generation.operations.service import OperationService
+    from gaiavfx.modules.recast.replacement import Gap
+    from gaiavfx.modules.recast.windows import shot_windows
 
     db, library = work[:2]
     reports = {
@@ -282,7 +282,7 @@ def test_head_canvas_checks_keep_calibration_and_blind_reasons():
     from test_replacement_checks import report
 
     from gaiavfx.application.replacement_checks import take_checks
-    from gaiavfx.modules.direction.application import default_replacement_policy
+    from gaiavfx.modules.recast.application import default_replacement_policy
 
     composite = {"snapshot": {"step_spec": {"face_measurement": True}}}
     check_job = {

@@ -29,15 +29,15 @@ from gaiavfx.application.replacement_steps import (
 from gaiavfx.infrastructure.database import Database
 from gaiavfx.infrastructure.media import MediaTools
 from gaiavfx.integrations.minimax_h3.replacement import compile_replacement
-from gaiavfx.modules.direction.application import default_replacement_policy
-from gaiavfx.modules.direction.replacement import (
+from gaiavfx.modules.library.application import LibraryService, MediaLibrary
+from gaiavfx.modules.recast.application import default_replacement_policy
+from gaiavfx.modules.recast.replacement import (
     Arm,
     Box,
     ReplacementFacts,
     from_record,
     to_record,
 )
-from gaiavfx.modules.library.application import LibraryService, MediaLibrary
 
 
 def make_work(tmp_path, fps=Fraction(24), count=190):

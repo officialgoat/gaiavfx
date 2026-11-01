@@ -2,7 +2,6 @@
 
 import io
 import json
-from importlib import resources
 
 import numpy as np
 
@@ -10,10 +9,11 @@ from gaiavfx.application import operation_start
 from gaiavfx.application.recast_steps import scan_frames, validate_faces
 from gaiavfx.integrations import person_analysis
 from gaiavfx.integrations.person_analysis.face_scan import face_scan_graph
-from gaiavfx.modules.direction.film import parse_film_policy
 from gaiavfx.modules.generation.operations import staged
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.recast.application import film_policy_text
+from gaiavfx.modules.recast.film import parse_film_policy
 from gaiavfx.shared.errors import ApplicationError
 
 operations = OperationService()
@@ -35,9 +35,7 @@ def start_film_analysis(session, library, asset_id: str, *, request_key: str) ->
     asset = library.get(session, asset_id)
     if asset["kind"] != "video":
         raise ApplicationError("Film analysis requires a Library video.", 422)
-    policy = (
-        resources.files("gaiavfx.modules.direction").joinpath("policy/film.toml").read_text("utf-8")
-    )
+    policy = film_policy_text()
     params = parse_film_policy(policy)
     params["versions"] = {
         "detector": "adaptive-numpy-2",

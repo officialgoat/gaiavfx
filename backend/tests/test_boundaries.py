@@ -34,6 +34,10 @@ def imports_in(folder):
             yield file, name
 
 
+# Direction's timebases and model capabilities are the kernel Recast's rules share with it.
+SHARED_KERNEL = {"gaiavfx.modules.direction.timebase", "gaiavfx.modules.direction.capabilities"}
+
+
 def test_module_and_domain_boundaries():
     violations = []
     for file, name in imports_in("modules"):
@@ -41,7 +45,11 @@ def test_module_and_domain_boundaries():
         forbidden = name.startswith(("gaiavfx.integrations", "gaiavfx.api", "gaiavfx.application"))
         if name.startswith("gaiavfx.modules."):
             imported = name.split(".")
-            forbidden |= imported[2] != parts[1] and not name.endswith((".application", ".service"))
+            forbidden |= (
+                imported[2] != parts[1]
+                and not name.endswith((".application", ".service"))
+                and not (parts[1] == "recast" and name in SHARED_KERNEL)
+            )
         if "domain" in parts or file.stem == "domain":
             forbidden |= name.split(".")[0] in {
                 "fastapi",
@@ -80,10 +88,10 @@ def test_integration_boundaries():
                 "timebase",
                 "techniques",
                 "insertion",
-                "portrait",
-                "replacement",
             )
         ),
+        "gaiavfx.modules.recast.portrait",
+        "gaiavfx.modules.recast.replacement",
         # A fill probe's model-free request (ADR 0020 §6).
         "gaiavfx.modules.sets.probe",
     }
@@ -296,14 +304,6 @@ def test_direction_core_is_model_free_and_pure():
         "content",
         "place_text",
         "insertion",
-        "portrait",
-        "replacement",
-        "person_crop",
-        "film",
-        "mouth",
-        "head",
-        "target_face",
-        "dialogue",
     ):
         file = SOURCE / "modules" / "direction" / f"{name}.py"
         assert all(
@@ -325,7 +325,7 @@ def test_direction_core_is_model_free_and_pure():
                     "gaiavfx.modules.direction.capabilities",
                     "gaiavfx.modules.direction.segment",
                     "gaiavfx.modules.direction.survey",
-                    "gaiavfx.modules.direction.replacement",
+                    "gaiavfx.modules.recast.replacement",
                     "gaiavfx.modules.direction.timebase",
                     "gaiavfx.modules.direction.techniques",
                     # A fill probe's model-free request (ADR 0018 §4, ADR 0020 §6), as a survey's is Direction's.
@@ -341,6 +341,23 @@ def test_direction_core_is_model_free_and_pure():
                 f"{probe.relative_to(SOURCE)}: a probe request imports only the standard library"
             )
     assert not violations, "\n".join(violations)
+
+
+def test_recast_rules_are_model_free_and_pure():
+    """Recast's rules use only the standard library, each other and the kernel they share with Direction; reading
+    their shipped policies happens in application.py."""
+    violations = []
+    for file in (SOURCE / "modules" / "recast").rglob("*.py"):
+        for name in imported_names(file):
+            top = name.split(".")[0]
+            if top == "gaiavfx":
+                if not name.startswith("gaiavfx.modules.recast") and name not in SHARED_KERNEL:
+                    violations.append(f"{file.name}: imports {name}")
+            elif top not in DIRECTION_STDLIB or (
+                top == "importlib" and file.name != "application.py"
+            ):
+                violations.append(f"{file.name}: imports {name}")
+    assert not violations, violations
 
 
 def test_qwen_image_edit_boundaries():
@@ -359,7 +376,7 @@ def test_qwen_image_edit_boundaries():
                     (
                         "gaiavfx.integrations.qwen_image_edit",
                         "gaiavfx.modules.direction.insertion",
-                        "gaiavfx.modules.direction.portrait",
+                        "gaiavfx.modules.recast.portrait",
                     )
                 )
             ) or top not in {

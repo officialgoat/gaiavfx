@@ -5,13 +5,14 @@ import re
 import tomllib
 from dataclasses import dataclass, fields, replace
 from fractions import Fraction
+from functools import lru_cache
 from typing import Literal
 
-from gaiavfx.modules.direction import person_crop
 from gaiavfx.modules.direction.capabilities import CapabilityGap, ReplacementSupport
-from gaiavfx.modules.direction.head import HeadGap, HeadPolicy, head_plan
-from gaiavfx.modules.direction.target_face import TargetFacePolicy
 from gaiavfx.modules.direction.timebase import FrameGrid
+from gaiavfx.modules.recast import person_crop
+from gaiavfx.modules.recast.head import HeadGap, HeadPolicy, head_plan
+from gaiavfx.modules.recast.target_face import TargetFacePolicy
 
 Treatment = Literal["rgb", "inverted"]
 Grouping = Literal["single", "joint"]
@@ -939,6 +940,12 @@ def minor_bystander_reason(track: Track, native, policy: ReplacementPolicy):
 
 
 def parse_replacement_policy(text: str) -> ReplacementPolicy:
+    """The policy a text states; a request's frozen text is parsed once (the result is immutable)."""
+    return _parse_replacement_policy(text)
+
+
+@lru_cache(maxsize=32)
+def _parse_replacement_policy(text: str) -> ReplacementPolicy:
     data = tomllib.loads(text)
     if (
         set(data)

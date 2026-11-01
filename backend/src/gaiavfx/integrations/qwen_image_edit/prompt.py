@@ -6,7 +6,7 @@ from functools import cache
 from importlib import resources
 
 from gaiavfx.modules.direction.insertion import Insertion, Removal
-from gaiavfx.modules.direction.portrait import Portrait
+from gaiavfx.modules.recast.portrait import Portrait
 
 
 @dataclass(frozen=True)

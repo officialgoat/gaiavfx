@@ -8,7 +8,7 @@ import json
 import math
 from dataclasses import replace
 
-from gaiavfx.modules.direction.replacement import CheckResult, calibrated_check, from_record
+from gaiavfx.modules.recast.replacement import CheckResult, calibrated_check, from_record
 from gaiavfx.shared.errors import ApplicationError
 
 # Report bindings and failing directions, independent of verdict thresholds.

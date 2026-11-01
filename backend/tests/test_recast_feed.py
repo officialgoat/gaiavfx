@@ -1404,7 +1404,7 @@ def test_head_layer_over_bridges_reserves_and_assembles_same_structure(world):
 @pytest.mark.parametrize("validation", [False, True])
 def test_bridge_start_failure_becomes_crossfade_and_run_continues(world, monkeypatch, validation):
     from gaiavfx.application.replace_character import ReplacementPlanningError
-    from gaiavfx.modules.direction.replacement import Gap
+    from gaiavfx.modules.recast.replacement import Gap
 
     error = (
         ApplicationError("Invalid frozen bridge: " + "x" * 600, 422)

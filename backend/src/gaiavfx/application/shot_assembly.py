@@ -21,9 +21,9 @@ from gaiavfx.application.replacement_steps import (
     lossless_video,
     video_writer,
 )
-from gaiavfx.modules.direction.replacement import parse_replacement_policy, to_record
-from gaiavfx.modules.direction.windows import delivery_plan, shot_windows
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
+from gaiavfx.modules.recast.replacement import parse_replacement_policy, to_record
+from gaiavfx.modules.recast.windows import delivery_plan, shot_windows
 from gaiavfx.shared.errors import ApplicationError
 
 

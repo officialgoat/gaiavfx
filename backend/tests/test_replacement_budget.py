@@ -5,7 +5,7 @@ from test_replacement_runner import analysed, drain, read
 from test_replacement_runner import work as work  # noqa: PLC0414
 
 from gaiavfx.application.replace_character import replacement_plan, start_replacement
-from gaiavfx.modules.direction.application import replacement_policy_text
+from gaiavfx.modules.recast.application import replacement_policy_text
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -15,7 +15,7 @@ from gaiavfx.shared.errors import ApplicationError
 )
 def test_draft_reserves_two_freezes_mode_and_retries_only_likeness(work, monkeypatch, check, retry):
     from gaiavfx.application import replace_character as app
-    from gaiavfx.modules.direction.replacement import CheckResult
+    from gaiavfx.modules.recast.replacement import CheckResult
 
     db, library, runner, _, _ = work
     _, _, request = analysed(work)

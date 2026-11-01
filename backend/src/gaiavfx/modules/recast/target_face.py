@@ -10,7 +10,7 @@ class TargetFacePolicy:
     note: str
 
     def __post_init__(self):
-        from gaiavfx.modules.direction.replacement import _evidence, _number
+        from gaiavfx.modules.recast.replacement import _evidence, _number
 
         _number(self.min_det_score, "min_det_score")
         if not 0 < self.min_det_score <= 1:

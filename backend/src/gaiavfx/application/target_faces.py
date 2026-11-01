@@ -19,14 +19,14 @@ from gaiavfx.integrations import person_analysis, qwen_image_edit
 from gaiavfx.integrations.person_analysis.face_scan import face_scan_graph
 from gaiavfx.integrations.qwen_image_edit.graph import build_edit_graph
 from gaiavfx.integrations.qwen_image_edit.prompt import compile_portrait
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.portrait import VIEWS, Portrait
-from gaiavfx.modules.direction.replacement import parse_replacement_policy
-from gaiavfx.modules.direction.target_face import classify_target_faces
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.portrait import VIEWS, Portrait
+from gaiavfx.modules.recast.replacement import parse_replacement_policy
+from gaiavfx.modules.recast.target_face import classify_target_faces
 from gaiavfx.shared.errors import ApplicationError
 
 SCAN_VERSION = 1

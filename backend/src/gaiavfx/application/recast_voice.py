@@ -28,7 +28,7 @@ from gaiavfx.application import recast_edits as journaling
 from gaiavfx.application import recast_projection as p
 from gaiavfx.integrations.voice import expressive
 from gaiavfx.integrations.voice import spec as voice_spec
-from gaiavfx.modules.direction.application import default_voice_policy
+from gaiavfx.modules.recast.application import default_voice_policy
 from gaiavfx.shared.errors import ApplicationError
 
 MAX_SAMPLES = 12

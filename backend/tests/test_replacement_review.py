@@ -8,9 +8,9 @@ from test_production_api import AUTH, MIGRATIONS
 from test_replacement_runner import work as work  # noqa: PLC0414 - fixture export
 
 from gaiavfx.api.app import create_app
-from gaiavfx.modules.direction.application import replacement_policy_text
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.recast.application import replacement_policy_text
 
 
 def finish(service, session, job, outputs):

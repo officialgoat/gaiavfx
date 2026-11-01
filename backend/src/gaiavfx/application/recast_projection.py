@@ -12,12 +12,12 @@ from weakref import WeakKeyDictionary
 import numpy as np
 
 from gaiavfx.infrastructure.database import new_id
-from gaiavfx.modules.direction.application import replacement_policy_text
-from gaiavfx.modules.direction.replacement import parse_replacement_policy
 from gaiavfx.modules.editing.recast.service import RecastService
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast.application import replacement_policy_text
+from gaiavfx.modules.recast.replacement import parse_replacement_policy
 from gaiavfx.shared.errors import ApplicationError
 
 store = RecastService()

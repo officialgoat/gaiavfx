@@ -16,12 +16,12 @@ from gaiavfx.api.recast import RecastDTO
 from gaiavfx.application import recast, recast_take, replace_character
 from gaiavfx.application import recast_projection as p
 from gaiavfx.infrastructure.database import Database
-from gaiavfx.modules.direction.windows import shot_windows
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.application import LibraryService
 from gaiavfx.modules.library.assets import AssetRecord
 from gaiavfx.modules.library.media_application import MediaLibrary
+from gaiavfx.modules.recast.windows import shot_windows
 from gaiavfx.shared.errors import ApplicationError
 
 MIGRATIONS = Path(__file__).parents[1] / "migrations"
