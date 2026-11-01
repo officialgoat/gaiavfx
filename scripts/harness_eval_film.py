@@ -29,8 +29,8 @@ from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX
 from gaiavfx.application.harness.tools.recast import compact
-from gaiavfx.application.recast import named_character
 from gaiavfx.application.recast_run import estimate_run
+from gaiavfx.application.recast_shell import named_character
 from gaiavfx.application.workspace import Workspace
 from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.shared.errors import ApplicationError
@@ -544,7 +544,7 @@ class CopiedFilm:
         return []
 
     def snapshot(self):
-        from gaiavfx.application.recast import recast_state
+        from gaiavfx.application.recast_read import recast_state
 
         with self.work.db.transaction() as session:
             return recast_state(

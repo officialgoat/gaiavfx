@@ -26,6 +26,7 @@ from importlib import import_module
 from gaiavfx.application import recast_derivatives as derivatives
 from gaiavfx.application import recast_edits as journaling
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_shell as shell
 from gaiavfx.integrations.voice import expressive
 from gaiavfx.integrations.voice import spec as voice_spec
 from gaiavfx.modules.recast.application import default_voice_policy
@@ -44,12 +45,6 @@ AUDITION_FAILED = (
 
 def _build():
     return import_module("gaiavfx.application.voice_build")
-
-
-def _commands():
-    from gaiavfx.application import recast
-
-    return recast
 
 
 @cache
@@ -272,22 +267,21 @@ def _choose(session, library, recast, character, asset_ids):
 
 
 def _sampled(session, library, recast_id, character_id, expected_revision):
-    commands = _commands()
-    recast, report = commands.load(session, library, recast_id, expected_revision)
+    recast, report = shell.load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
-    return commands, recast, journal, commands._character(recast, character_id)
+    return recast, journal, shell.character(recast, character_id)
 
 
 def set_voice(session, library, recast_id, character_id, *, expected_revision, asset_ids):
     """Human only: the character's voice recordings, confirmed at once (a human's direct choice, ADR 0017 §10)."""
-    commands, recast, journal, character = _sampled(
+    recast, journal, character = _sampled(
         session, library, recast_id, character_id, expected_revision
     )
     asset_ids = list(asset_ids)
     seconds = _choose(session, library, recast, character, asset_ids)
     _release(session, library, recast, character, asset_ids)
     character.update(voice_asset_ids=asset_ids, voice_state="confirmed", voice_proposed_by="user")
-    return commands._journaled(
+    return shell.journaled(
         session,
         library,
         recast,
@@ -301,27 +295,27 @@ def set_voice(session, library, recast_id, character_id, *, expected_revision, a
 
 def clear_voice(session, library, recast_id, character_id, *, expected_revision):
     """Human only: remove the recordings (or reject proposed ones); a running build nobody else uses is cancelled."""
-    commands, recast, journal, character = _sampled(
+    recast, journal, character = _sampled(
         session, library, recast_id, character_id, expected_revision
     )
     if not character.get("voice_asset_ids") and not character.get("voice_state"):
         raise ApplicationError("This character has no voice recordings to clear.", 409)
     _release(session, library, recast, character)
     character.update(dict.fromkeys(journaling.VOICE))
-    return commands._journaled(
+    return shell.journaled(
         session, library, recast, journal, "clear_voice", character_id=character_id
     )
 
 
 def confirm_voice(session, library, recast_id, character_id, *, expected_revision):
     """Human only: the proposed recordings become the character's (the proposer is kept)."""
-    commands, recast, journal, character = _sampled(
+    recast, journal, character = _sampled(
         session, library, recast_id, character_id, expected_revision
     )
     if character.get("voice_state") != "proposed":
         raise ApplicationError("No voice recordings are proposed for this character.", 409)
     character["voice_state"] = "confirmed"
-    return commands._journaled(
+    return shell.journaled(
         session, library, recast, journal, "confirm_voice", character_id=character_id
     )
 
@@ -340,12 +334,12 @@ def propose_voice(
 ):
     """A proposal (P9's agent tool; no route): never over confirmed recordings; an agent needs the user's naming.
     The evidence is checked as finite JSON; the store has no column for it yet."""
-    commands, recast, journal, character = _sampled(
+    recast, journal, character = _sampled(
         session, library, recast_id, character_id, expected_revision
     )
     if proposed_by not in {"agent", "user"}:
         raise ApplicationError("Unknown voice proposer.", 422)
-    if proposed_by == "agent" and not commands.named_character(recast, character_id, user_message):
+    if proposed_by == "agent" and not shell.named_character(recast, character_id, user_message):
         raise ApplicationError("The user must name the character before an agent proposal.", 422)
     evidence = {} if evidence is None else evidence
     if not isinstance(evidence, dict):
@@ -362,7 +356,7 @@ def propose_voice(
     character.update(
         voice_asset_ids=asset_ids, voice_state="proposed", voice_proposed_by=proposed_by
     )
-    return commands._journaled(
+    return shell.journaled(
         session,
         library,
         recast,
@@ -409,9 +403,8 @@ def build_voice(
     """Human only: start the shared voice build of the character's confirmed recordings (2.5-3.5 GPU hours; the
     client asks first). A build that settled without success gets the next attempt; a finished build is built again
     only with `rebuild` after the expressive recordings changed. Never automatic."""
-    commands = _commands()
-    recast, _ = commands.load(session, library, recast_id, expected_revision)
-    character = commands._character(recast, character_id)
+    recast, _ = shell.load(session, library, recast_id, expected_revision)
+    character = shell.character(recast, character_id)
     _buildable(session, library, character)
     builds = _build()
     operation, attempt = derivatives.current_build(session, library, character)
@@ -435,7 +428,7 @@ def build_voice(
     else:
         _start(session, library, character, scan, attempt + 1)
     character["voice_model_state"] = "making"
-    return commands.finish(session, library, recast)
+    return shell.finish(session, library, recast)
 
 
 def _audition_retryable(character, manifest, audition) -> bool:
@@ -457,9 +450,8 @@ def retry_voice(
     """Human only: resume a stopped build in place, start the next attempt of a build that settled without success,
     or audition again (with the lines confirmed now) after a failed, cancelled or rejected audition, or one the feed
     could not start."""
-    commands = _commands()
-    recast, report = commands.load(session, library, recast_id, expected_revision)
-    character = commands._character(recast, character_id)
+    recast, report = shell.load(session, library, recast_id, expected_revision)
+    character = shell.character(recast, character_id)
     _buildable(session, library, character)
     builds = _build()
     operation, attempt = derivatives.current_build(session, library, character)
@@ -495,23 +487,19 @@ def retry_voice(
     else:
         raise ApplicationError(NOTHING_TO_RETRY, 409)
     character["voice_model_state"] = "making"
-    return commands.finish(session, library, recast)
+    return shell.finish(session, library, recast)
 
 
 def approve_voice(session, library, recast_id, character_id, *, expected_revision):
     """Human only: the audition reel records the generated voice (`generated_voice` provenance); conform and line
     conversion use only an approved voice (ADR 0016 §7)."""
-    commands = _commands()
-    recast, _ = commands.load(session, library, recast_id, expected_revision)
-    derivatives.approve(
-        session, library, recast, commands._character(recast, character_id), "voice"
-    )
-    return commands.finish(session, library, recast)
+    recast, _ = shell.load(session, library, recast_id, expected_revision)
+    derivatives.approve(session, library, recast, shell.character(recast, character_id), "voice")
+    return shell.finish(session, library, recast)
 
 
 def reject_voice(session, library, recast_id, character_id, *, expected_revision):
     """Human only: the audition is not this voice; `retry_voice` auditions again."""
-    commands = _commands()
-    recast, _ = commands.load(session, library, recast_id, expected_revision)
-    derivatives.reject(recast, commands._character(recast, character_id), "voice")
-    return commands.finish(session, library, recast)
+    recast, _ = shell.load(session, library, recast_id, expected_revision)
+    derivatives.reject(recast, shell.character(recast, character_id), "voice")
+    return shell.finish(session, library, recast)

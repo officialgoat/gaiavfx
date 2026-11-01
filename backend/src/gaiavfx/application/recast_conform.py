@@ -8,6 +8,7 @@ from fractions import Fraction
 
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_shell as shell
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.shared.errors import ApplicationError
@@ -59,7 +60,6 @@ def conform_states(session, recast_id):
 
 
 def start_conform(session, library, recast_id, *, mode, range, codec, request_key):
-    from gaiavfx.application.recast import _range, load
 
     intent = {"recast_id": recast_id, "mode": mode, "range": range, "codec": codec}
     existing = p.operations.for_request(session, request_key)
@@ -71,10 +71,10 @@ def start_conform(session, library, recast_id, *, mode, range, codec, request_ke
         return existing | {"_created": False}
     if mode not in {"chosen", "preview_unreviewed"} or codec not in {"h264", "prores"}:
         raise ApplicationError("Unknown conform mode or codec.", 422)
-    recast, report = load(session, library, recast_id)
+    recast, report = shell.load(session, library, recast_id)
     if not report:
         raise ApplicationError("Finish film analysis before conforming.", 409)
-    _range(range, report)
+    shell.check_range(range, report)
     source = library.get(session, recast["source_asset_id"])
     inputs = {source["id"]: {"sha256": source["sha256"]}}
     latest = {c["shot_id"]: c["version"] for c in recast["choices"]}

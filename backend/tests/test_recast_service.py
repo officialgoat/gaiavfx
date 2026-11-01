@@ -13,7 +13,7 @@ import pytest
 from PIL import Image
 
 from gaiavfx.api.recast import RecastDTO
-from gaiavfx.application import recast, recast_take, replace_character
+from gaiavfx.application import recast, recast_shell, recast_take, replace_character
 from gaiavfx.application import recast_projection as p
 from gaiavfx.infrastructure.database import Database
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
@@ -661,7 +661,7 @@ def shot_versions(world, recast_id, shot_id):
     """A shot's versions with what the blind state leaves out: windows, seeds, bridges, layer and parent."""
 
     def versions(session, library):
-        row, _report = recast.load(session, library, recast_id)
+        row, _report = recast_shell.load(session, library, recast_id)
         shot = next(s for s in row["shots"] if s["shot_id"] == shot_id)
         return [
             {

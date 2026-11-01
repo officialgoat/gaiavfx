@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from itertools import pairwise
 
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_shell as shell
 from gaiavfx.shared.errors import ApplicationError
 
 # Journal collection -> the aggregate's list, a row's key, and the order the store loads rows in.
@@ -363,10 +364,9 @@ def overlapping_edges(lines):
 
 def undo_edit(session, library, recast_id, edit_id, *, expected_revision):
     """Undo one cast edit, or redo one (undo of an undo entry). Every refusal comes before any write."""
-    from gaiavfx.application import recast as commands  # recast imports this module
     from gaiavfx.application import recast_derivatives as derivatives  # through recast_lines
 
-    recast, report = commands.load(session, library, recast_id, expected_revision)
+    recast, report = shell.load(session, library, recast_id, expected_revision)
     journal = capture(recast, report)
     entry = p.store.edit(session, edit_id)
     if entry is None or entry["recast_id"] != recast_id:
@@ -398,7 +398,7 @@ def undo_edit(session, library, recast_id, edit_id, *, expected_revision):
     p.store.mark_undone(session, entry["id"])
     base = entry["summary"].removeprefix("Undo: ").removeprefix("Redo: ")
     kind = "redo" if entry["kind"] == "undo" else "undo"
-    return commands.finish(
+    return shell.finish(
         session,
         library,
         recast,

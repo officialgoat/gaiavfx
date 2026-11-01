@@ -17,7 +17,7 @@ from test_recast_service import recast_template as recast_template  # noqa: PLC0
 from test_recast_service import world as world  # noqa: PLC0414 - shared fixture
 
 from gaiavfx.api.recast import LinesDTO, RecastDTO
-from gaiavfx.application import recast, recast_edits, recast_lines
+from gaiavfx.application import recast, recast_edits, recast_lines, recast_shell
 from gaiavfx.application import recast_projection as p
 from gaiavfx.infrastructure.database import timestamp
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
@@ -175,7 +175,7 @@ def stored_line(world, state, key, character_id, decision, *, proposed_by="user"
     """A line row as the store keeps one (ADR 0016 §1), written outside any command."""
 
     def write(session, library):
-        row, _report = recast.load(session, library, state["id"], state["revision"])
+        row, _report = recast_shell.load(session, library, state["id"], state["revision"])
         operation = state["dialogue"]["operation_id"]
         now = timestamp()
         row["lines"] = [
@@ -198,7 +198,7 @@ def stored_line(world, state, key, character_id, decision, *, proposed_by="user"
                 "decided_at": None if decision == "proposed" else now,
             }
         )
-        return recast.finish(session, library, row)
+        return recast_shell.finish(session, library, row)
 
     return checked(world.invoke(write))
 

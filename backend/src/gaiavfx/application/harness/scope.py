@@ -13,7 +13,7 @@ from gaiavfx.application.harness.tools import FILM_TOOLS
 from gaiavfx.application.harness.tools.recast import compact
 from gaiavfx.application.harness.view import render_view
 from gaiavfx.application.harness.world import LIST, WorldState, clip, world_state
-from gaiavfx.application.recast import recast_state
+from gaiavfx.application.recast_read import recast_state
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 

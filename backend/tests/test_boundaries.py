@@ -756,7 +756,15 @@ def test_harness_never_imports_recast_human_commands():
         tree = ast.parse(file.read_text("utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom) and (node.module or "").endswith(
-                ("recast", "recast_conform", "recast_edits", "recast_lines", "recast_voice")
+                (
+                    "recast",
+                    "recast_appearance",
+                    "recast_conform",
+                    "recast_edits",
+                    "recast_lines",
+                    "recast_shell",
+                    "recast_voice",
+                )
             ):
                 assert not ({a.name for a in node.names} & (human | {"*"})), file
             if isinstance(node, ast.Attribute):

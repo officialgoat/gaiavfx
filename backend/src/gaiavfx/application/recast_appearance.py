@@ -6,6 +6,7 @@ import numpy as np
 
 from gaiavfx.application import recast as app
 from gaiavfx.application import recast_projection as p
+from gaiavfx.application import recast_shell as shell
 from gaiavfx.application.replacement_steps import _mask_data
 from gaiavfx.modules.recast.replacement import Box, Track, minor_bystander_reason
 from gaiavfx.shared.errors import ApplicationError
@@ -164,10 +165,10 @@ def rank_proposals(recast, report, windows, shot_id, load_mask, policy):
 def suggest_appearances(database, library, recast_id, shot_id, *, expected_revision):
     # Read immutable reports without acquiring Editing's writer lock.
     with database.transaction() as session:
-        recast, report = app.load(session, library, recast_id)
+        recast, report = shell.load(session, library, recast_id)
         if recast["revision"] != expected_revision:
             raise ApplicationError("The recast changed; reload before suggesting appearances.", 409)
-        app._shot(recast, shot_id)
+        shell.shot(recast, shot_id)
         if not report:
             raise ApplicationError("Film analysis must finish before suggesting appearances.", 409)
         film_token = p.report_token(session, recast, report)
@@ -197,7 +198,7 @@ def suggest_appearances(database, library, recast_id, shot_id, *, expected_revis
         recast, report, windows, shot_id, lambda artifact: _mask_data(library, artifact), p.policy()
     )
     with database.transaction() as session:
-        current, current_report = app.load(session, library, recast_id, expected_revision)
+        current, current_report = shell.load(session, library, recast_id, expected_revision)
         if (
             p.report_token(session, current, current_report) != film_token
             or analysis_ids
@@ -214,4 +215,4 @@ def suggest_appearances(database, library, recast_id, shot_id, *, expected_revis
             raise ApplicationError("Window analyses changed; request suggestions again.", 409)
         for proposal in proposals:
             app._propose_appearance(current, **proposal, proposed_by="analysis")
-        return app.finish(session, library, current)
+        return shell.finish(session, library, current)
