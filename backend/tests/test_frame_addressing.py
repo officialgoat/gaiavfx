@@ -13,7 +13,7 @@ import numpy as np
 import pytest
 
 from gaiavfx.application import replacement_steps as steps
-from gaiavfx.infrastructure import media_conform
+from gaiavfx.infrastructure import frame_stream, media_conform
 from gaiavfx.infrastructure.media import MediaTools
 
 COUNT, WIDTH, HEIGHT = 60, 64, 48
@@ -75,16 +75,12 @@ def make_source(media, tmp_path, fps, container):
 
 def decode_order_pinned(media, path, start, end):
     """decode_rgb's own colour conversion, with frames counted in decode order instead of picked by time."""
-    info, args = steps._decode_spec(media, path, start, end)
-    picked = args[args.index("-vf") + 1]
-    colour = picked[picked.index("'", picked.index("'") + 1) + 1 :]
-    trim = f"trim=start_frame={start}" + (f":end_frame={end}" if end is not None else "")
-    data = steps._pipe(
-        media,
-        ["-i", str(path), "-map", "0:v:0", "-vf", trim + colour, "-an", "-fps_mode", "passthrough"]
-        + ["-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
-    )
-    return np.frombuffer(data, np.uint8).reshape(-1, info["height"], info["width"], 3)
+    source = frame_stream.probe(media, path)
+    frames = frame_stream.FrameRange(start, end, "decode")
+    args = frame_stream.decode_args(path, frames, "pinned", "rgb24", source=source)
+    assert "select=" not in args[args.index("-vf") + 1]
+    data = frame_stream.BUFFERED.run(media, args)
+    return np.frombuffer(data, np.uint8).reshape(-1, source.height, source.width, 3)
 
 
 @pytest.mark.parametrize("fps", [Fraction(24), Fraction(25), Fraction(30000, 1001)])

@@ -4,6 +4,7 @@ import re
 
 import numpy as np
 
+from gaiavfx.infrastructure.frame_stream import matrix
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -26,6 +27,7 @@ class NativePixels:
         self.cw = (self.width + self.sx - 1) // self.sx
         self.ch = (self.height + self.sy - 1) // self.sy
         self.size = (self.width * self.height + 2 * self.cw * self.ch) * self.dtype.itemsize
+        # Unlike decode_rgb's pinned colour, an untagged yuvj (JPEG) format counts as full range.
         self.full = bool(match[1]) or stream.get("color_range") == "pc"
 
     def paste(self, data, rgba, rect):
@@ -43,13 +45,10 @@ class NativePixels:
             dest = frame[y0:y1, x0:x1, :3]
             dest[:] = np.rint(dest * (1 - alpha[:, :, None]) + rgb * alpha[:, :, None])
             return frame.tobytes()
-        # Same matrix/range defaults as replacement_steps.decode_rgb. Do not
+        # The frame stream's matrix table, which also pins decode_rgb's colour. Do not
         # round-trip the source through RGB: even alpha-zero samples must be exact.
-        kr, kb = {
-            "bt470bg": (0.299, 0.114),
-            "smpte170m": (0.299, 0.114),
-            "bt2020nc": (0.2627, 0.0593),
-        }.get(self.stream.get("color_space"), (0.2126, 0.0722))
+        weights = matrix(self.stream.get("color_space"))
+        kr, kb = weights.kr, weights.kb
         rgb = rgba[:, :, :3].astype(np.float64) / 255
         r, g, b = (rgb[:, :, i] for i in range(3))
         y = kr * r + (1 - kr - kb) * g + kb * b

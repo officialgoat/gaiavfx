@@ -17,6 +17,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageOps
 
+from gaiavfx.infrastructure import frame_stream
+from gaiavfx.infrastructure.frame_stream import PROXY, SCAN, FrameRange
 from gaiavfx.shared.errors import ApplicationError
 from gaiavfx.shared.telemetry import current_observation, observed
 
@@ -394,21 +396,8 @@ class MediaTools:
             raise ValueError("Proxy frames must be sorted and unique")
         output.parent.mkdir(parents=True, exist_ok=True)
         temp = output.with_name(output.stem + ".processing" + output.suffix)
-        command = [
-            str(self.ffmpeg),
-            "-y",
-            "-v",
-            "error",
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "rgb24",
-            "-s",
-            f"{width}x{height}",
-            "-r",
-            "24",
-            "-i",
-            "pipe:0",
+        args = [
+            *frame_stream.raw_input("rgb24", (width, height), 24),
             "-c:v",
             "libx264",
             "-crf",
@@ -417,30 +406,14 @@ class MediaTools:
             "yuv420p",
             str(temp),
         ]
-        import tempfile
-
         written = 0
-        with (
-            tempfile.TemporaryFile() as errors,
-            self.process(command, stdin=subprocess.PIPE, stderr=errors) as encoder,
-        ):
-            try:
-                for index, frame in self.stream_frames(
-                    source, width=width, height=height, start=frames[0], end=frames[-1] + 1
-                ):
-                    if index in wanted:
-                        encoder.stdin.write(frame.tobytes())
-                        written += 1
-                encoder.stdin.close()
-                if encoder.wait(timeout=1800) != 0:
-                    errors.seek(0)
-                    raise ApplicationError(
-                        "Proxy encode failed: " + errors.read()[-1200:].decode("utf-8", "replace"),
-                        422,
-                    )
-            finally:
-                if encoder.poll() is None:
-                    encoder.kill()
+        with PROXY.writing(self, args) as encoder:
+            for index, frame in self.stream_frames(
+                source, width=width, height=height, start=frames[0], end=frames[-1] + 1
+            ):
+                if index in wanted:
+                    encoder.write(frame.tobytes())
+                    written += 1
         if written != len(frames):
             temp.unlink(missing_ok=True)
             raise ApplicationError(
@@ -461,59 +434,13 @@ class MediaTools:
             or (end is not None and (type(end) is not int or end <= start))
         ):
             raise ValueError("Invalid frame stream dimensions or range")
-        trim = f"trim=start_frame={start}" + (f":end_frame={end}" if end is not None else "")
-        command = [
-            str(self.ffmpeg),
-            "-nostdin",
-            "-v",
-            "error",
-            "-protocol_whitelist",
-            "file,pipe",
-            "-i",
-            str(path),
-            "-map",
-            "0:v:0",
-            "-vf",
-            f"{trim},scale={width}:{height}:flags=bilinear",
-            "-fps_mode",
-            "passthrough",
-            "-f",
-            "rawvideo",
-            "-pix_fmt",
-            "rgb24",
-            "pipe:1",
-        ]
-        # stderr goes to a file so an error cannot deadlock the stdout pipe.
-        import tempfile
-
-        with (
-            tempfile.TemporaryFile() as errors,
-            self.process(command, stdout=subprocess.PIPE, stderr=errors) as child,
-        ):
-            try:
-                size, index = width * height * 3, start
-                while True:
-                    data = child.stdout.read(size)
-                    if not data:
-                        break
-                    if len(data) != size:
-                        raise ApplicationError("Truncated raw video frame.", 422)
-                    yield index, np.frombuffer(data, np.uint8).reshape(height, width, 3)
-                    index += 1
-                if child.wait() != 0:
-                    errors.seek(0)
-                    raise ApplicationError(
-                        "Frame decode failed: " + errors.read()[-1200:].decode("utf-8", "replace"),
-                        422,
-                    )
-            finally:
-                if child.poll() is None:
-                    child.terminate()
-                    try:
-                        child.wait(timeout=10)
-                    except subprocess.TimeoutExpired:
-                        child.kill()
-                        child.wait()
+        frames = FrameRange(start, end, "decode")
+        args = frame_stream.decode_args(
+            path, frames, "ffmpeg_default", "rgb24", size=(width, height)
+        )
+        with SCAN.reading(self, args) as output:
+            for index, data in enumerate(SCAN.frames(output, width * height * 3), start):
+                yield index, np.frombuffer(data, np.uint8).reshape(height, width, 3)
 
     def scan_video(self, path: Path, *, fps, black=None, frozen=None) -> dict:
         """Count decoded frames and measure detector ranges in one additional decode pass.

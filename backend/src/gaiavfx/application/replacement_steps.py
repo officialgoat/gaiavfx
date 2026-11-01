@@ -4,13 +4,13 @@ import hashlib
 import io
 import json
 import math
-import subprocess
-import tempfile
-from contextlib import closing, contextmanager, suppress
+from contextlib import closing
 from fractions import Fraction
 
 import numpy as np
 
+from gaiavfx.infrastructure import frame_stream
+from gaiavfx.infrastructure.frame_stream import BUFFERED, STREAMED, FrameRange
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.modules.recast.head import head_track
 from gaiavfx.modules.recast.replacement import (
@@ -35,100 +35,14 @@ OBJECT_DILATE_PX = 3  # default; the frozen policy's existing dilate overrides i
 
 
 def _pipe(media, args, data=None):
-    with media.process(
-        [
-            str(media.ffmpeg),
-            "-v",
-            "error",
-            "-nostdin",
-            "-protocol_whitelist",
-            "file,pipe",
-            "-threads",
-            "2",
-            *args,
-        ],
-        stdin=subprocess.PIPE if data is not None else subprocess.DEVNULL,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    ) as child:
-        try:
-            out, error = child.communicate(data, timeout=180)
-        except subprocess.TimeoutExpired:
-            child.kill()
-            child.communicate()
-            raise ApplicationError("Replacement media processing timed out.") from None
-        if child.returncode:
-            raise ApplicationError(error.decode("utf-8", errors="replace")[-1200:])
-        return out
-
-
-def _decode_spec(media, path, start, end, alpha=False):
-    info = media.probe(path)
-    probe = json.loads(
-        media.run(
-            media.ffprobe,
-            [
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=pix_fmt,color_space,color_range,start_time:format=start_time",
-                "-of",
-                "json",
-                str(path),
-            ],
-        )
-    )
-    stream = probe["streams"][0]
-    # Pin YUV conversion, honouring tagged matrices/ranges; RGB replay bypasses it.
-    matrix = {"bt709": "bt709", "bt470bg": "bt601", "smpte170m": "bt601", "bt2020nc": "bt2020"}.get(
-        stream.get("color_space"), "bt709"
-    )
-    colour = (
-        ""
-        if stream.get("pix_fmt", "").startswith(("rgb", "bgr", "gbr"))
-        else f",scale=in_color_matrix={matrix}:in_range={'full' if stream.get('color_range') == 'pc' else 'limited'}:out_range=full"
-    )
-    fps = Fraction(info["frame_rate"])
-    origin = Fraction(stream.get("start_time", "0")) - Fraction(
-        probe.get("format", {}).get("start_time", "0")
-    )
-    # Preserve original timestamps and seek at least one second early. Half-frame
-    # windows tolerate container timestamp quantisation without losing CFR indices.
-    seek = max(0, int(start / fps) - 1)
-    lower = float(origin + (Fraction(start) - Fraction(1, 2)) / fps)
-    trim = f"select='gte(t,{lower:.12f})"
-    if end is not None:
-        upper = float(origin + (Fraction(end) - Fraction(1, 2)) / fps)
-        trim += f"*lt(t,{upper:.12f})"
-    trim += "'"
-    return info, [
-        "-copyts",
-        "-start_at_zero",
-        *(["-ss", str(seek)] if seek else []),
-        "-i",
-        str(path),
-        "-vf",
-        trim + colour,
-        *(["-frames:v", str(end - start)] if end is not None else []),
-        "-an",
-        "-fps_mode",
-        "passthrough",
-        "-threads:v",
-        "1",
-        "-pix_fmt",
-        "rgba" if alpha else "rgb24",
-        "-f",
-        "rawvideo",
-        "pipe:1",
-    ]
+    return BUFFERED.run(media, args, data)
 
 
 def decode_rgb(media, path, start=0, end=None):
-    info, args = _decode_spec(media, path, start, end)
+    source = frame_stream.probe(media, path)
+    args = frame_stream.decode_args(path, FrameRange(start, end), "pinned", "rgb24", source=source)
     data = _pipe(media, args)
-    frames = np.frombuffer(data, np.uint8).reshape(-1, info["height"], info["width"], 3)
+    frames = np.frombuffer(data, np.uint8).reshape(-1, source.height, source.width, 3)
     if not len(frames) or (end is not None and len(frames) != end - start):
         raise ApplicationError("The shot could not be decoded in full.", 422)
     return frames
@@ -136,91 +50,23 @@ def decode_rgb(media, path, start=0, end=None):
 
 def iter_rgb(media, path, start=0, end=None, *, alpha=False):
     """Decode one native frame at a time, with bounded buffers and the same timing."""
-    info, args = _decode_spec(media, path, start, end, alpha)
+    source = frame_stream.probe(media, path)
     channels = 4 if alpha else 3
-    size = info["width"] * info["height"] * channels
-    with (
-        tempfile.TemporaryFile() as error,
-        media.process(
-            [
-                str(media.ffmpeg),
-                "-v",
-                "error",
-                "-nostdin",
-                "-threads",
-                "1",
-                "-filter_threads",
-                "1",
-                "-thread_queue_size",
-                "1",
-                *args,
-            ],
-            stdout=subprocess.PIPE,
-            stderr=error,
-        ) as child,
-    ):
-        count = 0
-        try:
-            while data := child.stdout.read(size):
-                if len(data) != size:
-                    raise ApplicationError("Incomplete decoded frame.")
-                count += 1
-                yield np.frombuffer(data, np.uint8).reshape(info["height"], info["width"], channels)
-            if child.wait(timeout=180):
-                error.seek(0)
-                raise ApplicationError(error.read().decode("utf-8", errors="replace")[-1200:])
-            if not count or (end is not None and count != end - start):
-                raise ApplicationError("The shot could not be decoded in full.", 422)
-        finally:
-            if child.poll() is None:
-                child.kill()
-                child.wait()
+    args = frame_stream.decode_args(
+        path, FrameRange(start, end), "pinned", "rgba" if alpha else "rgb24", source=source
+    )
+    count = 0
+    with STREAMED.reading(media, args) as output:
+        for data in STREAMED.frames(output, source.width * source.height * channels):
+            count += 1
+            yield np.frombuffer(data, np.uint8).reshape(source.height, source.width, channels)
+    if not count or (end is not None and count != end - start):
+        raise ApplicationError("The shot could not be decoded in full.", 422)
 
 
-@contextmanager
 def video_writer(media, args):
     """Pipe raw frames without retaining them or filling an unread stderr pipe."""
-    with (
-        tempfile.TemporaryFile() as error,
-        media.process(
-            [
-                str(media.ffmpeg),
-                "-v",
-                "error",
-                "-nostdin",
-                "-threads",
-                "1",
-                "-filter_threads",
-                "1",
-                "-thread_queue_size",
-                "1",
-                *args,
-            ],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
-            stderr=error,
-        ) as child,
-    ):
-        try:
-            yield child.stdin
-            child.stdin.close()
-            if child.wait(timeout=180):
-                error.seek(0)
-                raise ApplicationError(error.read().decode("utf-8", errors="replace")[-1200:])
-        except OSError:
-            error.seek(0)
-            detail = error.read().decode("utf-8", errors="replace")[-1200:]
-            if not detail:
-                raise
-            raise ApplicationError(detail) from None
-        finally:
-            if child.poll() is None:
-                child.kill()
-                child.wait()
-            # Popen.__exit__ closes stdin too; suppress a second Windows pipe
-            # flush error so it cannot hide the encoder's actual failure.
-            with suppress(OSError):
-                child.stdin.close()
+    return STREAMED.writing(media, args)
 
 
 def audio_trim(media, source, start, count, fps):
@@ -260,16 +106,7 @@ def lossless_video(
         "-y",
         "-fflags",
         "+bitexact",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgba" if alpha else "rgb24",
-        "-s",
-        f"{width}x{height}",
-        "-r",
-        str(fps),
-        "-i",
-        "pipe:0",
+        *frame_stream.raw_input("rgba" if alpha else "rgb24", (width, height), fps),
     ]
     if audio_source is not None:
         args += ["-i", str(audio_source)]

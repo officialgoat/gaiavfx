@@ -2,16 +2,16 @@
 
 import hashlib
 import json
-import subprocess
-import tempfile
-from contextlib import ExitStack, closing, contextmanager, suppress
+from contextlib import ExitStack, closing
 from fractions import Fraction
 from itertools import pairwise
 from pathlib import Path
 
 import numpy as np
 
+from gaiavfx.infrastructure import frame_stream
 from gaiavfx.infrastructure.conform_pixels import NativePixels
+from gaiavfx.infrastructure.frame_stream import CONFORM, FrameRange
 from gaiavfx.shared.errors import ApplicationError
 
 PART_FRAMES = 240
@@ -53,75 +53,16 @@ def check_cancel(cancelled):
         raise ApplicationError("Conform cancelled; completed parts were retained.")
 
 
-@contextmanager
 def pipe(media, args, *, writing=False):
-    with (
-        tempfile.TemporaryFile() as errors,
-        media.process(
-            [
-                str(media.ffmpeg),
-                "-nostdin",
-                "-v",
-                "error",
-                "-threads",
-                "1",
-                "-filter_threads",
-                "1",
-                "-protocol_whitelist",
-                "file,pipe",
-                *args,
-            ],
-            stdin=subprocess.PIPE if writing else subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL if writing else subprocess.PIPE,
-            stderr=errors,
-        ) as child,
-    ):
-        try:
-            yield child.stdin if writing else child.stdout
-            if writing:
-                child.stdin.close()
-            if child.wait(timeout=180):
-                errors.seek(0)
-                raise ApplicationError(
-                    "Conform media failed: " + errors.read()[-1600:].decode("utf-8", "replace")
-                )
-        finally:
-            if child.poll() is None:
-                child.kill()
-                child.wait()
-            if writing:
-                with suppress(OSError):
-                    child.stdin.close()
+    """FFmpeg's stdin (writing) or stdout, through the conform family's runner."""
+    return CONFORM.writing(media, args) if writing else CONFORM.reading(media, args)
 
 
 def frames(media, path, pix_fmt, size, start=0, end=None):
-    trim = f"trim=start_frame={start}" + (f":end_frame={end}" if end is not None else "")
-    with pipe(
-        media,
-        [
-            "-noautorotate",
-            "-i",
-            str(path),
-            "-map",
-            "0:v:0",
-            "-vf",
-            trim,
-            "-an",
-            "-fps_mode",
-            "passthrough",
-            "-pix_fmt",
-            pix_fmt,
-            "-threads:v",
-            "1",
-            "-f",
-            "rawvideo",
-            "pipe:1",
-        ],
-    ) as output:
+    args = frame_stream.decode_args(path, FrameRange(start, end, "decode"), "native", pix_fmt)
+    with pipe(media, args) as output:
         count = 0
-        while data := output.read(size):
-            if len(data) != size:
-                raise ApplicationError("Incomplete conform frame.", 422)
+        for data in CONFORM.frames(output, size):
             count += 1
             yield data
         if end is not None and count != end - start:
@@ -288,17 +229,12 @@ def conform_patches(
                             media,
                             [
                                 "-y",
-                                "-f",
-                                "rawvideo",
-                                "-pix_fmt",
-                                native.format,
-                                "-s",
-                                f"{native.width}x{native.height}",
-                                "-r",
-                                str(fps),
-                                *color_args(stream),
-                                "-i",
-                                "pipe:0",
+                                *frame_stream.raw_input(
+                                    native.format,
+                                    (native.width, native.height),
+                                    fps,
+                                    *color_args(stream),
+                                ),
                                 "-vf",
                                 f"setsar={sar}",
                                 "-c:v",

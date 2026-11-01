@@ -21,6 +21,7 @@ from gaiavfx.application.replacement_steps import (
     lossless_video,
     video_writer,
 )
+from gaiavfx.infrastructure.frame_stream import raw_input
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
 from gaiavfx.modules.recast.replacement import parse_replacement_policy, to_record
 from gaiavfx.modules.recast.windows import delivery_plan, shot_windows
@@ -540,16 +541,7 @@ def shot_assembly(context):
     preview = context.staging / "preview.mp4"
     args = [
         "-y",
-        "-f",
-        "rawvideo",
-        "-pix_fmt",
-        "rgb24",
-        "-s",
-        f"{width}x{height}",
-        "-r",
-        str(fps),
-        "-i",
-        "pipe:0",
+        *raw_input("rgb24", (width, height), fps),
         "-i",
         str(source),
         "-map",
