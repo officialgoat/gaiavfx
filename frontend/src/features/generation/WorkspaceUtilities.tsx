@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
-import { studio, type Connections } from "./client";
+import { studio, type Connections, type Operation } from "./client";
 import { AssistantConnections } from "./AssistantConnections";
 import { CommandButton } from "../shell/Menus";
 import { ReplacementDecisions } from "../jobs/ReplacementDecisions";
@@ -346,18 +346,17 @@ function VoiceLibrary() {
   );
 }
 
-const REFUSED = /10061|refused|ECONNREFUSED|connection error/i;
 const JOB_ID =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b:?\s*/gi;
 // A Windows drive or UNC path, or a POSIX path of two or more parts, up to the next space or quote.
 const LOCAL_PATH =
   /(?:\b[A-Za-z]:[\\/]|\\\\)[^\s'"<>|]*|(?<![\w./])\/[^\s/'"]+(?:\/[^\s'"]*)+/g;
 
-/** Usability round 2 (C1): a job's error as one sentence. A refused connection names ComfyUI; anything else keeps its
- * first sentence (the operation joins its jobs' errors with "; "), without job ids, local paths or FFmpeg's
- * "[filter @ address]" tags. */
-function errorSentence(error: string) {
-  if (REFUSED.test(error))
+/** Usability round 2 (C1): a job's error as one sentence. ComfyUI out of reach (Generation's `failure`) is named;
+ * anything else keeps its first sentence (the operation joins its jobs' errors with "; "), without job ids, local
+ * paths or FFmpeg's "[filter @ address]" tags. */
+function errorSentence(error: string, failure: Operation["failure"]) {
+  if (failure === "unreachable")
     return "ComfyUI is not reachable. Start it, or check its address in Settings.";
   const text = error
     .replace(JOB_ID, "")
@@ -436,7 +435,9 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
               ) : blind ? (
                 // C1: a sentence first; the raw text (job ids, FFmpeg output, paths) only on request.
                 <div className="task-error">
-                  <p className="error-text">{errorSentence(operation.error)}</p>
+                  <p className="error-text">
+                    {errorSentence(operation.error, operation.failure)}
+                  </p>
                   <details>
                     <summary>Technical details</summary>
                     <pre>{operation.error}</pre>
