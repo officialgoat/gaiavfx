@@ -9,14 +9,17 @@ were measured, at their median (`measured_seconds`). Two questions read it:
 - what a run started now would render (`estimate_run`, for /estimate and Gaia: only the planned shots not rendered
   yet, each window at the mode's renders).
 `analysing` is the start gate's wait: a shot in the run's range whose windows are still being analysed.
+`reviewed` is a run's end: once it settles and no shot in its range still waits, the user's decisions on them.
 """
 
+from collections import Counter
 from statistics import median
 
 from gaiavfx.application import recast_projection as p
 from gaiavfx.shared.errors import ApplicationError
 
 STILL_FRAME_BYTES = 2_500_000  # storage per rendered frame
+REVIEWING = {"needs_review", "queued", "rendering"}  # a shot still waiting for the user or the GPU
 
 
 def renderable(plan) -> bool:
@@ -43,6 +46,19 @@ def analysing(shots, frame_range) -> bool:
     return any(
         s["included"] and s["status"] == "analysing" and p.in_range(s, frame_range) for s in shots
     )
+
+
+def reviewed(view, frame_range) -> dict | None:
+    """The user's decisions on the shots over `frame_range` (None: the whole film) of the recast as read: how many
+    were approved, kept original or failed. None while the run is not idle or finished (a paused run, its budget spent
+    or paused by the user, keeps its review waiting) or a shot in the range still waits for review or a render."""
+    shots = [s for s in view["shots"] if p.in_range(s, frame_range)]
+    if view["run"]["state"] not in {"idle", "finished"} or any(
+        s["status"] in REVIEWING for s in shots
+    ):
+        return None
+    counts = Counter(s["status"] for s in shots)
+    return {status: counts[status] for status in ("approved", "kept_original", "failed")}
 
 
 def start_blocked(view) -> str | None:

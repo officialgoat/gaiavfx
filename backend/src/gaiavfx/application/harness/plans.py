@@ -6,8 +6,8 @@ the human commands. No transaction spans a model call or a durable wait.
 
 import logging
 import time
-from collections import Counter
 
+from gaiavfx.application import recast_run as run_scope
 from gaiavfx.application.harness import turn_context
 from gaiavfx.application.harness.budget import reserved
 from gaiavfx.application.harness.conversation import Record
@@ -40,7 +40,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 FILM_PLANS = "A film's conversation always plans before it renders."
 RECAST_CHECK_SECONDS = 30
-RECAST_REVIEWING = {"needs_review", "queued", "rendering"}
 
 
 class PlanCommands:
@@ -167,9 +166,9 @@ class PlanCommands:
                 document=document.model_dump(),
             )
 
-    def _recast_reviewed(self, session, row, recast_id, span, throttle):
-        """The user's review outcome once the run settled and no shot in the range the step's run
-        started with ("start-end", or "" for the whole film) awaits review."""
+    def _recast_reviewed(self, session, row, review, throttle):
+        """The user's review outcome once Run scope reads the shots in the range the step's run started with as
+        reviewed."""
         if self.library is None:
             return ""
         checks = self.recast_checks
@@ -182,27 +181,21 @@ class PlanCommands:
         checks[row["id"]] = now
         try:
             with session.begin_nested():
-                state = recast_state(session, self.library, recast_id, private_plans=True)
+                state = recast_state(session, self.library, review.recast_id, private_plans=True)
         except Exception:  # a broken or deleted recast keeps the step waiting; Stop plan remains
-            logging.getLogger(__name__).exception("Recast %s review check skipped", recast_id)
+            logging.getLogger(__name__).exception(
+                "Recast %s review check skipped", review.recast_id
+            )
             return ""
-        run = state["run"]
-        start, _, end = span.partition("-")
-        bounds = (int(start), int(end)) if span else None
-        shots = [
-            s
-            for s in state["shots"]
-            if not bounds or (s["start"] < bounds[1] and s["end"] > bounds[0])
-        ]
-        # A paused run (budget spent or paused by the user) keeps the review waiting.
-        if run["state"] not in {"idle", "finished"} or any(
-            s["status"] in RECAST_REVIEWING for s in shots
-        ):
+        frame_range = (
+            {"start": review.start, "end": review.end} if review.start is not None else None
+        )
+        decided = run_scope.reviewed(state, frame_range)
+        if decided is None:
             return ""
-        counts = Counter(s["status"] for s in shots)
         return (
-            f"The user reviewed recast {recast_id}: {counts['approved']} approved, "
-            f"{counts['kept_original']} kept original, {counts['failed']} failed; continuing the plan."
+            f"The user reviewed recast {review.recast_id}: {decided['approved']} approved, "
+            f"{decided['kept_original']} kept original, {decided['failed']} failed; continuing the plan."
         )
 
     def _complete_reviews(self, session, row, document, *, throttle=False):
@@ -234,19 +227,13 @@ class PlanCommands:
                 changed = True
                 continue
             if isinstance(step.review, RecastReview):
-                recast_id = step.review.recast_id
-                span = (
-                    f"{step.review.start}-{step.review.end}"
-                    if step.review.start is not None
-                    else ""
-                )
-                message = self._recast_reviewed(session, row, recast_id, span, throttle)
+                message = self._recast_reviewed(session, row, step.review, throttle)
                 if not message:
                     continue
                 step.status = "done"
                 record.turn(
                     "system",
-                    action={"message": message, "review_recast_id": recast_id},
+                    action={"message": message, "review_recast_id": step.review.recast_id},
                 )
                 changed = True
                 continue

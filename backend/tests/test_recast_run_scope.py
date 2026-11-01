@@ -131,3 +131,32 @@ def test_run_scope_says_why_plan_start_and_pause_may_not_run(change, plan, start
         "start_refusal": start,
         "pause_refusal": pause,
     }
+
+
+DECIDED = {"approved": 1, "kept_original": 1, "failed": 1}
+
+
+@pytest.mark.parametrize(
+    ("run", "statuses", "frame_range", "decided"),
+    [
+        # The fourth shot lies outside the range; its pending review does not hold the range's.
+        (
+            "finished",
+            ("approved", "kept_original", "failed", "needs_review"),
+            {"start": 0, "end": 150},
+            DECIDED,
+        ),
+        ("finished", ("approved", "kept_original", "failed", "needs_review"), None, None),
+        ("idle", ("approved", "kept_original", "failed", "planned"), None, DECIDED),
+        ("finished", ("approved", "queued"), None, None),
+        ("finished", ("approved", "rendering"), None, None),
+        ("paused", ("approved",), None, None),
+        ("running", ("approved",), None, None),
+    ],
+)
+def test_a_range_is_reviewed_once_the_run_settles_and_none_of_its_shots_waits(
+    run, statuses, frame_range, decided
+):
+    shots = [{"start": i * 50, "end": (i + 1) * 50, "status": s} for i, s in enumerate(statuses)]
+    view = {"run": {"state": run}, "shots": shots}
+    assert recast_run.reviewed(view, frame_range) == decided
