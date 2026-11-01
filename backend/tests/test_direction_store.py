@@ -193,6 +193,22 @@ def test_reverse_plan_moves_through_review_to_ready(store):
         assert plan_for_cut(session, cut["id"]).recommended.ready
 
 
+def test_only_imported_evidence_and_stage_views_are_approved_by_themselves(store):
+    """The API's and the CLI's evidence approval: a survey view or a take frame is approved from its review."""
+    db, service = store
+    with db.transaction() as session:
+        _, _, target, _ = make_cut(service, session)
+        for kind in ("survey_view", "take_frame"):
+            evidence = service.record_evidence(session, target["id"], kind, f"{kind}-asset")
+            with pytest.raises(ApplicationError, match="from its review") as refused:
+                service.approve_evidence_directly(session, evidence["id"])
+            assert refused.value.status == 422
+            assert not service.read_evidence(session, evidence["id"])["approved"]
+        imported = service.record_evidence(session, target["id"], "imported", "picture")
+        approved = service.approve_evidence_directly(session, imported["id"])
+        assert approved["approved"] and approved["approved_by"] == "user"
+
+
 def test_same_direction_cut_continues_without_evidence(store):
     db, service = store
     with db.transaction() as session:

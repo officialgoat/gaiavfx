@@ -544,6 +544,7 @@ def test_harness_boundaries_and_human_authority():
         "set_plate",
         "judge_suitability",
         "approve_evidence",
+        "approve_evidence_directly",
         "approve_keyframe",
         "approve_keyframe_replacement",
         "_approve_keyframe",

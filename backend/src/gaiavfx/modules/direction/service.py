@@ -1802,6 +1802,17 @@ class DirectionService:
         session.flush()
         return _record(row)
 
+    def approve_evidence_directly(self, session: Session, evidence_id: str) -> dict:
+        """The user's approval of evidence by itself: an imported picture or a stage view. A survey view or a take
+        frame is a candidate of its review and is approved there (prepare_references.approve_view)."""
+        if self.read_evidence(session, evidence_id)["kind"] not in {"imported", "set_view"}:
+            raise ApplicationError(
+                "Only imported evidence and stage views are approved by themselves; approve a survey view or "
+                "take frame from its review.",
+                422,
+            )
+        return self.approve_evidence(session, evidence_id)
+
     def record_keyframe(
         self,
         session: Session,

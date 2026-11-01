@@ -456,7 +456,7 @@ def _dispatch(service: DirectionService, session, args):
     if args.group == "evidence":
         if args.action == "add":
             return service.record_evidence(session, args.angle_id, args.kind, args.asset_id)
-        return service.approve_evidence(session, args.evidence_id)
+        return service.approve_evidence_directly(session, args.evidence_id)
     if args.group == "keyframe":
         if args.action == "add":
             return service.record_keyframe(session, args.cut_id, args.asset_id, args.evidence_id)

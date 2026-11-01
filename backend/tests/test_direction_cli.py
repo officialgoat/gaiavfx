@@ -67,13 +67,25 @@ def test_cli_reverse_cut_round_trip(tmp_path):
         "insert_subject",
         "view_place",
     ]
-    evidence = run(
+    survey = run(
         "evidence",
         "add",
         "--angle-id",
         target["id"],
         "--kind",
         "survey_view",
+        "--asset-id",
+        "survey-asset",
+    )
+    refused = run("evidence", "approve", survey["id"], success=False)
+    assert "from its review" in refused["detail"]
+    evidence = run(
+        "evidence",
+        "add",
+        "--angle-id",
+        target["id"],
+        "--kind",
+        "imported",
         "--asset-id",
         "view-asset",
     )

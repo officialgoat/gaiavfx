@@ -911,12 +911,7 @@ def direction_router(workspace, authenticate):
     @router.post("/evidence/{evidence_id}/approve", response_model=EvidenceDTO)
     def approve_evidence(evidence_id: str):
         with workspace.db.transaction() as session:
-            evidence = direction.read_evidence(session, evidence_id)
-            if evidence["kind"] not in {"imported", "set_view"}:
-                raise ApplicationError(
-                    "Only imported evidence and stage views use this approval route.", 422
-                )
-            return direction.approve_evidence(session, evidence_id)
+            return direction.approve_evidence_directly(session, evidence_id)
 
     @router.post("/cuts", response_model=CutCommandDTO, status_code=201)
     def create_cut(body: CutCreate):
