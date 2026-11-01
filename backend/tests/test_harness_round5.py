@@ -107,10 +107,7 @@ def test_wrong_plate_retry_uses_original_source_one_job_and_waits_for_its_approv
         )
 
 
-@pytest.mark.parametrize(
-    "bad", ["other_place", "unknown_place_alias", "missing_source", "order", "bounds"]
-)
-def test_draft_cuts_rollback_all_beats_and_receipts(kernel, bad):
+def test_draft_cuts_rollback_all_beats_and_receipts(kernel):
     ctx, subject = draft_context(kernel)
     with kernel.db.transaction() as session:
         place = direction.create_place(session, "Courtyard")
@@ -118,7 +115,7 @@ def test_draft_cuts_rollback_all_beats_and_receipts(kernel, bad):
         other = direction.create_place(session, "Elsewhere")
         foreign = direction.add_angle(session, other["id"], "wrong")
         receipts_before = direction.receipts(session, kernel.movie["id"])
-    ctx = kernel.harness.context(kernel.row, ctx.document, [])
+    document = ctx.document
     beat = {
         "title": "Walk",
         "place": {"noun": "courtyard", "description": "Railing"},
@@ -138,25 +135,29 @@ def test_draft_cuts_rollback_all_beats_and_receipts(kernel, bad):
             }
         ],
     }
-    beats = [deepcopy(beat), deepcopy(beat)]
-    if bad == "other_place":
-        beats[1]["cuts"][0]["to_angle"] = foreign["id"]
-    elif bad == "unknown_place_alias":
-        # An omitted place now resolves from cut angles; an unknown legacy alias
-        # must still roll back every earlier beat and receipt.
-        beats[1]["place_id"] = "unknown-place"
-    elif bad == "missing_source":
-        beats[1].pop("from_angle")
-    elif bad == "order":
-        beats[1]["cuts"].append(deepcopy(beats[1]["cuts"][0]))
-    else:
-        beats[1]["cuts"][0]["frame"] = 999
     tool = DraftStoryline()
-    result = tool.run(ctx, tool.Input(expected_revision=2, beats=beats))
-    assert not result.ok and "beat 2" in result.discrepancy and not ctx.board.decisions
-    with kernel.db.transaction() as session:
-        assert not direction.read_movie(session, kernel.movie["id"])["segments"]
-        assert direction.receipts(session, kernel.movie["id"]) == receipts_before
+    # Each refusal rolls back everything, so every bad second beat is tried on the same movie.
+    for bad in ("other_place", "unknown_place_alias", "missing_source", "order", "bounds"):
+        beats = [deepcopy(beat), deepcopy(beat)]
+        if bad == "other_place":
+            beats[1]["cuts"][0]["to_angle"] = foreign["id"]
+        elif bad == "unknown_place_alias":
+            # An omitted place now resolves from cut angles; an unknown legacy alias
+            # must still roll back every earlier beat and receipt.
+            beats[1]["place_id"] = "unknown-place"
+        elif bad == "missing_source":
+            beats[1].pop("from_angle")
+        elif bad == "order":
+            beats[1]["cuts"].append(deepcopy(beats[1]["cuts"][0]))
+        else:
+            beats[1]["cuts"][0]["frame"] = 999
+        ctx = kernel.harness.context(kernel.row, document.model_copy(deep=True), [])
+        result = tool.run(ctx, tool.Input(expected_revision=2, beats=beats))
+        assert not result.ok and "beat 2" in result.discrepancy, (bad, result)
+        assert not ctx.board.decisions, bad
+        with kernel.db.transaction() as session:
+            assert not direction.read_movie(session, kernel.movie["id"])["segments"], bad
+            assert direction.receipts(session, kernel.movie["id"]) == receipts_before, bad
 
 
 @pytest.mark.parametrize("kind", ["survey", "removal"])

@@ -186,25 +186,24 @@ def test_q1_run8_pin_resume_does_not_instruct_premature_completion(world):
     assert ctx.document.plan.steps[1].status == "pending"
 
 
-@pytest.mark.parametrize("field", ["where", "distance_description"])
-@pytest.mark.parametrize(
-    "text",
-    [
-        RECORD["insertion"]["where"],
-        "standing beyond the railing",
-        "pauses on paving",
-        "waits in the courtyard",
-        "at the railing",
-        "one arm's length from the iron bars",
-        "an arm’s length from the railing",
-        "next to the railing",
-        "against the railing",
-        "a short step from the bars",
-        "facing the camera",
-        "facing the courtyard",
-    ],
+# Static, close or facing prose that run 8 and its repeats used for a walking pin.
+STATIC_PIN_PROSE = (
+    RECORD["insertion"]["where"],
+    "standing beyond the railing",
+    "pauses on paving",
+    "waits in the courtyard",
+    "at the railing",
+    "one arm's length from the iron bars",
+    "an arm’s length from the railing",
+    "next to the railing",
+    "against the railing",
+    "a short step from the bars",
+    "facing the camera",
+    "facing the courtyard",
 )
-def test_q2_run8_walking_pin_refuses_static_close_or_facing_prose(kernel, field, text):
+
+
+def test_q2_run8_walking_pin_refuses_static_close_or_facing_prose(kernel):
     ctx, segment = drafted(kernel)
     cut = segment["cuts"][0]
     # Run 8 described a position after the cut; its screen direction carries the walk.
@@ -220,20 +219,26 @@ def test_q2_run8_walking_pin_refuses_static_close_or_facing_prose(kernel, field,
                 "screen_direction": "right to left",
             },
         )
-    wording = {
+    walking = {
         **RECORD["insertion"],
         "where": "on the open paving beyond the railing",
         "distance_description": "distant, small",
         "size": "one fifth",
-        field: text,
     }
-    with kernel.db.transaction() as session, pytest.raises(ApplicationError) as error:
-        resolve_insertion(session, ctx, cut, wording)
-    message = str(error.value)
-    assert field in message
-    assert "on the open paving beyond the railing" in message
-    assert "distant, small" in message
-    assert "8 of 8" in message
+    # A refusal writes nothing, so every field and phrase is tried on the same drafted movie.
+    for field in ("where", "distance_description"):
+        for text in STATIC_PIN_PROSE:
+            with kernel.db.transaction() as session:
+                try:
+                    resolve_insertion(session, ctx, cut, {**walking, field: text})
+                except ApplicationError as error:
+                    message = str(error)
+                else:
+                    pytest.fail(f"{field}={text!r} was accepted for a walking pin")
+            assert field in message, (field, text, message)
+            assert "on the open paving beyond the railing" in message, (field, text, message)
+            assert "distant, small" in message, (field, text, message)
+            assert "8 of 8" in message, (field, text, message)
 
 
 def test_q2_position_for_walk_passes_and_nonmoving_nonreverse_controls(kernel):

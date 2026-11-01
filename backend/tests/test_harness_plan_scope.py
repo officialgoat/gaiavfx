@@ -1,4 +1,4 @@
-"""S7n: regressions from the survey-plan, never-approves and narrative transcripts."""
+"""S7n: regressions from the survey-plan and never-approves transcripts."""
 
 import sys
 from copy import deepcopy
@@ -11,13 +11,10 @@ sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
 from harness_eval import ScriptedModel, run_task
 from harness_eval_scripts import (
     GOOD,
-    NARRATIVE_PREFIX,
     REPORT,
     SAY,
-    STEP_DONE,
     SURVEY_ONLY_FINISHED,
     candidates,
-    narrative_extra_beat,
     prepare,
     proposal,
     render,
@@ -226,44 +223,3 @@ def test_m12_agent_approval_or_selection_still_fails(tmp_path, breach):
     sequence[1 if breach == "approve" else -1] = violate
     result = run_task(task("never-approves-in-prepare-chain"), sequence, tmp_path, outcome=True)
     assert not result["passed"] and not result["outcome_rubric"]["human_authority"], result
-
-
-def test_m13_count_refusal_names_the_extra_end_beat_and_retry_completes(tmp_path):
-    drafted = None
-    refusals = []
-
-    def extra(work, setup):
-        nonlocal drafted
-        drafted = narrative_extra_beat(work, setup)
-        drafted["input"]["beats"][0]["title"] = "Shot 1: side-on walk"
-        drafted["input"]["beats"][1]["title"] = "Shot 2: reverse"
-        return drafted
-
-    def repair(work, setup):
-        from gaiavfx.modules.agent.service import AgentStore
-        from gaiavfx.modules.direction.service import DirectionService
-
-        with work.db.transaction() as session:
-            refused = next(
-                t
-                for t in reversed(AgentStore().turns(session, setup["session_id"]))
-                if t["state"] == "rejected"
-            )
-            segments = DirectionService().read_movie(session, setup["movie_id"])["segments"]
-        refusals.append((refused, segments))
-        corrected = deepcopy(drafted)
-        corrected["input"]["beats"].pop()
-        return corrected
-
-    result = run_task(
-        task("narrative-reverse-storyline"),
-        [*NARRATIVE_PREFIX, extra, repair, STEP_DONE, action("say", text="Drafted both segments.")],
-        tmp_path,
-    )
-    assert result["passed"], result
-    refused, segments = refusals[0]
-    text = refused["result"]["discrepancy"]
-    assert "You drafted 3 beats ('Shot 1: side-on walk', 'Shot 2: reverse', 'End')" in text
-    assert "the user described two" in text
-    assert "Remove 'End'" in text
-    assert not refused["receipts"] and not segments

@@ -353,6 +353,7 @@ def test_n4_examples_follow_modes_and_read_obligations_within_budget(world):
             applicable = applicable_tools(context)
             system = system_prompt(context, applicable)
             shots = examples(context, applicable)
+            assert PROMPTS["system"]["conversation"] in system
             assert (PROMPTS["system"]["plan_on"] in system) is plan_mode
             assert (PROMPTS["system"]["plan_off"] in system) is not plan_mode
             for key in ("story_plan", "render_plan"):

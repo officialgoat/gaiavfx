@@ -46,9 +46,10 @@ def test_reading_turn_committed_before_call_and_atomic_notes(world):
         assert turns[-1]["state"] == "requested"
         assert harness.read(row["id"])["document"]["focus"]
         assert len(messages) == 2 and messages[0] == {"role": "system", "content": SYSTEM}
+        # A reference-notes turn offers no workflow tools, so even in plan mode it never names propose_plan.
         assert all(
             word not in json.dumps(messages)
-            for word in ("Whiteboard:", "Current view:", "Available tools:")
+            for word in ("Whiteboard:", "Current view:", "Available tools:", "propose_plan")
         )
         assert schema == notes_schema("image", 1)
         return IMAGE_NOTES
@@ -69,6 +70,7 @@ def test_reading_turn_committed_before_call_and_atomic_notes(world):
     notes = next(
         t for t in harness.turns(row["id"]) if (t["action"] or {}).get("tool") == "reference_notes"
     )
+    assert notes["provenance"]["tools"] == ["reference_notes"]
     assert notes["provenance"]["context"]["images"] == 1
     assert notes["provenance"]["context"]["state"] == "movie/plan/reading"
 

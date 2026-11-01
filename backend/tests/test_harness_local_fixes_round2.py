@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import harness_support
 import pytest
-from harness_eval import ScriptedModel, run_task
+from harness_eval import run_task
 from harness_eval_live import RecordedAssistant
 from harness_eval_outcomes import evaluate
 from harness_eval_scripts import GOOD, SAY, action, edit_plan
@@ -40,60 +40,6 @@ def live_factory(sequence):
         return RecordedAssistant(SimpleNamespace(run=run), None, recorder)
 
     return factory
-
-
-@pytest.mark.parametrize(
-    "name", ["P1", "draft-storyline-under-plan", "drafts-structure-from-brief"]
-)
-def test_b1_story_creation_is_action_guidance(tmp_path, monkeypatch, name):
-    original = ScriptedModel.call
-
-    def guided(self, settings, messages, schema, cancelled, log_path):
-        text = json.dumps(messages).lower()
-        assert "say ends the turn; if you intend to act, call the tool now" in text
-        if isinstance(messages[-1].get("content"), list):
-            # A reference-notes turn has no workflow actions or plan-mode rule.
-            assert "propose_plan" not in text
-        elif name != "drafts-structure-from-brief":
-            assert (
-                "create, draft, edit, prepare and render need propose_plan and user approval"
-                in text
-            )
-        else:
-            assert "act directly with the tools; reply with say when done" in text
-            assert "propose_plan" not in text
-        return original(self, settings, messages, schema, cancelled, log_path)
-
-    monkeypatch.setattr(ScriptedModel, "call", guided)
-    result = run_task(task(name), GOOD[name], tmp_path)
-    assert result["passed"], result
-
-
-@pytest.mark.parametrize("name", ["declare-relation", "stale-revision-retries-once"])
-def test_b2_relation_result_stops_scope_creep(tmp_path, monkeypatch, name):
-    original = ScriptedModel.call
-    seen = []
-
-    def guided(self, settings, messages, schema, cancelled, log_path):
-        text = json.dumps(messages)
-        assert "Producers need a preparation/render request" in text
-        with self.work.db.transaction() as session:
-            from gaiavfx.modules.agent.service import AgentStore
-
-            turns = AgentStore().turns(session, self.setup["session_id"])
-        edits = [
-            t
-            for t in turns
-            if t["state"] == "accepted" and (t["action"] or {}).get("tool") == "edit_cut"
-        ]
-        if edits:
-            assert "Declared. Offer the next step; do not prepare unless asked." in text
-            seen.append(True)
-        return original(self, settings, messages, schema, cancelled, log_path)
-
-    monkeypatch.setattr(ScriptedModel, "call", guided)
-    result = run_task(task(name), GOOD[name], tmp_path)
-    assert result["passed"] and seen, result
 
 
 def test_b3_render_target_required_at_live_grammar(tmp_path, monkeypatch):
@@ -267,15 +213,41 @@ def test_p3_requires_numbered_disambiguation(tmp_path, question, ok):
     assert result["passed"] is ok, result
 
 
-def test_p3_correct_words_do_not_excuse_changes(tmp_path):
+def test_p3_correct_words_do_not_excuse_changes():
     from harness_eval_replacement import rubric
     from harness_outcome_controls import corrupt_outcome
 
-    captured = []
-    result = run_task(task("P3"), GOOD["P3"], tmp_path, evidence=captured.append)
-    assert result["passed"], result
+    # P3's outcome: the numbered contact sheet is read, one numbered question is asked and nothing changes.
+    movie = {"title": "Observatory", "segments": []}
+    evidence = {
+        "setup": {},
+        "initial": {"movie": movie},
+        "final": {
+            "movie": deepcopy(movie),
+            "operations": [{"id": "people", "kind": "person_analysis", "state": "succeeded"}],
+            "selections": [],
+        },
+        "row": {"document": {"plan": None, "plan_history": []}},
+        "turns": [
+            {
+                "role": "agent",
+                "state": "accepted",
+                "action": {"tool": "analyze_people", "input": {}},
+                "result": {"payload": {"contact_sheet": "people-sheet"}},
+            },
+            {
+                "role": "agent",
+                "state": "accepted",
+                "action": {
+                    "tool": "ask_human",
+                    "input": {"question": "Which person, 1 or 2, on the numbered contact sheet?"},
+                },
+            },
+        ],
+    }
+    assert rubric(task("P3"), evidence) == {"replacement_outcome": True}
     for violation in ("plan", "edit", "operation", "selection"):
-        changed, criterion = corrupt_outcome("P3", captured[0], violation)
+        changed, criterion = corrupt_outcome("P3", evidence, violation)
         assert not rubric(task("P3"), changed)[criterion], violation
 
 

@@ -1,10 +1,11 @@
 """S7k: replay the local-e6 promise, wrong-cut and narrative-draft failures."""
 
+import json
 from copy import deepcopy
 
 import harness_support
 import pytest
-from harness_kernel_support import draft, post, story
+from harness_kernel_support import draft, drafted, post, story
 from harness_support import action
 
 from gaiavfx.application.harness.session import AgentSession
@@ -12,6 +13,7 @@ from gaiavfx.application.harness.tools.plan import ProposePlan
 from gaiavfx.application.harness.world import direction
 
 kernel = harness_support.kernel
+DECLARED = "Declared. Offer the next step; do not prepare unless asked."
 
 
 def test_k1_promise_then_plan(kernel):
@@ -202,6 +204,36 @@ def test_k2_inspect_other_segment_then_create_requested_cut(tmp_path):
     assert "Offer the next step" not in turns[0]["result"]["payload"]["message"]
 
 
+def test_k2_a_declared_relation_tells_gaia_to_offer_the_next_step(kernel):
+    _, segment = drafted(kernel)
+    cut = segment["cuts"][0]
+    row = kernel.harness.read(kernel.id)
+    kernel.harness.set_plan_mode(kernel.id, row["revision"], False)
+    requests = []
+
+    def report(messages, schema):
+        requests.append(json.dumps(messages))
+        return action("say", text="The reverse is declared.")
+
+    turns = post(
+        kernel,
+        action(
+            "edit_cut",
+            op="relation",
+            cut_id=cut["id"],
+            expected_revision=cut["revision"],
+            relation="reverse",
+            crosses_barrier=True,
+        ),
+        report,
+        message="Declare the cut a reverse across the railing.",
+    )
+    assert [t["state"] for t in turns] == ["accepted", "accepted"], turns
+    # The declaration's result stops scope creep: Gaia's next request carries it before any preparation.
+    assert DECLARED in turns[0]["result"]["payload"]["message"]
+    assert DECLARED in requests[0]
+
+
 @pytest.mark.parametrize("text", ["Shall I render takes?", "I can render once you approve."])
 def test_k1_questions_and_conditional_offers_pass(kernel, text):
     turns = post(kernel, action("say", text=text))
@@ -296,12 +328,18 @@ def test_k4_refuses_third_end_beat_without_writes(kernel):
     ctx, beat, _, _ = story(kernel)
     beat.update(cuts=[])
     ctx.latest_user_message = "Set up the cast, the place and these two segments."
-    result = draft(ctx, [beat, beat, {**beat, "title": "End"}])
-    assert not result.ok and "'these two segments'" in result.discrepancy
+    beats = [{**beat, "title": "Shot 1: side-on walk"}, {**beat, "title": "Shot 2: reverse"}]
+    result = draft(ctx, [*beats, {**beat, "title": "End"}])
+    assert not result.ok
+    # The refusal names every drafted beat, the user's count in their words and the beat to remove.
+    text = result.discrepancy
+    assert "You drafted 3 beats ('Shot 1: side-on walk', 'Shot 2: reverse', 'End')" in text
+    assert "the user described two ('these two segments')" in text
+    assert "Remove 'End'" in text
     assert not result.receipts and not ctx.board.decisions
     with kernel.db.transaction() as session:
         assert direction.read_movie(session, kernel.movie["id"])["segments"] == []
-    assert draft(ctx, [beat, beat]).ok
+    assert draft(ctx, beats).ok
 
 
 def test_k4_without_count_allows_three_beats(kernel):

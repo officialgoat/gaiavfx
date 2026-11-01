@@ -16,89 +16,79 @@ from gaiavfx.application.harness.world import direction
 kernel = harness_support.kernel
 
 
+HARD_CUT = "Add a hard cut at frame 36 in segment 2 to a reverse angle, crossing the railing."
+
+
 @pytest.mark.parametrize(
-    "text",
+    "message,text,verb",
     [
-        "Should I add that cut?",
-        "Shall I go ahead and create that cut in segment 2?",
-        "Want me to add the cut?",
-        "Would you like me to add the cut?",
-        "To add that cut I'd need to propose a plan. Shall I proceed?",
-        "I can add the cut if you like.",
-        "Would you like me to do that?",
+        # local-e8: offers of the requested work, however they are worded.
+        (HARD_CUT, "Should I add that cut?", "add"),
+        (HARD_CUT, "Shall I go ahead and create that cut in segment 2?", "add"),
+        (HARD_CUT, "Want me to add the cut?", "add"),
+        (HARD_CUT, "Would you like me to add the cut?", "add"),
+        (HARD_CUT, "To add that cut I'd need to propose a plan. Shall I proceed?", "add"),
+        (HARD_CUT, "I can add the cut if you like.", "add"),
+        (HARD_CUT, "Would you like me to do that?", "add"),
+        # The hard-cut transcript: the offer follows an explanation that already names edit_cut.
+        (
+            HARD_CUT,
+            (
+                "The existing reverse cut at frame 36 is in segment 1, not segment 2. "
+                "Segment 2 currently has no cut. To add a hard cut at frame 36 in segment 2 "
+                "to the reverse angle, I'd create it with edit_cut. "
+                "Shall I go ahead and create that cut in segment 2?"
+            ),
+            "add",
+        ),
+        # local-e7: a plan offered as the prerequisite for the requested survey.
+        (
+            "Survey the courtyard for the reverse cut.",
+            "To proceed I'd need to propose a plan with a survey. Shall I?",
+            "survey",
+        ),
+        ("Update the cut's relation to reverse.", "Should I update the cut's relation?", "update"),
+        ("Change the cut's relation to reverse.", "Should I change the cut's relation?", "change"),
+        (
+            "Declare the cut's relation to reverse.",
+            "Should I declare the cut's relation?",
+            "declare",
+        ),
+        ("Add an angle to the courtyard.", "Should I add the angle?", "add"),
+        # Ideation, questions about missing inputs, unsupported work and other work stay open.
+        ("Discuss adding a reverse cut.", "Should I add the cut?", None),
+        ("Give me ideas for a reverse cut.", "I can add the cut if you like.", None),
+        ("Create some ideas for a reverse cut.", "To proceed I'd need to propose a plan.", None),
+        ("How would you add a cut?", "To add a cut I'd need a plan.", None),
+        ("Add a cut.", "Which segment and frame should I use?", None),
+        ("Add a reverse cut.", "Should I use the gate or gallery angle?", None),
+        (
+            "Add a cut.",
+            "I cannot add that unsupported cut. I can draft a new shot if you like.",
+            None,
+        ),
+        ("Survey the courtyard.", "Shall I render takes?", None),
+        ("Add a cut.", "I can add it once you provide the missing segment and frame.", None),
     ],
 )
-def test_l1_requested_work_offer_is_refused_once_after_reads(kernel, text):
+def test_l1_an_offer_of_the_requested_work_is_detected(message, text, verb):
+    from gaiavfx.application.harness.tools.request_rules import offered_request
+
+    offer = offered_request(message, text)
+    assert (offer[1] if offer else None) == verb, offer
+
+
+def test_l1_requested_work_offer_is_refused_once_after_reads(kernel):
+    text = "Shall I go ahead and create that cut in segment 2?"
     turns = post(
         kernel,
         action("read_movie"),
         action("say", text=text),
         action("say", text=text),
-        message="Add a hard cut at frame 36 in segment 2 to a reverse angle, crossing the railing.",
+        message=HARD_CUT,
     )
     assert [t["state"] for t in turns] == ["accepted", "rejected", "accepted"]
     assert "call propose_plan now" in turns[1]["result"]["discrepancy"]
-
-
-def test_l1_plan_reject_offer(kernel):
-    turns = post(
-        kernel,
-        action("say", text="To proceed I'd need to propose a plan with a survey. Shall I?"),
-        action("propose_plan", goal="Survey", steps=[{"kind": "prepare", "title": "Survey"}]),
-    )
-    assert [t["state"] for t in turns] == ["rejected", "accepted"]
-
-
-@pytest.mark.parametrize("verb", ["update", "change", "declare"])
-def test_l1_other_explicit_edit_verbs(kernel, verb):
-    turns = post(
-        kernel,
-        action("say", text=f"Should I {verb} the cut's relation?"),
-        action("say", text="I need the intended relation."),
-        message=f"{verb.title()} the cut's relation to reverse.",
-    )
-    assert [t["state"] for t in turns] == ["rejected", "accepted"]
-
-
-def test_l1_hard_cut_transcript_offer_recovers_to_edit(tmp_path):
-    from harness_eval import run_task
-    from harness_eval_scripts import GOOD
-    from harness_eval_tasks import TASKS
-
-    task = next(t for t in TASKS if t.id == "hard-cut-at-frame-36")
-    offer = action(
-        "say",
-        text="The existing reverse cut at frame 36 is in segment 1, not segment 2. "
-        "Segment 2 currently has no cut. To add a hard cut at frame 36 in segment 2 "
-        "to the reverse angle, I'd create it with edit_cut. "
-        "Shall I go ahead and create that cut in segment 2?",
-    )
-    observed = []
-    sequence = [GOOD[task.id][0], offer, *GOOD[task.id][1:]]
-    result = run_task(task, sequence, tmp_path, outcome=True, evidence=observed.append)
-    assert result["passed"], result
-    agents = [t for t in observed[0]["turns"] if t["role"] == "agent"]
-    assert [t["state"] for t in agents] == ["accepted", "rejected", "accepted", "accepted"]
-    assert "call edit_cut now" in agents[1]["result"]["discrepancy"]
-
-
-@pytest.mark.parametrize(
-    "message,text",
-    [
-        ("Discuss adding a reverse cut.", "Should I add the cut?"),
-        ("Give me ideas for a reverse cut.", "I can add the cut if you like."),
-        ("Create some ideas for a reverse cut.", "To proceed I'd need to propose a plan."),
-        ("How would you add a cut?", "To add a cut I'd need a plan."),
-        ("Add a cut.", "Which segment and frame should I use?"),
-        ("Add a reverse cut.", "Should I use the gate or gallery angle?"),
-        ("Add a cut.", "I cannot add that unsupported cut. I can draft a new shot if you like."),
-        ("Survey the courtyard.", "Shall I render takes?"),
-        ("Add a cut.", "I can add it once you provide the missing segment and frame."),
-    ],
-)
-def test_l1_negative_controls(kernel, message, text):
-    turns = post(kernel, action("say", text=text), message=message)
-    assert len(turns) == 1 and turns[0]["state"] == "accepted"
 
 
 def test_l1_direct_offer_names_tool_and_work_allows_report(kernel):
