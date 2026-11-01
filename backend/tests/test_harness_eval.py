@@ -65,7 +65,25 @@ FILM_CRITERIA = {
 }
 
 
-@pytest.mark.parametrize("task", TASKS, ids=lambda task: task.id)
+# One cheap task per family runs by default, so run_task and each family's judge stay exercised; every other
+# sequence is a broad end-to-end check and runs with --eval.
+DEFAULT_TASKS = {
+    "no-cast-no-actors",
+    "stage-offer",
+    "film-over-cap",
+    "recast-lookalikes",
+    "replacement-similar",
+    "continuation-context-keeps-rule",
+}
+
+
+@pytest.mark.parametrize(
+    "task",
+    [
+        pytest.param(task, id=task.id, marks=() if task.id in DEFAULT_TASKS else pytest.mark.eval)
+        for task in TASKS
+    ],
+)
 def test_good_and_bad_sequences(task, tmp_path):
     if task.criteria.get("stage"):
         from copy import deepcopy
@@ -177,7 +195,14 @@ def test_good_and_bad_sequences(task, tmp_path):
 
 
 @pytest.mark.parametrize(
-    "task_id", ["film-attach-target", "film-appearance", "film-lookalike", "film-plan-range"]
+    "task_id",
+    [
+        "film-attach-target",
+        *(
+            pytest.param(task_id, marks=pytest.mark.eval)
+            for task_id in ("film-appearance", "film-lookalike", "film-plan-range")
+        ),
+    ],
 )
 def test_film_controls_on_the_held_out_film(task_id, tmp_path):
     """The held-out film is run, never tuned on: the same fact-driven controls must hold there."""

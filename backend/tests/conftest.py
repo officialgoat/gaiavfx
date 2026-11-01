@@ -1,14 +1,38 @@
-"""Refuse to test a gaiavfx package imported from another checkout.
+"""Shared test setup: the checkout under test, parallel workers, the separate eval run and the common fixtures.
 
 The root `.venv` holds an editable install pinned to the main checkout, so a git
-worktree that reuses it would silently test the main checkout's code.
+worktree that reuses it would silently test the main checkout's code; that is refused.
 """
 
+import os
 from pathlib import Path
 
 import pytest
 
 SOURCE = Path(__file__).resolve().parents[1] / "src"
+
+if os.environ.get("PYTEST_XDIST_WORKER"):
+    # Parallel workers already fill the cores; a numeric library that also spreads over every core per worker only
+    # makes them fight. Set before any test imports numpy.
+    for name in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS"):
+        os.environ.setdefault(name, "1")
+
+
+def pytest_addoption(parser):
+    parser.addoption(
+        "--eval",
+        action="store_true",
+        help="Also run the broad scripted-eval sequences (tests marked eval).",
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if config.getoption("--eval"):
+        return
+    skip = pytest.mark.skip(reason="run with --eval")
+    for item in items:
+        if item.get_closest_marker("eval"):
+            item.add_marker(skip)
 
 
 def pytest_configure(config):

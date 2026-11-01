@@ -21,7 +21,13 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "httpx>=0.28,<1", "ruff>=0.11,<1", "pyinstaller>=6,<7"]
+dev = [
+    "pytest>=8,<10",
+    "httpx>=0.28,<1",
+    "ruff>=0.11,<1",
+    "pyinstaller>=6,<7",
+    "pytest-xdist>=3.6,<4",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -32,6 +38,10 @@ packages = ["src/gaiavfx"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--strict-markers"
+markers = [
+    "eval: a broad scripted-eval sequence; runs only with --eval",
+]
 
 [tool.ruff]
 line-length = 100

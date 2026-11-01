@@ -442,9 +442,10 @@ def test_two_thousand_segments_attribute_in_under_two_seconds():
         segments.append(segment(i, start, start + 1.5, vector(), words=words))
     shots = [shot(f"s{i:04d}", 7.2 * i, 7.2 * (i + 1), f"c{i % 10}") for i in range(1000)]
     env = {"hop_s": 0.01, "db": [rng.uniform(-90, -15) for _ in range(730_000)]}
-    began = time.perf_counter()
+    # CPU time, so parallel test workers sharing the machine cannot push it over.
+    began = time.process_time()
     lines = attribute(segments, shots, [], set(known), env, [], GRID, POLICY, profiles=known)
-    assert time.perf_counter() - began < 2.0
+    assert time.process_time() - began < 2.0
     assert len(lines) == 2000
 
 
