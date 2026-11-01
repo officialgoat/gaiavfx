@@ -364,18 +364,18 @@ export async function mockRecast(
   // The fixture stands in for Python's Run scope (recast_run.refusals): the run's range waits while an included
   // shot in it is still being analysed, and Plan, Start and Pause say why they may not run.
   const served = () => {
-    const range = value.run.range;
-    const run = value.run;
-    run.analysing = value.shots.some(
+    // A copy, so a test's own record of the mock (`mock.value`) holds only what it set.
+    const read = structuredClone(value);
+    const range = read.run.range;
+    const run = read.run;
+    run.analysing = read.shots.some(
       (s) =>
         s.included &&
         s.status === "analysing" &&
         (!range || (s.start < range.end && s.end > range.start)),
     );
-    const analysed = value.analysis.state === "succeeded";
-    const mapped = value.characters.some(
-      (c) => c.target?.state === "confirmed",
-    );
+    const analysed = read.analysis.state === "succeeded";
+    const mapped = read.characters.some((c) => c.target?.state === "confirmed");
     run.plan_refusal = !mapped
       ? "Map a character first"
       : !analysed
@@ -387,7 +387,7 @@ export async function mockRecast(
       ? "Wait for analysis to finish."
       : run.analysing
         ? "Wait for window analyses to finish."
-        : value.film.fps_status === "unsupported"
+        : read.film.fps_status === "unsupported"
           ? "This film's frame rate is unsupported."
           : !mapped
             ? "Confirm a character mapping first."
@@ -398,7 +398,6 @@ export async function mockRecast(
     // As recast_projection.comparable_checks: a shot's versions carry only the checks they all measured alike.
     const kind = (c: { calibrated: boolean; verdict: string }) =>
       `${c.calibrated}:${c.verdict === "unsupported"}`;
-    const read = structuredClone(value);
     for (const shot of read.shots) {
       const [first, ...rest] = shot.versions;
       const alike = new Set(
