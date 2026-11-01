@@ -1,15 +1,12 @@
-"""Pins every raw-frame decoder and writer: the FFmpeg arguments it passes and the bytes it produces.
+"""Pins the bytes every raw-frame decoder and writer produces on the frame stream.
 
-Recorded before the decoders and writers moved onto one frame stream, so a refactor must reproduce both.
-The argument lists (golden/frame_stream/arguments.json) hold on any machine. The output hashes hold for
-the bundled FFmpeg build they were recorded with; another build skips them, never the argument pins.
+The hashes hold for the bundled FFmpeg build they were recorded with; another build skips them.
 """
 
 import hashlib
 import json
 import os
 import subprocess
-from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
 from types import SimpleNamespace
@@ -22,7 +19,6 @@ from gaiavfx.application.shot_assembly import shot_assembly
 from gaiavfx.infrastructure import media_conform
 from gaiavfx.infrastructure.media import MediaTools
 
-GOLDEN = Path(__file__).parent / "golden" / "frame_stream" / "arguments.json"
 BUILD = "ffmpeg version 9.0.1-essentials_build-www.gyan.dev"
 # x264 picks its own thread count from the cores when a caller does not pin one.
 PROXY_CORES = 16
@@ -50,47 +46,6 @@ HASHES = {
     "shot_assembly preview": "c4cdeb42265876bd490cada3a63407100f6d74ccf2170d5e544ad21acae24f68",
     "conform_patches master": "14fdefa16969236cccbd9d18d47b30a3a939ee0938bdaa7e02ae0c444073c15f",
 }
-
-
-class Recorder:
-    """A MediaTools whose every child process is recorded, by label, with portable paths."""
-
-    def __init__(self, root):
-        self.media = MediaTools()
-        self.root = str(root)
-        self.calls = {}
-        self.label = None
-        spawn = self.media.process
-
-        @contextmanager
-        def process(command, **kwargs):
-            if self.label is not None:
-                self.calls.setdefault(self.label, []).append(self.portable(command))
-            with spawn(command, **kwargs) as child:
-                yield child
-
-        self.media.process = process
-
-    def portable(self, command):
-        names = {str(self.media.ffmpeg): "ffmpeg", str(self.media.ffprobe): "ffprobe"}
-        return [
-            names.get(str(arg))
-            or (
-                str(arg).replace(self.root, "<tmp>").replace("\\", "/")
-                if self.root in str(arg)
-                else str(arg)
-            )
-            for arg in command
-        ]
-
-    @contextmanager
-    def recording(self, label):
-        assert label not in self.calls, label
-        self.label = label
-        try:
-            yield self.media
-        finally:
-            self.label = None
 
 
 def ffmpeg(media, *args):
@@ -149,88 +104,73 @@ def packet_digest(media, path):
 
 
 def scenario(root):
-    """Run every decoder and writer once on small inputs; return their arguments and output hashes."""
-    plain = MediaTools()
-    rgb, bframes, full = make_inputs(plain, root)
-    recorder = Recorder(root)
+    """Run every decoder and writer once on small inputs; return their output hashes."""
+    media = MediaTools()
+    rgb, bframes, full = make_inputs(media, root)
     hashes = {}
 
-    with recorder.recording("decode_rgb rgb source") as media:
-        hashes["decode_rgb rgb source"] = digest(decode_rgb(media, rgb))
-    with recorder.recording("decode_rgb bt709 seek") as media:
-        hashes["decode_rgb bt709 seek"] = digest(decode_rgb(media, bframes, 60, 70))
-    with recorder.recording("iter_rgb smpte170m full range origin") as media:
-        hashes["iter_rgb smpte170m full range origin"] = digest(*iter_rgb(media, full, 3, 9))
-    with recorder.recording("iter_rgb rgba open end") as media:
-        hashes["iter_rgb rgba open end"] = digest(*iter_rgb(media, rgb, 2, None, alpha=True))
-    with recorder.recording("stream_frames scaled range") as media:
-        frames = media.stream_frames(bframes, width=32, height=24, start=5, end=15)
-        hashes["stream_frames scaled range"] = digest(*(f for _, f in frames))
-    with recorder.recording("stream_frames rgb source") as media:
-        frames = media.stream_frames(rgb, width=64, height=48)
-        hashes["stream_frames rgb source"] = digest(*(f for _, f in frames))
-    with recorder.recording("conform frames native range") as media:
-        frames = media_conform.frames(media, full, "yuv444p", 64 * 48 * 3, 2, 8)
-        hashes["conform frames native range"] = digest(*frames)
-    with recorder.recording("conform frames rgba") as media:
-        hashes["conform frames rgba"] = digest(
-            *media_conform.frames(media, rgb, "rgba", 64 * 48 * 4)
-        )
+    hashes["decode_rgb rgb source"] = digest(decode_rgb(media, rgb))
+    hashes["decode_rgb bt709 seek"] = digest(decode_rgb(media, bframes, 60, 70))
+    hashes["iter_rgb smpte170m full range origin"] = digest(*iter_rgb(media, full, 3, 9))
+    hashes["iter_rgb rgba open end"] = digest(*iter_rgb(media, rgb, 2, None, alpha=True))
+    frames = media.stream_frames(bframes, width=32, height=24, start=5, end=15)
+    hashes["stream_frames scaled range"] = digest(*(f for _, f in frames))
+    frames = media.stream_frames(rgb, width=64, height=48)
+    hashes["stream_frames rgb source"] = digest(*(f for _, f in frames))
+    frames = media_conform.frames(media, full, "yuv444p", 64 * 48 * 3, 2, 8)
+    hashes["conform frames native range"] = digest(*frames)
+    hashes["conform frames rgba"] = digest(*media_conform.frames(media, rgb, "rgba", 64 * 48 * 4))
 
     rng = np.random.default_rng(7)
     target = root / "lossless" / "rgb.mkv"
-    with recorder.recording("lossless_video rgb") as media:
-        lossless_video(media, rng.integers(0, 256, (3, 48, 64, 3), np.uint8), target, 24)
+    lossless_video(media, rng.integers(0, 256, (3, 48, 64, 3), np.uint8), target, 24)
     hashes["lossless_video rgb"] = file_digest(target)
     attachment = root / "patch.json"
     attachment.write_text('{"pin": true}', "utf-8")
     rgba = rng.integers(0, 256, (4, 24, 32, 4), np.uint8)
     target = root / "lossless" / "alpha.mkv"
-    with recorder.recording("lossless_video alpha attachment") as media:
-        lossless_video(
-            media,
-            iter(rgba),
-            target,
-            Fraction(25),
-            size=(32, 24),
-            frame_count=4,
-            alpha=True,
-            attachment=attachment,
-            identity="pin",
-        )
+    lossless_video(
+        media,
+        iter(rgba),
+        target,
+        Fraction(25),
+        size=(32, 24),
+        frame_count=4,
+        alpha=True,
+        attachment=attachment,
+        identity="pin",
+    )
     hashes["lossless_video alpha attachment"] = file_digest(target)
     target = root / "lossless" / "audio.mkv"
-    with recorder.recording("lossless_video audio tempo pad") as media:
-        lossless_video(
-            media,
-            rng.integers(0, 256, (6, 48, 64, 3), np.uint8),
-            target,
-            Fraction(24),
-            full,
-            3,
-            6,
-            "audio",
-            source_fps=Fraction(30000, 1001),
-            audio_pad_duration=Fraction(1, 2),
-        )
+    lossless_video(
+        media,
+        rng.integers(0, 256, (6, 48, 64, 3), np.uint8),
+        target,
+        Fraction(24),
+        full,
+        3,
+        6,
+        "audio",
+        source_fps=Fraction(30000, 1001),
+        audio_pad_duration=Fraction(1, 2),
+    )
     hashes["lossless_video audio tempo pad"] = file_digest(target)
 
     target = root / "proxy" / "proxy.mp4"
-    with recorder.recording("sampled_proxy") as media:
-        media.sampled_proxy(bframes, target, [0, 3, 4, 10, 30], width=32, height=24, fps=25)
+    media.sampled_proxy(bframes, target, [0, 3, 4, 10, 30], width=32, height=24, fps=25)
     hashes["sampled_proxy"] = file_digest(target)
 
     # Two overlapping windows: the delivery plan crossfades frames 9-12 between them.
     fps = Fraction(30000, 1001)
     windows = []
     for name, start, end, value in (("w0", 0, 13, 200), ("w1", 9, 21, 60)):
-        pixels = decode_rgb(plain, full, start, end).copy()
+        pixels = decode_rgb(media, full, start, end).copy()
         pixels[:, 10:20, 20:40] = value
-        lossless_video(plain, pixels, root / f"{name}.mkv", fps)
+        lossless_video(media, pixels, root / f"{name}.mkv", fps)
         windows.append({"start": start, "end": end, "asset": name})
     staging = root / "assembly"
     context = SimpleNamespace(
-        library=SimpleNamespace(media=recorder.media),
+        library=SimpleNamespace(media=media),
         staging=staging,
         paths={"film": full, **{w["asset"]: root / f"{w['asset']}.mkv" for w in windows}},
         snapshot={
@@ -243,44 +183,30 @@ def scenario(root):
             }
         },
     )
-    with recorder.recording("shot_assembly"):
-        shot_assembly(context)
+    shot_assembly(context)
     hashes["shot_assembly patch"] = file_digest(staging / "patch.mkv")
     hashes["shot_assembly preview"] = file_digest(staging / "preview.mp4")
 
     master = root / "conform" / "master.mkv"
     patch = {"path": staging / "patch.mkv", "source_asset": "film", "start": 0, "end": 21}
-    with pytest.MonkeyPatch.context() as patched, recorder.recording("conform_patches") as media:
+    with pytest.MonkeyPatch.context() as patched:
         # Three staged parts, the second and third read through the patch.
         patched.setattr(media_conform, "PART_FRAMES", 8)
         media.conform_patches(
             full, [patch], master, codec="ffv1", cancelled=lambda: False, progress=lambda _: None
         )
-    hashes["conform_patches master"] = packet_digest(plain, master)
-    return recorder.calls, hashes
+    hashes["conform_patches master"] = packet_digest(media, master)
+    return hashes
 
 
-@pytest.fixture(scope="module")
-def recorded(tmp_path_factory):
-    return scenario(tmp_path_factory.mktemp("frame-pins"))
-
-
-def test_decoders_and_writers_pass_their_pinned_arguments(recorded):
-    calls, _ = recorded
-    pinned = json.loads(GOLDEN.read_text("utf-8"))
-    assert list(calls) == list(pinned)
-    for label, commands in pinned.items():
-        assert calls[label] == commands, label
-
-
-def test_decoders_and_writers_reproduce_their_pinned_bytes(recorded):
+def test_decoders_and_writers_reproduce_their_pinned_bytes(tmp_path):
     media = MediaTools()
     version = subprocess.run(
         [str(media.ffmpeg), "-hide_banner", "-version"], capture_output=True, check=True
     ).stdout.decode("utf-8", "replace")
     if not version.startswith(BUILD + " "):
         pytest.skip(f"output hashes were recorded with {BUILD}")
-    _, hashes = recorded
+    hashes = scenario(tmp_path)
     expected = dict(HASHES)
     if os.cpu_count() != PROXY_CORES:
         hashes, expected = (

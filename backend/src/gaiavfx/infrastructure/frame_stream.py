@@ -9,8 +9,8 @@ colour mode:
   frames may be scaled to a size.
 - "native": the stored samples: no rotation and no colour arguments.
 
-A Runner spawns FFmpeg with one family of callers' global flags, timeout and error wording. Every argument
-list is pinned by tests/test_frame_stream_pins.py: each mode reproduces what its callers always passed.
+A Runner spawns FFmpeg with one family of callers' global flags, timeout and error wording. The bytes every
+reader and writer produces are pinned by tests/test_frame_stream_pins.py.
 """
 
 import json
