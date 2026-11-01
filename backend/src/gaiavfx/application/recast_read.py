@@ -1,5 +1,5 @@
 """The Recast read: what the film's page and Gaia see of a recast, as one RecastDTO, with the one rule for a
-shot's status. Read only: it starts nothing.
+shot's status and why a head pass may not start on it. Read only: it starts nothing.
 """
 
 from copy import deepcopy
@@ -13,6 +13,30 @@ from gaiavfx.application import recast_shell as shell
 from gaiavfx.application import recast_voice as voicing
 from gaiavfx.application.target_faces import target_report
 from gaiavfx.shared.errors import ApplicationError
+
+# What a performer's target face check leaves a head pass, in the words `recast.head_pass` refuses with.
+HEAD_PASS_FACE = {
+    "face": None,
+    "no_face": "Head pass needs a target with a human face",
+    "failed": "The target picture could not be checked.",
+}
+FACE_CHECKING = "Checking the target picture's face, which needs ComfyUI"
+
+
+def _head_pass_refusal(shot, characters) -> str | None:
+    """Why a head pass may not start on the shot's versions: it has none, it has not settled, no mapped character is
+    in its plan, or none of them has a target with a human face (then the first one's reason)."""
+    if not shot["versions"]:
+        return "This shot has no settled version."
+    if shot["status"] in {"analysing", "queued", "rendering"}:
+        return "Wait for this shot to settle before starting a head pass."
+    performers = [
+        characters[c] for c in (shot["plan"] or {}).get("performers", []) if c in characters
+    ]
+    if not performers:
+        return "Choose a mapped character in this shot's plan."
+    refusals = [c["head_pass_refusal"] for c in performers]
+    return None if None in refusals else refusals[0]
 
 
 def _status(mapped, included, plan, versions, choice, windows, assembly, layers=()):
@@ -66,9 +90,11 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
     margin_min = p.policy().identity_margin_min
     characters, unknown = p.character_views(recast, report)
     for character in characters:
+        face = None
         if target := character["target"]:
-            face = target_report(session, library, target["asset_id"])
-            target["face"] = face["state"] if face else "checking"
+            report_ = target_report(session, library, target["asset_id"])
+            target["face"] = face = report_["state"] if report_ else "checking"
+        character["head_pass_refusal"] = HEAD_PASS_FACE.get(face, FACE_CHECKING)
     targets = planning.mapped(recast)
     shots, all_ops = [], []
     analyses = {}
@@ -174,6 +200,9 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
                 ),
             }
         )
+    by_id = {c["id"]: c for c in characters}
+    for shot in shots:
+        shot["head_pass_refusal"] = _head_pass_refusal(shot, by_id)
     selected = [s for s in shots if run_scope.covered(s, p.run_range(recast))]
     seconds = run_scope.measured_seconds([o for o in all_ops if not o["request"].get("head")])
     current = next((s["id"] for s in selected if s["id"] in active_shots), None)

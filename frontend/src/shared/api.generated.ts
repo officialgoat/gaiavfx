@@ -3500,6 +3500,8 @@ export interface components {
        */
       lines_confirmed: number;
       voice?: components["schemas"]["VoiceDTO"] | null;
+      /** Head Pass Refusal */
+      head_pass_refusal?: string | null;
     };
     /** CharacterPatchInput */
     CharacterPatchInput: {
@@ -5404,6 +5406,8 @@ export interface components {
       /** Versions */
       versions: components["schemas"]["ShotVersionDTO"][];
       choice: components["schemas"]["ShotChoiceDTO"] | null;
+      /** Head Pass Refusal */
+      head_pass_refusal?: string | null;
     };
     /** RecastSummaryDTO */
     RecastSummaryDTO: {

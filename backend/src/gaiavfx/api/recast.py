@@ -142,6 +142,7 @@ class CharacterDTO(BaseModel):
     lines_proposed: int = 0  # lines proposed for this character (computed or by the agent)
     lines_confirmed: int = 0
     voice: VoiceDTO | None = None  # None until recordings are chosen or proposed
+    head_pass_refusal: str | None = None  # why this character's target cannot take a head pass
 
 
 class AppearanceDTO(BaseModel):
@@ -259,6 +260,7 @@ class RecastShotDTO(BaseModel):
     status: ShotStatus
     versions: list[ShotVersionDTO]
     choice: ShotChoiceDTO | None
+    head_pass_refusal: str | None = None  # why a head pass may not start on its versions
 
 
 class EstimateDTO(BaseModel):

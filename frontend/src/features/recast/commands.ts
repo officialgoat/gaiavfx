@@ -5,35 +5,9 @@ import type { RecastController } from "./use-recast";
 import type { Character, Recast, Shot } from "./client";
 import { castActions } from "./cast-actions";
 import { recasts } from "./client";
-import { QUEUES, recastProgress, voiceReason } from "./progress";
+import { QUEUES, recastProgress } from "./progress";
 import { useFilmEditor } from "./film-editor";
 import { focusQueueRow, focusShown } from "./ReviewQueue";
-
-export function headPassCharacterReason(
-  character: Character | undefined,
-): string | undefined {
-  switch (character?.target?.face) {
-    case "face":
-      return undefined;
-    case "no_face":
-      return "Head pass needs a target with a human face";
-    case "failed":
-      return "The target picture could not be checked.";
-    default:
-      return "Checking the target picture's face, which needs ComfyUI";
-  }
-}
-
-export function headPassTargetReason(
-  shot: Shot | undefined,
-  characters: Character[],
-): string | undefined {
-  const performers = (shot?.plan?.performers ?? []).map((id) =>
-    characters.find((c) => c.id === id),
-  );
-  if (performers.some((c) => !headPassCharacterReason(c))) return undefined;
-  return performers.length ? headPassCharacterReason(performers[0]) : undefined;
-}
 
 export function recastCommands(r: RecastController): CommandGroup {
   const ready = (): string | undefined =>
@@ -431,7 +405,10 @@ export function recastCommands(r: RecastController): CommandGroup {
       label: "Analyse dialogue…",
       run: () => r.setVoiceOpen(true),
       reason: () =>
-        saving() ?? (r.value ? voiceReason(r.value) : "Open a film first."),
+        saving() ??
+        (r.value
+          ? (r.value.dialogue.reason ?? undefined)
+          : "Open a film first."),
     },
     {
       id: "recast.conform",

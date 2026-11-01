@@ -586,6 +586,25 @@ def test_head_target_refusal_uses_frozen_picture_before_reservation(
     assert current["estimate"] == state["estimate"]
 
 
+def test_the_read_says_why_a_head_pass_may_not_start_in_the_commands_words(world):
+    """The film's page reads a shot's and a character's head pass refusal from the Recast read."""
+    ready = world.ready()
+    assert {s["head_pass_refusal"] for s in ready["shots"]} == {"This shot has no settled version."}
+    state = drain(world, run(world, ready)["id"])
+    shot = state["shots"][0]
+    cid = shot["plan"]["performers"][0]
+    character = next(c for c in state["characters"] if c["id"] == cid)
+    assert shot["head_pass_refusal"] is None and character["head_pass_refusal"] is None
+    state = edit(world, state, recast.set_target, cid, asset_id="picture2", label="Robot")
+    checking = "Checking the target picture's face, which needs ComfyUI"
+    assert state["shots"][0]["head_pass_refusal"] == checking
+    world.settle_target("picture2", scores=(0.525,))
+    state = world.invoke(recast.recast_state, state["id"])
+    no_face = "Head pass needs a target with a human face"
+    assert state["shots"][0]["head_pass_refusal"] == no_face
+    assert next(c for c in state["characters"] if c["id"] == cid)["head_pass_refusal"] == no_face
+
+
 def test_feed_backfills_old_confirmed_targets_once_without_read_writes(world, monkeypatch):
     from gaiavfx.application import target_faces
 

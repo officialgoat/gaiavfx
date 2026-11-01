@@ -273,6 +273,8 @@ test("A24: while the film analysis runs, Voice waits for it", async ({
     done: 1,
     total: 3,
   };
+  // The service's reason while the film analysis runs (recast_lines.dialogue_status).
+  mock.value.dialogue.reason = "Wait for the film analysis to finish.";
   await page.goto("/");
   await openFilm(page);
   await expect(voice(page)).toHaveAttribute("aria-disabled", "true");

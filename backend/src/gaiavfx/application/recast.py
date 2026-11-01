@@ -13,7 +13,7 @@ from gaiavfx.application import recast_run as run_scope
 from gaiavfx.application import recast_shell as shell
 from gaiavfx.application import recast_take
 from gaiavfx.application.recast_derivatives import advance_reference, cancel_reference
-from gaiavfx.application.recast_read import recast_state
+from gaiavfx.application.recast_read import HEAD_PASS_FACE, recast_state
 from gaiavfx.application.target_faces import (
     TargetReportPending,
     TargetReportRefused,
@@ -746,10 +746,7 @@ def start_head_pass(
         if face is None or face["state"] == "checking":
             pending = True
             continue
-        if face["state"] == "no_face":
-            refusal = refusal or "Head pass needs a target with a human face"
-        if face["state"] == "failed":
-            refusal = refusal or "The target picture could not be checked."
+        refusal = refusal or HEAD_PASS_FACE.get(face["state"])
     if refusal:
         raise TargetReportRefused(refusal, 422)
     if pending:

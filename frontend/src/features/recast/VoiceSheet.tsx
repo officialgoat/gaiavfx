@@ -1,6 +1,6 @@
 import { Sheet } from "../../shared/ui";
 import { recasts, type Recast } from "./client";
-import { voiceReason, voiceSummary } from "./progress";
+import { voiceSummary } from "./progress";
 import type { RecastController } from "./use-recast";
 
 /** The dialogue analysis's stages in words. */
@@ -68,7 +68,7 @@ function VoiceBody({
   start: (call: typeof recasts.startDialogue, words: string) => void;
 }) {
   const dialogue = value.dialogue;
-  const reason = voiceReason(value);
+  const reason = dialogue.reason ?? undefined;
   const closeButton = (
     <button type="button" onClick={close}>
       Close

@@ -70,15 +70,15 @@ def _film_ready(session, recast):
 
 
 def dialogue_status(session, library, recast, current=None):
-    """DialogueStatusDTO: the shared analysis's progress, and why the Voice step cannot start yet (D2 text)."""
+    """DialogueStatusDTO: the shared analysis's progress, and why the Voice step cannot start yet (D2 text): the
+    refusal `_startable` makes."""
     evidence = _evidence()
     operation, attempt, gap = current or current_operation(session, library, recast)
     reason = None
-    if operation is None:
-        if gap:
-            reason = gap["message"]
-        elif not _film_ready(session, recast):
-            reason = WAIT_FOR_FILM
+    if gap:
+        reason = gap["message"]
+    elif not _film_ready(session, recast):
+        reason = WAIT_FOR_FILM
     return {
         "operation_id": operation["id"] if operation else None,
         **evidence.dialogue_view(operation),

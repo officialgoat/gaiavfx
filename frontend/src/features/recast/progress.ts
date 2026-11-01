@@ -62,14 +62,6 @@ export function voiceCount(value: Recast) {
 
 /** Why the Voice step cannot open its sheet (D2): the service's reason (no audio, too many channels), or the film
  * analysis still running. A running or finished dialogue analysis opens the sheet. */
-export function voiceReason(value: Recast): string | undefined {
-  if (value.dialogue.reason) return value.dialogue.reason;
-  // The service's own sentence for this case (`recast_lines.WAIT_FOR_FILM`), so both read the same.
-  if (value.analysis.state !== "succeeded")
-    return "Wait for the film analysis to finish.";
-  return undefined;
-}
-
 /** The voice build's stages and the audition in words (ADR 0016 §4, P5): the character card and the Voice sheet say
  * the same. */
 export const VOICE_STAGES: Record<NonNullable<Voice["stage"]>, string> = {

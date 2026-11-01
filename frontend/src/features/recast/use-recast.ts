@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { headPassCharacterReason, headPassTargetReason } from "./commands";
 import { useComfyOffline } from "./comfy";
 import { ApiError } from "../../shared/api";
 import {
@@ -149,23 +148,12 @@ export function useRecast(active: boolean) {
     (id) => value?.characters.filter((c) => c.id === id) ?? [],
   );
   const headPassEligibleCharacters = headPassCharacters.filter(
-    (c) => !headPassCharacterReason(c),
+    (c) => !c.head_pass_refusal,
   );
+  // Why a head pass may not start is Python's reading of the shot; showing the Original is this view's own.
   const headPassReason = original
     ? "Show a settled version instead of the original."
-    : !previewVersion
-      ? "This shot has no settled version."
-      : ["analysing", "queued", "rendering"].includes(shot?.status ?? "") ||
-          shot?.layers?.some((layer) => layer.state === "rendering")
-        ? "Wait for this shot to settle before starting a head pass."
-        : !headPassCharacters.length
-          ? "Choose a mapped character in this shot's plan."
-          : comfyOffline &&
-              headPassTargetReason(shot, value?.characters ?? [])?.includes(
-                "ComfyUI",
-              )
-            ? "Head pass needs ComfyUI, which is not reachable."
-            : headPassTargetReason(shot, value?.characters ?? []);
+    : (shot?.head_pass_refusal ?? undefined);
   const headPassContext = `${id}:${shot?.id}:${previewVersion?.id}`;
   const revision = { expected_revision: value?.revision ?? 0 };
   const message = (e: unknown) => failureText(e, RECAST_WORDING);

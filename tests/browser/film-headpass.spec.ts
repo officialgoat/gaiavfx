@@ -1,5 +1,4 @@
 import { test, expect, type Page } from "@playwright/test";
-import { headPassTargetReason } from "../../frontend/src/features/recast/commands";
 import { filmAsset, mockRecast } from "./recast-fixtures";
 
 // U5a: the Recast page's head-pass tests, ported to the film (retained regression coverage rows 6 to 17
@@ -472,13 +471,11 @@ test("head pass explains target face refusals and becomes ready for a human face
   const button = headPass(page);
   for (const [state, reason] of reasons) {
     target.face = state;
-    expect(headPassTargetReason(shot, mock.value.characters)).toBe(reason);
     await expect(button).toBeDisabled();
     await expect(button).toHaveAttribute("title", reason);
   }
   expect(headPassCalls(mock)).toHaveLength(0);
   target.face = "face";
-  expect(headPassTargetReason(shot, mock.value.characters)).toBeUndefined();
   await expect(button).toBeEnabled();
   await expectBlind(page);
 });
@@ -492,7 +489,6 @@ test("joint head pass directly starts the eligible human character", async ({
   mock.value.characters[0].target!.face = "no_face";
   mock.value.characters[1].target!.state = "confirmed";
   mock.value.characters[1].target!.face = "face";
-  expect(headPassTargetReason(shot, mock.value.characters)).toBeUndefined();
   await start(page, mock);
   const button = headPass(page);
   await expect(button).toBeEnabled();

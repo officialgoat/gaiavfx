@@ -395,6 +395,34 @@ export async function mockRecast(
               ? "The run is already active."
               : null;
     run.pause_refusal = run.state === "running" ? null : "No run is running.";
+    // As recast_read._head_pass_refusal: why each character's target, and each shot, cannot take a head pass.
+    const faces: Record<string, string | null> = {
+      face: null,
+      no_face: "Head pass needs a target with a human face",
+      failed: "The target picture could not be checked.",
+    };
+    for (const c of read.characters) {
+      const face = c.target?.face ?? "";
+      c.head_pass_refusal =
+        face in faces
+          ? faces[face]
+          : "Checking the target picture's face, which needs ComfyUI";
+    }
+    for (const shot of read.shots) {
+      const performers = (shot.plan?.performers ?? []).flatMap((id) =>
+        read.characters.filter((c) => c.id === id),
+      );
+      shot.head_pass_refusal = !shot.versions.length
+        ? "This shot has no settled version."
+        : ["analysing", "queued", "rendering"].includes(shot.status) ||
+            shot.layers?.some((layer) => layer.state === "rendering")
+          ? "Wait for this shot to settle before starting a head pass."
+          : !performers.length
+            ? "Choose a mapped character in this shot's plan."
+            : performers.some((c) => !c.head_pass_refusal)
+              ? null
+              : performers[0].head_pass_refusal;
+    }
     // As recast_projection.comparable_checks: a shot's versions carry only the checks they all measured alike.
     const kind = (c: { calibrated: boolean; verdict: string }) =>
       `${c.calibrated}:${c.verdict === "unsupported"}`;

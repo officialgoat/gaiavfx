@@ -12,7 +12,6 @@ import { frameTimecode } from "../../shared/frame-rate";
 import { pictureLabel } from "./cast-actions";
 import type { RecastController } from "./use-recast";
 import type { Recast, Shot } from "./client";
-import { headPassCharacterReason } from "./commands";
 import { shotNumber } from "./film-doc";
 import { plural, shotExplanation, shotStatus } from "./progress";
 
@@ -68,10 +67,9 @@ export function HeadPassControl({ r }: { r: RecastController }) {
             <Dropdown.Item
               key={character.id}
               className="command-item"
-              disabled={!!reason || !!headPassCharacterReason(character)}
+              disabled={!!reason || !!character.head_pass_refusal}
               title={
-                headPassCharacterReason(character) ??
-                description(character.label)
+                character.head_pass_refusal ?? description(character.label)
               }
               onSelect={() => void r.headPass(character.id)}
             >

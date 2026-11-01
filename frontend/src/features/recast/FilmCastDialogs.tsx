@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { Sheet } from "../../shared/ui";
 import { CharacterDrawer, CharacterPortrait, LibraryPicker } from "./Cast";
 import { castActions, pictureLabel } from "./cast-actions";
-import { headPassCharacterReason } from "./commands";
 import { useFilmEditor } from "./film-editor";
 import type { Recast } from "./client";
 import type { RecastController } from "./use-recast";
@@ -213,8 +212,8 @@ export function FilmCastDialogs({
             <button
               key={character.id}
               type="button"
-              disabled={r.busy || !!headPassCharacterReason(character)}
-              title={headPassCharacterReason(character)}
+              disabled={r.busy || !!character.head_pass_refusal}
+              title={character.head_pass_refusal ?? undefined}
               onClick={() => void r.headPass(character.id)}
             >
               {character.label}
