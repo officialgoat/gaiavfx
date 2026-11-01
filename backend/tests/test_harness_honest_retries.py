@@ -505,7 +505,7 @@ def test_h4_say_enforces_zero_usable_report_and_leaves_usable_ranking_normal(
             "general": RUN7["ranking"]["general"],
         },
     }
-    monkeypatch.setattr(report_truth, "maybe_review", lambda *args: review)
+    monkeypatch.setattr(report_truth, "existing_review", lambda *args: review)
     assert bool(ranking_refusal(ctx, RUN7["claims"]["95"])) is (usable == 0)
     text = f'You marked no take usable: "{RUN7["ranking"]["general"]}". We can re-render or revise references.'
     assert not ranking_refusal(ctx, text)
@@ -542,7 +542,7 @@ def test_h4_run7_zero_usable_resume_quotes_note(monkeypatch):
         "members": [{"letter": "A", "candidate_id": "a", "asset_id": "image-a"}],
         "ranking": {"tiers": [["a"]], **RUN7["ranking"]},
     }
-    monkeypatch.setattr(plans, "maybe_review", lambda *args: review)
+    monkeypatch.setattr(plans, "existing_review", lambda *args: review)
     monkeypatch.setattr(plans.direction, "read_segment", lambda *args: {"ordinal": 1})
     monkeypatch.setattr(plans.selections, "current", lambda *args: None)
     text = review_outcome(

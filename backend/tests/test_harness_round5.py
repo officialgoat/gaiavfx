@@ -18,7 +18,8 @@ from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.plan import PlanStepTool, ProposePlan
 from gaiavfx.application.harness.tools.prepare import PrepareCut
-from gaiavfx.application.harness.world import direction, operations, review_pending
+from gaiavfx.application.harness.world import direction, operations
+from gaiavfx.application.operation_kinds import review_pending
 from gaiavfx.application.prepare_references import (
     approve_plate,
     open_plate_review,

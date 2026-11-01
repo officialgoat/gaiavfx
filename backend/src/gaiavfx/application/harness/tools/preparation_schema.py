@@ -4,14 +4,13 @@ import json
 from copy import deepcopy
 
 from gaiavfx.application.harness.actions import inlined, pin_enum
-from gaiavfx.application.harness.preparation import VIEW_ACTIONS
 from gaiavfx.application.harness.shots import shot_plan, shots
 from gaiavfx.application.harness.tools.common import permitted
 from gaiavfx.application.harness.tools.input_hints import known_empty_image, removal_requested
 from gaiavfx.application.harness.tools.insertion import insertion_defaults
 from gaiavfx.application.harness.tools.step_targets import target_ids
 from gaiavfx.application.harness.world import direction
-from gaiavfx.application.prepare_references import view_producer
+from gaiavfx.application.prepare_references import VIEW_ACTIONS, view_producer
 from gaiavfx.modules.direction.insertion import PLACEMENT_FIELDS
 
 

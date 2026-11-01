@@ -8,6 +8,7 @@ from dataclasses import asdict, dataclass
 
 from gaiavfx.application import operation_start, set_views
 from gaiavfx.application.authored import validate_removal
+from gaiavfx.application.candidate_review import existing_review
 from gaiavfx.application.direction_reading import DIRECTION, rendered, set_view_inputs
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import minimax_h3, qwen_image_edit
@@ -66,6 +67,11 @@ VIEW_PRODUCERS = {
         sheet_origin="set",
     ),
 }
+
+
+VIEW_ACTIONS = frozenset(
+    {"view_angle", "view_place"}
+)  # Direction's plan actions a view producer answers
 
 
 def view_producer(place: dict) -> ViewProducer:
@@ -179,15 +185,6 @@ def _image(session, asset_id):
     if row["kind"] != "image":
         raise ApplicationError("An image asset is required.", 422)
     return row
-
-
-def _existing_review(session, operation_id):
-    try:
-        return reviews.blind(session, operation_id)
-    except ApplicationError as exc:
-        if exc.status != 404:
-            raise
-        return None
 
 
 def _candidate_operation(session, candidate_id, kind, *, output_key=None):
@@ -350,13 +347,76 @@ def start_removal(
     )
 
 
+def _superseded(session, operation) -> bool:
+    """A newer finished run of the same producer for the place, with candidates, supersedes this one's review."""
+    latest = next(
+        (
+            o
+            for o in operations.recent(
+                session,
+                kind=operation["kind"],
+                scope={"place_id": [operation["request"]["place_id"]]},
+            )
+            if o["state"] in {"succeeded", "partial"} and o["candidates"]
+        ),
+        None,
+    )
+    return bool(latest and latest["id"] != operation["id"])
+
+
+def _plate_is_candidate(session, operation) -> bool:
+    """Whether the place's plate is one of this plate preparation's candidates, at the angle it prepared."""
+    place = direction.read_place(session, operation["request"]["place_id"])
+    return place["plate_angle_id"] == operation["request"]["angle_id"] and any(
+        c["asset_id"] == place["plate_asset_id"] for c in operation["candidates"]
+    )
+
+
+def plate_review_pending(session, operation) -> bool:
+    """A plate preparation waits on the person until one of its candidates is the place's plate."""
+    return not _superseded(session, operation) and not _plate_is_candidate(session, operation)
+
+
+def plate_approved(session, operation) -> bool:
+    """Whether the person approved this plate preparation's candidate as the place's plate; finishing, or a newer
+    preparation superseding it, is not an approval."""
+    if operation["kind"] != "removal" or operation["state"] not in {"succeeded", "partial"}:
+        return False
+    review = existing_review(session, operation["id"])
+    if not review or review.get("rejection") or plate_review_pending(session, operation):
+        return False
+    return _plate_is_candidate(session, operation)
+
+
+def views_review_pending(session, operation) -> bool:
+    """An angle-view run waits on the person while one of its views is not approved evidence for its angle."""
+    if _superseded(session, operation):
+        return False
+    angles = {angle["id"] for angle in direction.angles(session, operation["request"]["place_id"])}
+    return any(
+        not any(
+            e["approved"] and e["asset_id"] == c["asset_id"]
+            for e in direction.evidence(session, c["output_key"])
+        )
+        for c in operation["candidates"]
+        if c["output_key"] in angles
+    )
+
+
+def insertion_review_pending(session, operation) -> bool:
+    """An insertion waits on the person until its cut has an approved pin."""
+    return not any(
+        k["approved"] for k in direction.keyframes(session, operation["request"]["cut_id"])
+    )
+
+
 def open_plate_review(session, operation_id):
     operation = operations.operation(session, operation_id)
     if operation["kind"] != "removal" or operation["state"] not in {"succeeded", "partial"}:
         raise ApplicationError(
             "Plate preparation must finish before its plate can be reviewed.", 409
         )
-    existing = _existing_review(session, operation_id)
+    existing = existing_review(session, operation_id)
     if existing:
         return existing
     fitted = {job["id"] for job in operation["jobs"] if job["step"] == "fit_frame"}
@@ -494,7 +554,7 @@ def open_views_review(session, operation_id):
         raise ApplicationError(
             f"The {producer.name} must finish before its views can be reviewed.", 409
         )
-    existing = _existing_review(session, operation_id)
+    existing = existing_review(session, operation_id)
     if existing:
         return existing
     place_id = operation["request"]["place_id"]
@@ -658,7 +718,7 @@ def open_insertion_review(session, operation_id):
     operation = operations.operation(session, operation_id)
     if operation["kind"] != "insert" or operation["state"] not in {"succeeded", "partial"}:
         raise ApplicationError("Insertion must finish before review.", 409)
-    existing = _existing_review(session, operation_id)
+    existing = existing_review(session, operation_id)
     if existing:
         return existing
     fitted = {job["id"] for job in operation["jobs"] if job["step"] == "fit_frame"}

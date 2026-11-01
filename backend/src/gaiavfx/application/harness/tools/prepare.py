@@ -4,7 +4,6 @@ import hashlib
 
 from gaiavfx.application.harness import budget
 from gaiavfx.application.harness.actions import ToolResult
-from gaiavfx.application.harness.preparation import PREPARATION, VIEW_ACTIONS
 from gaiavfx.application.harness.shots import shot_plan, shots
 from gaiavfx.application.harness.tools.common import (
     TransactionTool,
@@ -34,7 +33,9 @@ from gaiavfx.application.harness.world import (
     direction,
     operations_for_shot,
 )
+from gaiavfx.application.operation_kinds import PREPARATION
 from gaiavfx.application.prepare_references import (
+    VIEW_ACTIONS,
     assemble_sheet,
     current_sheet,
     sheet_tiles_for_place,
@@ -232,7 +233,7 @@ class PrepareCut(TransactionTool):
                 or not operation_view(session, operation)["review_pending"]
             ):
                 continue
-            opener = PREPARATION[operation["kind"]].review
+            opener = PREPARATION[operation["kind"]].opens
             if opener:
                 review = opener(session, operation["id"])
                 return ToolResult(

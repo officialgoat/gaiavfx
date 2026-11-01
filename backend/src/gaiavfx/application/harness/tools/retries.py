@@ -9,9 +9,9 @@ are excluded; this is a harness recovery rule, not a Direction geometry inferenc
 
 import re
 
-from gaiavfx.application.harness.preparation import PREPARATION, REVIEWED
 from gaiavfx.application.harness.tools.common import available, revision_guidance
-from gaiavfx.application.harness.world import direction, maybe_review, operations
+from gaiavfx.application.harness.world import direction, existing_review, operations
+from gaiavfx.application.operation_kinds import PREPARATION, REVIEWED
 from gaiavfx.shared.errors import ApplicationError
 
 RELATION = ("relation", "crosses_barrier")
@@ -58,7 +58,7 @@ def matching(operation, shot, kind):
 def rejected(session, relevant, shot, kind):
     for operation in relevant:
         if matching(operation, shot, kind):
-            review = maybe_review(session, operation["id"])
+            review = existing_review(session, operation["id"])
             if review and review.get("rejection") and review["rejection"]["note"].strip():
                 yield operation, review["rejection"]["note"]
 

@@ -14,7 +14,6 @@ from gaiavfx.application.harness.conversation import Record
 from gaiavfx.application.harness.history import (
     latest_user_message,
 )
-from gaiavfx.application.harness.preparation import REVIEWED
 from gaiavfx.application.harness.session import (
     AgentSession,
     BuildReview,
@@ -28,12 +27,13 @@ from gaiavfx.application.harness.tools.preparation_progress import completion_re
 from gaiavfx.application.harness.world import (
     FINISHED,
     direction,
-    maybe_review,
+    existing_review,
     operations,
     plate_approved,
     review_pending,
     selections,
 )
+from gaiavfx.application.operation_kinds import REVIEWED, kind_of
 from gaiavfx.application.recast import recast_state
 from gaiavfx.application.set_build import build_outcome, build_state, settled
 from gaiavfx.shared.errors import ApplicationError
@@ -275,7 +275,7 @@ class PlanCommands:
             # resumes that step; it does not finish a later render review.
             step.status = "pending" if step.kind == "prepare" else "done"
             message = review_outcome(session, row["movie_id"], operation)
-            review = maybe_review(session, operation["id"])
+            review = existing_review(session, operation["id"])
             if step.kind == "prepare" and not (review and review.get("rejection")):
                 turns = self.store.turns(session, row["id"])
                 user_message = latest_user_message(turns)
@@ -388,7 +388,7 @@ class PlanCommands:
             return
         operation_id = operation["id"]
         reviewable = (
-            operation["kind"] in REVIEWED | {"render", "character_replacement"}
+            kind_of(operation["kind"]).opens is not None
             and operation["state"] in FINISHED
             and bool(operation["candidates"])
         )
@@ -425,7 +425,7 @@ def review_outcome(session, movie_id, operation):
     """Human results in blind letters, with editorial selection distinct from ranking."""
     from gaiavfx.application.harness.tools.report_truth import no_usable, no_usable_report
 
-    review = maybe_review(session, operation["id"])
+    review = existing_review(session, operation["id"])
     if review and review.get("rejection"):
         kind = {"plate": "plate", "angle_views": "view", "insertion": "pin"}[review["purpose"]]
         return (

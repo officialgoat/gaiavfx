@@ -2,6 +2,7 @@
 
 from gaiavfx.application import operation_start, take_basis
 from gaiavfx.application.authored import segment_to_dict
+from gaiavfx.application.candidate_review import existing_review
 from gaiavfx.application.direction_plans import segment_render_inputs
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.infrastructure.database import new_id
@@ -125,14 +126,10 @@ def open_takes_review(session, operation_id):
     operation = operations.operation(session, operation_id)
     if operation["kind"] != "render" or operation["state"] not in {"succeeded", "partial"}:
         raise ApplicationError("Render must finish before review.", 409)
-    review = ReviewService()
-    try:
-        return review.blind(session, operation_id)
-    except ApplicationError as exc:
-        if exc.status != 404:
-            raise
+    if existing := existing_review(session, operation_id):
+        return existing
     request = operation["request"]
-    return review.create(
+    return ReviewService().create(
         session,
         purpose="segment_takes",
         candidate_ids=[item["id"] for item in operation["candidates"]],

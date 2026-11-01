@@ -1,6 +1,5 @@
 """Budget known preparation actions and enforce each producer step's allowance."""
 
-from gaiavfx.application.harness.preparation import VIEW_ACTIONS
 from gaiavfx.application.harness.replacement_context import (
     latest_read_analysis,
     replacement_requested,
@@ -9,7 +8,7 @@ from gaiavfx.application.harness.replacement_context import (
 from gaiavfx.application.harness.shots import shot_plan, shot_words, shots, targeted_shots
 from gaiavfx.application.harness.tools.input_hints import known_empty_image
 from gaiavfx.application.harness.tools.plan_scope import named_actions
-from gaiavfx.application.prepare_references import view_producer
+from gaiavfx.application.prepare_references import VIEW_ACTIONS, view_producer
 from gaiavfx.application.set_seed import fill_renders
 
 

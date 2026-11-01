@@ -974,7 +974,7 @@ def check_s7d(task, work, setup, harness, recorder):
         "Approval budget was not authoritative",
     )
     if flow == "survey":
-        from gaiavfx.application.harness.world import review_pending
+        from gaiavfx.application.operation_kinds import review_pending
 
         # A step status cannot prove that its references were approved. In S7q a
         # survey-only request leaves the cut's remaining preparation explicitly skipped.

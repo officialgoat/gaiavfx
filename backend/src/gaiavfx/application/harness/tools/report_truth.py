@@ -17,7 +17,7 @@ import re
 
 from gaiavfx.application.harness.tools.common import current_step
 from gaiavfx.application.harness.tools.report_checks import current_turns, refused
-from gaiavfx.application.harness.world import direction, maybe_review, plate_survey_cuts, ranked
+from gaiavfx.application.harness.world import direction, existing_review, plate_survey_cuts, ranked
 
 TOPIC = re.compile(
     r"\b(?:camera|angle|survey|cut|pin|insert|insertion|facing|size|position|relation|crosses_barrier)\b",
@@ -208,7 +208,7 @@ def ranking_refusal(context, text):
     if not marker:
         return ""
     with context.db.transaction() as session:
-        review = maybe_review(session, marker["review_operation_id"])
+        review = existing_review(session, marker["review_operation_id"])
     if (
         not review
         or review["purpose"] != "segment_takes"

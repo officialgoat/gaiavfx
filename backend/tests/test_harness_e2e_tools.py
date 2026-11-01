@@ -240,7 +240,7 @@ def test_resume_text_reports_ranking_and_selection_without_provenance(monkeypatc
         ],
         "ranking": {"tiers": [["a"], ["b"]]},
     }
-    monkeypatch.setattr(plans, "maybe_review", lambda *args: review)
+    monkeypatch.setattr(plans, "existing_review", lambda *args: review)
     monkeypatch.setattr(plans.direction, "read_segment", lambda *args: {"ordinal": 0})
     monkeypatch.setattr(
         plans.selections, "current", lambda *args: {"authority": "user", "asset_id": "image-a"}

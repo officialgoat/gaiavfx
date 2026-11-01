@@ -2,8 +2,9 @@
 
 import json
 
+from gaiavfx.application.candidate_review import existing_review
 from gaiavfx.application.direction_plans import plan_to_dict
-from gaiavfx.application.harness.world import maybe_review, review_pending
+from gaiavfx.application.operation_kinds import review_pending
 from gaiavfx.application.prepare_references import current_sheet
 from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.service import DirectionService
@@ -27,7 +28,7 @@ def read_state(work, setup):
             for segment in movie["segments"]
             for item in selections.history(session, movie["id"], segment["id"])
         ]
-        reviews = {o["id"]: maybe_review(session, o["id"]) for o in ops}
+        reviews = {o["id"]: existing_review(session, o["id"]) for o in ops}
         valid = True
         try:
             for segment in movie["segments"]:

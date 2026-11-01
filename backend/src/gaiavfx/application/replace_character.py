@@ -9,6 +9,7 @@ from fractions import Fraction
 from statistics import median
 
 from gaiavfx.application import operation_start
+from gaiavfx.application.candidate_review import existing_review
 from gaiavfx.application.replacement_checks import take_checks
 from gaiavfx.application.replacement_selectors import position, selector_positions
 from gaiavfx.infrastructure.database import new_id
@@ -1590,8 +1591,7 @@ def open_replacement_review(session, operation_id):
     operation = operations.operation(session, operation_id)
     if operation["kind"] != "character_replacement" or not operation["candidates"]:
         raise ApplicationError("Replacement has no composited candidates to review.", 409)
-    try:
-        review = reviews.blind(session, operation_id)
+    if review := existing_review(session, operation_id):
         known = {m["candidate_id"] for m in review["members"]}
         added = [c["id"] for c in operation["candidates"] if c["id"] not in known]
         return (
@@ -1599,9 +1599,6 @@ def open_replacement_review(session, operation_id):
             if added
             else review
         )
-    except ApplicationError as exc:
-        if exc.status != 404:
-            raise
     return reviews.create(
         session,
         purpose="character_replacement",

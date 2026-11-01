@@ -1,13 +1,13 @@
 """Read obligations derived from durable turns, never editable board prose."""
 
-from gaiavfx.application.harness.world import maybe_review, operations
+from gaiavfx.application.harness.world import existing_review, operations
 
 
 def plate_rejections(session, state):
     notes = {}
     for op in reversed(state.operations):
         if op["kind"] == "removal":
-            review = maybe_review(session, op["id"])
+            review = existing_review(session, op["id"])
             if review and review.get("rejection"):
                 request = operations.operation(session, op["id"])["request"]
                 notes[request["source_asset"]] = review["rejection"]["note"]

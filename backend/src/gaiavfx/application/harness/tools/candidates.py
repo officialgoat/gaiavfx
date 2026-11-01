@@ -13,23 +13,11 @@ from gaiavfx.application.harness.world import (
     review_pending,
     selections,
 )
-from gaiavfx.application.prepare_references import (
-    open_insertion_review,
-    open_plate_review,
-    open_views_review,
-)
-from gaiavfx.application.render_cut import open_takes_review
-from gaiavfx.application.replace_character import open_replacement_review
+from gaiavfx.application.operation_kinds import KINDS
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 
-OPENERS = {
-    "removal": open_plate_review,
-    "survey": open_views_review,
-    "insert": open_insertion_review,
-    "render": open_takes_review,
-    "character_replacement": open_replacement_review,
-}
+OPENERS = {name: kind.opens for name, kind in KINDS.items() if kind.opens and kind.gaia_opens}
 
 
 def prescreen_summary(document):

@@ -5,7 +5,8 @@ from harness_support import world  # noqa: F401 (fixture)
 
 from gaiavfx.application.authored import load_survey
 from gaiavfx.application.harness.tools.prepare import PrepareCut
-from gaiavfx.application.harness.world import operations, review_pending
+from gaiavfx.application.harness.world import operations
+from gaiavfx.application.operation_kinds import review_pending
 from gaiavfx.application.prepare_references import (
     approve_view,
     open_views_review,

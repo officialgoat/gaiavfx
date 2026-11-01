@@ -2,10 +2,11 @@
 
 from dataclasses import asdict, dataclass, field
 
+from gaiavfx.application.candidate_review import existing_review, ranked
 from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION
-from gaiavfx.application.harness.preparation import PREPARATION, REVIEWED, VIEW_KINDS
-from gaiavfx.application.prepare_references import current_sheet
+from gaiavfx.application.operation_kinds import PREPARATION, review_pending
+from gaiavfx.application.prepare_references import current_sheet, plate_approved
 from gaiavfx.modules.direction.service import predecessor_ordinal
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.review import ReviewService
@@ -31,77 +32,8 @@ def fields(row, *names):
     return {name: row.get(name) for name in names}
 
 
-def maybe_review(session, operation_id):
-    try:
-        return reviews.blind(session, operation_id)
-    except ApplicationError as exc:
-        if exc.status != 404:
-            raise
-        return None
-
-
-def ranked(review):
-    return bool(review and review["ranking"]["tiers"] and not review["unranked"])
-
-
-def review_pending(session, operation):
-    if operation["state"] not in FINISHED:
-        return False
-    request, kind = operation["request"], operation["kind"]
-    if kind in REVIEWED:
-        review = maybe_review(session, operation["id"])
-        if review and review.get("rejection"):
-            return False
-    if kind == "removal":
-        latest = next(
-            (
-                o
-                for o in operations.recent(
-                    session, kind="removal", scope={"place_id": [request["place_id"]]}
-                )
-                if o["state"] in FINISHED and o["candidates"]
-            ),
-            None,
-        )
-        if latest and latest["id"] != operation["id"]:
-            return False  # A newer plate review supersedes the older candidates.
-        place = direction.read_place(session, request["place_id"])
-        return not (
-            place["plate_angle_id"] == request["angle_id"]
-            and any(c["asset_id"] == place["plate_asset_id"] for c in operation["candidates"])
-        )
-    if kind in VIEW_KINDS:
-        latest = next(
-            (
-                o
-                for o in operations.recent(
-                    session, kind=kind, scope={"place_id": [request["place_id"]]}
-                )
-                if o["state"] in FINISHED and o["candidates"]
-            ),
-            None,
-        )
-        if latest and latest["id"] != operation["id"]:
-            # A newer run of the producer supersedes older candidates, as a newer plate review does.
-            return False
-        angles = {angle["id"] for angle in direction.angles(session, request["place_id"])}
-        candidates = [c for c in operation["candidates"] if c["output_key"] in angles]
-        return any(
-            not any(
-                e["approved"] and e["asset_id"] == c["asset_id"]
-                for e in direction.evidence(session, c["output_key"])
-            )
-            for c in candidates
-        )
-    if kind == "insert":
-        return not any(k["approved"] for k in direction.keyframes(session, request["cut_id"]))
-    if kind in {"render", "character_replacement"}:
-        return not ranked(maybe_review(session, operation["id"]))
-    return False
-
-
 def operation_view(session, operation):
-    review = maybe_review(session, operation["id"])
+    review = existing_review(session, operation["id"])
     return {
         **fields(operation, "id", "kind", "state", "budget_reserved"),
         **fields(operation["request"], "place_id", "cut_id", "segment_id"),
@@ -132,19 +64,6 @@ def build_words(session, operation) -> dict:
         "words": None if outcome["decided"] else outcome["action"]["message"],
         "stopped": state == "failed",
     }
-
-
-def plate_approved(session, operation):
-    """Completion/supersession alone is not a human approval of this plate."""
-    if operation["kind"] != "removal" or operation["state"] not in FINISHED:
-        return False
-    review = maybe_review(session, operation["id"])
-    if not review or review.get("rejection") or review_pending(session, operation):
-        return False
-    place = direction.read_place(session, operation["request"]["place_id"])
-    return place["plate_angle_id"] == operation["request"]["angle_id"] and any(
-        c["asset_id"] == place["plate_asset_id"] for c in operation["candidates"]
-    )
 
 
 def plate_survey_cuts(state):

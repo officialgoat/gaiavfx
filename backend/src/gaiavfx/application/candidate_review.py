@@ -49,6 +49,26 @@ def open_review(
     )
 
 
+def existing_review(session: Session, operation_id: str) -> dict | None:
+    """The blind review of an operation's candidates, or None before one is opened."""
+    try:
+        return ReviewService().blind(session, operation_id)
+    except ApplicationError as exc:
+        if exc.status != 404:
+            raise
+        return None
+
+
+def ranked(review: dict | None) -> bool:
+    """Whether a person ranked every member of the review."""
+    return bool(review and review["ranking"]["tiers"] and not review["unranked"])
+
+
+def awaits_ranking(session: Session, operation: dict) -> bool:
+    """A render's or replacement's review waits on the person until every take is ranked."""
+    return not ranked(existing_review(session, operation["id"]))
+
+
 def add_to_review(
     session: Session,
     review_set_id: str,

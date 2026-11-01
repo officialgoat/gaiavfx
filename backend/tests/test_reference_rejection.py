@@ -143,7 +143,8 @@ def test_run4_wrong_reverse_rejected_resumes_prepare_and_offers_new_survey(world
     from gaiavfx.application.harness.loop import Harness
     from gaiavfx.application.harness.session import AgentSession
     from gaiavfx.application.harness.tools import applicable_tools
-    from gaiavfx.application.harness.world import direction, review_pending
+    from gaiavfx.application.harness.world import direction
+    from gaiavfx.application.operation_kinds import review_pending
     from gaiavfx.application.prepare_references import approve_view, open_views_review
     from gaiavfx.modules.agent.service import AgentStore
 
