@@ -207,6 +207,8 @@ usage: python -m gaiavfx.setup smoke [-h] [--comfy-url COMFY_URL]
 
 `.runtime/setup.json` is merged atomically; installers preserve unrelated keys. `GAIAVFX_SETUP_FILE` overrides its location. `configure` saves defaults for **new** libraries; existing libraries keep their settings. `GAIAVFX_COMFY_URL` overrides the CLI/default connection URL, while smoke takes its own `--comfy-url` (default `http://127.0.0.1:8188`).
 
+To keep the large runtime on another drive (an SSD, say), install each part there and keep the paths: `assistant install --dir E:\gaiavfx-runtime\assistant`, `engines install worldbuilder --root E:\gaiavfx-runtime\engines`, and `media install` with `GAIAVFX_MEDIA_DIR=E:\gaiavfx-runtime\media` set for the install and, as a user environment variable, for every later run. The first two save their paths in setup.json for new libraries; an existing library keeps its own until changed in Settings. Never link these folders into the checkout or a git worktree: removing a worktree follows the link and deletes the real files.
+
 `GAIAVFX_MEDIA_DIR` selects the media installation/discovery directory. Media discovery then tries `.runtime/media`, then PATH. `GAIAVFX_ENGINES_ROOT` overrides the engine root. Runtime and dependency pins live in [runtime.toml](../backend/src/gaiavfx/setup/manifest/runtime.toml) and [comfy.toml](../backend/src/gaiavfx/setup/manifest/comfy.toml).
 
 - **Connection refused:** start ComfyUI and check the URL/port. Doctor does not start it.

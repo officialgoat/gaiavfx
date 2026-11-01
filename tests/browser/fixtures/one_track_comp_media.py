@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import sqlite3
 import subprocess
@@ -19,7 +20,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 OUT = ROOT / ".cache" / "one-track-comp"
 SHOTS = Path(__file__).with_name("one-track-comp.json")
-FFMPEG = ROOT / ".runtime" / "media" / "ffmpeg.exe"
+# Where the media tools are installed (GAIAVFX_MEDIA_DIR, as the app reads it), else this checkout's runtime.
+FFMPEG = Path(os.environ.get("GAIAVFX_MEDIA_DIR") or ROOT / ".runtime" / "media") / "ffmpeg.exe"
 
 
 def main() -> None:

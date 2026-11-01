@@ -100,6 +100,9 @@ await fs.cp(
 );
 const media = path.join(resources, "media");
 await fs.mkdir(media, { recursive: true });
+// The media tools as the app finds them: GAIAVFX_MEDIA_DIR, else this checkout's runtime.
+const installedMedia =
+  process.env.GAIAVFX_MEDIA_DIR || path.join(root, ".runtime", "media");
 for (const filename of [
   "ffmpeg.exe",
   "ffprobe.exe",
@@ -107,7 +110,7 @@ for (const filename of [
   "provenance.json",
 ]) {
   await fs.copyFile(
-    path.join(root, ".runtime", "media", filename),
+    path.join(installedMedia, filename),
     path.join(media, filename),
   );
 }

@@ -32,7 +32,7 @@ Prepare, Direct, Agent, Review, Sets/Stages, Recast, replacement and voice share
 Use Python 3.12, uv and Node.js with npm. Keep the Python environment at repo root.
 PowerShell: `$env:UV_PROJECT_ENVIRONMENT = "$PWD/.venv"`.
 Install: `uv sync --project backend --python 3.12` and `npm ci`.
-Media tools: `npm run setup:media`; ComfyUI and engines are configured separately.
+Media tools: `npm run setup:media` (elsewhere with `GAIAVFX_MEDIA_DIR`); ComfyUI and engines are configured separately.
 Run the web workspace: `npm run dev`; desktop shell: `npm run desktop`.
 Regenerate contracts: `npm run generate:contracts`.
 Check contracts and renderer: `npm run check:contracts` and `npm run build`.
@@ -55,6 +55,7 @@ On Unix use `.venv/bin/python` and `.venv/bin/ruff` for environment executables.
 
 ## Hygiene and UI
 Keep weights, generated media, credentials and personal paths out of git.
+Never link `.runtime`, `node_modules` or other local folders into a git worktree: removing it deletes the link's target.
 Store local runtime tools in `.runtime/`, temporary work in `.cache/`, and libraries outside git.
 Keep fixture media small, deliberate and portable. Never copy installed engine caches.
 Format only edited files and run checks appropriate to the behavior changed.
