@@ -328,7 +328,8 @@ def _bridge_data(session, choice, source_asset):
     return facts, {**layout, "windows": windows}, successor
 
 
-def _request(value):
+def parse_request(value):
+    """A ReplacementRequest from the API's or a producer's plain request, validated."""
     if isinstance(value, ReplacementRequest):
         request = value
     else:
@@ -587,7 +588,8 @@ def start_people_analysis(
     )
 
 
-def _report(session, operation, library):
+def analysis_report(session, operation, library):
+    """The finished people analysis's report: the tracks, faces and concepts a replacement plans from."""
     if operation["kind"] != "person_analysis" or operation["state"] != "succeeded":
         raise ApplicationError("People analysis must finish before planning replacement.", 409)
     outputs = [
@@ -611,7 +613,7 @@ def people_for_asset(session, asset_id, *, library):
         {
             "operation_id": op["id"],
             "state": op["state"],
-            "report": _report(session, op, library) if op["state"] == "succeeded" else None,
+            "report": analysis_report(session, op, library) if op["state"] == "succeeded" else None,
         }
         for op in rows
     ]
@@ -719,9 +721,10 @@ def _close_up_facts(request, people, native, policy):
     return close_up, reasons
 
 
-def _facts(session, request, library, policy):
+def replacement_facts(session, request, library, policy):
+    """What the shot holds for this request: the chosen performers' tracks, crops, close-ups and mouth facts."""
     analysis = operations.operation(session, request.analysis_operation)
-    report = _report(session, analysis, library)
+    report = analysis_report(session, analysis, library)
     if report["source_asset"] != request.source_asset:
         raise ApplicationError("Analysis belongs to a different source asset.", 422)
     people = {t["id"]: t for t in report["tracks"] if t["concept"] == "person"}
@@ -938,7 +941,11 @@ def _plan(
     return plan
 
 
-def _initial(session, request, library, renders=None, *, continuation_snapshot=None, draft=False):
+def plan_request(
+    session, request, library, renders=None, *, continuation_snapshot=None, draft=False
+):
+    """The facts, people report, frozen policy text and first-round plan of a replacement request; the
+    single-shot producer and each Recast window plan through it."""
     if continuation_snapshot is not None and request.handoff is None and request.bridge is None:
         raise ApplicationError("Frozen continuation settings require a latent window.", 422)
     try:
@@ -1001,7 +1008,7 @@ def _initial(session, request, library, renders=None, *, continuation_snapshot=N
                     ),
                 )
         else:
-            facts, report, notes = _facts(
+            facts, report, notes = replacement_facts(
                 session, request, library, effective_policy(text, renders, draft=draft)
             )
         if getattr(library, "media", None) is not None and hasattr(library, "path"):
@@ -1077,8 +1084,8 @@ def _initial(session, request, library, renders=None, *, continuation_snapshot=N
 
 
 def replacement_plan(session, request, *, library, renders: int | None = None, draft=False):
-    request = _request(request)
-    facts, _, _, plan = _initial(session, request, library, renders, draft=draft)
+    request = parse_request(request)
+    facts, _, _, plan = plan_request(session, request, library, renders, draft=draft)
     result = to_record(plan)
     result["facts"] = {**to_record(facts), "fps": str(facts.fps)}
     result["crop_preview"] = (
@@ -1386,8 +1393,8 @@ def start_replacement(
     continuation_snapshot=None,
     draft=False,
 ):
-    request = _request(request)
-    facts, report, policy_text, plan = _initial(
+    request = parse_request(request)
+    facts, report, policy_text, plan = plan_request(
         session,
         request,
         library,

@@ -257,7 +257,7 @@ def test_fresh_window_requests_and_bridge_inputs_keep_the_planned_crop(monkeypat
         for i, (start, end, _) in enumerate(windows)
     }
     monkeypatch.setattr(shot.operations, "operation", lambda session, key: reports[key])
-    monkeypatch.setattr(shot, "_report", lambda session, report, library: report)
+    monkeypatch.setattr(shot, "analysis_report", lambda session, report, library: report)
     seen, frozen, assets, neighbours = [], {}, {}, {}
 
     def initial(session, request, library, **kwargs):
@@ -266,10 +266,10 @@ def test_fresh_window_requests_and_bridge_inputs_keep_the_planned_crop(monkeypat
         return all_facts[0], {}, TEXT, first
 
     def start(session, request, *args, **kwargs):
-        seen.append(app._request(request))
+        seen.append(app.parse_request(request))
         return {"id": f"w{len(seen) - 1}"}
 
-    monkeypatch.setattr(shot, "_initial", initial)
+    monkeypatch.setattr(shot, "plan_request", initial)
     monkeypatch.setattr(shot, "start_replacement", start)
     handoff = {"kind": "bridge", "joins": []}
     if pinned:

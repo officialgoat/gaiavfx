@@ -57,7 +57,7 @@ def mug_analysis(monkeypatch):
         "contacts": {"performer": ["mug"], "bystander": [], "minor": []},
     }
     monkeypatch.setattr(replacement.operations, "operation", lambda *args: {})
-    monkeypatch.setattr(replacement, "_report", lambda *args: document)
+    monkeypatch.setattr(replacement, "analysis_report", lambda *args: document)
     monkeypatch.setattr(
         replacement.MediaLibrary,
         "asset_info",
@@ -86,7 +86,7 @@ def test_speaking_uses_source_library_audio_metadata(mug_analysis, monkeypatch, 
             else {"kind": "image"}
         ),
     )
-    facts, _, _, plan = replacement._initial(None, request, None)
+    facts, _, _, plan = replacement.plan_request(None, request, None)
     assert facts.speaking is has_audio and plan.arm.audio_lock is has_audio
 
 
@@ -100,7 +100,7 @@ def test_minor_mug_track_keeps_crop_report_and_inversion_consistent(mug_analysis
 
     document, request = mug_analysis
     before = json.dumps(document)
-    facts, report_document, policy, plan = replacement._initial(None, request, None)
+    facts, report_document, policy, plan = replacement.plan_request(None, request, None)
     assert plan.arm.framing == "crop" and not plan.gaps
     assert plan.arm.crop.box.x0 >= 473  # Keeps the real bystander plus dilation outside.
     assert plan.arm.crop.box.x1 >= 864 and plan.arm.crop.box.y1 >= 508
@@ -145,7 +145,7 @@ def test_real_bystander_margin_overlap_still_has_typed_gap(mug_analysis):
     # Disjoint raw boxes overlap once both receive the policy's three-pixel dilation.
     document["tracks"][2]["box"] = to_record(Box(867, 57, 896, 160))
     document["tracks"][2]["presence"] = ["present"] * 73
-    facts, _, _, plan = replacement._initial(None, request, None)
+    facts, _, _, plan = replacement.plan_request(None, request, None)
     assert {b.track_id for b in facts.bystanders} == {"bystander", "minor"}
     assert plan.arm.framing == "active"
     assert [g.code for g in plan.gaps] == ["no_crop_fits"]
@@ -157,11 +157,11 @@ def test_selected_minor_track_and_explicit_avoidance_are_not_silently_dropped(mu
     _, request = mug_analysis
     policy = parse_replacement_policy(replacement_policy_text())
     selected = replace(request, performers=(replacement.PerformerChoice("minor", "picture"),))
-    facts, _, reasons = replacement._facts(None, selected, None, policy)
+    facts, _, reasons = replacement.replacement_facts(None, selected, None, policy)
     assert "minor" in {t.id for t in facts.tracks}
     assert not any("Ignored minor" in r for r in reasons)
     explicit = replace(request, avoided_regions=(Box(854, 57, 896, 95),))
-    _, _, _, plan = replacement._initial(None, explicit, None)
+    _, _, _, plan = replacement.plan_request(None, explicit, None)
     assert plan.arm.framing == "active"
     assert [g.code for g in plan.gaps] == ["no_crop_fits"]
 

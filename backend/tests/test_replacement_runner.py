@@ -983,7 +983,7 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
     monkeypatch.setattr(replacement.operations, "operation", lambda *args: previous)
     monkeypatch.setattr(
         replacement,
-        "_initial",
+        "plan_request",
         lambda *args, **kwargs: (
             facts,
             {"tracks": [{"id": t.id, "concept": "person"} for t in facts.tracks]},
@@ -1086,8 +1086,8 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
         head=replacement.HeadPassChoice("parent"),
         bridge=replacement.BridgeChoice(1, ("op0", "c0"), ("op1", "c1")),
     )
-    replacement._request(request)
-    merged, report, policy, planned = replacement._initial(None, request, SimpleNamespace(), 1)
+    replacement.parse_request(request)
+    merged, report, policy, planned = replacement.plan_request(None, request, SimpleNamespace(), 1)
     assert merged.handoff == "none" and planned.arm.framing == "head"
     assert planned.arm.treatment == "rgb" and not planned.arm.audio_lock
     assert (

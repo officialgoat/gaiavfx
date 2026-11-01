@@ -281,10 +281,10 @@ def test_fresh_windows_pin_window_one_faceswap_and_close_up(
         for i, (a, b, _) in enumerate(shot.shot_windows(0, 160))
     }
     monkeypatch.setattr(shot.operations, "operation", lambda session, key: reports[key])
-    monkeypatch.setattr(shot, "_report", lambda session, report, library: report)
+    monkeypatch.setattr(shot, "analysis_report", lambda session, report, library: report)
     first = replace(mug_facts(), close_up=close_up)
     monkeypatch.setattr(
-        shot, "_initial", lambda *args, **kwargs: (first, {}, text, plan(first, text))
+        shot, "plan_request", lambda *args, **kwargs: (first, {}, text, plan(first, text))
     )
     seen = []
 
@@ -329,7 +329,7 @@ def test_faceless_target_close_up_pins_faceswap_off_in_every_window(monkeypatch)
         for i, (a, b, _) in enumerate(shot.shot_windows(0, 160))
     }
     monkeypatch.setattr(shot.operations, "operation", lambda session, key: reports[key])
-    monkeypatch.setattr(shot, "_report", lambda session, report, library: report)
+    monkeypatch.setattr(shot, "analysis_report", lambda session, report, library: report)
     first = replace(mug_facts(), close_up=True)
     initial = []
 
@@ -340,7 +340,7 @@ def test_faceless_target_close_up_pins_faceswap_off_in_every_window(monkeypatch)
         )
         return first, {}, TEXT, planned
 
-    monkeypatch.setattr(shot, "_initial", fake_initial)
+    monkeypatch.setattr(shot, "plan_request", fake_initial)
     seen = []
 
     def start(session, request, *args, **kwargs):

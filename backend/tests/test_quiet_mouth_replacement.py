@@ -227,7 +227,7 @@ def test_reason_lines_distinguish_requests_and_actual_lock(monkeypatch, explicit
     first = planned() if mode == "head" else plan(facts, policy=policy)
     monkeypatch.setattr(
         replacement,
-        "_facts",
+        "replacement_facts",
         lambda *args: (
             facts,
             {"contacts": {}, "concepts": ["person"]},
@@ -235,7 +235,7 @@ def test_reason_lines_distinguish_requests_and_actual_lock(monkeypatch, explicit
         ),
     )
     monkeypatch.setattr(replacement, "_plan", lambda *args, **kwargs: first)
-    actual = replacement._initial(None, request, None)[3].reasons
+    actual = replacement.plan_request(None, request, None)[3].reasons
     expected = (
         "Speaking: 73 open source-lip frames"
         if explicit is None

@@ -69,10 +69,10 @@ def test_confirmed_faceless_track_is_a_performer(world, second):
     assert (
         next(t for t in preview["performers"] if t["track_id"] == "back")["selected_by"] == "user"
     )
-    from gaiavfx.application.replace_character import _facts, _request
+    from gaiavfx.application.replace_character import parse_request, replacement_facts
 
     with world.db.transaction() as session:
-        facts, _, _ = _facts(session, _request(preview), world.library, p.policy())
+        facts, _, _ = replacement_facts(session, parse_request(preview), world.library, p.policy())
     assert not facts.bystanders and not facts.avoided_regions
     assert {performer.track_id for performer in facts.performers} == (
         {"person0", "back"} if second else {"back"}

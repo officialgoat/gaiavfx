@@ -203,7 +203,7 @@ def test_head_plan_cannot_offer_canvas_above_budget():
 
 
 def test_application_never_continues_a_head_arm():
-    from gaiavfx.application.replace_character import _plan, _request
+    from gaiavfx.application.replace_character import _plan, parse_request
     from gaiavfx.modules.recast.replacement import Attempt, CheckResult
     from gaiavfx.shared.errors import ApplicationError
 
@@ -211,7 +211,7 @@ def test_application_never_continues_a_head_arm():
     with pytest.raises(ValueError, match="one round"):
         _plan(facts(), replacement_policy_text(), prior, renders=1)
     with pytest.raises(ApplicationError) as exc:
-        _request(
+        parse_request(
             {
                 "source_asset": "film",
                 "analysis_operation": "analysis",

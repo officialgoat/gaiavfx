@@ -239,7 +239,9 @@ def test_continuation_initial_planning_uses_window_zero_faceswap_capability(monk
         current = replace(current, faceswap=None)
     monkeypatch.setattr(h3_graph, "render_presets", lambda: current)
     monkeypatch.setattr(
-        app, "_facts", lambda *args: (facts, {"contacts": {}, "concepts": ["person"]}, ())
+        app,
+        "replacement_facts",
+        lambda *args: (facts, {"contacts": {}, "concepts": ["person"]}, ()),
     )
     original_plan, seen = app._plan, []
 
@@ -252,7 +254,7 @@ def test_continuation_initial_planning_uses_window_zero_faceswap_capability(monk
     choice = request(
         handoff=app.HandoffChoice("window0", "chosen"), crop_override=plan(facts).arm.crop
     )
-    first = app._initial(None, choice, None, continuation_snapshot=window_zero)[3]
+    first = app.plan_request(None, choice, None, continuation_snapshot=window_zero)[3]
     assert seen == [supported] and not first.arm.faceswap
     second = original_plan(
         facts,
@@ -472,7 +474,9 @@ def test_legacy_facts_plans_and_arms_advance_and_lower_identically():
             compile_replacement(facts, arm), **args
         )
     assert (
-        app._request({"source_asset": "s", "analysis_operation": "a", "performers": []}).close_up
+        app.parse_request(
+            {"source_asset": "s", "analysis_operation": "a", "performers": []}
+        ).close_up
         is None
     )
 

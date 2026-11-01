@@ -228,7 +228,7 @@ def test_third_window_gap_rolls_back_first_two_operations(work, monkeypatch):
         "parent" + i: {"id": "parent" + i, "request": {"analysis_operation": i, "facts": r}}
         for i, r in reports.items()
     }
-    monkeypatch.setattr(shot, "_report", lambda session, op, library: reports[op["id"]])
+    monkeypatch.setattr(shot, "analysis_report", lambda session, op, library: reports[op["id"]])
     monkeypatch.setattr(
         shot.operations, "operation", lambda session, key: parents.get(key, {"id": key})
     )

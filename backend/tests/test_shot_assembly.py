@@ -539,7 +539,7 @@ def test_shot_user_confirmation_and_typed_gap_rollback(monkeypatch, selected_by,
         for i, (a, b, _) in enumerate(shot_windows(0, 160))
     }
     monkeypatch.setattr(shot.operations, "operation", lambda session, key: reports[key])
-    monkeypatch.setattr(shot, "_report", lambda session, report, library: report)
+    monkeypatch.setattr(shot, "analysis_report", lambda session, report, library: report)
     seen = []
 
     def initial(session, request, library, renders=None, **kwargs):
@@ -576,7 +576,7 @@ def test_shot_user_confirmation_and_typed_gap_rollback(monkeypatch, selected_by,
         assert request.handoff is None
         return operation
 
-    monkeypatch.setattr(shot, "_initial", initial)
+    monkeypatch.setattr(shot, "plan_request", initial)
     monkeypatch.setattr(shot, "start_replacement", start)
     args = {
         "source_asset": "source",
@@ -958,7 +958,7 @@ def test_head_pass_creates_windows_and_bridge_parents(monkeypatch):
         candidates[f"bc{j}"] = {"operation_id": f"b{j}", "asset_id": f"bridge-parent{j}"}
     monkeypatch.setattr(shot.operations, "operation", lambda session, key: ops[key])
     monkeypatch.setattr(shot.operations, "candidate", lambda session, key: candidates[key])
-    monkeypatch.setattr(shot, "_report", lambda session, op, library: reports[op["id"]])
+    monkeypatch.setattr(shot, "analysis_report", lambda session, op, library: reports[op["id"]])
     settings = []
 
     def start(session, request, *args, **kwargs):

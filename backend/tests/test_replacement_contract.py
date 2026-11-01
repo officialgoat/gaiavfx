@@ -739,7 +739,7 @@ def test_motion_context_contract_and_old_facts():
 
 
 def test_handoff_request_validation():
-    from gaiavfx.application.replace_character import _request
+    from gaiavfx.application.replace_character import parse_request
     from gaiavfx.shared.errors import ApplicationError
 
     request = {
@@ -749,9 +749,9 @@ def test_handoff_request_validation():
         "handoff": {"predecessor_operation": "previous", "candidate_id": "candidate"},
         "crop_override": to_record(plan().arm.crop),
     }
-    assert _request(request).handoff.candidate_id == "candidate"
+    assert parse_request(request).handoff.candidate_id == "candidate"
     with pytest.raises(ApplicationError) as exc:
-        _request({**request, "head": {"parent_asset": "parent"}})
+        parse_request({**request, "head": {"parent_asset": "parent"}})
     assert exc.value.status == 422
 
 

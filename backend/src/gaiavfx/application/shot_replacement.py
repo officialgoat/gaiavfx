@@ -11,12 +11,12 @@ from gaiavfx.application.replace_character import (
     PerformerChoice,
     ReplacementPlanningError,
     ReplacementRequest,
-    _facts,
-    _initial,
-    _report,
-    _request,
+    analysis_report,
     effective_policy,
     operations,
+    parse_request,
+    plan_request,
+    replacement_facts,
     start_people_analysis,
     start_replacement,
 )
@@ -133,7 +133,7 @@ def start_window_analyses(
 def shared_crop_for_windows(session, library, *, requests):
     """Plan through Direction on every window's bound, authoritative facts."""
     policy = effective_policy(replacement_policy_text())
-    facts = [_facts(session, _request(r), library, policy)[0] for r in requests]
+    facts = [replacement_facts(session, parse_request(r), library, policy)[0] for r in requests]
     return to_record(union_crop(facts, policy, minimax_h3.capabilities().replacement))
 
 
@@ -167,7 +167,8 @@ def start_shot_replacement(
     if not window_analyses or len(set(window_analyses)) != len(window_analyses):
         raise ApplicationError("Shot needs distinct window analyses.", 422)
     reports = [
-        _report(session, operations.operation(session, key), library) for key in window_analyses
+        analysis_report(session, operations.operation(session, key), library)
+        for key in window_analyses
     ]
     expected = shot_windows(reports[0]["shot_start"], reports[-1]["shot_end"])
     if [(r["shot_start"], r["shot_end"]) for r in reports] != [(a, b) for a, b, _ in expected]:
@@ -216,7 +217,7 @@ def start_shot_replacement(
         if not faceswap_allowed:
             # A target without a human face (a robot) never takes FaceSwap, in any window.
             first = replace(first, faceswap_override=False)
-        facts, _, text, plan = _initial(session, first, library, draft=mode == "draft")
+        facts, _, text, plan = plan_request(session, first, library, draft=mode == "draft")
         if plan.arm is None:
             raise ReplacementPlanningError(plan.gaps)
         result = []
@@ -385,7 +386,9 @@ def start_shot_head_pass(
         raise ApplicationError("Head pass needs one parent take per window.", 422)
     if set(performer["tracks"]) != set(window_analyses):
         raise ApplicationError("The performer needs a track in every window.", 422)
-    reports = [_report(session, operations.operation(session, a), library) for a in window_analyses]
+    reports = [
+        analysis_report(session, operations.operation(session, a), library) for a in window_analyses
+    ]
     expected = shot_windows(reports[0]["shot_start"], reports[-1]["shot_end"])
     if [(r["shot_start"], r["shot_end"]) for r in reports] != [(a, b) for a, b, _ in expected]:
         raise ApplicationError("Analyses must cover the shot in window order.", 422)
