@@ -18,7 +18,7 @@ calls `start_set_build`.
 import json
 from hashlib import sha256
 
-from gaiavfx.application import set_fill
+from gaiavfx.application import operation_start, set_fill
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.application.sets import STORE, build_view, set_state
 from gaiavfx.integrations.worldbuilder import rules
@@ -60,7 +60,6 @@ def start_set_build(
     """Run the plan Run queued fixes shows for `base_version_id`, the version the user is looking at (`sets.run_plan`):
     the user's Run queued fixes (ADR 0018 §5), or the agent's Fill more from the accepted version when nothing else is
     queued (ADR 0020 §8). Refused as the plan says, and, given the `fix_ids` the user saw, when the queue changed."""
-    from gaiavfx.application.operations import PRODUCERS, create_operation
     from gaiavfx.application.sets import _check_keep, run_plan
 
     row = STORE.get(session, set_id)
@@ -117,10 +116,8 @@ def start_set_build(
     meta = base["map_meta"] or {}
     prepared = f"v{base['ordinal']}-repair-{attempt}"
     fill = set_fill.frozen() if extensions else None
-    operation = create_operation(
+    operation = operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind=NAME,
         request={
             "set_id": set_id,

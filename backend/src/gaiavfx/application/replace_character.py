@@ -8,6 +8,7 @@ from dataclasses import dataclass, replace
 from fractions import Fraction
 from statistics import median
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.replacement_checks import take_checks
 from gaiavfx.application.replacement_selectors import position, selector_positions
 from gaiavfx.infrastructure.database import new_id
@@ -472,8 +473,6 @@ def start_people_analysis(
     faces=None,
     cast=None,
 ):
-    from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
-
     concepts = validate_concepts(concepts)
     asset = MediaLibrary.asset_info(session, source_asset_id)
     info = asset["info"]
@@ -535,10 +534,8 @@ def start_people_analysis(
         spec["cast"] = cast
     if faces is not None:
         spec["faces"] = faces
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="person_analysis",
         request={**spec, "points": points},
         budget_limit=None,
@@ -561,7 +558,7 @@ def start_people_analysis(
                 inputs={"shot": {"source": "job_output", "remote_name": remote}},
                 graph=build_analysis_graph(remote, concepts, points, frames=end - start),
                 snapshot={
-                    "knowledge": knowledge_snapshot(person_analysis),
+                    "knowledge": operation_start.knowledge_snapshot(person_analysis),
                     "concepts": list(concepts),
                     "frames": end - start,
                     "native": [info["width"], info["height"]],
@@ -1388,8 +1385,6 @@ def start_replacement(
     continuation_snapshot=None,
     draft=False,
 ):
-    from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
-
     request = _request(request)
     facts, report, policy_text, plan = _initial(
         session,
@@ -1455,13 +1450,11 @@ def start_replacement(
         "sources": sources,
         "knowledge": deepcopy(continuation_snapshot["knowledge"])
         if continuation_snapshot is not None
-        else knowledge_snapshot(minimax_h3),
+        else operation_start.knowledge_snapshot(minimax_h3),
         "has_audio": MediaLibrary.asset_info(session, facts.source_asset)["info"]["has_audio"],
     }
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="character_replacement",
         request=frozen,
         jobs=_round_jobs(frozen, plan.arm, 0),

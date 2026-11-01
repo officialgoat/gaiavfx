@@ -416,7 +416,7 @@ def test_approved_target_lowers_to_h3_and_face_check():
     from test_replacement_contract import mug_facts, plan
 
     from gaiavfx.application import replace_character
-    from gaiavfx.application.operations import knowledge_snapshot
+    from gaiavfx.application.operation_start import knowledge_snapshot
     from gaiavfx.application.recast_planning import effective_target
     from gaiavfx.integrations import minimax_h3
 

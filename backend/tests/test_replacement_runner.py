@@ -914,7 +914,7 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
 
     from test_replacement_contract import mug_facts, plan
 
-    from gaiavfx.application import operations as app_operations
+    from gaiavfx.application import operation_start
     from gaiavfx.application import replace_character as replacement
     from gaiavfx.modules.direction.application import replacement_policy_text
     from gaiavfx.modules.direction.replacement import to_record
@@ -998,7 +998,7 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
             asset if key == "delivery" else {"sha256": key + "-sha", "info": {"has_audio": False}}
         ),
     )
-    monkeypatch.setattr(app_operations, "create_operation", lambda *args, **kwargs: kwargs)
+    monkeypatch.setattr(operation_start, "create_operation", lambda *args, **kwargs: kwargs)
     monkeypatch.setattr(
         replacement.MediaLibrary, "artifact", lambda *args: {"id": "latent", "sha256": "latent-sha"}
     )
@@ -1047,7 +1047,7 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
     from test_replacement_contract import mug_facts, plan
 
     from gaiavfx.application import replace_character as replacement
-    from gaiavfx.application.operations import knowledge_snapshot
+    from gaiavfx.application.operation_start import knowledge_snapshot
     from gaiavfx.integrations import minimax_h3
     from gaiavfx.modules.direction.replacement import to_record
 

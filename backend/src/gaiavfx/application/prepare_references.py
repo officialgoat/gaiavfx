@@ -6,10 +6,9 @@ as, ADR 0019 §3). Both are reviewed and approved the same way, through one revi
 
 from dataclasses import asdict, dataclass
 
-from gaiavfx.application import set_views
+from gaiavfx.application import operation_start, set_views
 from gaiavfx.application.authored import validate_removal
 from gaiavfx.application.direction_reading import DIRECTION, rendered, set_view_inputs
-from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import minimax_h3, qwen_image_edit
 from gaiavfx.integrations.minimax_h3.graph import render_presets as h3_presets
@@ -224,10 +223,8 @@ def start_empty_plate(session, *, place_id, angle_id, source_asset, request_key=
             "expect": {"kind": "image", **delivery},
         },
     )
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="removal",
         request_key=request_key,
         request={
@@ -316,7 +313,7 @@ def start_removal(
                     output_prefix=f"{prefix}/asset",
                 ),
                 snapshot={
-                    "knowledge": knowledge_snapshot(qwen_image_edit),
+                    "knowledge": operation_start.knowledge_snapshot(qwen_image_edit),
                     "expect": {"kind": "image", **size},
                     "request": asdict(removal),
                 },
@@ -336,10 +333,8 @@ def start_removal(
                 },
             )
         )
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="removal",
         request_key=request_key,
         request={
@@ -449,7 +444,7 @@ def start_survey(session, *, place_id, plan: SurveyPlan, seed, budget_limit=None
                 output_prefix=prefix,
             ),
             snapshot={
-                "knowledge": knowledge_snapshot(minimax_h3),
+                "knowledge": operation_start.knowledge_snapshot(minimax_h3),
                 "output_prefix": prefix,
                 "plan": asdict(plan),
                 "expect": {
@@ -474,10 +469,8 @@ def start_survey(session, *, place_id, plan: SurveyPlan, seed, budget_limit=None
             },
         ),
     ]
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="survey",
         request_key=request_key,
         request={"place_id": place_id, "seed": seed, "plan": asdict(plan)},
@@ -624,7 +617,7 @@ def start_insertion(
                     output_prefix=f"{prefix}/asset",
                 ),
                 snapshot={
-                    "knowledge": knowledge_snapshot(qwen_image_edit),
+                    "knowledge": operation_start.knowledge_snapshot(qwen_image_edit),
                     "expect": {"kind": "image", **size},
                     "request": asdict(request),
                 },
@@ -644,10 +637,8 @@ def start_insertion(
                 },
             )
         )
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="insert",
         request_key=request_key,
         request={
@@ -773,10 +764,8 @@ def assemble_sheet(session, *, place_id, tiles, origin, request_key=None):
         step="views_sheet",
         snapshot={"step_spec": step_spec},
     )
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="assemble",
         request_key=request_key,
         request={

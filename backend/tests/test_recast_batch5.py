@@ -13,7 +13,7 @@ from test_replacement_contract import CAP, attempt, joint_facts, mug_facts, resu
 from gaiavfx.application import recast_feed, recast_projection, recast_run, shot_assembly
 from gaiavfx.application import replace_character as app
 from gaiavfx.application import shot_replacement as shot
-from gaiavfx.application.operations import knowledge_snapshot
+from gaiavfx.application.operation_start import knowledge_snapshot
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.modules.direction.application import replacement_policy_text
 from gaiavfx.modules.direction.mouth import quiet_facts

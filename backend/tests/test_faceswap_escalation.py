@@ -13,7 +13,7 @@ from test_replacement_contract import CAP, attempt, joint_facts, mug_facts, resu
 from test_replacement_runner import work as work  # noqa: PLC0414
 
 from gaiavfx.application import replace_character as app
-from gaiavfx.application.operations import knowledge_snapshot
+from gaiavfx.application.operation_start import knowledge_snapshot
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3 import graph as h3_graph
 from gaiavfx.integrations.minimax_h3.graph import parse_render, render_presets

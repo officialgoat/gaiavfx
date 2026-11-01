@@ -12,6 +12,7 @@ from fractions import Fraction
 
 import numpy as np
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.replace_character import operations
 from gaiavfx.application.replacement_checks import take_checks
 from gaiavfx.application.replacement_steps import (
@@ -119,8 +120,6 @@ def start_shot_assembly(
     bridge_operations=None,
     handoff=None,
 ):
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     expected = shot_windows(shot_start, shot_end)
     if (
         not window_operations
@@ -348,10 +347,8 @@ def start_shot_assembly(
     # A settled operation with no common take still has a durable, empty result.
     if not jobs:
         jobs = [JobSpec("analysis", "local", "shot_assembly", step="shot_assembly_empty")]
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="shot_assembly",
         request={
             "source_asset": source_asset,

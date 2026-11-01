@@ -9,7 +9,6 @@ import shutil
 import threading
 import time
 from collections.abc import Callable, Mapping
-from importlib import resources
 from pathlib import Path
 
 import httpx
@@ -23,6 +22,7 @@ from gaiavfx.application.dialogue_steps import dialogue_audio, dialogue_envelope
 from gaiavfx.application.engine_jobs import EngineCommand, run_engine
 from gaiavfx.application.export_movie import run_export
 from gaiavfx.application.film_analysis import advance_film_analysis
+from gaiavfx.application.operation_start import PRODUCERS
 from gaiavfx.application.operation_steps import (
     LocalContext,
     extract_frames,
@@ -54,8 +54,6 @@ from gaiavfx.application.voice_steps import (
 )
 from gaiavfx.infrastructure.coordination import gpu_lease
 from gaiavfx.infrastructure.database import Database
-from gaiavfx.integrations import minimax_h3, person_analysis, qwen_image_edit, worldbuilder
-from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.persistence import JobRecord
 from gaiavfx.modules.generation.operations.prescreen import VERSION
 from gaiavfx.modules.generation.operations.service import OperationService
@@ -66,12 +64,6 @@ from gaiavfx.modules.library.media_application import (
 )
 from gaiavfx.shared.errors import ApplicationError
 
-PRODUCERS = {
-    minimax_h3.NAME: minimax_h3.OUTPUT_KINDS,
-    person_analysis.NAME: person_analysis.OUTPUT_KINDS,
-    qwen_image_edit.NAME: qwen_image_edit.OUTPUT_KINDS,
-    worldbuilder.NAME: worldbuilder.OUTPUT_KINDS,
-}
 STEPS = {"views_sheet": views_sheet, "extract_frames": extract_frames, "fit_frame": fit_frame}
 STEPS.update(
     analysis_extract=analysis_extract,
@@ -134,46 +126,6 @@ MISSING_RUN = "The accepted run is absent from queue and history. It was not res
 
 class _Stopping(Exception):
     pass
-
-
-def knowledge_snapshot(package) -> dict[str, str]:
-    root = resources.files(package).joinpath("knowledge")
-    return {
-        item.name: item.read_text(encoding="utf-8")
-        for item in root.iterdir()
-        if item.name.endswith(".toml")
-    }
-
-
-def create_operation(
-    session,
-    service,
-    producers,
-    *,
-    kind,
-    request,
-    jobs,
-    budget_limit,
-    awaits_review=False,
-    budget=None,
-    request_key=None,
-):
-    for spec in jobs:
-        if not isinstance(spec, JobSpec) or (
-            spec.executor == "comfy"
-            and spec.kind not in producers.get(spec.integration, frozenset())
-        ):
-            raise ApplicationError("The producer does not declare this output kind.", 422)
-    return service.create(
-        session,
-        kind=kind,
-        request=request,
-        jobs=jobs,
-        budget_limit=budget_limit,
-        awaits_review=awaits_review,
-        budget=budget,
-        request_key=request_key,
-    )
 
 
 def _transient(exc: Exception) -> bool:

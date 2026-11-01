@@ -17,7 +17,7 @@ from gaiavfx.shared.errors import ApplicationError
 
 
 def test_parent_guide_head_composite_checks_and_derived_assembly(work, monkeypatch):
-    from gaiavfx.application import operations as operation_app
+    from gaiavfx.application import operation_start
     from gaiavfx.integrations import minimax_h3
 
     db, library, runner, assets, film_frames = work
@@ -26,12 +26,12 @@ def test_parent_guide_head_composite_checks_and_derived_assembly(work, monkeypat
     current_policy = replacement.replacement_policy_text()
     start = current_policy.index("[head]")
     old_policy = current_policy[:start] + current_policy[current_policy.index("\n[", start + 1) :]
-    current_knowledge = operation_app.knowledge_snapshot(minimax_h3)
+    current_knowledge = operation_start.knowledge_snapshot(minimax_h3)
     old_knowledge = {k: v for k, v in current_knowledge.items() if k != "head.toml"}
     # A settled body from before head-pass support must still accept a new head pass.
     with monkeypatch.context() as frozen:
         frozen.setattr(replacement, "replacement_policy_text", lambda: old_policy)
-        frozen.setattr(operation_app, "knowledge_snapshot", lambda integration: old_knowledge)
+        frozen.setattr(operation_start, "knowledge_snapshot", lambda integration: old_knowledge)
         with db.transaction() as session:
             body = replacement.start_replacement(session, request, library=library, renders=1)
     assert parse_replacement_policy(body["request"]["policy"]).head is None

@@ -629,7 +629,7 @@ def test_replacement_render_presets_refuse_invalid_values(old, new):
 
 
 def test_knowledge_snapshot_includes_replacement_wording():
-    from gaiavfx.application.operations import knowledge_snapshot
+    from gaiavfx.application.operation_start import knowledge_snapshot
 
     assert knowledge_snapshot(minimax_h3)["replacement.toml"] == wording_text()
 

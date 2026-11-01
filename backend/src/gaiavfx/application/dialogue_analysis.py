@@ -17,6 +17,7 @@ from weakref import WeakKeyDictionary
 
 import numpy as np
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import spec as voice_spec
 from gaiavfx.modules.generation.operations.attempts import attempts
@@ -83,8 +84,6 @@ def audio_gap(asset: dict) -> dict | None:
 def start_dialogue_analysis(session, library, asset_id: str, *, retry_failed=False) -> dict:
     """The film's shared analysis: the current attempt when there is one, a new attempt only on an explicit retry
     after a settled attempt that did not succeed. Idempotent through the content key."""
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     asset = library.get(session, asset_id)
     if asset["kind"] != "video":
         raise ApplicationError("Dialogue analysis requires a Library video.", 422)
@@ -100,10 +99,8 @@ def start_dialogue_analysis(session, library, asset_id: str, *, retry_failed=Fal
         ):
             return existing | {"_created": False}
         attempt += 1
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind=NAME,
         request={"source_asset": asset_id, "version": DIALOGUE_VERSION, "attempt": attempt},
         request_key=_key(asset, attempt),

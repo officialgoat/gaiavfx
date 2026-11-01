@@ -1,10 +1,9 @@
 """Lower a ready Direction segment to immutable H3 render jobs."""
 
-from gaiavfx.application import take_basis
+from gaiavfx.application import operation_start, take_basis
 from gaiavfx.application.authored import segment_to_dict
 from gaiavfx.application.direction_plans import segment_render_inputs
 from gaiavfx.application.direction_reading import DIRECTION
-from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.window import lower
@@ -81,7 +80,7 @@ def start_render(
                 inputs=inputs,
                 graph=lowered.graph,
                 snapshot={
-                    "knowledge": knowledge_snapshot(minimax_h3),
+                    "knowledge": operation_start.knowledge_snapshot(minimax_h3),
                     "output_prefix": prefix,
                     "technique": plan.technique_id,
                     **lowered.snapshot,
@@ -112,10 +111,8 @@ def start_render(
             segment, tuple(p for p in inputs_plan.pictures if p.role is PictureRole.IDENTITY)
         ),
     }
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="render",
         request_key=request_key,
         request=request,

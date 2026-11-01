@@ -32,6 +32,7 @@ import re
 from dataclasses import asdict, dataclass, field
 from hashlib import sha256
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations import minimax_h3, worldbuilder
 from gaiavfx.integrations.minimax_h3 import probe as h3_probe
@@ -363,7 +364,7 @@ def advance(session, library, operation) -> Next | Done:
                     ),
                     seed=ask.seed,
                     snapshot={
-                        "knowledge": _knowledge(minimax_h3),
+                        "knowledge": operation_start.knowledge_snapshot(minimax_h3),
                         "intermediate": True,
                         "probe": {
                             "round": rnd,
@@ -417,7 +418,7 @@ def advance(session, library, operation) -> Next | Done:
                         prefix=f"{prefix}/p{n}",
                     ),
                     snapshot={
-                        "knowledge": _knowledge(worldbuilder),
+                        "knowledge": operation_start.knowledge_snapshot(worldbuilder),
                         "stage": {"name": "still_geometry", "round": rnd, "probe": n},
                     },
                 )
@@ -455,12 +456,6 @@ def advance(session, library, operation) -> Next | Done:
         result = _summary(session, library, consolidated)["round"]
         return _after(session, library, operation, rnd, result)
     raise ValueError(f"Unexpected fill stage {name!r}.")
-
-
-def _knowledge(integration) -> dict:
-    from gaiavfx.application.operations import knowledge_snapshot
-
-    return knowledge_snapshot(integration)
 
 
 def _consolidate(session, library, operation, rnd, group) -> Next:

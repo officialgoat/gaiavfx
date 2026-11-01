@@ -96,7 +96,7 @@ def test_minor_mug_track_keeps_crop_report_and_inversion_consistent(mug_analysis
     import numpy as np
 
     from gaiavfx.application import replacement_steps as steps
-    from gaiavfx.application.operations import knowledge_snapshot
+    from gaiavfx.application.operation_start import knowledge_snapshot
 
     document, request = mug_analysis
     before = json.dumps(document)

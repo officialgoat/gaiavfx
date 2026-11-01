@@ -6,6 +6,7 @@ from importlib import resources
 
 import numpy as np
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.recast_steps import scan_frames, validate_faces
 from gaiavfx.integrations import person_analysis
 from gaiavfx.integrations.person_analysis.face_scan import face_scan_graph
@@ -19,8 +20,6 @@ NAME = "film_analysis"
 
 
 def start_film_analysis(session, library, asset_id: str, *, request_key: str) -> dict:
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     request = {"source_asset": asset_id}
     existing = operations.for_request(session, request_key)
     if existing:
@@ -46,10 +45,8 @@ def start_film_analysis(session, library, asset_id: str, *, request_key: str) ->
         "numpy": np.__version__,
     }
     spec = {"source_asset": asset_id, "params": params}
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind=NAME,
         request=request,
         budget_limit=None,

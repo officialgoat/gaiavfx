@@ -35,6 +35,7 @@ from collections import OrderedDict
 from hashlib import sha256
 from weakref import WeakKeyDictionary
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import engines as voice_engines
 from gaiavfx.integrations.voice import spec as voice_spec
@@ -598,8 +599,6 @@ def start_voice_build(
     (idempotent through the content key), else a new one. Refuses anything but Library audio and a total outside the
     recipe's sample bounds. `library_scan` is `expressive.scan` of the Settings folder: the request records its
     digest and counts, the library step its clips."""
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     ids = list(sample_asset_ids)
     if not ids:
         raise ApplicationError("Choose recordings for the voice first.", 422)
@@ -617,10 +616,8 @@ def start_voice_build(
     existing = operations.for_request(session, request_key)
     if existing is not None:
         return existing | {"_created": False}
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind=NAME,
         request={
             "samples": ids,
@@ -1250,8 +1247,6 @@ def start_voice_audition(
     voice's weights and index from the source median to the target's, then joined with their originals into one reel
     (the operation's one candidate). Plain data only (spans, medians, artifact ids): it knows no recast. Idempotent
     through `request_key`; `voice_model` (the manifest artifact id) and `attempt` are recorded in the request."""
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     existing = operations.for_request(session, request_key)
     if existing is not None:
         return existing | {"_created": False}
@@ -1286,10 +1281,8 @@ def start_voice_audition(
         raise ApplicationError("The audition needs the source and target medians.", 422)
     gaps = voice_spec.audition()["reel_gap_seconds"]
     frozen_stem = _frozen(stem)
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind=AUDITION,
         request={
             "lines": keys,

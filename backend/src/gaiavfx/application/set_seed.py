@@ -31,7 +31,7 @@ from __future__ import annotations
 import json
 from hashlib import sha256
 
-from gaiavfx.application import set_fill
+from gaiavfx.application import operation_start, set_fill
 from gaiavfx.application.direction_reading import DIRECTION as direction
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.application.selected_takes import current_take
@@ -414,8 +414,6 @@ def _begin(
     place_text,
     frozen,
 ):
-    from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
-
     name = clip_words(name, 120)
     if not name:
         raise ApplicationError("Name the stage.", 422)
@@ -428,10 +426,8 @@ def _begin(
     prefix = f"gaiavfx/sets/seed-{key}"
     remote = f"{prefix}/take.mp4"
     first, length, stride = sampling(start, end, take["frames"])
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="set_build",
         request={
             "mode": MODE,
@@ -466,7 +462,7 @@ def _begin(
                 inputs={asset["id"]: {"sha256": asset["sha256"], "remote_name": remote}},
                 graph=take_geometry_graph(remote, start=start, end=end, take=take, prefix=prefix),
                 snapshot={
-                    "knowledge": knowledge_snapshot(worldbuilder),
+                    "knowledge": operation_start.knowledge_snapshot(worldbuilder),
                     "stage": {"name": "geometry"},
                 },
             ),

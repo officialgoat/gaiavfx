@@ -9,17 +9,15 @@ for the angle and the hidden regions of the version it was rendered at. A newer 
 one of them: the approved pixels have not changed, so it is an update to offer, never staleness.
 """
 
+from gaiavfx.application import operation_start
 from gaiavfx.application.direction_reading import DIRECTION, SET_VIEWS
 from gaiavfx.application.engine_jobs import engine_job
-from gaiavfx.application.operations import PRODUCERS, create_operation
 from gaiavfx.application.sets import STORE
-from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.shared.errors import ApplicationError
 
 OPERATION = SET_VIEWS
 STEP = "worldbuilder.render_views"
-_operations = OperationService()
 
 
 def place_cameras(session, place_id) -> dict:
@@ -110,10 +108,8 @@ def start_set_views(session, library, *, place_id, angle_ids, request_key=None):
             }
         },
     )
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        _operations,
-        PRODUCERS,
         kind=OPERATION,
         request_key=request_key,
         request=request,

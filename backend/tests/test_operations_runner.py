@@ -20,11 +20,8 @@ from filelock import FileLock
 from PIL import Image
 from sqlalchemy import text
 
-from gaiavfx.application.operations import (
-    OperationRunner,
-    create_operation,
-    knowledge_snapshot,
-)
+from gaiavfx.application.operation_start import create_operation, knowledge_snapshot
+from gaiavfx.application.operations import OperationRunner
 from gaiavfx.infrastructure.database import Database
 from gaiavfx.infrastructure.media import MediaTools
 from gaiavfx.infrastructure.views_sheet import render_views_sheet
@@ -233,8 +230,6 @@ def test_n_candidates_unreviewed_and_declared_kind(work):
         with pytest.raises(ApplicationError) as error:
             create_operation(
                 session,
-                OperationService(),
-                {"fake": frozenset({"video"})},
                 kind="render",
                 request={},
                 jobs=[spec()],
@@ -616,8 +611,6 @@ def test_create_operation_accepts_local_image_for_h3(work):
     with db.transaction() as session:
         operation = create_operation(
             session,
-            OperationService(),
-            {"minimax_h3": frozenset({"video"})},
             kind="fit",
             request={},
             budget_limit=None,

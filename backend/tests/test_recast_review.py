@@ -12,6 +12,7 @@ from test_recast_service import world as world  # noqa: PLC0414
 from gaiavfx.application import operations, recast, recast_take, replace_character
 from gaiavfx.application import recast_planning as planning
 from gaiavfx.application import recast_projection as p
+from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -185,7 +186,8 @@ def test_reads_do_not_lock_or_save_and_cache_plan_and_face_index(world, monkeypa
     monkeypatch.setattr(p.store, "lock", write)
     monkeypatch.setattr(p.store, "save", write)
     monkeypatch.setattr(recast, "start_target_report", write)
-    monkeypatch.setattr(p.operations, "create", write)
+    # Any start of an operation, whichever producer asks for it.
+    monkeypatch.setattr(OperationService, "create", write)
     # One report update invalidates the unstarted plans, then reads reuse them.
     state = world.invoke(recast.recast_state, state["id"])
     assert state["characters"][0]["target"]["face"] == "face"

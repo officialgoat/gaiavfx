@@ -13,6 +13,7 @@ from zipfile import BadZipFile
 import numpy as np
 from PIL import Image, ImageOps
 
+from gaiavfx.application import operation_start
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import person_analysis, qwen_image_edit
 from gaiavfx.integrations.person_analysis.face_scan import face_scan_graph
@@ -67,8 +68,6 @@ def _latest(session, library, asset, policy):
 
 
 def start_target_report(session, library, asset_id, *, retry_failed=False):
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     policy = _policy(replacement_policy_text())
     asset = MediaLibrary.asset_info(session, asset_id)
     if asset["kind"] != "image":
@@ -81,10 +80,8 @@ def start_target_report(session, library, asset_id, *, retry_failed=False):
             return existing | {"_created": False}
         attempt += 1
     remote = f"gaiavfx/{new_id()}/target.png"
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="target_face",
         request={"target_asset": asset_id, "scan_version": SCAN_VERSION, "attempt": attempt},
         request_key=_key(asset, attempt),
@@ -214,8 +211,6 @@ def _report(session, library, operation, policy):
 
 
 def start_face_portraits(session, library, asset_id, box, *, seed, request_key, attempt=1):
-    from gaiavfx.application.operations import PRODUCERS, create_operation, knowledge_snapshot
-
     if existing := operations.for_request(session, request_key):
         return existing | {"_created": False}
     asset = MediaLibrary.asset_info(session, asset_id)
@@ -259,16 +254,14 @@ def start_face_portraits(session, library, asset_id, box, *, seed, request_key, 
                     output_prefix=f"{prefix}/portrait",
                 ),
                 snapshot={
-                    "knowledge": knowledge_snapshot(qwen_image_edit),
+                    "knowledge": operation_start.knowledge_snapshot(qwen_image_edit),
                     "expect": {"kind": "image", "width": 1024, "height": 1024},
                     "request": asdict(request),
                 },
             )
         )
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="face_portraits",
         request_key=request_key,
         request={"target_asset": asset_id, "box": list(box), "seed": seed, "attempt": attempt},
@@ -280,8 +273,6 @@ def start_face_portraits(session, library, asset_id, box, *, seed, request_key, 
 
 
 def start_face_sheet(session, library, asset_id, portraits_operation, *, request_key):
-    from gaiavfx.application.operations import PRODUCERS, create_operation
-
     if existing := operations.for_request(session, request_key):
         return existing | {"_created": False}
     portraits = operations.operation(session, portraits_operation)
@@ -304,10 +295,8 @@ def start_face_sheet(session, library, asset_id, portraits_operation, *, request
     inputs = {
         aid: {"sha256": MediaLibrary.asset_info(session, aid)["sha256"]} for aid in tiles.values()
     }
-    return create_operation(
+    return operation_start.create_operation(
         session,
-        operations,
-        PRODUCERS,
         kind="face_sheet",
         request_key=request_key,
         request={

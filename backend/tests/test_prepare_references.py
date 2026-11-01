@@ -16,7 +16,7 @@ from gaiavfx.application.authored import (
     load_survey,
     segment_records,
 )
-from gaiavfx.application.operations import PRODUCERS, create_operation
+from gaiavfx.application.operation_start import create_operation
 from gaiavfx.application.prepare_references import (
     approve_plate,
     open_plate_review,
@@ -303,8 +303,6 @@ def test_partial_removal_reviews_surviving_fit_and_rejects_other_producers(remov
         source = MediaLibrary.asset_info(session, sources["image"])
         other = create_operation(
             session,
-            operations,
-            PRODUCERS,
             kind="survey",
             request={},
             budget_limit=None,

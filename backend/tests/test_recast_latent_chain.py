@@ -15,6 +15,7 @@ from gaiavfx.application import replace_character as app
 from gaiavfx.modules.direction.application import replacement_policy_text
 from gaiavfx.modules.direction.replacement import LatentChainPolicy, parse_replacement_policy
 from gaiavfx.modules.direction.windows import latent_chain_allowed, shot_windows
+from gaiavfx.modules.generation.operations.service import OperationService
 
 TEXT = replacement_policy_text()
 OLD = re.sub(r"(?ms)^\[latent_chain\]\n.*?(?=^\[|\Z)", "", TEXT)
@@ -165,7 +166,7 @@ def test_chain_assembly_pins_both_predecessor_takes(monkeypatch):
             for t in (0, 1)
         }
     monkeypatch.setattr(shot_assembly.operations, "operation", lambda s, key: ops[key])
-    monkeypatch.setattr(shot_assembly.operations, "create", lambda s, **kw: kw)
+    monkeypatch.setattr(OperationService, "create", lambda self, s, **kw: kw)
     monkeypatch.setattr(shot_assembly, "window_takes", lambda s, lib, op: takes[op["id"]])
     library = SimpleNamespace(
         asset_info=lambda *args: {"sha256": "hash", "info": {"frame_rate": "24"}}

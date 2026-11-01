@@ -118,7 +118,7 @@ def test_assembly_accepts_partial_windows_only_after_the_loop_settles(monkeypatc
             ],
         }
     monkeypatch.setattr(assembly.operations, "operation", lambda session, key: windows[key])
-    monkeypatch.setattr(assembly.operations, "create", lambda session, **kwargs: kwargs)
+    monkeypatch.setattr(OperationService, "create", lambda self, session, **kwargs: kwargs)
     monkeypatch.setattr(
         assembly,
         "take_checks",
@@ -749,7 +749,7 @@ def test_chained_versions_follow_candidate_identity(monkeypatch, stopped, mismat
     elif mismatch == "sha256":
         ops["op2"]["request"]["chain"]["sha256"] = "changed"
     monkeypatch.setattr(assembly.operations, "operation", lambda session, key: ops[key])
-    monkeypatch.setattr(assembly.operations, "create", lambda session, **kwargs: kwargs)
+    monkeypatch.setattr(OperationService, "create", lambda self, session, **kwargs: kwargs)
     monkeypatch.setattr(assembly, "window_takes", lambda session, library, op: tables[op["id"]])
     library = types.SimpleNamespace(
         asset_info=lambda *args: {"sha256": "frozen", "info": {"frame_rate": "24"}}
@@ -818,7 +818,7 @@ def test_assembly_preserves_plain_record_shape_and_handoff_provenance(monkeypatc
             }
         }
     monkeypatch.setattr(assembly.operations, "operation", lambda session, key: ops[key])
-    monkeypatch.setattr(assembly.operations, "create", lambda session, **kwargs: kwargs)
+    monkeypatch.setattr(OperationService, "create", lambda self, session, **kwargs: kwargs)
     monkeypatch.setattr(assembly, "window_takes", lambda session, library, op: tables[op["id"]])
     library = types.SimpleNamespace(
         asset_info=lambda *args: {"sha256": "frozen", "info": {"frame_rate": "24"}}
@@ -1058,7 +1058,7 @@ def test_versions_bind_each_last_take_to_its_bridge(monkeypatch, failed, head, d
         tables[bridge_ids[-1]] = {}
         ops[bridge_ids[-1]]["state"] = "failed"
     monkeypatch.setattr(assembly.operations, "operation", lambda session, key: ops[key])
-    monkeypatch.setattr(assembly.operations, "create", lambda session, **kwargs: kwargs)
+    monkeypatch.setattr(OperationService, "create", lambda self, session, **kwargs: kwargs)
     monkeypatch.setattr(assembly, "window_takes", lambda session, library, op: tables[op["id"]])
     library = types.SimpleNamespace(
         asset_info=lambda *args: {"sha256": "frozen", "info": {"frame_rate": "24"}}
