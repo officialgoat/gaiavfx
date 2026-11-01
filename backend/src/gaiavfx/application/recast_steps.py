@@ -9,7 +9,7 @@ from math import ceil, gcd
 import numpy as np
 from PIL import Image
 
-from gaiavfx.application.replacement_steps import detect_letterbox
+from gaiavfx.application.replacement_pixels import detect_letterbox
 from gaiavfx.shared.errors import ApplicationError
 
 

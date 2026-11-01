@@ -11,6 +11,7 @@ from test_replacement_runner import work as replacement_work
 
 import gaiavfx.application.replace_character as replacement
 from gaiavfx.application.replacement_checks import face_checks
+from gaiavfx.application.replacement_pixels import invert_performer
 from gaiavfx.application.replacement_steps import inversion_score as REAL_INVERSION_SCORE
 from gaiavfx.modules.recast.application import replacement_policy_text
 from gaiavfx.modules.recast.replacement import (
@@ -135,7 +136,7 @@ def test_minor_mug_track_keeps_crop_report_and_inversion_consistent(mug_analysis
         masks[key][:, 0, index] = True
     monkeypatch.setattr(steps, "_mask_data", lambda library, key: masks[key])
     performer, protected = steps._selected_masks(SimpleNamespace(library=None), spec, frames)
-    result = steps.invert_performer(frames, performer, protected)
+    result = invert_performer(frames, performer, protected)
     assert np.all(result[:, 0, 0] == 175)  # Minor does not carve a hole in inversion.
     assert np.all(result[:, 0, 1:3] == 80)  # Real bystander and mug remain protected.
 

@@ -3,18 +3,17 @@
 import numpy as np
 import pytest
 
-from gaiavfx.application.replacement_steps import (
+from gaiavfx.application.replacement_pixels import (
     alpha_map,
-    background_geometry,
     crop,
     cut_check,
-    decode_rgb,
     detect_letterbox,
+    head_mask,
     invert_performer,
-    lossless_video,
     paste,
     uncrop,
 )
+from gaiavfx.application.replacement_steps import background_geometry, decode_rgb, lossless_video
 from gaiavfx.infrastructure.media import MediaTools
 from gaiavfx.modules.recast.replacement import Box, CropPlan
 from gaiavfx.shared.errors import ApplicationError
@@ -51,7 +50,7 @@ def test_pixel_centres_inverse_feather_and_inversion():
 
 @pytest.mark.parametrize("size", [(1792, 1024), (1024, 1792), (1800, 800), (128, 64)])
 def test_measurement_resize_bounds_aspect_and_nearest_masks(size):
-    from gaiavfx.application.replacement_steps import measurement_pixels
+    from gaiavfx.application.replacement_pixels import measurement_pixels
 
     width, height = size
     masks = np.zeros((2, height, width), np.uint8)
@@ -121,11 +120,20 @@ def test_composite_keeps_native_delivery_and_legacy_geometry_but_bounds_evidence
         "face_measurement": True,
     }
     # Deliberately no frozen policy: old snapshots still retain valid observations.
-    captured = {}
+    captured, resampled = {}, []
+
+    def identity(name):
+        def resample(frame, *args):
+            resampled.append(name)
+            return frame
+
+        return resample
+
     monkeypatch.setattr(steps, "decode_rgb", lambda *args: frames)
     monkeypatch.setattr(steps, "_mask_data", lambda *args: masks)
-    monkeypatch.setattr(steps, "crop", lambda frame, *args: frame)
-    monkeypatch.setattr(steps, "uncrop", lambda frame, *args: frame)
+    # The pixel operations live in replacement_pixels; the step reaches them through its own names.
+    monkeypatch.setattr(steps, "crop", identity("crop"))
+    monkeypatch.setattr(steps, "uncrop", identity("uncrop"))
     monkeypatch.setattr(
         steps, "background_geometry", lambda *args: {"scale": 1.0, "dx": 3.0, "dy": 0.0}
     )
@@ -143,6 +151,7 @@ def test_composite_keeps_native_delivery_and_legacy_geometry_but_bounds_evidence
         {"step_spec": spec},
     )
     outputs = steps.replacement_composite(context)
+    assert {"crop", "uncrop"} <= set(resampled)
     assert captured["composite.mkv"].shape == frames.shape
     assert np.array_equal(captured["composite.mkv"], frames)
     for name in ("candidate-evidence.mkv", "source-shot.mkv", "performer-0.mkv"):
@@ -191,7 +200,7 @@ def test_lossless_ffmpeg_replay_is_exact_and_repeatable(tmp_path):
 
 
 def test_inversion_is_binary_after_lanczos_crop_not_a_soft_edge():
-    from gaiavfx.application.replacement_steps import prepare_crop
+    from gaiavfx.application.replacement_pixels import prepare_crop
 
     source = np.random.default_rng(14).integers(0, 256, (48, 64, 3), dtype=np.uint8)
     plan = CropPlan(
@@ -501,7 +510,7 @@ def test_locked_guide_pads_real_silence_and_unlocked_guide_keeps_legacy_bytes(
 
 @pytest.mark.parametrize("scale,shift,advice", [(0.84, 77, True), (1.0, 2, False), (1.0, 0, False)])
 def test_global_geometry_catches_research_warp_but_allows_small_jitter(scale, shift, advice):
-    from gaiavfx.application.replacement_steps import resample
+    from gaiavfx.application.replacement_pixels import resample
 
     frame = np.random.default_rng(27).integers(20, 235, (384, 640, 3), dtype=np.uint8)
     warped = resample(frame, (np.arange(640) - shift) / scale, np.arange(384) / scale)
@@ -858,7 +867,7 @@ def test_window_mouths_give_a_shared_face_to_the_track_it_overlaps_most():
 
 
 def test_head_alpha_has_finite_support_exact_core_and_parent_pixels():
-    from gaiavfx.application.replacement_steps import head_alpha
+    from gaiavfx.application.replacement_pixels import head_alpha
     from gaiavfx.modules.recast.head import HeadPolicy
     from gaiavfx.modules.recast.person_crop import fit
 
@@ -923,7 +932,7 @@ def test_negative_head_render_measures_inversion_on_head_canvas_without_body_cal
         fit((180, 160, 420, 400), (512, 512), (width, height), 32, (0, 0, width, height)), 16
     )
     original = crop(film[0], plan)
-    selected = crop(steps.head_mask(mask[0], squares[0]).astype(np.uint8) * 255, plan) > 127
+    selected = crop(head_mask(mask[0], squares[0]).astype(np.uint8) * 255, plan) > 127
     rendered = original.copy()
     rendered[selected] = 255 - original[selected]
     facts = ReplacementFacts(
@@ -1075,7 +1084,7 @@ def test_prepare_context_is_lossless_masked_rgb_and_does_not_change_guide(
     decoded = steps.decode_rgb(media, context, 0, 22)
     assert len(decoded) == 22
     for i, frame in enumerate(decoded):
-        expected = steps.crop(predecessor[51 + i], plan)
+        expected = crop(predecessor[51 + i], plan)
         if framing == "active":
             expected[:8] = expected[-8:] = 0
             expected[:, :8] = expected[:, -8:] = 0

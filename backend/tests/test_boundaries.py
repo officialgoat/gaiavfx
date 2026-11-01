@@ -360,6 +360,21 @@ def test_recast_rules_are_model_free_and_pure():
     assert not violations, violations
 
 
+def test_replacement_pixels_are_model_free_numpy():
+    """A replacement's pixel operations need NumPy, so they live in the application, not with Recast's
+    stdlib-only rules; they still read no media, model, library or integration."""
+    allowed = {
+        "math",
+        "numpy",
+        "PIL",
+        "gaiavfx.modules.recast.replacement",
+        "gaiavfx.shared.errors",
+    }
+    file = SOURCE / "application" / "replacement_pixels.py"
+    violations = [name for name in imported_names(file) if name not in allowed]
+    assert not violations, violations
+
+
 def test_qwen_image_edit_boundaries():
     """The image integration reads Direction requests, never persistence or another integration."""
     violations = []

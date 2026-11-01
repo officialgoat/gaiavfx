@@ -2,6 +2,8 @@
 
 import numpy as np
 
+from gaiavfx.application.replacement_pixels import crop, dilate
+
 LUMA = np.array([0.299, 0.587, 0.114], np.float32)
 
 
@@ -168,8 +170,6 @@ def tone_anchor(raw, film, background, policy, **kwargs):
 
 def background_mask(plan, facts, performer, protected, policy):
     """Canvas background inside the active film, excluding dilated performer/protection."""
-    from gaiavfx.application.replacement_steps import crop, dilate
-
     x0, y0, x1, y1 = 0, 0, *facts.native
     if facts.letterbox:
         x0, y0 = facts.letterbox.offset
