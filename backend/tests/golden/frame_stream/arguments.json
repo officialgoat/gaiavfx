@@ -1,0 +1,99 @@
+{
+  "decode_rgb rgb source": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/rgb.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/rgb.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-protocol_whitelist", "file,pipe", "-threads", "2", "-copyts", "-start_at_zero", "-i", "<tmp>/rgb.mkv", "-vf", "select='gte(t,-0.020833333333)'", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]
+  ],
+  "decode_rgb bt709 seek": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/bframes.mp4"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/bframes.mp4"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-protocol_whitelist", "file,pipe", "-threads", "2", "-copyts", "-start_at_zero", "-ss", "1", "-i", "<tmp>/bframes.mp4", "-vf", "select='gte(t,2.380000000000)*lt(t,2.780000000000)',scale=in_color_matrix=bt709:in_range=limited:out_range=full", "-frames:v", "10", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]
+  ],
+  "iter_rgb smpte170m full range origin": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/full.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/full.mkv", "-vf", "select='gte(t,0.584416666667)*lt(t,0.784616666667)',scale=in_color_matrix=bt601:in_range=full:out_range=full", "-frames:v", "6", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]
+  ],
+  "iter_rgb rgba open end": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/rgb.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/rgb.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/rgb.mkv", "-vf", "select='gte(t,0.062500000000)'", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"]
+  ],
+  "stream_frames scaled range": [
+    ["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", "-i", "<tmp>/bframes.mp4", "-map", "0:v:0", "-vf", "trim=start_frame=5:end_frame=15,scale=32:24:flags=bilinear", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
+  ],
+  "stream_frames rgb source": [
+    ["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", "-i", "<tmp>/rgb.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=0,scale=64:48:flags=bilinear", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
+  ],
+  "conform frames native range": [
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", "<tmp>/full.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=2:end_frame=8", "-an", "-fps_mode", "passthrough", "-pix_fmt", "yuv444p", "-threads:v", "1", "-f", "rawvideo", "pipe:1"]
+  ],
+  "conform frames rgba": [
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", "<tmp>/rgb.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=0", "-an", "-fps_mode", "passthrough", "-pix_fmt", "rgba", "-threads:v", "1", "-f", "rawvideo", "pipe:1"]
+  ],
+  "lossless_video rgb": [
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-y", "-fflags", "+bitexact", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "64x48", "-r", "24", "-i", "pipe:0", "-map", "0:v:0", "-c:v", "ffv1", "-level", "3", "-pix_fmt", "bgr0", "-flags:v", "+bitexact", "-threads:v", "2", "-map_metadata", "-1", "-fflags", "+bitexact", "<tmp>/lossless/rgb.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/lossless/rgb.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/lossless/rgb.writing.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/lossless/rgb.writing.mkv", "-vf", "select='gte(t,-0.020833333333)'", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]
+  ],
+  "lossless_video alpha attachment": [
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-y", "-fflags", "+bitexact", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", "32x24", "-r", "25", "-i", "pipe:0", "-map", "0:v:0", "-c:v", "ffv1", "-level", "3", "-pix_fmt", "bgra", "-flags:v", "+bitexact", "-threads:v", "1", "-map_metadata", "-1", "-fflags", "+bitexact", "-metadata", "comment=GAIAVFX derivative pin", "-attach", "<tmp>/patch.json", "-metadata:s:t:0", "mimetype=application/json", "-metadata:s:t:0", "filename=patch.json", "<tmp>/lossless/alpha.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/lossless/alpha.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/lossless/alpha.writing.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/lossless/alpha.writing.mkv", "-vf", "select='gte(t,-0.020000000000)'", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"]
+  ],
+  "lossless_video audio tempo pad": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "a:0", "-show_entries", "stream=sample_fmt", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-y", "-fflags", "+bitexact", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "64x48", "-r", "24", "-i", "pipe:0", "-i", "<tmp>/full.mkv", "-map", "0:v:0", "-c:v", "ffv1", "-level", "3", "-pix_fmt", "bgr0", "-flags:v", "+bitexact", "-threads:v", "2", "-map", "1:a:0?", "-af", "atrim=start=0.601100000000:end=0.801300000000,asetpts=PTS-STARTPTS,atempo=0.800800000000,apad=whole_dur=0.500000000000", "-c:a", "pcm_s16le", "-flags:a", "+bitexact", "-map_metadata", "-1", "-fflags", "+bitexact", "-metadata", "comment=GAIAVFX derivative audio", "<tmp>/lossless/audio.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/lossless/audio.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/lossless/audio.writing.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/lossless/audio.writing.mkv", "-vf", "select='gte(t,-0.020833333333)'", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"]
+  ],
+  "sampled_proxy": [
+    ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "32x24", "-r", "24", "-i", "pipe:0", "-c:v", "libx264", "-crf", "18", "-pix_fmt", "yuv420p", "<tmp>/proxy/proxy.processing.mp4"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-protocol_whitelist", "file,pipe", "-i", "<tmp>/bframes.mp4", "-map", "0:v:0", "-vf", "trim=start_frame=0:end_frame=31,scale=32:24:flags=bilinear", "-fps_mode", "passthrough", "-f", "rawvideo", "-pix_fmt", "rgb24", "pipe:1"]
+  ],
+  "shot_assembly": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/w0.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/w0.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/w0.mkv", "-vf", "select='gte(t,-0.016683333333)*lt(t,0.417083333333)'", "-frames:v", "13", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/full.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/full.mkv", "-vf", "select='gte(t,0.484316666667)*lt(t,1.185016666667)',scale=in_color_matrix=bt601:in_range=full:out_range=full", "-frames:v", "21", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/w1.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/w1.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/w1.mkv", "-vf", "select='gte(t,-0.016683333333)*lt(t,0.383716666667)'", "-frames:v", "12", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-y", "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", "64x48", "-r", "30000/1001", "-i", "pipe:0", "-i", "<tmp>/full.mkv", "-map", "0:v:0", "-vf", "scale=in_range=full:out_range=limited:out_color_matrix=bt709,format=yuv420p,setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709", "-c:v", "libx264", "-crf", "12", "-tune", "zerolatency", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-threads", "2", "-map", "1:a:0", "-af", "atrim=start=0.501000000000:end=1.201700000000,asetpts=PTS-STARTPTS", "-c:a", "aac", "-map_metadata", "-1", "-metadata", "comment=GAIAVFX shot version assembly", "-movflags", "+faststart", "<tmp>/assembly/preview.mp4"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-y", "-fflags", "+bitexact", "-f", "rawvideo", "-pix_fmt", "rgba", "-s", "24x14", "-r", "30000/1001", "-i", "pipe:0", "-map", "0:v:0", "-c:v", "ffv1", "-level", "3", "-pix_fmt", "bgra", "-flags:v", "+bitexact", "-threads:v", "1", "-map_metadata", "-1", "-fflags", "+bitexact", "-attach", "<tmp>/assembly/patch.json", "-metadata:s:t:0", "mimetype=application/json", "-metadata:s:t:0", "filename=patch.json", "<tmp>/assembly/patch.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/w0.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/w0.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/w0.mkv", "-vf", "select='gte(t,-0.016683333333)*lt(t,0.417083333333)'", "-frames:v", "13", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/w1.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/w1.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/w1.mkv", "-vf", "select='gte(t,-0.016683333333)*lt(t,0.383716666667)'", "-frames:v", "12", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgb24", "-f", "rawvideo", "pipe:1"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/assembly/patch.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=pix_fmt,color_space,color_range,start_time:format=start_time", "-of", "json", "<tmp>/assembly/patch.writing.mkv"],
+    ["ffmpeg", "-v", "error", "-nostdin", "-threads", "1", "-filter_threads", "1", "-thread_queue_size", "1", "-copyts", "-start_at_zero", "-i", "<tmp>/assembly/patch.writing.mkv", "-vf", "select='gte(t,-0.016683333333)'", "-an", "-fps_mode", "passthrough", "-threads:v", "1", "-pix_fmt", "rgba", "-f", "rawvideo", "pipe:1"]
+  ],
+  "conform_patches": [
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-show_streams", "-show_packets", "-show_entries", "stream=avg_frame_rate,r_frame_rate,time_base:stream_tags=rotate:stream_side_data=rotation:packet=pts", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "json", "<tmp>/full.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-show_streams", "-show_format", "-of", "json", "<tmp>/assembly/patch.mkv"],
+    ["ffmpeg", "-nostdin", "-protocol_whitelist", "file,pipe", "-y", "-dump_attachment:t:0", "<tmp>/conform/master-parts/patch-0.json", "-i", "<tmp>/assembly/patch.mkv", "-t", "0", "-f", "null", "-"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-y", "-f", "rawvideo", "-pix_fmt", "yuv444p", "-s", "64x48", "-r", "30000/1001", "-colorspace", "smpte170m", "-color_range", "pc", "-i", "pipe:0", "-vf", "setsar=1/1", "-c:v", "ffv1", "-level", "3", "-threads:v", "1", "-colorspace", "smpte170m", "-color_range", "pc", "<tmp>/conform/master-parts/part-000000000.writing.mkv"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", "<tmp>/full.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=0:end_frame=21", "-an", "-fps_mode", "passthrough", "-pix_fmt", "yuv444p", "-threads:v", "1", "-f", "rawvideo", "pipe:1"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", "<tmp>/assembly/patch.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=0:end_frame=8", "-an", "-fps_mode", "passthrough", "-pix_fmt", "rgba", "-threads:v", "1", "-f", "rawvideo", "pipe:1"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-y", "-f", "rawvideo", "-pix_fmt", "yuv444p", "-s", "64x48", "-r", "30000/1001", "-colorspace", "smpte170m", "-color_range", "pc", "-i", "pipe:0", "-vf", "setsar=1/1", "-c:v", "ffv1", "-level", "3", "-threads:v", "1", "-colorspace", "smpte170m", "-color_range", "pc", "<tmp>/conform/master-parts/part-000000008.writing.mkv"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", "<tmp>/assembly/patch.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=8:end_frame=16", "-an", "-fps_mode", "passthrough", "-pix_fmt", "rgba", "-threads:v", "1", "-f", "rawvideo", "pipe:1"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-y", "-f", "rawvideo", "-pix_fmt", "yuv444p", "-s", "64x48", "-r", "30000/1001", "-colorspace", "smpte170m", "-color_range", "pc", "-i", "pipe:0", "-vf", "setsar=1/1", "-c:v", "ffv1", "-level", "3", "-threads:v", "1", "-colorspace", "smpte170m", "-color_range", "pc", "<tmp>/conform/master-parts/part-000000016.writing.mkv"],
+    ["ffmpeg", "-nostdin", "-v", "error", "-threads", "1", "-filter_threads", "1", "-protocol_whitelist", "file,pipe", "-noautorotate", "-i", "<tmp>/assembly/patch.mkv", "-map", "0:v:0", "-vf", "trim=start_frame=16:end_frame=21", "-an", "-fps_mode", "passthrough", "-pix_fmt", "rgba", "-threads:v", "1", "-f", "rawvideo", "pipe:1"],
+    ["ffmpeg", "-nostdin", "-protocol_whitelist", "file,pipe", "-y", "-itsoffset", "0.501000000000", "-f", "concat", "-safe", "1", "-i", "<tmp>/conform/master-parts/parts.txt", "-i", "<tmp>/full.mkv", "-map", "0:v:0", "-map", "1:a?", "-map_metadata", "1", "-fps_mode", "passthrough", "-c:v", "ffv1", "-level", "3", "-c:a", "copy", "-colorspace", "smpte170m", "-color_range", "pc", "<tmp>/conform/master.writing.mkv"],
+    ["ffprobe", "-protocol_whitelist", "file,pipe", "-v", "error", "-select_streams", "v:0", "-count_packets", "-show_entries", "stream=nb_read_packets", "-of", "json", "<tmp>/conform/master.writing.mkv"]
+  ]
+}
