@@ -33,14 +33,6 @@ class TelemetrySettingsDTO(TelemetrySettings):
     project_id: str | None = None
 
 
-class ObservabilityReference(BaseModel):
-    session_id: str
-    trace_id: str
-    trace_url: str | None = None
-    session_url: str | None = None
-    delivery_state: str
-
-
 class TelemetryStatus(BaseModel):
     enabled: bool
     connection: str

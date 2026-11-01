@@ -94,19 +94,6 @@ def title(operation, metadata=None):
     return operation.replace("command.", "").replace(".", " · ").replace("_", " ").capitalize()
 
 
-def workflow_title(operation, payload):
-    verb = title(operation)
-    if operation == "task.assistant":
-        verb = {
-            "describe": "Describe references",
-            "refine": "Refine direction",
-            "final_prompt": "Write final prompt",
-            "plan": "Plan movie",
-        }.get(payload.get("kind"), verb)
-    name = payload.get("name") or (payload.get("recipe") or {}).get("name")
-    return f"{verb} · {name}" if name else verb
-
-
 def model_title(model, phase):
     lower = model.lower()
     family = (

@@ -2,7 +2,6 @@
 
 import base64
 import hashlib
-import json
 import subprocess
 import tempfile
 from pathlib import Path
@@ -220,26 +219,3 @@ def overlapping_batches(frames, maximum):
         if offset + maximum >= len(frames):
             break
         offset += maximum - 1
-
-
-def cached_samples(media, source, folder, start_us, end_us, cancelled, target_us=()):
-    suffix = (
-        "-" + hashlib.sha256(json.dumps(sorted(set(target_us))).encode()).hexdigest()[:16]
-        if target_us
-        else ""
-    )
-    # A distinct directory keeps the raw frame filenames independent as well.
-    folder = folder / ("targeted" + suffix) if suffix else folder
-    record = folder / "samples.json"
-    if record.is_file():
-        frames = json.loads(record.read_text(encoding="utf-8"))
-        frames = [{**f, "path": str(folder / f"raw-{f['index']}.jpg")} for f in frames]
-        if all(Path(f["path"]).is_file() for f in frames):
-            return frames
-    frames = sample_video(media, source, folder, start_us, end_us, cancelled, target_us)
-    temporary = folder / "samples.tmp"
-    temporary.write_text(
-        json.dumps([{k: v for k, v in f.items() if k != "path"} for f in frames]), encoding="utf-8"
-    )
-    temporary.replace(record)
-    return frames

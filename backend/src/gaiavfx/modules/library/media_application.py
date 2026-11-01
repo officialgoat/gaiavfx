@@ -373,20 +373,6 @@ class MediaLibrary:
             info,
         )
 
-    def record_collection_correction(self, session, asset_id, run_id, output_key):
-        asset = session.get(AssetRecord, asset_id)
-        if not asset:
-            raise ApplicationError("Asset not found.", 404)
-        entry = {
-            "type": "collection_correction",
-            "run_id": run_id,
-            "output_key": output_key,
-            "role": "input_preview",
-            "reason": "Retained source preview; excluded from generated takes.",
-        }
-        if entry not in asset.provenance:
-            asset.provenance = [*asset.provenance, entry]
-
     def register(
         self,
         session: Session,

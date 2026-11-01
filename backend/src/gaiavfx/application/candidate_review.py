@@ -69,20 +69,6 @@ def awaits_ranking(session: Session, operation: dict) -> bool:
     return not ranked(existing_review(session, operation["id"]))
 
 
-def add_to_review(
-    session: Session,
-    review_set_id: str,
-    *,
-    operation_ids: list[str] | None = None,
-    candidate_ids: list[str] | None = None,
-    expected_revision: int,
-) -> dict:
-    if (operation_ids is None) == (candidate_ids is None):
-        raise ApplicationError("Supply operations or candidates to add.", 422)
-    ids = _candidate_ids(session, operation_ids) if operation_ids is not None else candidate_ids
-    return ReviewService().add(session, review_set_id, ids, expected_revision=expected_revision)
-
-
 def blind(session: Session, review_set_id: str) -> dict:
     return ReviewService().blind(session, review_set_id)
 

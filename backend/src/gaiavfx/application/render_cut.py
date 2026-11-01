@@ -20,12 +20,6 @@ direction = DIRECTION
 operations = OperationService()
 
 
-def operations_for_asset(session, asset_id):
-    """Use the Generation reader to follow a candidate's owning operation."""
-    for candidate in operations.candidates_for_asset(session, asset_id):
-        yield operations.operation(session, candidate["operation_id"])
-
-
 def start_render(
     session,
     *,

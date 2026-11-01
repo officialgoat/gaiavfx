@@ -8,7 +8,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from threading import Event, Lock
 from time import monotonic
-from typing import Protocol
 
 from gaiavfx.infrastructure.assistant import grammar_schema, resource_identity
 from gaiavfx.infrastructure.coordination import gpu_lease
@@ -26,12 +25,6 @@ class ModelReply:
     input_tokens: int = 0
     output_tokens: int = 0
     metrics: dict = field(default_factory=dict)
-
-
-class ModelClient(Protocol):
-    def begin(self, settings, cancelled): ...
-    def call(self, settings, messages, schema, cancelled, log_path) -> ModelReply: ...
-    def end(self): ...
 
 
 class Cancellation:
