@@ -342,3 +342,26 @@ def test_the_expressive_library_setting_and_its_scan(api, tmp_path):
     cleared = api.put("/api/v1/settings/connections", json={**settings, "expressive_library": ""})
     assert cleared.status_code == 200 and cleared.json()["expressive_library"] == ""
     assert api.get("/api/v1/settings/voice-library").json() == empty
+
+
+def test_signed_links_hold_within_the_hour_and_refuse_another_scope(monkeypatch):
+    """One expiry rule for every media, splat and face link: repeated reads agree, and a link signs only what it
+    serves."""
+    from gaiavfx.api import signed_links
+    from gaiavfx.api.signed_links import SignedLinks
+    from gaiavfx.shared.errors import ApplicationError
+
+    links = SignedLinks("token")
+    monkeypatch.setattr(signed_links.time, "time", lambda: 7200.0 + 10)
+    first = links.media("asset", "preview")
+    monkeypatch.setattr(signed_links.time, "time", lambda: 7200.0 + 3000)
+    assert links.media("asset", "preview") == first
+    expires = int(first.split("expires=")[1].split("&")[0])
+    signature = first.split("signature=")[1]
+    assert expires - 7200 >= 6 * 3600
+    links.check(signature, "asset", "preview", expires=expires, expired="gone")
+    with pytest.raises(ApplicationError, match="gone"):
+        links.check(signature, "asset", "original", expires=expires, expired="gone")
+    monkeypatch.setattr(signed_links.time, "time", lambda: expires + 1.0)
+    with pytest.raises(ApplicationError, match="gone"):
+        links.check(signature, "asset", "preview", expires=expires, expired="gone")

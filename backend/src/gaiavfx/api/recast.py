@@ -6,9 +6,6 @@ choosing a shot version, conforming) are separate routes the agent harness never
 
 from __future__ import annotations
 
-import hashlib
-import hmac
-import time
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -16,6 +13,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
 from gaiavfx.api.production import OperationDTO
+from gaiavfx.api.signed_links import SignedLinks
 from gaiavfx.application import recast, recast_edits, recast_lines, recast_voice
 from gaiavfx.application.recast_run import estimate_run
 from gaiavfx.application.target_faces import TargetReportRefused
@@ -524,15 +522,12 @@ class ConformInput(RecastInputDTO):
 def recast_router(workspace, authenticate, token):
     """Authenticated recast routes, plus face images served by signed links.
 
-    An <img> cannot send the bearer token, so face URLs in every response carry an expiring
-    HMAC signature, as Library media links do.
+    An <img> cannot send the bearer token, so face URLs in every response are signed links (`signed_links`).
     """
     router = APIRouter(prefix="/api/recasts", dependencies=[Depends(authenticate)])
     public = APIRouter()
 
-    def signature(recast_id, artifact_id, expires):
-        message = f"recast-face:{recast_id}:{artifact_id}:{expires}"
-        return hmac.new(token.encode(), message.encode(), hashlib.sha256).hexdigest()
+    links = SignedLinks(token)
 
     def sign(value):
         if isinstance(value, list):
@@ -543,11 +538,7 @@ def recast_router(workspace, authenticate, token):
         url = result.get("url")
         if isinstance(url, str) and url.startswith("/api/recasts/") and "/faces/" in url:
             recast_id, artifact_id = url.removeprefix("/api/recasts/").split("/faces/", 1)
-            # Stable within the hour, so repeated reads agree; valid for at least 6 hours.
-            expires = (int(time.time()) // 3600 + 7) * 3600
-            result["url"] = (
-                f"{url}?expires={expires}&signature={signature(recast_id, artifact_id, expires)}"
-            )
+            result["url"] = links.url(url, "recast-face", recast_id, artifact_id)
         return result
 
     def read(call, *args, **kwargs):
@@ -560,9 +551,14 @@ def recast_router(workspace, authenticate, token):
 
     @public.get("/api/recasts/{recast_id}/faces/{artifact_id}", response_class=FileResponse)
     def face(recast_id: str, artifact_id: str, expires: int, sig: str = Query(alias="signature")):
-        expected = signature(recast_id, artifact_id, expires)
-        if expires < time.time() or not hmac.compare_digest(sig, expected):
-            raise ApplicationError("This face link expired. Reopen the recast.", 401)
+        links.check(
+            sig,
+            "recast-face",
+            recast_id,
+            artifact_id,
+            expires=expires,
+            expired="This face link expired. Reopen the recast.",
+        )
         with workspace.db.transaction() as session:
             return FileResponse(
                 recast.face_path(session, workspace.library, recast_id, artifact_id)

@@ -6,11 +6,8 @@ Import, accept and discard are human-only routes the agent harness never calls (
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import shutil
 import tempfile
-import time
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -18,9 +15,9 @@ from fastapi import APIRouter, Depends, File, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict, Field
 
+from gaiavfx.api.signed_links import SignedLinks
 from gaiavfx.application import set_build, set_bundles, sets
 from gaiavfx.modules.sets.service import ISSUE_KINDS
-from gaiavfx.shared.errors import ApplicationError
 
 IssueKind = Literal[ISSUE_KINDS]
 Author = Literal["human", "agent", "judge"]
@@ -333,24 +330,12 @@ def sets_router(workspace, authenticate, token):
     router = APIRouter(prefix="/api/sets", dependencies=[Depends(authenticate)])
     public = APIRouter()
 
-    def stable_expiry():
-        # Stable within the hour, so repeated reads agree and caches hold; valid for at least 6 hours.
-        return (int(time.time()) // 3600 + 7) * 3600
+    links = SignedLinks(token)
 
     def media(asset_id):
-        expires = stable_expiry()
-
-        def url(rendition):
-            # The Library media route's own signature (`api/library.py`).
-            message = f"{asset_id}:{rendition}:{expires}".encode()
-            signature = hmac.new(token.encode(), message, hashlib.sha256).hexdigest()
-            return f"/api/v1/media/{asset_id}/{rendition}?expires={expires}&signature={signature}"
-
-        return {"thumbnail": url("thumbnail"), "original": url("original")}
-
-    def splat_signature(set_id, artifact_id, expires):
-        message = f"set-splat:{set_id}:{artifact_id}:{expires}".encode()
-        return hmac.new(token.encode(), message, hashlib.sha256).hexdigest()
+        return {
+            rendition: links.media(asset_id, rendition) for rendition in ("thumbnail", "original")
+        }
 
     def signed(state):
         for view in state["views"]:
@@ -359,10 +344,12 @@ def sets_router(workspace, authenticate, token):
         for keyframe in version["keyframes"]:
             keyframe["image"] = media(keyframe.pop("image_asset_id"))
         if version["splat"]:
-            artifact_id, expires = version["splat"]["artifact_id"], stable_expiry()
-            version["splat"]["url"] = (
-                f"/api/sets/{state['id']}/splats/{artifact_id}?expires={expires}"
-                f"&signature={splat_signature(state['id'], artifact_id, expires)}"
+            artifact_id = version["splat"]["artifact_id"]
+            version["splat"]["url"] = links.url(
+                f"/api/sets/{state['id']}/splats/{artifact_id}",
+                "set-splat",
+                state["id"],
+                artifact_id,
             )
         return state
 
@@ -372,9 +359,14 @@ def sets_router(workspace, authenticate, token):
 
     @public.get("/api/sets/{set_id}/splats/{artifact_id}", response_class=FileResponse)
     def splat(set_id: str, artifact_id: str, expires: int, sig: str = Query(alias="signature")):
-        expected = splat_signature(set_id, artifact_id, expires)
-        if expires < time.time() or not hmac.compare_digest(sig, expected):
-            raise ApplicationError("This splat link expired. Reopen the stage.", 401)
+        links.check(
+            sig,
+            "set-splat",
+            set_id,
+            artifact_id,
+            expires=expires,
+            expired="This splat link expired. Reopen the stage.",
+        )
         with workspace.db.transaction() as session:
             path = sets.splat_path(session, workspace.library, set_id, artifact_id)
         # Content-addressed, so it never changes; the middleware keeps an immutable cache header.

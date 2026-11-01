@@ -1,8 +1,5 @@
 """Library media, collections and catalog associations."""
 
-import hashlib
-import hmac
-import time
 from pathlib import Path
 from typing import Annotated, Literal
 from uuid import uuid4
@@ -12,6 +9,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
+from gaiavfx.api.signed_links import SignedLinks
 from gaiavfx.application.process_media import DELIVERABLE_STEPS, PROCESS_STEPS
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
@@ -62,6 +60,7 @@ class ImportDTO(BaseModel):
 def library_router(workspace, authenticate, token: str):
     router = APIRouter(prefix="/api/v1", dependencies=[Depends(authenticate)])
     w = workspace
+    links = SignedLinks(token)
 
     @router.post("/imports", response_model=ImportDTO, status_code=201)
     async def import_media(
@@ -114,18 +113,12 @@ def library_router(workspace, authenticate, token: str):
                 session, q, kind, collection, offset, limit, imported_only, rules, kept
             )
 
-    def signature(asset_id, rendition, expires):
-        return hmac.new(
-            token.encode(), f"{asset_id}:{rendition}:{expires}".encode(), hashlib.sha256
-        ).hexdigest()
-
     @router.get("/assets/{asset_id}/urls")
     def media_urls(asset_id: str):
         with w.db.transaction() as session:
             asset = w.library.get(session, asset_id)
-        expires = int(time.time()) + 6 * 3600
         return {
-            rendition: f"/api/v1/media/{asset_id}/{rendition}?expires={expires}&signature={signature(asset_id, rendition, expires)}"
+            rendition: links.media(asset_id, rendition)
             for rendition in ("original", "preview", "thumbnail")
             if rendition != "thumbnail" or asset["kind"] != "audio"
         }
@@ -184,11 +177,13 @@ def library_router(workspace, authenticate, token: str):
 
     @media_router.get("/api/v1/media/{asset_id}/{rendition}")
     def media_file(asset_id: str, rendition: str, expires: int, signature: str):
-        expected = hmac.new(
-            token.encode(), f"{asset_id}:{rendition}:{expires}".encode(), hashlib.sha256
-        ).hexdigest()
-        if expires < time.time() or not hmac.compare_digest(signature, expected):
-            raise ApplicationError("This media link expired. Reopen the asset.", 401)
+        links.check(
+            signature,
+            asset_id,
+            rendition,
+            expires=expires,
+            expired="This media link expired. Reopen the asset.",
+        )
         with w.db.transaction() as session:
             path = w.library.path(session, asset_id, rendition)
         return FileResponse(path)
