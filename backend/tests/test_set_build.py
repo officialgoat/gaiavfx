@@ -458,7 +458,7 @@ def test_the_review_can_call_open_issues_fixed_but_no_others(room):
 
 
 @pytest.mark.parametrize("crash", ["atlas_prepare", "splat_init_atlas"])
-def test_a_stopped_build_fails_its_fixes_and_retry_queues_them_again(room, crash):
+def test_a_stopped_build_fails_its_fixes_and_retry_queues_them_again(room, crash, monkeypatch):
     workspace, set_id = room
     state = call(workspace, sets.set_state, set_id)
     issue = state["issues"][0]
@@ -470,6 +470,16 @@ def test_a_stopped_build_fails_its_fixes_and_retry_queues_them_again(room, crash
     assert fix["state"] == "failed" and fix["operation_id"] == stopped["build"]["operation_id"]
     assert stopped["build"]["state"] in ("failed", "partial")
     assert "crashed on purpose" in stopped["build"]["error"]
+    where = (
+        "build failed while preparing" if crash == "atlas_prepare" else "rebuild failed on the GPU"
+    )
+    assert stopped["build"]["message"].startswith(f"The {where}: ")
+    # A stop someone can act on is named as Gaia names it (`stop_cause`).
+    with monkeypatch.context() as patch:
+        patch.setattr(sets, "failure", lambda operation: "out_of_memory")
+        assert call(workspace, sets.set_state, set_id)["build"]["message"] == (
+            "The build stopped: the GPU ran out of memory. Close other GPU work, then build again. v1 is unchanged."
+        )
     assert [v["origin"] for v in stopped["versions"]] == ["import"]
     assert next(i for i in stopped["issues"] if i["id"] == issue["id"])["status"] == "open"
 

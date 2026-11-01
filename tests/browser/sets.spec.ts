@@ -247,10 +247,11 @@ test.describe("sets", () => {
     await expect(run).toHaveText("Run queued fixes (1)");
     await expect(run).toHaveAttribute("title", /without K1.*proposed v2/);
     await run.click();
-    // The test app has no engines installed: the build stops while preparing, the banner says so and what stands.
-    const banner = page
-      .getByRole("alert")
-      .filter({ hasText: "The build failed while preparing" });
+    // The test app has no engines installed: the build stops, and the banner says why, as Gaia would, and what stands.
+    const banner = page.getByRole("alert").filter({
+      hasText:
+        "The build stopped: the stage engines are not set up. Build again once they are.",
+    });
     await expect(banner).toBeVisible({ timeout: 20_000 });
     await expect(banner).toContainText("v1 is unchanged");
     await expect(

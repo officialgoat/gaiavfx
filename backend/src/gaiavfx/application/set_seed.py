@@ -36,7 +36,7 @@ from gaiavfx.application.direction_reading import DIRECTION as direction
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.application.selected_takes import current_take
 from gaiavfx.application.set_bundles import register_new_set
-from gaiavfx.application.sets import STORE, clip_words
+from gaiavfx.application.sets import STOP_WORDS, STORE, clip_words, stop_cause
 from gaiavfx.integrations import worldbuilder
 from gaiavfx.integrations.worldbuilder import rules
 from gaiavfx.integrations.worldbuilder.fill import settings as fill_settings
@@ -653,8 +653,6 @@ def seed_state(session, operation) -> dict:
     naming the set it builds and the shot it builds from. Building (and its stage), refused (the gate's reason),
     failed (`can_retry`), or done (the new set, and what the human made of its v1; `waiting` while they have not
     decided)."""
-    from gaiavfx.application.set_build import STOP_WORDS, stop_cause
-
     review = [d for d in (operation.get("review") or []) if d.get("decided_by") == "set_seed"]
     last = review[-1] if review else {}
     stage = last.get("stage")

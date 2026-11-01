@@ -11,6 +11,7 @@ from PIL import Image
 
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
+from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.sets.cameras import rigid
 from gaiavfx.modules.sets.service import SetStore, addressed_issue_ids
@@ -377,6 +378,27 @@ def run_plan(session, set_id: str, version: dict) -> dict:
     return plan | {"words": refusal or words, "refusal": refusal}
 
 
+# Why a stage build stopped (`stop_cause`), in words that end a sentence: the workbench's banner and Gaia say the same.
+STOP_WORDS = {
+    "comfyui": "ComfyUI did not answer. Build again once it runs.",
+    "engines": "the stage engines are not set up. Build again once they are.",
+    "memory": "the GPU ran out of memory. Close other GPU work, then build again.",
+}
+
+
+def stop_cause(operation) -> str | None:
+    """Why a stage build stopped, when it is a cause someone can act on: the user stopped it, ComfyUI did not answer,
+    the stage engines are not set up, the GPU ran out of memory. None for anything else, which Jobs details. The live
+    trial's agent, told only that its build stopped, offered to build from the other scene against the same dead
+    ComfyUI."""
+    return {
+        "cancelled": "stopped",
+        "unreachable": "comfyui",
+        "engine_missing": "engines",
+        "out_of_memory": "memory",
+    }.get(failure(operation))
+
+
 def build_view(session, set_id: str) -> dict | None:
     """The set's newest build (ADR 0018 §4) as the workbench shows it: its state and stage, its progress over both
     jobs, whether its GPU stage still waits for the card, the version it wrote and why it stopped. None before the
@@ -436,7 +458,10 @@ def build_view(session, set_id: str) -> dict | None:
         # Retry build has failed fixes of this build to queue again
         "retryable": any(f["state"] == "failed" and f["operation_id"] == newest for f in fixes),
     }
-    return view | {"label": _build_label(view), "message": _build_message(session, set_id, view)}
+    return view | {
+        "label": _build_label(view),
+        "message": _build_message(session, set_id, view, stop_cause(operation)),
+    }
 
 
 def _build_label(build) -> str:
@@ -450,9 +475,9 @@ def _build_label(build) -> str:
     return "waiting for the GPU" if build["waiting"] else f"{round(build['progress'] * 100)}%"
 
 
-def _build_message(session, set_id, build) -> str | None:
-    """Why a build ended without a version, for the banner: Python's reason when it has one, else where it failed
-    and that the version it started from is unchanged."""
+def _build_message(session, set_id, build, cause) -> str | None:
+    """Why a build ended without a version, for the banner: Python's reason when it has one, else the cause someone
+    can act on (`stop_cause`), else where it failed; and that the version it started from is unchanged."""
     if build["state"] not in {"failed", "partial", "cancelled"}:
         return None
     base = next(
@@ -464,6 +489,8 @@ def _build_message(session, set_id, build) -> str | None:
         return f"The build was cancelled.{kept}"
     if build["reason"]:
         return build["reason"]
+    if cause in STOP_WORDS:
+        return f"The build stopped: {STOP_WORDS[cause]}{kept}"
     error = (build["error"] or "no reason given").rstrip(". \n")
     if build["stage"] == "splat":
         return (

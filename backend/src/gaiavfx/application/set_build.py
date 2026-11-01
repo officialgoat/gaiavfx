@@ -20,12 +20,11 @@ from hashlib import sha256
 
 from gaiavfx.application import operation_start, set_fill
 from gaiavfx.application.engine_jobs import engine_job
-from gaiavfx.application.sets import STORE, build_view, set_state
+from gaiavfx.application.sets import STOP_WORDS, STORE, build_view, set_state, stop_cause
 from gaiavfx.integrations.worldbuilder import rules
 from gaiavfx.modules.generation.operations import staged
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
-from gaiavfx.modules.generation.operations.outcome import failure
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -432,26 +431,6 @@ def run_queued_fixes(session, library, set_id, *, version_id, retry=False, fix_i
 
 
 # Why a stage build stopped, for the user, when the cause is one they can act on (as the voice build's sentences).
-STOP_WORDS = {
-    "comfyui": "ComfyUI did not answer. Build again once it runs.",
-    "engines": "the stage engines are not set up. Build again once they are.",
-    "memory": "the GPU ran out of memory. Close other GPU work, then build again.",
-}
-
-
-def stop_cause(operation) -> str | None:
-    """Why a stage build stopped, when it is a cause someone can act on: the user stopped it, ComfyUI did not answer,
-    the stage engines are not set up, the GPU ran out of memory. None for anything else, which Jobs details. The live
-    trial's agent, told only that its build stopped, offered to build from the other scene against the same dead
-    ComfyUI."""
-    return {
-        "cancelled": "stopped",
-        "unreachable": "comfyui",
-        "engine_missing": "engines",
-        "out_of_memory": "memory",
-    }.get(failure(operation))
-
-
 # Why a build stopped, in the agent's words; a stop the next build would meet the same way is not retried blindly.
 STOP_CAUSES = {
     "stopped": "the user stopped it",

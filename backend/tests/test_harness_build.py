@@ -461,7 +461,8 @@ def test_a_stopped_build_returns_the_renders_it_never_allocated(scene):
 def test_a_stop_the_next_build_would_meet_is_named_and_not_retried_blindly():
     # The live trial on a dead ComfyUI port: told only that its build stopped, the agent built again and then offered
     # to build from the other scene, against the same dead port.
-    from gaiavfx.application.set_build import after_stop, stop_cause
+    from gaiavfx.application.set_build import after_stop
+    from gaiavfx.application.sets import stop_cause
 
     def failed(error, job_error=""):
         jobs = [{"state": "failed", "error": job_error}] if job_error else []
