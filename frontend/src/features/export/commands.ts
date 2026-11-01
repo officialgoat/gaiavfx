@@ -1,13 +1,15 @@
+import type { CommandGroup } from "../shell/command-registry";
 import type { Command } from "../shell/commands";
 import type { MovieExportController } from "./use-export";
 
 export function exportCommands(
   e: MovieExportController,
   go: () => void,
-): Command[] {
-  return [
+): CommandGroup {
+  const commands: Command[] = [
     {
       id: "export",
+      scope: "neutral",
       label: "Export movie…",
       shortcut: "Mod+M",
       reason: () => e.readyReason,
@@ -60,4 +62,5 @@ export function exportCommands(
       },
     },
   ];
+  return { scope: "movie", commands };
 }

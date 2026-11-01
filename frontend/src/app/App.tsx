@@ -52,10 +52,10 @@ import { AnalyseFilmSheet } from "../features/recast/AnalyseFilmSheet";
 import { useFilmEditor } from "../features/recast/film-editor";
 import { shotNumber } from "../features/recast/film-doc";
 import {
-  applyScope,
-  editorCommands,
-  scopeProblems,
-} from "../features/shell/command-scope";
+  composeCommands,
+  timelineCommands,
+  type CommandGroup,
+} from "../features/shell/command-registry";
 import {
   commandScope,
   useNavigator,
@@ -174,8 +174,9 @@ export function App() {
       if (fileInput.current) fileInput.current.value = "";
     }
   }
-  const allCommands = makeCommands(d, {
+  const shell = makeCommands(d, {
     dialog: setDialog,
+    openFilm: () => setFilmDialog(true),
     workspace: nav.go,
     settings: () => nav.openPanel("settings"),
     jobs: () => nav.openPanel("jobs"),
@@ -200,11 +201,6 @@ export function App() {
     currentTheme: preferences.theme,
     currentLayout: layout,
   });
-  allCommands.set("film.open", {
-    id: "film.open",
-    label: "Open film…",
-    run: () => setFilmDialog(true),
-  });
   const title =
     (filmOpen ? recast.value?.film.name : d.movie.data?.title) ??
     library.data?.library?.name ??
@@ -219,54 +215,43 @@ export function App() {
         document.getElementById("chat-input")?.focus(),
       );
   };
-  for (const command of chatCommands(d, chat, focusChat))
-    allCommands.set(command.id, command);
-  for (const command of reviewCommands(
-    d,
-    review,
-    operations.data ?? [],
-    workspace,
-    openProductionWorkspace,
-  ))
-    allCommands.set(command.id, command);
-  for (const command of exportCommands(movieExport, () => nav.go("export")))
-    allCommands.set(command.id, command);
-  // ADR 0017 §11: the open document scopes the commands. A film gets its own editor and the recast commands; its
+  // ADR 0017 §11: the open document scopes the commands. A film gets its own timeline and the recast commands; its
   // movie commands become disabled stubs, so nothing reaches the movie loaded behind it.
-  if (filmOpen) {
-    for (const command of editorCommands(filmEditor))
-      allCommands.set(command.id, command);
-    if (filmReady)
-      for (const command of recastCommands(recast))
-        allCommands.set(command.id, command);
-  }
+  const groups: CommandGroup[] = [
+    shell,
+    timelineCommands(filmOpen ? filmEditor : d.editor),
+    chatCommands(d, chat, focusChat),
+    reviewCommands(
+      d,
+      review,
+      operations.data ?? [],
+      workspace,
+      openProductionWorkspace,
+    ),
+    exportCommands(movieExport, () => nav.go("export")),
+  ];
+  if (filmReady) groups.push(recastCommands(recast));
   if (workspace === "set") {
     const tool = setWorkbench.tool;
-    for (const command of setCommands({
-      close: nav.closeStage,
-      busy: (kind) =>
-        tool &&
-        tool.kind !== kind &&
-        !(kind === "mark" && tool.kind === "mark-pending")
-          ? "Finish or cancel the open tool first"
-          : undefined,
-      canCompareSource: () => setWorkbench.comparable,
-      versionsReason: () =>
-        setWorkbench.reviewable
-          ? undefined
-          : "Open a version built from another one to compare the two",
-    }))
-      allCommands.set(command.id, command);
+    groups.push(
+      setCommands({
+        close: nav.closeStage,
+        busy: (kind) =>
+          tool &&
+          tool.kind !== kind &&
+          !(kind === "mark" && tool.kind === "mark-pending")
+            ? "Finish or cancel the open tool first"
+            : undefined,
+        canCompareSource: () => setWorkbench.comparable,
+        versionsReason: () =>
+          setWorkbench.reviewable
+            ? undefined
+            : "Open a version built from another one to compare the two",
+      }),
+    );
   }
-  const commands = applyScope(allCommands, commandScope(nav));
-  const problems = scopeProblems(commands);
-  const problemText = [
-    problems.unclassified.length &&
-      `Unclassified commands: ${problems.unclassified.join(", ")}`,
-    problems.shared.length && `Shared shortcuts: ${problems.shared.join("; ")}`,
-  ]
-    .filter(Boolean)
-    .join(". ");
+  const { commands, problems } = composeCommands(groups, commandScope(nav));
+  const problemText = problems.join(". ");
   useEffect(() => {
     if (import.meta.env.DEV && problemText) console.error(problemText);
   }, [problemText]);

@@ -33,6 +33,7 @@ Each of these concepts has one module, and its callers and tests go through that
 | Shot references | `application/shot_references.py` | An opening's or a cut's plan from its bindings, and the pictures a render lowers. |
 | Take basis | `application/take_basis.py` | What a take was rendered from, and why it is no longer current, for Program, Export and the Join. |
 | Movie read | `application/movie_read.py` | One read of a movie for the workspace: plans, pins, lanes, selections, receipts and undo targets. |
+| Command scope | `frontend/src/features/shell/command-registry.ts` | Each command factory says which scope its commands act in; the registry composes the open document's commands, waits movie commands in a film or stage, and reports shared ids and shortcuts. |
 | Attempts and outcome | `modules/generation/operations/attempts.py`, `outcome.py` | A producer's tries at one product, and why an operation stopped, as a kind. |
 | Operation kinds | `application/operation_kinds.py` | Per kind: what it prepares, how its candidates' review opens, whether that review still waits on the person, and whether it is a Recast render. Gaia, the routes and the renderer read it. |
 | Stage build | `application/set_build.py`, `sets.build_view` | A stage build's operation and its readings: state, stop cause, spend, and the workbench's label and banner. |

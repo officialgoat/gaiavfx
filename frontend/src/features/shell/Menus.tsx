@@ -16,7 +16,6 @@ import {
   type MenuEntry,
 } from "./commands";
 import type { Target } from "../timeline/editor-state";
-import { unscopedEntries } from "./command-scope";
 
 type Registry = {
   commands: Map<string, Command>;
@@ -101,12 +100,6 @@ function Items({
   onRun?: (run: () => void) => void;
 }) {
   const { commands } = useCommands();
-  // A menu id no document's scope covers is a typo, which would otherwise disappear silently.
-  const unscoped = unscopedEntries(entries);
-  useEffect(() => {
-    if (import.meta.env.DEV && unscoped.length)
-      console.error(`Unclassified menu entries: ${unscoped.join(", ")}`);
-  }, [unscoped.join()]);
   // Only what exists for the open document: a submenu with no command left disappears, and so does a separator at
   // either end or next to another (a film's entries in a movie, a movie's in a film).
   const present = (entry: MenuEntry): boolean =>

@@ -1,3 +1,4 @@
+import type { CommandGroup } from "../shell/command-registry";
 import type { Command } from "../shell/commands";
 import type { Target } from "../timeline/editor-state";
 import type { RecastController } from "./use-recast";
@@ -34,7 +35,7 @@ export function headPassTargetReason(
   return performers.length ? headPassCharacterReason(performers[0]) : undefined;
 }
 
-export function recastCommands(r: RecastController): Command[] {
+export function recastCommands(r: RecastController): CommandGroup {
   const ready = (): string | undefined =>
     r.busy
       ? "Saving the current Recast action…"
@@ -496,5 +497,5 @@ export function recastCommands(r: RecastController): Command[] {
       c.checked =
         !r.original && r.previewVersion?.id === r.shot?.versions[i]?.id;
   }
-  return commands;
+  return { scope: "film", commands };
 }

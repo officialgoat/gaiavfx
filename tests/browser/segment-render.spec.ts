@@ -28,7 +28,7 @@ test("a zero-cut segment reviews and previews only its own render", () => {
     candidates: [{ id, asset_id: id, kind: "video" }],
   })) as unknown as S["OperationDTO"][];
   reviewCommands(d, r, operations, "prepare", () => {})
-    .find((c) => c.id === "review")!
+    .commands.find((c) => c.id === "review")!
     .run({ kind: "segment", id: "zero", segmentId: "zero" });
   expect(opened).toBe("zero");
   expect(
@@ -75,9 +75,13 @@ test("stage jobs open their own built stage instead of a candidate review", () =
   ] as unknown as S["OperationDTO"][];
   // The one way to open a stage is the navigator's.
   useNavigator.setState({ openStage: (id) => void opened.push(id) });
-  const command = reviewCommands(d, r, operations, "direct", () => {}).find(
-    (c) => c.id === "preparation.review",
-  )!;
+  const command = reviewCommands(
+    d,
+    r,
+    operations,
+    "direct",
+    () => {},
+  ).commands.find((c) => c.id === "preparation.review")!;
   for (const id of ["seed", "rebuild"]) {
     const target = { kind: "preparation" as const, id };
     expect(command.reason?.(target)).toBeUndefined();

@@ -1,4 +1,5 @@
 import { useNavigator, type Workspace } from "../../app/navigator";
+import type { CommandGroup } from "../shell/command-registry";
 import type { Command } from "../shell/commands";
 import type { Target } from "../timeline/editor-state";
 import type { DirectController } from "../project/use-direction";
@@ -15,7 +16,7 @@ export function reviewCommands(
   operations: Operation[],
   workspace: string,
   go: (name: Workspace) => void,
-): Command[] {
+): CommandGroup {
   const builtSet = (operation: Operation) => {
     if (typeof operation.request.set_id === "string")
       return operation.request.set_id;
@@ -385,11 +386,14 @@ export function reviewCommands(
         );
     },
   });
-  return commands.map((c) => ({
-    ...c,
-    reason: (t) =>
-      c.id.startsWith("review.") && !["prepare", "review"].includes(workspace)
-        ? "Open the Prepare or Review workspace first."
-        : c.reason?.(t),
-  }));
+  return {
+    scope: "movie",
+    commands: commands.map((c) => ({
+      ...c,
+      reason: (t) =>
+        c.id.startsWith("review.") && !["prepare", "review"].includes(workspace)
+          ? "Open the Prepare or Review workspace first."
+          : c.reason?.(t),
+    })),
+  };
 }

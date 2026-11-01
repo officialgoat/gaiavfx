@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import type { CommandGroup } from "../shell/command-registry";
 import type { Command } from "../shell/commands";
 import type { StageHandle } from "./SetStage";
 import type { Matrix4Rows, NavigationMode } from "./viewer";
@@ -173,7 +174,7 @@ export function setCommands(actions: {
   busy: (kind: string) => string | undefined;
   canCompareSource: () => boolean;
   versionsReason: () => string | undefined;
-}): Command[] {
+}): CommandGroup {
   const workbench = useSetWorkbench.getState;
   const mode = (
     id: string,
@@ -187,7 +188,7 @@ export function setCommands(actions: {
     checked: workbench().mode === value,
     run: () => workbench().set({ mode: value }),
   });
-  return [
+  const commands: Command[] = [
     { id: "set.close", label: "Close stage", run: actions.close },
     mode("set.nav.orbit", "Orbit", "orbit", "1"),
     mode("set.nav.fly", "Fly", "fly", "2"),
@@ -293,4 +294,5 @@ export function setCommands(actions: {
       run: () => workbench().set({ filmstrip: !workbench().filmstrip }),
     },
   ];
+  return { scope: "set", commands };
 }

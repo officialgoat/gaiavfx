@@ -45,7 +45,7 @@ function scopeProblems(page: Page) {
   page.on("console", (message) => {
     if (
       message.type() === "error" &&
-      /Unclassified commands|Shared shortcuts/.test(message.text())
+      /Duplicate commands|Shared shortcuts/.test(message.text())
     )
       problems.push(message.text());
   });

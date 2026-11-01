@@ -4,6 +4,7 @@ import * as edits from "../project/edits";
 import type { DirectController } from "../project/use-direction";
 import type { Target } from "../timeline/editor-state";
 import type { DockLayout } from "../../shared/preferences";
+import type { CommandGroup, Scope } from "./command-registry";
 
 export type EditorDialog =
   | "movie"
@@ -19,6 +20,8 @@ export type EditorDialog =
 export type Command = {
   id: string;
   label: string;
+  /** The scope it acts in, when not its factory's (command-registry). */
+  scope?: Scope;
   shortcut?: string;
   reason?: (target: Target) => string | undefined;
   checked?: boolean;
@@ -29,6 +32,7 @@ export type Command = {
 export type MenuEntry = string | { label: string; children: MenuEntry[] };
 export type ShellActions = {
   dialog: (name: EditorDialog) => void;
+  openFilm: () => void;
   workspace: (name: Workspace) => void;
   settings: () => void;
   jobs: () => void;
@@ -46,7 +50,7 @@ export type ShellActions = {
 export function makeCommands(
   d: DirectController,
   a: ShellActions,
-): Map<string, Command> {
+): CommandGroup {
   const list: Command[] = [];
   list.push({
     id: "angle.save",
@@ -62,20 +66,23 @@ export function makeCommands(
     },
   });
   const add = (
+    scope: Scope,
     id: string,
     label: string,
     run: Command["run"],
     shortcut?: string,
     reason?: Command["reason"],
     checked?: boolean,
-  ) => list.push({ id, label, run, shortcut, reason, checked });
+  ) => list.push({ id, label, scope, run, shortcut, reason, checked });
   const disabled = (
+    scope: Scope,
     id: string,
     label: string,
     why: string,
     shortcut?: string,
   ) =>
     add(
+      scope,
       id,
       label,
       () => {},
@@ -87,11 +94,13 @@ export function makeCommands(
   const cut = (t: Target) => (!d.getCut(t) ? "Select a cut first." : undefined);
   const assetId = (t: Target) =>
     "assetId" in t ? t.assetId : t.kind === "asset" ? t.id : undefined;
-  add("movie.new", "New movie…", () => a.dialog("movie"), "Mod+N");
-  add("movie.open", "Open movie…", () => a.dialog("open"), "Mod+O");
-  add("media.import", "Import media…", a.importMedia, "Mod+I");
-  add("settings", "Preferences…", a.settings, "Mod+,");
+  add("neutral", "movie.new", "New movie…", () => a.dialog("movie"), "Mod+N");
+  add("neutral", "movie.open", "Open movie…", () => a.dialog("open"), "Mod+O");
+  add("neutral", "film.open", "Open film…", a.openFilm);
+  add("neutral", "media.import", "Import media…", a.importMedia, "Mod+I");
+  add("neutral", "settings", "Preferences…", a.settings, "Mod+,");
   add(
+    "movie",
     "history",
     "Change history…",
     () => a.dialog("history"),
@@ -99,6 +108,7 @@ export function makeCommands(
     () => (d.movie.data ? undefined : "Open a movie first."),
   );
   add(
+    "movie",
     "undo",
     "Undo",
     () => void d.undo(),
@@ -106,6 +116,7 @@ export function makeCommands(
     () => (d.latest ? undefined : "No change to undo."),
   );
   add(
+    "movie",
     "redo",
     "Redo",
     () => void d.redo(),
@@ -113,6 +124,7 @@ export function makeCommands(
     () => (d.canRedo ? undefined : "No change to redo."),
   );
   add(
+    "movie",
     "segment.new",
     "Add segment…",
     () => a.dialog("segment"),
@@ -120,6 +132,7 @@ export function makeCommands(
     () => (d.movie.data ? undefined : "Open a movie first."),
   );
   add(
+    "movie",
     "phase.new",
     "Add phase at playhead…",
     () => a.dialog("phase"),
@@ -127,6 +140,7 @@ export function makeCommands(
     segment,
   );
   add(
+    "movie",
     "cut.new",
     "Add cut at playhead…",
     () => a.dialog("cut"),
@@ -134,6 +148,7 @@ export function makeCommands(
     segment,
   );
   add(
+    "movie",
     "cut.remove",
     "Remove cut",
     (t) => {
@@ -159,6 +174,7 @@ export function makeCommands(
       return { s, frame: frame ?? -1 };
     };
     add(
+      "movie",
       id,
       label,
       (t) => {
@@ -172,9 +188,10 @@ export function makeCommands(
       },
     );
   }
-  add("properties", "Open Properties", a.properties, "Enter");
-  add("plan", "Open the plan", a.properties, undefined, cut);
+  add("neutral", "properties", "Open Properties", a.properties, "Enter");
+  add("movie", "plan", "Open the plan", a.properties, undefined, cut);
   add(
+    "movie",
     "remove",
     "Remove",
     (t) => {
@@ -195,6 +212,7 @@ export function makeCommands(
     ["later", 1, "Later by one frame", "Alt+ArrowRight"],
   ] as const) {
     add(
+      "movie",
       `move.${id}`,
       label,
       (t) => {
@@ -210,6 +228,7 @@ export function makeCommands(
   }
   for (const [value, label] of Object.entries(RELATION_WORDS)) {
     add(
+      "movie",
       `relation.${value}`,
       label,
       (t) => {
@@ -222,6 +241,7 @@ export function makeCommands(
   }
   for (const crosses of [true, false])
     add(
+      "movie",
       `barrier.${crosses}`,
       crosses ? "Camera crosses" : "Camera stays on this side",
       (t) => {
@@ -234,6 +254,7 @@ export function makeCommands(
         (d.getCut(t)?.relation ? undefined : "Set a known relation first."),
     );
   add(
+    "movie",
     "technique.auto",
     "Automatic",
     (t) => {
@@ -252,6 +273,7 @@ export function makeCommands(
     techniques.map((p) => [p.technique_id, p]),
   ).values())
     add(
+      "movie",
       `technique.${choice.technique_id}`,
       choice.title,
       (t) => {
@@ -274,6 +296,7 @@ export function makeCommands(
   const handoff = joined && d.segmentPlanMap.get(joined.id)?.continuation;
   if (handoff) {
     add(
+      "movie",
       "continuation.method.auto",
       `Automatic · ${handoffWords(handoff.recommended)}`,
       (t) => {
@@ -286,6 +309,7 @@ export function makeCommands(
     );
     for (const method of ["paired", "masked"] as const)
       add(
+        "movie",
         `continuation.method.${method}`,
         handoffWords(method),
         (t) => {
@@ -302,6 +326,7 @@ export function makeCommands(
       );
     for (const frames of handoff.context_choices)
       add(
+        "movie",
         `continuation.context.${frames}`,
         `${frames} frames${frames === handoff.default_context ? " · default" : ""}`,
         (t) => {
@@ -314,6 +339,7 @@ export function makeCommands(
       );
   }
   add(
+    "movie",
     "source",
     "Open in Source monitor",
     (t) => {
@@ -324,23 +350,17 @@ export function makeCommands(
     (t) => (assetId(t) ? undefined : "This item has no media."),
   );
   add(
+    "neutral",
     "reveal",
     "Reveal in Library",
     (t) => a.library(assetId(t)),
     "Mod+L",
     (t) => (assetId(t) ? undefined : "Select a media item."),
   );
-  add("jobs", "Open jobs", a.jobs, "Mod+J");
-  add("fit", "Fit timeline", () => d.editor.setZoom(1), "\\");
+  add("neutral", "jobs", "Open jobs", a.jobs, "Mod+J");
+  // Fit, zoom, snap and the select tool are timelineCommands (command-registry), bound to the open document's timeline.
   add(
-    "tool.select",
-    "Select tool",
-    () => d.editor.setTool("select"),
-    "V",
-    undefined,
-    d.editor.tool === "select",
-  );
-  add(
+    "movie",
     "tool.razor",
     "Razor tool",
     () => d.editor.setTool("razor"),
@@ -348,22 +368,8 @@ export function makeCommands(
     () => (d.segments.length ? undefined : "Add a segment first."),
     d.editor.tool === "razor",
   );
-  add("zoom.in", "Zoom in", () => d.editor.setZoom(d.editor.zoom * 1.25), "+");
   add(
-    "zoom.out",
-    "Zoom out",
-    () => d.editor.setZoom(d.editor.zoom / 1.25),
-    "-",
-  );
-  add(
-    "snap",
-    "Snap to frames and markers",
-    () => d.editor.setSnap(!d.editor.snap),
-    "S",
-    undefined,
-    d.editor.snap,
-  );
-  add(
+    "neutral",
     "layout.default",
     "Default timeline",
     () => a.layout({ mode: "default", monitor: 245 }),
@@ -372,6 +378,7 @@ export function makeCommands(
     a.currentLayout.mode === "default",
   );
   add(
+    "neutral",
     "layout.full",
     "Timeline full width",
     () => a.layout({ mode: "full", monitor: 360 }),
@@ -379,9 +386,10 @@ export function makeCommands(
     undefined,
     a.currentLayout.mode === "full",
   );
-  add("layout.reset", "Reset to saved layout", a.resetLayout);
+  add("neutral", "layout.reset", "Reset to saved layout", a.resetLayout);
   for (const theme of ["dark", "light"] as const)
     add(
+      "neutral",
       `theme.${theme}`,
       theme === "dark" ? "Dark" : "Light",
       () => a.theme(theme),
@@ -391,16 +399,19 @@ export function makeCommands(
     );
   for (const name of WORKSPACES) {
     const label = name[0].toUpperCase() + name.slice(1);
-    add(`workspace.${label}`, `${label} workspace`, () => a.workspace(name));
+    add("neutral", `workspace.${label}`, `${label} workspace`, () =>
+      a.workspace(name),
+    );
   }
-  add("project", "Project", () => a.layout({ leftTab: "project" }));
-  add("library", "Library", () => a.library());
+  add("neutral", "project", "Project", () => a.layout({ leftTab: "project" }));
+  add("neutral", "library", "Library", () => a.library());
   // Sets in scenes (ADR 0019 §5): the segment's first shot from a set, and that set's workbench.
   const placeOf = (t: Target) => {
     const s = d.getSegment(t);
     return s ? d.segmentPlanMap.get(s.id)?.place : undefined;
   };
   add(
+    "movie",
     "scene.use-set",
     "Use a stage for this scene…",
     () => a.dialog("useSet"),
@@ -408,6 +419,7 @@ export function makeCommands(
     (t) => (d.busy ? "Saving changes…" : segment(t)),
   );
   add(
+    "movie",
     "scene.build-set",
     "Build a stage from this take…",
     () => a.dialog("buildSet"),
@@ -421,6 +433,7 @@ export function makeCommands(
     },
   );
   add(
+    "movie",
     "scene.open-new-set",
     "Open the new stage",
     (t) => {
@@ -438,6 +451,7 @@ export function makeCommands(
     },
   );
   add(
+    "movie",
     "scene.open-set",
     "Open its stage",
     (t) => {
@@ -451,54 +465,71 @@ export function makeCommands(
         ? undefined
         : "This scene's place is not built as a stage."),
   );
-  add("shortcuts", "Keyboard shortcuts…", () => a.dialog("shortcuts"));
-  add("about", "About GAIAVFX", () => a.dialog("about"));
+  add("neutral", "shortcuts", "Keyboard shortcuts…", () =>
+    a.dialog("shortcuts"),
+  );
+  add("neutral", "about", "About GAIAVFX", () => a.dialog("about"));
   // Prepare, Render, Review and Inspect bindings come from reviewCommands, which every workspace composes.
   disabled(
+    "movie",
     "copy",
     "Copy",
     "Track clipboard commands are not available yet.",
     "Mod+C",
   );
   disabled(
+    "movie",
     "paste",
     "Paste",
     "Track clipboard commands are not available yet.",
     "Mod+V",
   );
   disabled(
+    "movie",
     "duplicate",
     "Duplicate",
     "Track duplication is not available yet.",
     "Mod+D",
   );
   disabled(
+    "movie",
     "pin",
     "Add pin at playhead",
     "Prepare and review a pin before attaching it to a cut.",
   );
   disabled(
+    "movie",
     "reference",
     "Use as reference…",
     "Make a reference from it with References › Prepare references… (Ctrl+Shift+P).",
   );
-  disabled("rename", "Rename…", "This item cannot be renamed here yet.", "F2");
-  disabled("bin", "Move to bin…", "Manage media collections in Library.");
   disabled(
+    "movie",
+    "rename",
+    "Rename…",
+    "This item cannot be renamed here yet.",
+    "F2",
+  );
+  disabled(
+    "movie",
+    "bin",
+    "Move to bin…",
+    "Manage media collections in Library.",
+  );
+  disabled(
+    "movie",
     "monitor.sync",
     "Synchronize monitors",
     "Synchronized candidate review arrives with Review.",
   );
-  return new Map(
-    list.map((c) => [
-      c.id,
-      {
-        ...c,
-        reason: (t: Target) =>
-          d.busy ? "Saving the current command…" : c.reason?.(t),
-      },
-    ]),
-  );
+  return {
+    scope: "movie",
+    commands: list.map((c) => ({
+      ...c,
+      reason: (t: Target) =>
+        d.busy ? "Saving the current command…" : c.reason?.(t),
+    })),
+  };
 }
 
 export { menuNames, menuEntries } from "./menu-entries";

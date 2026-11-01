@@ -1,3 +1,4 @@
+import type { CommandGroup } from "../shell/command-registry";
 import type { Command } from "../shell/commands";
 import type { Target } from "../timeline/editor-state";
 import type { DirectController } from "../project/use-direction";
@@ -37,7 +38,7 @@ export function chatCommands(
   d: DirectController,
   chat: ChatController,
   focus: (composer?: boolean) => void,
-): Command[] {
+): CommandGroup {
   const film = chat.scope.kind === "film";
   const idle = () =>
     film && !chat.ready
@@ -68,7 +69,7 @@ export function chatCommands(
         (r) => r.kind === "direction_receipt" && r.id === t.receiptId,
       ),
     );
-  return [
+  const commands: Command[] = [
     {
       id: "chat.send",
       label: "Send message",
@@ -167,6 +168,7 @@ export function chatCommands(
     })),
     {
       id: "chat.select",
+      scope: "movie",
       label: "Select on timeline",
       reason: (t) =>
         timelineTarget(d, "id" in t ? t.id : undefined)
@@ -182,6 +184,7 @@ export function chatCommands(
     },
     {
       id: "chat.undo",
+      scope: "movie",
       label: "Undo this receipt",
       reason: (t) =>
         d.busy
@@ -197,12 +200,6 @@ export function chatCommands(
         else if (knownReceipt(t) && "receiptId" in t && t.receiptId)
           void d.perform(() => direction.undo(t.receiptId!), "Change undone");
       },
-    },
-    {
-      id: "chat.review",
-      label: "Open in Review",
-      reason: () => "Review is coming in the next build.",
-      run: () => {},
     },
     {
       id: "chat.copy",
@@ -223,4 +220,5 @@ export function chatCommands(
       },
     },
   ];
+  return { scope: "neutral", commands };
 }
