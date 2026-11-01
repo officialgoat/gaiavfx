@@ -38,11 +38,19 @@ Regenerate contracts: `npm run generate:contracts`.
 Check contracts and renderer: `npm run check:contracts` and `npm run build`.
 Python checks: `.venv/Scripts/ruff.exe check backend`.
 Formatting: `.venv/Scripts/ruff.exe format --check backend`.
-Tests: `.venv/Scripts/python.exe -m pytest backend/tests -q -p no:cacheprovider --basetemp C:/gvt/a`.
-Use a short writable temporary path; on other platforms substitute a local temp directory.
+Tests: `.venv/Scripts/python.exe -m pytest backend/tests -q -p no:cacheprovider -n 8 --dist worksteal --basetemp C:/gvt/a`.
+Give each run its own short writable `--basetemp`; on other platforms substitute a local temp directory.
+Add `--eval` to also run the broad scripted-eval sequences (marked `eval`); the default run keeps one per family.
 Browser tests: `npx playwright install chromium`, then `npm run test:ui`.
 Hygiene: `npm run check:hygiene`; portable Windows build: `npm run package:win`.
 On Unix use `.venv/bin/python` and `.venv/bin/ruff` for environment executables.
+
+## Tests
+- Test through a module's interface, not its private functions.
+- Delete a test whose behaviour is gone. Fold a redundant test into a deeper one only when that test covers the
+  behaviour and its failure still points at the cause.
+- Keep broad end-to-end sequences few, and mark them `eval`.
+- Shared test helpers live in support modules (`harness_support.py`, `harness_kernel_support.py`), not in test files.
 
 ## Hygiene and UI
 Keep weights, generated media, credentials and personal paths out of git.
