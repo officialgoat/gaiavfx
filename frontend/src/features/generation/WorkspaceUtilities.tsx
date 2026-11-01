@@ -454,7 +454,8 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
                 target={{ kind: "preparation", id: operation.id }}
               />
             )}
-            {operation.kind !== "assemble" && !render && (
+            {/* Python says which kinds a person reviews (OperationDTO.opens); a stage build opens its stage. */}
+            {(operation.opens || operation.kind === "set_build") && !render && (
               <CommandButton
                 id="preparation.review"
                 target={{ kind: "preparation", id: operation.id }}

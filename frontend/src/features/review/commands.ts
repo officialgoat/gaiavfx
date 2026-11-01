@@ -264,9 +264,13 @@ export function reviewCommands(
           busy() ??
           (!operation || !["succeeded", "partial"].includes(operation.state)
             ? "Wait for the operation to finish."
-            : operation.kind === "set_build" && !builtSet(operation)
-              ? "This build did not produce a stage to open."
-              : undefined)
+            : operation.kind === "set_build"
+              ? builtSet(operation)
+                ? undefined
+                : "This build did not produce a stage to open."
+              : operation.opens
+                ? undefined
+                : "This operation has no candidate review.")
         );
       },
       run: (t) => {
