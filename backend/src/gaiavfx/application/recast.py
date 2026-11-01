@@ -321,6 +321,7 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
         "film": p.film_view(session, library, recast, report),
         "analysis": p.analysis_view(session, recast),
         "dialogue": dialogue,
+        "voice_recipe": voicing.recipe(),
         "lines": line_counts,
         "characters": characters,
         "unknown_faces": unknown,

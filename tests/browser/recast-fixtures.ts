@@ -322,6 +322,8 @@ export function recastFixture(
       error: null,
     },
     dialogue: notAnalysedDialogue(),
+    // As voice.toml's `sample_seconds` and recast_voice's twelve recordings.
+    voice_recipe: { min_seconds: 15, max_seconds: 60, max_recordings: 12 },
     lines: noLines(),
     characters,
     unknown_faces: [face("unknown-track", 100)],

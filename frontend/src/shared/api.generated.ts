@@ -5466,6 +5466,7 @@ export interface components {
       film: components["schemas"]["FilmDTO"];
       analysis: components["schemas"]["AnalysisStatusDTO"];
       dialogue: components["schemas"]["DialogueStatusDTO"];
+      voice_recipe: components["schemas"]["VoiceRecipeDTO"];
       lines: components["schemas"]["LineCountsDTO"];
       /** Characters */
       characters: components["schemas"]["CharacterDTO"][];
@@ -7689,6 +7690,18 @@ export interface components {
       };
       /** Skipped */
       skipped: number;
+    };
+    /**
+     * VoiceRecipeDTO
+     * @description What a voice is built from (voice.toml's `sample_seconds`): the recordings' total length and how many.
+     */
+    VoiceRecipeDTO: {
+      /** Min Seconds */
+      min_seconds: number;
+      /** Max Seconds */
+      max_seconds: number;
+      /** Max Recordings */
+      max_recordings: number;
     };
     /**
      * VoiceSampleDTO

@@ -6,7 +6,7 @@ import { api } from "../../shared/api";
 import { audioSeconds, LibraryPicker } from "./Cast";
 import { castActions } from "./cast-actions";
 import { useFilmEditor } from "./film-editor";
-import { plural, VOICE_SECONDS, voiceFits, voiceSeconds } from "./progress";
+import { plural, voiceFits, voiceSeconds } from "./progress";
 import type { Character, Recast, Voice } from "./client";
 import type { RecastController } from "./use-recast";
 
@@ -15,7 +15,6 @@ import type { RecastController } from "./use-recast";
 // lanes are U6/P8.
 
 /** The most recordings one voice takes (the service's `VoiceSamplesInput`). */
-const MAX_RECORDINGS = 12;
 
 export function FilmVoiceDialogs({
   r,
@@ -60,7 +59,7 @@ export function FilmVoiceDialogs({
 type Sample = Voice["samples"][number];
 
 /** The recordings in the order chosen; picking adds one at the end, Remove takes one out. The total must fit the
- * 15–60 s rule before they can be used. */
+ * recipe's length (15–60 s) before they can be used. */
 function VoiceSamples({
   r,
   character,
@@ -78,7 +77,8 @@ function VoiceSamples({
   const unchanged =
     JSON.stringify(ids) ===
     JSON.stringify(character.voice?.samples.map((s) => s.asset_id) ?? []);
-  const full = chosen.length >= MAX_RECORDINGS;
+  const recipe = r.value!.voice_recipe;
+  const full = chosen.length >= recipe.max_recordings;
   const use = () => {
     if (unchanged) return close();
     void castActions(r)
@@ -115,7 +115,7 @@ function VoiceSamples({
         <p className="muted">No recordings chosen yet. Add them from below.</p>
       )}
       <p className="voice-total" role="status">
-        {voiceSeconds(total)} of {VOICE_SECONDS.min}–{VOICE_SECONDS.max} s
+        {voiceSeconds(total)} of {recipe.min_seconds}–{recipe.max_seconds} s
         {chosen.length > 0 && ` · ${plural(chosen.length, "recording")}`}
       </p>
       {full && (
@@ -135,7 +135,7 @@ function VoiceSamples({
         <button
           type="button"
           className="primary-button"
-          disabled={r.busy || !voiceFits(total)}
+          disabled={r.busy || !voiceFits(total, recipe)}
           onClick={use}
         >
           Use these recordings

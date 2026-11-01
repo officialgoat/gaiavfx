@@ -411,6 +411,14 @@ class BuildVoiceInput(RevisionInputDTO):
     rebuild: bool = False  # build again after the expressive recordings changed
 
 
+class VoiceRecipeDTO(BaseModel):
+    """What a voice is built from (voice.toml's `sample_seconds`): the recordings' total length and how many."""
+
+    min_seconds: float
+    max_seconds: float
+    max_recordings: int
+
+
 class RecastDTO(BaseModel):
     id: str
     title: str
@@ -418,6 +426,7 @@ class RecastDTO(BaseModel):
     film: FilmDTO
     analysis: AnalysisStatusDTO
     dialogue: DialogueStatusDTO
+    voice_recipe: VoiceRecipeDTO
     lines: LineCountsDTO
     characters: list[CharacterDTO]
     unknown_faces: list[FaceDTO]

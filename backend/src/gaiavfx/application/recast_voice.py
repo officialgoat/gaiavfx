@@ -58,6 +58,12 @@ def _bounds() -> tuple[float, float]:
     return float(bounds["min"]), float(bounds["max"])
 
 
+def recipe() -> dict:
+    """What a voice is built from, as the Voice step offers it: the recordings' total length and how many."""
+    low, high = _bounds()
+    return {"min_seconds": low, "max_seconds": high, "max_recordings": MAX_SAMPLES}
+
+
 def _number(value: float) -> str:
     return f"{round(value, 1):g}"
 

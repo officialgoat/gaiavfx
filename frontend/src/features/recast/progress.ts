@@ -83,16 +83,15 @@ export const VOICE_STAGES: Record<NonNullable<Voice["stage"]>, string> = {
   audition: "Converting the audition",
 };
 
-/** How much recording a voice takes, in seconds (the recipe's `[build] sample_seconds`, voice.toml); the service
- * refuses anything outside with its own sentence. */
-export const VOICE_SECONDS = { min: 15, max: 60 } as const;
-
 /** A recording's length as the voice controls show it: whole seconds, or one decimal when it has one. */
 export const voiceSeconds = (s: number) => `${Number(s.toFixed(1))} s`;
 
-/** Whether recordings of this length can build a voice. */
-export const voiceFits = (s: number) =>
-  s >= VOICE_SECONDS.min && s <= VOICE_SECONDS.max;
+/** Whether recordings of this length can build a voice, by the recipe the Recast read carries; the service refuses
+ * anything outside with its own sentence. */
+export const voiceFits = (
+  s: number,
+  recipe: { min_seconds: number; max_seconds: number },
+) => s >= recipe.min_seconds && s <= recipe.max_seconds;
 
 /** What blocks Build voice, as the service decides it (`voice.blocked`: recordings outside the bounds, proposed
  * recordings or a hidden character). The service's `reason` gives the sentence; "Build the voice to hear an
