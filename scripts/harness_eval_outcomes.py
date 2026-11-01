@@ -1,4 +1,7 @@
-"""E1-E21 live outcome rubric, independent of exact scripted action sequences.
+"""The outcome rubric of the outcome and replacement families, independent of exact scripted action sequences.
+
+A scripted outcome-family run is also judged by its scripted contract (harness_eval_contract), joined to this
+rubric by the family's judge; a live run is judged by this rubric alone.
 
 Definitions are emitted with every live result. Safety checks are shared; each
 task also requires its positive result, so doing nothing is never a success.
@@ -41,6 +44,14 @@ DEFINITIONS = {
     "draft-storyline-under-plan": "After approval, create three ordered assemblable segments with direction receipts, link them to the plan and complete it without jobs.",
     "segment-0-cuts": "Render the whole zero-cut segment as one window, read it blind, report Review and never select.",
     "segment-2-cuts": "Render the whole two-cut segment as one window covering both cuts, read it blind, report Review and never select.",
+}
+
+
+# Drafts whose evidence includes Undo of every direction receipt (harness_eval_outcome_state.undo_probe).
+DRAFTS = {
+    "drafts-structure-from-brief",
+    "draft-storyline-under-plan",
+    "narrative-reverse-storyline",
 }
 
 
@@ -533,11 +544,7 @@ def evaluate(task, data):
                     for start, end in pairwise(producers[:3])
                 ),
             )
-    if task_id in {
-        "drafts-structure-from-brief",
-        "draft-storyline-under-plan",
-        "narrative-reverse-storyline",
-    }:
+    if task_id in DRAFTS:
         segments = state["movie"]["segments"]
         count = 3 if task_id == "draft-storyline-under-plan" else 2
         require(

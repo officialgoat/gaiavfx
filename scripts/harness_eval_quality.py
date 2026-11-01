@@ -287,15 +287,8 @@ class QualityFamily(MovieFamily):
         auto_approve(work, setup, harness, runner, drive)
         return harness, runner
 
-    def verdict(self, task, work, setup, harness, recorder, data, outcome):
-        from types import SimpleNamespace
-
-        from harness_eval_outcome_state import collect
-
-        if data is None:
-            data = collect(work, setup, harness, SimpleNamespace(calls=[]))
-        rubric, reasons = self.judge(task, data)
-        return reasons, {"rubric": rubric, "approvals": setup.get("approvals", [])}
+    def verdict(self, task, setup, rubric):
+        return {"rubric": rubric, "approvals": setup.get("approvals", [])}
 
     def judge(self, task, data):
         return score(task, data)

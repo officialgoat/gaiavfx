@@ -11,7 +11,7 @@ import re
 from gaiavfx.modules.generation.operations.service import OperationService
 from harness_eval_family import Control
 from harness_eval_fixtures import replacement_library
-from harness_eval_movie import MovieFamily, outcome_controls, outcome_verdict
+from harness_eval_movie import MovieFamily, outcome_controls
 
 SCENARIOS = {
     "replacement-single": (
@@ -375,9 +375,6 @@ class ReplacementFamily(MovieFamily):
                 human_decided(work, setup)
                 harness, runner = drive(work, setup, harness, runner)
         return harness, runner
-
-    def verdict(self, task, work, setup, harness, recorder, data, outcome):
-        return outcome_verdict(task, work, setup, harness, recorder, data, outcome)
 
     def judge(self, task, data):
         from harness_eval_outcomes import evaluate

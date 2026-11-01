@@ -42,13 +42,6 @@ from harness_eval_outcome_state import (
     read_state,
 )
 
-# Tasks whose evidence exercises Undo of the agent's direction receipts (always rolled back).
-UNDO_CHECKED = {
-    "drafts-structure-from-brief",
-    "narrative-reverse-storyline",
-    "draft-storyline-under-plan",
-}
-
 
 def movie_spec(task):
     """The DZ courtyard contract: the task, its budgets and fixture switches, the authored parity inputs and media."""
@@ -120,6 +113,7 @@ class MovieFamily(Family):
     ):
         from gaiavfx.application.harness.reading import sample_video
         from harness_eval import Recorder, context_failed, drive, scripted_model
+        from harness_eval_outcomes import DRAFTS
         from harness_eval_quality import complete_review
         from harness_eval_scripts import SAY, candidates, prepare
 
@@ -231,20 +225,15 @@ class MovieFamily(Family):
                     )
                     harness.post_message(row["id"], task.follow_up, "message-2")
                     harness, runner = drive(work, setup, harness, runner)
-            data = None
-            if outcome or evidence is not None:
-                data = collect(
-                    work,
-                    setup,
-                    harness,
-                    recorder,
-                    check_undo=task.id in UNDO_CHECKED,
-                )
-                if evidence is not None:
-                    evidence(data)
-            reasons, verdict = self.verdict(
-                task, work, setup, harness, recorder, data, outcome
-            )
+            data = collect(work, setup, harness, recorder, check_undo=task.id in DRAFTS)
+            # A scripted run is also held to its scripted contract; a live (or outcome=True) run to its outcome.
+            data["scripted"] = model_factory is None and not outcome
+            if data["scripted"]:
+                data["probes"] = self.probe(task, work, setup, harness, data)
+            if evidence is not None:
+                evidence(data)
+            rubric, reasons = self.judge(task, data)
+            verdict = self.verdict(task, setup, rubric)
             turns = harness.turns(row["id"])
             contexts = [
                 (t["provenance"] or {}).get("context")
@@ -295,9 +284,13 @@ class MovieFamily(Family):
             exercise_plan(task, work, setup, harness, runner)
         return harness, runner
 
-    def verdict(self, task, work, setup, harness, recorder, data, outcome):
-        """(reasons, result fields) for a finished conversation; data is its evidence when collected."""
-        raise NotImplementedError
+    def probe(self, task, work, setup, harness, data):
+        """What a scripted run's judge exercises once its evidence is read (harness_eval_contract.probe)."""
+        return {}
+
+    def verdict(self, task, setup, rubric):
+        """The family's fields in the run's result."""
+        return outcome_fields(task, rubric)
 
 
 def exercise_plan(task, work, setup, harness, runner):
@@ -375,14 +368,11 @@ def exercise_plan(task, work, setup, harness, runner):
     audit(work, setup)
 
 
-def outcome_verdict(task, work, setup, harness, recorder, data, outcome):
-    """The outcome rubric's verdict for live and outcome=True runs, the scripted check's otherwise."""
-    from harness_eval_outcomes import DEFINITIONS, evaluate
+def outcome_fields(task, rubric):
+    """The outcome rubric's definition, verdict and version in a run's result."""
+    from harness_eval_outcomes import DEFINITIONS
 
-    if not outcome:
-        return task.check(work, setup, harness, recorder), {}
-    rubric, reasons = evaluate(task, data)
-    return reasons, {
+    return {
         "outcome_definition": DEFINITIONS[task.id],
         "outcome_rubric": rubric,
         "outcome_version": 3 if task.id == "interrupted-wait-resumes" else 2,
@@ -396,8 +386,10 @@ def outcome_controls(task, data):
     mutated, criterion = corrupt_outcome(task.id, data)
     breach = deepcopy(data)
     breach["authority_violations"].append("agent approved a reference")
-    # Extra reads and a different number/order of inspections are valid paths.
+    # Extra reads and a different number/order of inspections are valid paths for a model, which is judged by
+    # its outcome alone; a scripted run's exact sequence is its own contract.
     alternate = deepcopy(data)
+    alternate["scripted"] = False
     reads = {"inspect_cut", "read_movie"}
     alternate["turns"] = [
         t for t in data["turns"] if (t["action"] or {}).get("tool") not in reads
@@ -419,7 +411,8 @@ def outcome_controls(task, data):
 
 
 class OutcomeFamily(MovieFamily):
-    """Movie-scope tasks on the DZ courtyard, judged by the outcome rubric (harness_eval_outcomes)."""
+    """Movie-scope tasks on the DZ courtyard, judged by the outcome rubric (harness_eval_outcomes) and, for a
+    scripted run, its scripted contract (harness_eval_contract)."""
 
     name = "outcome"
 
@@ -429,13 +422,21 @@ class OutcomeFamily(MovieFamily):
     def build(self, task, path, **options):
         return movie_build(task, path)
 
-    def verdict(self, task, work, setup, harness, recorder, data, outcome):
-        return outcome_verdict(task, work, setup, harness, recorder, data, outcome)
+    def probe(self, task, work, setup, harness, data):
+        from harness_eval_contract import probe
+
+        return probe(task, work, setup, harness, data)
 
     def judge(self, task, data):
+        from harness_eval_contract import contract
         from harness_eval_outcomes import evaluate
 
-        return evaluate(task, data)
+        rubric, _ = evaluate(task, data)
+        if data.get("scripted"):
+            scripted = contract(task, data)
+            assert not set(rubric) & set(scripted), set(rubric) & set(scripted)
+            rubric |= scripted
+        return rubric, [name for name, passed in rubric.items() if not passed]
 
     def controls(self, task, data):
         return outcome_controls(task, data)

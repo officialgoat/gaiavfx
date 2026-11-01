@@ -9,6 +9,7 @@ from gaiavfx.application.prepare_references import current_sheet
 from gaiavfx.application.shot_references import plan_for_cut
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.editing.selections.service import SelectionService
+from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
@@ -117,6 +118,24 @@ def undo_probe(work, turns, movie_id):
         return False
 
 
+def blind_reviews(work, operations):
+    """Each survey's and render's blind review as the user sees it (None where it has none)."""
+    reviews = {}
+    with work.db.transaction() as session:
+        for operation in operations:
+            if operation["kind"] not in {"survey", "render"}:
+                continue
+            try:
+                reviews[operation["id"]] = ReviewService().blind(
+                    session, operation["id"]
+                )
+            except ApplicationError as exc:
+                if exc.status != 404:
+                    raise
+                reviews[operation["id"]] = None
+    return reviews
+
+
 def collect(work, setup, harness, recorder, *, check_undo=False):
     row = harness.read(setup["session_id"])
     turns = harness.turns(row["id"])
@@ -130,12 +149,20 @@ def collect(work, setup, harness, recorder, *, check_undo=False):
                     DirectionService().read_receipt(session, receipt["id"])
                 except ApplicationError:
                     receipts_valid = False
+    final = read_state(work, setup)
+    reading = work.db.root / "cache" / "assistant" / "reading"
+    sampler = setup.get("sampler")
     return {
         "initial": setup["outcome_initial"],
-        "final": read_state(work, setup),
+        "final": final,
         "row": row,
+        "payload": harness.payload(row),
         "turns": turns,
         "calls": recorder.calls,
+        "blind": blind_reviews(work, final["operations"]),
+        # Frames the reading cache holds, and how often video was sampled (a scripted run's patched sampler).
+        "reading_frames": len(list(reading.rglob("*.jpg"))) if reading.is_dir() else 0,
+        "sample_calls": sampler.call_count if sampler is not None else None,
         "authority_violations": setup.get("authority_violations", []),
         "receipts_valid": receipts_valid,
         "undo_valid": undo_probe(work, turns, setup["movie_id"])

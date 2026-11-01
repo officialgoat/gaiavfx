@@ -51,6 +51,8 @@ def test_good_and_bad_sequences(task, tmp_path):
     bad = run_task(task, BAD[task.id], tmp_path / "bad", evidence=observed.append)
     assert not bad["passed"] and bad["reasons"], bad
     assert family.judge(task, observed[1])[1], task.id
+    # A model taking BAD's path fails too: the outcome alone, without the scripted contract, rejects it.
+    assert family.judge(task, {**observed[1], "scripted": False})[1], task.id
     if task.id in BAD_STATES:
         assert bad["state"] == BAD_STATES[task.id], bad
 
