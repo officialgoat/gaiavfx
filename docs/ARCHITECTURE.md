@@ -37,6 +37,11 @@ Each of these concepts has one module, and its callers and tests go through that
 | Command scope | `frontend/src/features/shell/command-registry.ts` | Each command factory says which scope its commands act in; the registry composes the open document's commands, waits movie commands in a film or stage, and reports shared ids and shortcuts. |
 | Attempts and outcome | `modules/generation/operations/attempts.py`, `outcome.py` | A producer's tries at one product, and why an operation stopped, as a kind. |
 | Operation kinds | `application/operation_kinds.py` | Per kind: what it prepares, how its candidates' review opens, whether that review still waits on the person, and whether it is a Recast render. Gaia, the routes and the renderer read it. |
+| Operation start | `application/operation_start.py` | Starting an operation: each ComfyUI job's output kind is one its integration declares; the frozen knowledge snapshot. The runner in `operations.py` advances what it starts. |
+| Staged jobs | `modules/generation/operations/staged.py` | A staged operation's jobs read one way: a job's stage, the current job of each unit, the stopped ones, a unique output and that output frozen as an input. |
+| Frame stream | `infrastructure/frame_stream.py` | Reading and writing raw video frames through ffmpeg: one frame range, colour mode and process runner for every decoder and writer. |
+| Replacement pixels | `application/replacement_pixels.py` | The numpy pixel operations of a replacement: resampling, crops, masks, pastes and letterbox checks. |
+| Signed links | `api/signed_links.py` | Media, splat and face URLs the renderer loads without its token: signed for what they serve, with one expiry rule. |
 | Stage build | `application/set_build.py`, `sets.build_view` | A stage build's operation and its readings: state, stop cause, spend, and the workbench's label and banner. |
 | Addressed issues | `modules/sets/service.py` (`addressed_issue_ids`) | The issues a built version addressed, for its review and for settling them. |
 | Stage run plan | `application/sets.py` (`run_plan`, `enqueue_fix`) | What Run queued fixes runs on a version, and the one admission for a fix. |
