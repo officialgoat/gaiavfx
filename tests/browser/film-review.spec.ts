@@ -692,6 +692,9 @@ test("a film's Jobs tab and Jobs sheet list recast renders without their arms or
     error: null,
     created_at: "2026-10-21T10:00:00Z",
     updated_at: "2026-10-21T10:05:00Z",
+    // As Python's operation kinds say of a replacement: a person reviews it, and it is a Recast render.
+    opens: true,
+    blind_render: true,
   };
   const failed = {
     ...operation,

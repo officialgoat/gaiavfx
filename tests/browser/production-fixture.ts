@@ -81,11 +81,9 @@ export async function seedProduction(
   );
   await finished(plateOperation.id);
   const plates = await post<S["ReviewDTO"]>(
-    `/api/production/removals/${plateOperation.id}/review`,
+    `/api/production/operations/${plateOperation.id}/review`,
   );
-  const plate = await post<S["PlaceDTO"]>("/api/production/plates/approve", {
-    candidate_id: plates.members[0].candidate_id,
-  });
+  const plate = await post<S["PlaceDTO"]>(`/api/production/candidates/${plates.members[0].candidate_id}/approve`, {});
   const body = {
     place_id: placeId,
     seed: 12,
@@ -112,7 +110,7 @@ export async function seedProduction(
   expect((await replay.json()).id).toBe(survey.id);
   const surveyed = await finished(survey.id);
   const views = await post<S["ReviewDTO"]>(
-    `/api/production/surveys/${survey.id}/review`,
+    `/api/production/operations/${survey.id}/review`,
   );
   if (!render)
     return {
@@ -129,9 +127,7 @@ export async function seedProduction(
   const approved: S["ProductionEvidenceDTO"][] = [];
   for (const m of views.members)
     approved.push(
-      await post("/api/production/views/approve", {
-        candidate_id: m.candidate_id,
-      }),
+      await post(`/api/production/candidates/${m.candidate_id}/approve`, {}),
     );
   const targetCandidate = surveyed.candidates.find(
     (c) => c.output_key === data.to.id,
@@ -160,11 +156,9 @@ export async function seedProduction(
   );
   await finished(insertion.id);
   const pins = await post<S["ReviewDTO"]>(
-    `/api/production/insertions/${insertion.id}/review`,
+    `/api/production/operations/${insertion.id}/review`,
   );
-  await post("/api/production/pins/approve", {
-    candidate_id: pins.members[0].candidate_id,
-  });
+  await post(`/api/production/candidates/${pins.members[0].candidate_id}/approve`, {});
   const layout = await get<S["ProductionSheetTilesDTO"]>(
     `/api/production/places/${placeId}/sheet-tiles`,
   );
@@ -188,7 +182,7 @@ export async function seedProduction(
   });
   await finished(rendered.id);
   const review = await post<S["ReviewDTO"]>(
-    `/api/production/renders/${rendered.id}/review`,
+    `/api/production/operations/${rendered.id}/review`,
   );
   return {
     ...data,

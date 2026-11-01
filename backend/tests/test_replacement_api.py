@@ -62,7 +62,7 @@ def test_people_plan_render_review_approval_http(work, renders):
         assert recorded.status_code == 200, recorded.text
         assert recorded.json() == preview.json()
         drain(app.state.operations)
-        review = client.post(f"/api/production/replacements/{started.json()['id']}/review")
+        review = client.post(f"/api/production/operations/{started.json()['id']}/review")
         assert review.status_code == 200, review.text
         operation = client.get(f"/api/production/operations/{started.json()['id']}").json()
         members = review.json()["members"]
@@ -103,13 +103,13 @@ def test_people_plan_render_review_approval_http(work, renders):
             assert member["seed"] == job["seed"]
             assert member["replacement_checks"]
         approval = client.post(
-            "/api/production/replacements/approve",
-            json={"candidate_id": operation["candidates"][0]["id"]},
+            f"/api/production/candidates/{operation['candidates'][0]['id']}/approve",
+            json={},
         )
         assert approval.status_code == 200, approval.text
         assert approval.json()["provenance"]["type"] == "character_replacement"
         names = app.openapi()["components"]["schemas"]
-        assert "OperationDTO" in names and "CandidateInput" in names and "SurveyInput" in names
+        assert "OperationDTO" in names and "ApprovalInput" in names and "SurveyInput" in names
         assert all("__" not in name for name in names)
 
 

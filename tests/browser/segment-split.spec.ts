@@ -261,7 +261,7 @@ test.describe("Split segments through Direction receipts", () => {
     const review = await call<{
       id: string;
       members: { candidate_id: string }[];
-    }>(`/api/production/renders/${render.id}/review`, {});
+    }>(`/api/production/operations/${render.id}/review`, {});
     await call(`/api/production/reviews/${review.id}/select`, {
       candidate_id: review.members[0].candidate_id,
       expected_revision: 0,
@@ -311,9 +311,7 @@ test.describe("Split segments through Direction receipts", () => {
     const prepared = await seedProduction(request);
     data = prepared;
     for (const member of prepared.views.members)
-      await prepared.post("/api/production/views/approve", {
-        candidate_id: member.candidate_id,
-      });
+      await prepared.post(`/api/production/candidates/${member.candidate_id}/approve`, {});
     const evidence = await request.get(
       `/api/direction/angles/${data.to.id}/evidence`,
       { headers: data.headers },

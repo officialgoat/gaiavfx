@@ -362,10 +362,7 @@ export function reviewCommands(
       void r.perform(
         () =>
           candidate
-            ? production.approve(
-                t.referenceKind === "view" ? "angle_views" : "insertion",
-                candidate.id,
-              )
+            ? production.approve(candidate.id)
             : direction.approveEvidence(t.id),
         "Reference re-approved without generation",
       );

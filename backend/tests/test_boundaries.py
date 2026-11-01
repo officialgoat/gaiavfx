@@ -481,8 +481,11 @@ def test_harness_boundaries_and_human_authority():
         "gaiavfx.api",
         "gaiavfx.integrations",
         "gaiavfx.application.workspace",
+        # A review's candidate is approved by the person alone (operation_kinds opens reviews; this approves).
+        "gaiavfx.application.review_approvals",
     )
     human = {
+        "APPROVERS",
         "confirm_appearance",
         "reject_appearance",
         "clear_appearance",

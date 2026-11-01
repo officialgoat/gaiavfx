@@ -1080,6 +1080,8 @@ export async function mockRecast(
         updated_at: "2026-10-08T10:00:00Z",
         jobs: [],
         candidates: [],
+        opens: false,
+        blind_render: false,
         settled: false,
         failure: null,
       };

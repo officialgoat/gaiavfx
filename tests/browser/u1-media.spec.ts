@@ -22,7 +22,7 @@ test("a new plate loads in Source before approval and renews an unauthorized pre
   });
   await data.finished(op.id);
   const review = await data.post<any>(
-    `/api/production/removals/${op.id}/review`,
+    `/api/production/operations/${op.id}/review`,
   );
   const asset = review.members[0].asset_id;
   let urlReads = 0;

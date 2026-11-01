@@ -1,4 +1,3 @@
-import { request } from "../../shared/api";
 import { route } from "../../shared/routes";
 import type { Schema } from "../project/client";
 
@@ -22,23 +21,7 @@ export type ProducerBody =
   | Schema["SheetInput"]
   | Schema["RenderInput"]
   | Schema["ReplacementStartInput"];
-export const producerRoute: Record<string, Producer> = {
-  removal: "removals",
-  survey: "surveys",
-  set_views: "set-views",
-  insert: "insertions",
-  assemble: "sheets",
-  render: "renders",
-  character_replacement: "replacements",
-};
 const P = "/api/production";
-/** The route that approves a candidate, by its review's purpose (a plain string in ReviewDTO). */
-const approvals = {
-  plate: "plates",
-  angle_views: "views",
-  insertion: "pins",
-  character_replacement: "replacements",
-} as const;
 // Routes are typed from the generated contracts (shared/routes.ts): a renamed route or body fails `tsc`.
 export const production = {
   people: (assetId: string) =>
@@ -57,21 +40,16 @@ export const production = {
     route("get", `${P}/operations/{operation_id}`, {
       path: { operation_id: id },
     }),
-  operationSummary: (id: string) =>
-    route("get", `${P}/operations/{operation_id}/summary`, {
-      path: { operation_id: id },
-    }),
   start: (kind: Producer, body: ProducerBody) =>
     route(
       "post",
       `${P}/${kind === "removals" && "empty" in body ? "plates" : kind}`,
       { body },
     ),
-  // Stays on request(): Producer includes sheets, which has no review route (callers refuse it first).
-  open: (kind: Producer, id: string) =>
-    request<Review>(`${P}/${kind}/${id}/review`, {
-      method: "POST",
-      body: "{}",
+  /** Opens the review of an operation's candidates; Python refuses a kind with no review. */
+  open: (id: string) =>
+    route("post", `${P}/operations/{operation_id}/review`, {
+      path: { operation_id: id },
     }),
   review: (id: string) =>
     route("get", `${P}/reviews/{review_id}`, { path: { review_id: id } }),
@@ -94,16 +72,12 @@ export const production = {
       path: { review_id: id },
       body,
     }),
-  approve: (
-    purpose: string,
-    candidate_id: string,
-    replace = false,
-  ): Promise<unknown> =>
-    route(
-      "post",
-      `${P}/${approvals[purpose as keyof typeof approvals]}/approve`,
-      { body: { candidate_id, ...(replace ? { replace: true } : {}) } },
-    ),
+  /** Approves a candidate as what its operation prepares: a plate, a view, a pin or a replacement. */
+  approve: (candidateId: string, replace = false) =>
+    route("post", `${P}/candidates/{candidate_id}/approve`, {
+      path: { candidate_id: candidateId },
+      body: { replace },
+    }),
   tags: () => route("get", `${P}/review-tags`),
   prescreen: (id: string) =>
     route("post", `${P}/candidates/{candidate_id}/prescreen`, {

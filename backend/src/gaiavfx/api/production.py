@@ -15,7 +15,7 @@ from pydantic import (
 )
 
 from gaiavfx.api.direction import PlaceDTO, ReceiptDTO, SelectionDTO, SelectionsDTO
-from gaiavfx.application import set_seed, set_views
+from gaiavfx.application import operation_kinds, review_approvals, set_seed, set_views
 from gaiavfx.application.authored import load_survey, validate_insertion
 from gaiavfx.application.candidate_review import (
     prescreen_candidate,
@@ -24,13 +24,7 @@ from gaiavfx.application.candidate_review import (
     select_take,
 )
 from gaiavfx.application.prepare_references import (
-    approve_pin,
-    approve_plate,
-    approve_view,
     assemble_sheet,
-    open_insertion_review,
-    open_plate_review,
-    open_views_review,
     reject_reference_review,
     sheet_tiles_for_place,
     start_empty_plate,
@@ -38,10 +32,8 @@ from gaiavfx.application.prepare_references import (
     start_removal,
     start_survey,
 )
-from gaiavfx.application.render_cut import open_takes_review, start_render
+from gaiavfx.application.render_cut import start_render
 from gaiavfx.application.replace_character import (
-    approve_replacement,
-    open_replacement_review,
     people_for_asset,
     recorded_replacement_plan,
     replacement_plan,
@@ -257,11 +249,8 @@ class InsertionInput(InputDTO):
     seeds: list[int]
 
 
-class CandidateInput(InputDTO):
-    candidate_id: str
-
-
-class PinApprovalInput(CandidateInput):
+class ApprovalInput(InputDTO):
+    # A pin replaces the cut's approved pin only when the person says so.
     replace: bool = Field(default=False, strict=True)
 
 
@@ -321,7 +310,8 @@ class RankingInput(InputDTO):
     general: str = ""
 
 
-class SelectInput(CandidateInput):
+class SelectInput(InputDTO):
+    candidate_id: str
     expected_revision: int
 
 
@@ -383,13 +373,6 @@ class CandidateDTO(BaseModel):
     created_at: str
 
 
-class OperationSummaryDTO(BaseModel):
-    """Enough to route a review link without loading candidate provenance into the UI."""
-
-    id: str
-    kind: str
-
-
 class OperationDTO(BaseModel):
     id: str
     kind: str
@@ -411,6 +394,18 @@ class OperationDTO(BaseModel):
     def settled(self) -> bool:
         """Whether the operation has stopped running: succeeded, partial, failed, cancelled or needing attention."""
         return outcome.settled(self.model_dump(include={"state"}))
+
+    @computed_field
+    @property
+    def opens(self) -> bool:
+        """Whether a person reviews its candidates: POST /operations/{id}/review opens that review."""
+        return operation_kinds.kind_of(self.kind).opens is not None
+
+    @computed_field
+    @property
+    def blind_render(self) -> bool:
+        """A Recast render: in an open film it reads alike whatever its method, its error and review kept hidden."""
+        return operation_kinds.kind_of(self.kind).blind_render
 
     @computed_field
     @property
@@ -562,25 +557,10 @@ def production_router(workspace, authenticate):
             )
         return creation_response(operation, response)
 
-    @router.post(
-        "/replacements/{operation_id}/review",
-        response_model=ReviewDTO,
-        response_model_exclude_none=True,
-    )
-    def replacement_review(operation_id: str):
-        with workspace.db.transaction() as session:
-            review = open_replacement_review(session, operation_id)
-            return blind(session, review["id"], library=workspace.library)
-
     @router.get("/replacements/{operation_id}/plan", response_model=ReplacementPlanDTO)
     def recorded_plan(operation_id: str):
         with workspace.db.transaction() as session:
             return recorded_replacement_plan(session, operation_id)
-
-    @router.post("/replacements/approve", response_model=ReplacementApprovalDTO)
-    def replacement_approval(body: CandidateInput):
-        with workspace.db.transaction() as session:
-            return approve_replacement(session, body.candidate_id)
 
     @router.post("/plates", response_model=OperationDTO, status_code=201, responses=replay_response)
     def empty_plate(body: EmptyPlateInput, response: Response):
@@ -597,20 +577,6 @@ def production_router(workspace, authenticate):
         return creation_response(operation, response)
 
     @router.post(
-        "/removals/{operation_id}/review",
-        response_model=ReviewDTO,
-        response_model_exclude_none=True,
-    )
-    def plate_review(operation_id: str):
-        with workspace.db.transaction() as session:
-            return open_plate_review(session, operation_id)
-
-    @router.post("/plates/approve", response_model=PlaceDTO)
-    def plate_approval(body: CandidateInput):
-        with workspace.db.transaction() as session:
-            return approve_plate(session, candidate_id=body.candidate_id)
-
-    @router.post(
         "/surveys", response_model=OperationDTO, status_code=201, responses=replay_response
     )
     def survey(body: SurveyInput, response: Response):
@@ -624,13 +590,6 @@ def production_router(workspace, authenticate):
                 request_key=body.request_key,
             )
         return creation_response(operation, response)
-
-    @router.post(
-        "/surveys/{operation_id}/review", response_model=ReviewDTO, response_model_exclude_none=True
-    )
-    def survey_review(operation_id: str):
-        with workspace.db.transaction() as session:
-            return open_views_review(session, operation_id)
 
     @router.post(
         "/set-views", response_model=OperationDTO, status_code=201, responses=replay_response
@@ -674,20 +633,6 @@ def production_router(workspace, authenticate):
         return creation_response(operation, response)
 
     @router.post(
-        "/set-views/{operation_id}/review",
-        response_model=ReviewDTO,
-        response_model_exclude_none=True,
-    )
-    def set_views_review(operation_id: str):
-        with workspace.db.transaction() as session:
-            return open_views_review(session, operation_id)
-
-    @router.post("/views/approve", response_model=ProductionEvidenceDTO)
-    def view_approval(body: CandidateInput):
-        with workspace.db.transaction() as session:
-            return approve_view(session, candidate_id=body.candidate_id)
-
-    @router.post(
         "/insertions", response_model=OperationDTO, status_code=201, responses=replay_response
     )
     def insertion(body: InsertionInput, response: Response):
@@ -703,20 +648,6 @@ def production_router(workspace, authenticate):
                 request_key=body.request_key,
             )
         return creation_response(operation, response)
-
-    @router.post(
-        "/insertions/{operation_id}/review",
-        response_model=ReviewDTO,
-        response_model_exclude_none=True,
-    )
-    def insertion_review(operation_id: str):
-        with workspace.db.transaction() as session:
-            return open_insertion_review(session, operation_id)
-
-    @router.post("/pins/approve", response_model=ProductionKeyframeDTO)
-    def pin_approval(body: PinApprovalInput):
-        with workspace.db.transaction() as session:
-            return approve_pin(session, **body.model_dump())
 
     @router.get("/places/{place_id}/sheet-tiles", response_model=ProductionSheetTilesDTO)
     def sheet_tiles(place_id: str):
@@ -751,13 +682,6 @@ def production_router(workspace, authenticate):
             )
         return creation_response(operation, response)
 
-    @router.post(
-        "/renders/{operation_id}/review", response_model=ReviewDTO, response_model_exclude_none=True
-    )
-    def render_review(operation_id: str):
-        with workspace.db.transaction() as session:
-            return open_takes_review(session, operation_id)
-
     @router.get("/operations", response_model=list[OperationDTO])
     def recent_operations(
         kind: str | None = None,
@@ -772,12 +696,6 @@ def production_router(workspace, authenticate):
         with workspace.db.transaction() as session:
             return operations.operation(session, operation_id)
 
-    @router.get("/operations/{operation_id}/summary", response_model=OperationSummaryDTO)
-    def operation_summary(operation_id: str):
-        with workspace.db.transaction() as session:
-            operation = operations.operation(session, operation_id)
-            return {key: operation[key] for key in ("id", "kind")}
-
     @router.post("/operations/{operation_id}/cancel", response_model=OperationDTO)
     def cancel_operation(operation_id: str):
         with workspace.db.transaction() as session:
@@ -790,6 +708,31 @@ def production_router(workspace, authenticate):
     @router.post("/candidates/{candidate_id}/prescreen", response_model=PrescreenDTO)
     def measure(candidate_id: str):
         return prescreen_candidate(workspace.db.transaction, workspace.library, candidate_id)
+
+    @router.post(
+        "/operations/{operation_id}/review",
+        response_model=ReviewDTO,
+        response_model_exclude_none=True,
+    )
+    def operation_review(operation_id: str):
+        """Open (or reopen) the review of a finished operation's candidates, read blind."""
+        with workspace.db.transaction() as session:
+            operation = operations.operation(session, operation_id)
+            review = operation_kinds.open_review(session, operation)
+            return blind(session, review["id"], library=workspace.library)
+
+    @router.post(
+        "/candidates/{candidate_id}/approve",
+        response_model=PlaceDTO
+        | ProductionEvidenceDTO
+        | ProductionKeyframeDTO
+        | ReplacementApprovalDTO,
+    )
+    def approve_candidate(candidate_id: str, body: ApprovalInput):
+        """Approve a candidate as what its operation prepares: the place's plate, an angle's view, the cut's pin or
+        a replacement's derivative. Returns what changed."""
+        with workspace.db.transaction() as session:
+            return review_approvals.approve(session, candidate_id, replace=body.replace)
 
     @router.get("/reviews/{review_id}", response_model=ReviewDTO, response_model_exclude_none=True)
     def blind_review(review_id: str):

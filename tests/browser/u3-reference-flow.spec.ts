@@ -365,9 +365,7 @@ test("pin height explains the fraction and shows the server refusal inline", asy
   test.setTimeout(180_000);
   const data = await seedProduction(request);
   for (const member of data.views.members)
-    await data.post("/api/production/views/approve", {
-      candidate_id: member.candidate_id,
-    });
+    await data.post(`/api/production/candidates/${member.candidate_id}/approve`, {});
   await openMovie(page, data.movie.title);
   await page.getByRole("button", { name: /Cut f36/ }).click();
   await page

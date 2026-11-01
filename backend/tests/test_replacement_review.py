@@ -105,10 +105,7 @@ def test_blind_errors_calibration_mapping_and_reveal(work, tmp_path):
         failed = service.add_candidate(session, jobs[0]["id"], assets[0], "composite", "video")
     app = create_app(db.root, MIGRATIONS, "test-token", enable_runner=False)
     with TestClient(app, base_url="http://localhost", headers=AUTH) as client:
-        summary = client.get(f"/api/production/operations/{operation['id']}/summary")
-        assert summary.status_code == 200, summary.text
-        assert summary.json() == {"id": operation["id"], "kind": "character_replacement"}
-        response = client.post(f"/api/production/replacements/{operation['id']}/review")
+        response = client.post(f"/api/production/operations/{operation['id']}/review")
         assert response.status_code == 200, response.text
         review = response.json()
         assert {k: review["context"][k] for k in ("shot_start", "shot_end", "fps")} == {
@@ -117,7 +114,7 @@ def test_blind_errors_calibration_mapping_and_reveal(work, tmp_path):
             "fps": 24,
         }
         for url in (
-            f"/api/production/replacements/{operation['id']}/review",
+            f"/api/production/operations/{operation['id']}/review",
             f"/api/production/reviews/{review['id']}",
         ):
             response = client.post(url) if url.endswith("/review") else client.get(url)
@@ -205,7 +202,7 @@ def test_malformed_checks_remain_reviewable(work, tmp_path, content):
         )
     app = create_app(db.root, MIGRATIONS, "test-token", enable_runner=False)
     with TestClient(app, base_url="http://localhost", headers=AUTH) as client:
-        response = client.post(f"/api/production/replacements/{operation['id']}/review")
+        response = client.post(f"/api/production/operations/{operation['id']}/review")
         assert response.status_code == 200, response.text
         review = response.json()
         assert review["members"][0]["replacement_checks"] == []

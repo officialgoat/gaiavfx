@@ -64,7 +64,7 @@ def test_direct_empty_plate_api_fits_then_waits_for_human_review(removal_setup):
     assert retry.status_code == 200 and retry.json()["id"] == operation["id"]
     run_idle(app)
     assert not app.state.operations.comfy.posts
-    review = client.post(f"/api/production/removals/{operation['id']}/review")
+    review = client.post(f"/api/production/operations/{operation['id']}/review")
     assert review.status_code == 200 and review.json()["purpose"] == "plate"
     member = review.json()["members"][0]
     with app.state.workspace.db.transaction() as session:
@@ -73,9 +73,7 @@ def test_direct_empty_plate_api_fits_then_waits_for_human_review(removal_setup):
         assert (info["width"], info["height"]) == (768, 448)
     blind = client.get(f"/api/production/reviews/{review.json()['id']}").json()
     assert not {"request", "seed", "operation_id"} & blind["members"][0].keys()
-    approved = client.post(
-        "/api/production/plates/approve", json={"candidate_id": member["candidate_id"]}
-    )
+    approved = client.post(f"/api/production/candidates/{member['candidate_id']}/approve", json={})
     assert approved.status_code == 200
     assert approved.json()["plate_asset_id"] == member["asset_id"]
 

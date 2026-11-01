@@ -84,6 +84,16 @@ const operation = (
   updated_at: "2026-10-22T10:05:00Z",
   jobs: [],
   candidates: [],
+  // As Python's operation kinds say: which a person reviews, and which are Recast renders.
+  opens: [
+    "removal",
+    "survey",
+    "set_views",
+    "insert",
+    "render",
+    "character_replacement",
+  ].includes(kind),
+  blind_render: ["character_replacement", "shot_assembly"].includes(kind),
   // As Generation reads them from the state and the recorded errors.
   settled: !["queued", "running"].includes(state),
   failure:

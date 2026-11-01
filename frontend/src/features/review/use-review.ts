@@ -9,7 +9,6 @@ import { preparationShot } from "../prepare/shot";
 import type { Operation } from "../generation/client";
 import {
   production,
-  producerRoute,
   rankingDraft,
   type Producer,
   type ProducerBody,
@@ -186,16 +185,11 @@ export function useReview(
     workspace(data.purpose === "segment_takes" ? "review" : "prepare");
   }
   async function openOperation(operation: Operation | string) {
-    const data = await perform(async () => {
-      const value =
-        typeof operation === "string"
-          ? await production.operationSummary(operation)
-          : operation;
-      const route = producerRoute[value.kind];
-      if (!route || route === "sheets")
-        throw new Error("This operation has no candidate review.");
-      return production.open(route, value.id);
-    }, "Review opened");
+    const data = await perform(
+      () =>
+        production.open(typeof operation === "string" ? operation : operation.id),
+      "Review opened",
+    );
     if (data) activate(data);
   }
   async function openReview(reviewId: string) {
@@ -237,7 +231,7 @@ export function useReview(
     }
     // Approval is distinct from ranking: approving one survey view must not judge its siblings.
     const saved = await perform(
-      () => production.approve(value.purpose, candidateId, replace),
+      () => production.approve(candidateId, replace),
       replace
         ? "Pin replaced. Previous pin kept in history; Undo restores it."
         : value.purpose === "character_replacement"

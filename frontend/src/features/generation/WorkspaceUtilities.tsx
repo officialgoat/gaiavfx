@@ -346,8 +346,6 @@ function VoiceLibrary() {
   );
 }
 
-/** A film's renders, one kind per method: in a film they read alike, so render batches are not told apart by method. */
-const RECAST_RENDERS = ["character_replacement", "shot_assembly"];
 const REFUSED = /10061|refused|ECONNREFUSED|connection error/i;
 const JOB_ID =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b:?\s*/gi;
@@ -414,7 +412,8 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
       {operations.data?.map((operation) => {
         // Usability round 2 (C1): in a film, a render reads "Recast render" whatever its method, keeps its error
         // and review hidden, and offers no review.
-        const render = blind && RECAST_RENDERS.includes(operation.kind);
+        // A film's renders (Python's `blind_render`) read alike, so render batches are not told apart by method.
+        const render = blind && operation.blind_render;
         return (
           <article className="task-item" key={operation.id}>
             <div className="section-title">

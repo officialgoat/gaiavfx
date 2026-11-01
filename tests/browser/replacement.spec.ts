@@ -217,7 +217,7 @@ test("replacement preparation, blind review and automatic decisions", async ({
   await expect(page.locator(".revealed-details")).toContainText("crop");
   await expect(checks).toContainText("letterbox difference");
   const approving = page.waitForResponse((r) =>
-    r.url().endsWith("/api/production/replacements/approve"),
+    r.url().endsWith("/approve"),
   );
   await page
     .getByRole("button", { name: "Approve derivative", exact: true })

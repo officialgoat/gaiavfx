@@ -191,7 +191,7 @@ test("Prepare and Properties render continuous and two-cut segments", async ({
     )
     .toBe("succeeded");
   const review = await write<S["ReviewDTO"]>(
-    `/api/production/renders/${first.id}/review`,
+    `/api/production/operations/${first.id}/review`,
     {},
   );
   // An explicit user selection provides the next segment's motion context.

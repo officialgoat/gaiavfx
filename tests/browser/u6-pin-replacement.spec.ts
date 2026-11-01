@@ -40,12 +40,12 @@ test("replace a pin explicitly, mark a dependent take stale, and undo", async ({
   );
   await data.finished(insertion.id);
   const review = await data.post<S["ReviewDTO"]>(
-    `/api/production/insertions/${insertion.id}/review`,
+    `/api/production/operations/${insertion.id}/review`,
   );
-  const refusal = await request.post("/api/production/pins/approve", {
-    headers: data.headers,
-    data: { candidate_id: review.members[0].candidate_id },
-  });
+  const refusal = await request.post(
+    `/api/production/candidates/${review.members[0].candidate_id}/approve`,
+    { headers: data.headers, data: {} },
+  );
   expect(refusal.status()).toBe(409);
   expect(await refusal.text()).toContain("replace: true");
   await openMovie(page, data.movie.title);
@@ -89,7 +89,7 @@ test("replace a pin explicitly, mark a dependent take stale, and undo", async ({
   await page.screenshot({ path: ".cache/u6-pin-replacement.png" });
   const approved = page.waitForResponse(
     (response) =>
-      response.url().endsWith("/pins/approve") &&
+      response.url().endsWith("/approve") &&
       response.request().method() === "POST",
   );
   await confirmation

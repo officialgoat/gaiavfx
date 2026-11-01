@@ -1147,23 +1147,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/production/replacements/{operation_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Replacement Review */
-    post: operations["replacement_review_api_production_replacements__operation_id__review_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/production/replacements/{operation_id}/plan": {
     parameters: {
       query?: never;
@@ -1175,23 +1158,6 @@ export interface paths {
     get: operations["recorded_plan_api_production_replacements__operation_id__plan_get"];
     put?: never;
     post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/replacements/approve": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Replacement Approval */
-    post: operations["replacement_approval_api_production_replacements_approve_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1232,40 +1198,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/production/removals/{operation_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Plate Review */
-    post: operations["plate_review_api_production_removals__operation_id__review_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/plates/approve": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Plate Approval */
-    post: operations["plate_approval_api_production_plates_approve_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/production/surveys": {
     parameters: {
       query?: never;
@@ -1277,23 +1209,6 @@ export interface paths {
     put?: never;
     /** Survey */
     post: operations["survey_api_production_surveys_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/surveys/{operation_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Survey Review */
-    post: operations["survey_review_api_production_surveys__operation_id__review_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1351,40 +1266,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/production/set-views/{operation_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Set Views Review */
-    post: operations["set_views_review_api_production_set_views__operation_id__review_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/views/approve": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** View Approval */
-    post: operations["view_approval_api_production_views_approve_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/production/insertions": {
     parameters: {
       query?: never;
@@ -1396,40 +1277,6 @@ export interface paths {
     put?: never;
     /** Insertion */
     post: operations["insertion_api_production_insertions_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/insertions/{operation_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Insertion Review */
-    post: operations["insertion_review_api_production_insertions__operation_id__review_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/pins/approve": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Pin Approval */
-    post: operations["pin_approval_api_production_pins_approve_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -1487,23 +1334,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/production/renders/{operation_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Render Review */
-    post: operations["render_review_api_production_renders__operation_id__review_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/production/operations": {
     parameters: {
       query?: never;
@@ -1530,23 +1360,6 @@ export interface paths {
     };
     /** Operation */
     get: operations["operation_api_production_operations__operation_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/production/operations/{operation_id}/summary": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Operation Summary */
-    get: operations["operation_summary_api_production_operations__operation_id__summary_get"];
     put?: never;
     post?: never;
     delete?: never;
@@ -1600,6 +1413,47 @@ export interface paths {
     put?: never;
     /** Measure */
     post: operations["measure_api_production_candidates__candidate_id__prescreen_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/production/operations/{operation_id}/review": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Operation Review
+     * @description Open (or reopen) the review of a finished operation's candidates, read blind.
+     */
+    post: operations["operation_review_api_production_operations__operation_id__review_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/production/candidates/{candidate_id}/approve": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Approve Candidate
+     * @description Approve a candidate as what its operation prepares: the place's plate, an angle's view, the cut's pin or
+     *     a replacement's derivative. Returns what changed.
+     */
+    post: operations["approve_candidate_api_production_candidates__candidate_id__approve_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -3445,6 +3299,14 @@ export interface components {
         [key: string]: unknown;
       };
     };
+    /** ApprovalInput */
+    ApprovalInput: {
+      /**
+       * Replace
+       * @default false
+       */
+      replace: boolean;
+    };
     /** ArchivedLibraryDTO */
     ArchivedLibraryDTO: {
       /** Path */
@@ -3744,11 +3606,6 @@ export interface components {
       kind: string;
       /** Created At */
       created_at: string;
-    };
-    /** CandidateInput */
-    CandidateInput: {
-      /** Candidate Id */
-      candidate_id: string;
     };
     /** CharacterDTO */
     CharacterDTO: {
@@ -5241,6 +5098,16 @@ export interface components {
        */
       readonly settled: boolean;
       /**
+       * Opens
+       * @description Whether a person reviews its candidates: POST /operations/{id}/review opens that review.
+       */
+      readonly opens: boolean;
+      /**
+       * Blind Render
+       * @description A Recast render: in an open film it reads alike whatever its method, its error and review kept hidden.
+       */
+      readonly blind_render: boolean;
+      /**
        * Failure
        * @description Why it stopped, as a kind the renderer can word (Generation reads the recorded errors).
        */
@@ -5267,16 +5134,6 @@ export interface components {
       kind: "operation";
       /** Operation Id */
       operation_id: string;
-    };
-    /**
-     * OperationSummaryDTO
-     * @description Enough to route a review link without loading candidate provenance into the UI.
-     */
-    OperationSummaryDTO: {
-      /** Id */
-      id: string;
-      /** Kind */
-      kind: string;
     };
     /** PhaseCommandDTO */
     PhaseCommandDTO: {
@@ -5336,16 +5193,6 @@ export interface components {
       /** Start Frame */
       start_frame?: number | null;
       content?: components["schemas"]["ShotDTO"] | null;
-    };
-    /** PinApprovalInput */
-    PinApprovalInput: {
-      /** Candidate Id */
-      candidate_id: string;
-      /**
-       * Replace
-       * @default false
-       */
-      replace: boolean;
     };
     /** PlaceDTO */
     PlaceDTO: {
@@ -10430,37 +10277,6 @@ export interface operations {
       };
     };
   };
-  replacement_review_api_production_replacements__operation_id__review_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   recorded_plan_api_production_replacements__operation_id__plan_get: {
     parameters: {
       query?: never;
@@ -10479,39 +10295,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["ReplacementPlanDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  replacement_approval_api_production_replacements_approve_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CandidateInput"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReplacementApprovalDTO"];
         };
       };
       /** @description Validation Error */
@@ -10609,70 +10392,6 @@ export interface operations {
       };
     };
   };
-  plate_review_api_production_removals__operation_id__review_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  plate_approval_api_production_plates_approve_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CandidateInput"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["PlaceDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   survey_api_production_surveys_post: {
     parameters: {
       query?: never;
@@ -10702,37 +10421,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["OperationDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  survey_review_api_production_surveys__operation_id__review_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewDTO"];
         };
       };
       /** @description Validation Error */
@@ -10870,70 +10558,6 @@ export interface operations {
       };
     };
   };
-  set_views_review_api_production_set_views__operation_id__review_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  view_approval_api_production_views_approve_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["CandidateInput"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProductionEvidenceDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   insertion_api_production_insertions_post: {
     parameters: {
       query?: never;
@@ -10963,70 +10587,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["OperationDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  insertion_review_api_production_insertions__operation_id__review_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  pin_approval_api_production_pins_approve_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["PinApprovalInput"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ProductionKeyframeDTO"];
         };
       };
       /** @description Validation Error */
@@ -11155,37 +10715,6 @@ export interface operations {
       };
     };
   };
-  render_review_api_production_renders__operation_id__review_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ReviewDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   recent_operations_api_production_operations_get: {
     parameters: {
       query?: {
@@ -11237,37 +10766,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["OperationDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  operation_summary_api_production_operations__operation_id__summary_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        operation_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["OperationSummaryDTO"];
         };
       };
       /** @description Validation Error */
@@ -11350,6 +10848,76 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["PrescreenDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  operation_review_api_production_operations__operation_id__review_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        operation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ReviewDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  approve_candidate_api_production_candidates__candidate_id__approve_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        candidate_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ApprovalInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json":
+            | components["schemas"]["PlaceDTO"]
+            | components["schemas"]["ProductionEvidenceDTO"]
+            | components["schemas"]["ProductionKeyframeDTO"]
+            | components["schemas"]["ReplacementApprovalDTO"];
         };
       };
       /** @description Validation Error */

@@ -128,7 +128,7 @@ def test_plate_removal_review_approval_and_survey_http(tmp_path):
         removal = post(client, "/api/production/removals", body)
         assert post(client, "/api/production/removals", body, status=200) == removal
         post(client, "/api/production/removals", body | {"seeds": [23]}, status=409)
-        review_path = f"/api/production/removals/{removal['id']}/review"
+        review_path = f"/api/production/operations/{removal['id']}/review"
         post(client, review_path, status=409)
         run_idle(app)
         review = post(client, review_path, status=200)
@@ -137,13 +137,13 @@ def test_plate_removal_review_approval_and_survey_http(tmp_path):
         assert all("seed" not in member and "job_id" not in member for member in review["members"])
         operation = get(client, f"/api/production/operations/{removal['id']}")
         raw = next(c for c in operation["candidates"] if c["output_key"] != "fitted")
-        post(client, "/api/production/plates/approve", {"candidate_id": raw["id"]}, status=422)
+        post(client, f"/api/production/candidates/{raw['id']}/approve", {}, status=422)
         picked, other = review["members"]
         assert get(client, f"/api/direction/places/{place['id']}")["plate_asset_id"] is None
         approved = post(
             client,
-            "/api/production/plates/approve",
-            {"candidate_id": picked["candidate_id"]},
+            f"/api/production/candidates/{picked['candidate_id']}/approve",
+            {},
             status=200,
         )
         assert (
@@ -152,16 +152,16 @@ def test_plate_removal_review_approval_and_survey_http(tmp_path):
         assert (
             post(
                 client,
-                "/api/production/plates/approve",
-                {"candidate_id": picked["candidate_id"]},
+                f"/api/production/candidates/{picked['candidate_id']}/approve",
+                {},
                 status=200,
             )
             == approved
         )
         post(
             client,
-            "/api/production/plates/approve",
-            {"candidate_id": other["candidate_id"]},
+            f"/api/production/candidates/{other['candidate_id']}/approve",
+            {},
             status=409,
         )
         assert get(client, f"/api/direction/places/{place['id']}") == approved
@@ -186,7 +186,6 @@ def test_plate_removal_review_approval_and_survey_http(tmp_path):
         with app.state.workspace.db.transaction() as session:
             stored = OperationService().operation(session, survey["id"])
             assert set(stored["jobs"][0]["inputs"]) == {approved["plate_asset_id"]}
-        post(client, f"/api/production/removals/{survey['id']}/review", status=409)
 
 
 def test_complete_http_slice_and_guards(tmp_path):
@@ -363,19 +362,19 @@ def test_complete_http_slice_and_guards(tmp_path):
         assert (
             get(client, "/api/production/operations", {"kind": "survey"})[0]["id"] == survey["id"]
         )
-        views = post(client, f"/api/production/surveys/{survey['id']}/review", status=200)
+        views = post(client, f"/api/production/operations/{survey['id']}/review", status=200)
         assert len(views["members"]) == 3
         extracted = {item["output_key"]: item for item in saved["candidates"]}
         target = post(
             client,
-            "/api/production/views/approve",
-            {"candidate_id": extracted[reverse]["id"]},
+            f"/api/production/candidates/{extracted[reverse]['id']}/approve",
+            {},
             status=200,
         )
         along_view = post(
             client,
-            "/api/production/views/approve",
-            {"candidate_id": extracted[along]["id"]},
+            f"/api/production/candidates/{extracted[along]['id']}/approve",
+            {},
             status=200,
         )
         wording = {
@@ -405,11 +404,11 @@ def test_complete_http_slice_and_guards(tmp_path):
             },
         )
         run_idle(app)
-        pins = post(client, f"/api/production/insertions/{insertion['id']}/review", status=200)
+        pins = post(client, f"/api/production/operations/{insertion['id']}/review", status=200)
         post(
             client,
-            "/api/production/pins/approve",
-            {"candidate_id": pins["members"][0]["candidate_id"]},
+            f"/api/production/candidates/{pins['members'][0]['candidate_id']}/approve",
+            {},
             status=200,
         )
         sheet = post_idempotently(
@@ -438,7 +437,7 @@ def test_complete_http_slice_and_guards(tmp_path):
         )
         run_idle(app)
         assert get(client, f"/api/production/operations/{rendered['id']}")["state"] == "succeeded"
-        review = post(client, f"/api/production/renders/{rendered['id']}/review", status=200)
+        review = post(client, f"/api/production/operations/{rendered['id']}/review", status=200)
         assert all("graph" not in member for member in review["members"])
         review_id = review["id"]
         assert get(client, f"/api/production/reviews/{review_id}/reveal", status=409)["detail"]

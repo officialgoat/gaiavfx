@@ -74,25 +74,16 @@ test("chat review links open the exact older operation or review receipt", async
   });
   await openMovie(page, data.movie.title);
   const planCard = page.getByRole("region", { name: "Plan revision 1" });
-  const exactOperation = page.waitForResponse((response) =>
-    response
-      .url()
-      .endsWith(`/api/production/operations/${data.survey.id}/summary`),
-  );
   const exactViews = page.waitForResponse(
     (response) =>
       response
         .url()
-        .endsWith(`/api/production/surveys/${data.survey.id}/review`) &&
+        .endsWith(`/api/production/operations/${data.survey.id}/review`) &&
       response.request().method() === "POST",
   );
   await planCard
     .getByRole("button", { name: "Open in Review", exact: true })
     .click();
-  expect(await (await exactOperation).json()).toEqual({
-    id: data.survey.id,
-    kind: "survey",
-  });
   expect((await (await exactViews).json()).id).toBe(data.views.id);
   await expect(
     page.getByRole("region", { name: "Source monitor" }),
