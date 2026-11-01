@@ -79,9 +79,5 @@ def families():
 
 
 def family_of(task):
-    """The family a task belongs to, read from its criteria."""
-    criteria = task.criteria
-    for name in ("film", "stage", "recast", "quality", "replacement"):
-        if criteria.get(name):
-            return families()[name]
-    return families()["outcome"]
+    """The family a task row names."""
+    return families()[task.family]

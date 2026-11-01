@@ -23,7 +23,7 @@ from harness_eval_family import family_of
 from harness_eval_fixtures import run_idle
 from harness_eval_outcome_state import audit
 from harness_eval_scripts import GOOD, SAY
-from harness_eval_tasks import FILM_TASKS, QUALITY_TASKS, STAGE_TASKS, TASKS
+from harness_eval_tasks import QUALITY_TASKS, TASKS, family_tasks
 
 
 def missing_required(raw, schema=None, prefix=""):
@@ -315,27 +315,23 @@ def parser():
 
 
 def task_names(text):
-    """Task ids from --tasks; "film" names every film-* task, "stage" every stage-* task, E<n> the n-th task."""
+    """Task ids from --tasks; a family's name (film, stage, ...) names all its tasks, E<n> the n-th task."""
     aliases = {f"E{i}": t.id for i, t in enumerate(TASKS, 1)}
-    families = {"film": FILM_TASKS, "stage": STAGE_TASKS}
     names = []
     for name in text.split(","):
-        names.extend(
-            [t.id for t in families[name]]
-            if name in families
-            else [aliases.get(name, name)]
-        )
+        family = [t.id for t in family_tasks(name)]
+        names.extend(family or [aliases.get(name, name)])
     return names
 
 
 def check_film_options(args, cli, tasks):
     # Film tasks patch module globals (the seeded film) or hold one copy: overlapping runs would read each other's
     # film (Astra's P5 review).
-    if args.workers != 1 and any(family_of(t).name in {"film", "stage"} for t in tasks):
+    if args.workers != 1 and any(t.family in {"film", "stage"} for t in tasks):
         cli.error("Film and stage tasks run one at a time; use --workers 1")
     if args.film_library is None:
         return
-    if any(family_of(t).name != "film" for t in tasks):
+    if any(t.family != "film" for t in tasks):
         cli.error("--film-library applies to film-* tasks only")
     from gaiavfx.shared.errors import ApplicationError
     from harness_eval_film import copy_library

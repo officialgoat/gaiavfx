@@ -52,8 +52,6 @@ UNDO_CHECKED = {
 
 def movie_spec(task):
     """The DZ courtyard contract: the task, its budgets and fixture switches, the authored parity inputs and media."""
-    from harness_eval_tasks import S7B_IDS
-
     result = {
         "id": task.id,
         "question": task.question,
@@ -80,7 +78,7 @@ def movie_spec(task):
         result["rubric_version"] = 2 if task.id == "P3" else 1
     if (
         task.fixture.get("second_segment")
-        or task.id in S7B_IDS
+        or "predecessor" in task.steps
         or task.criteria.get("preselect")
         or task.criteria.get("segment_cuts", 0) > 0
     ) and not task.fixture.get("empty_movie"):
@@ -91,16 +89,13 @@ def movie_spec(task):
 
 
 def movie_build(task, path):
-    from harness_eval_tasks import S7B_IDS
-
+    """The courtyard with the row's fixture switches, then its fixture steps in order."""
     work, setup = dz_library(path, **task.fixture)
-    if (task.id in S7B_IDS or task.criteria.get("preselect")) and not task.fixture.get(
-        "empty_movie"
-    ):
+    if "predecessor" in task.steps:
         prepare_fixture(task, work, setup)
-    if task.id == "hard-cut-at-frame-36":
+    if "uncut_second" in task.steps:
         uncut_second_segment(work, setup)
-    if "segment_cuts" in task.criteria:
+    if "window" in task.steps:
         prepare_segment_fixture(task, work, setup)
     return work, setup
 
