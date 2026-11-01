@@ -445,11 +445,22 @@ def resample(frame, xs, ys):
     yi, yw = _axis_weights(np.asarray(ys), frame.shape[0])
     scalar = frame.ndim == 2
     src = frame[..., None] if scalar else frame
-    horizontal = sum(
-        src[:, xi[:, k], :].astype(np.float32) * xw[None, :, k, None] for k in range(8)
-    )
-    result = sum(horizontal[yi[:, k], :, :] * yw[:, k, None, None] for k in range(8))
-    result = np.clip(np.rint(result), 0, 255).astype(np.uint8)
+    # The eight taps are float32 products added in order, k = 0..7, into reused buffers: the same arithmetic, and so
+    # the same bytes, as summing one temporary array per tap.
+    gathered = np.empty((src.shape[0], len(xi), src.shape[2]), np.uint8)
+    tap = np.empty(gathered.shape, np.float32)
+    horizontal = np.zeros(gathered.shape, np.float32)
+    for k in range(8):
+        np.take(src, xi[:, k], axis=1, out=gathered)
+        np.multiply(gathered, xw[None, :, k, None], out=tap)
+        horizontal += tap
+    rows = np.empty((len(yi), *horizontal.shape[1:]), np.float32)
+    result = np.zeros(rows.shape, np.float32)
+    for k in range(8):
+        np.take(horizontal, yi[:, k], axis=0, out=rows)
+        rows *= yw[:, k, None, None]
+        result += rows
+    result = np.clip(np.rint(result, out=result), 0, 255).astype(np.uint8)
     return result[..., 0] if scalar else result
 
 
