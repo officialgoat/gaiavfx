@@ -4648,6 +4648,39 @@ export interface components {
       /** Version */
       version: string;
     };
+    /** HistoryEntryDTO */
+    HistoryEntryDTO: {
+      /** Id */
+      id: string;
+      /** Movie Id */
+      movie_id: string;
+      /** Command */
+      command: string;
+      /**
+       * Target Kind
+       * @enum {string}
+       */
+      target_kind:
+        "movie" | "subject" | "segment" | "phase" | "cut" | "angle" | "place";
+      /** Target Id */
+      target_id: string;
+      /** Before */
+      before: {
+        [key: string]: unknown;
+      };
+      /** After */
+      after: {
+        [key: string]: unknown;
+      };
+      /** Undoes */
+      undoes: string | null;
+      /** Undone At */
+      undone_at: string | null;
+      /** Created At */
+      created_at: string;
+      /** Label */
+      label: string;
+    };
     /** ImportDTO */
     ImportDTO: {
       asset: components["schemas"]["AssetDTO"];
@@ -5003,7 +5036,7 @@ export interface components {
         [key: string]: components["schemas"]["SelectionsDTO"];
       };
       /** Receipts */
-      receipts: components["schemas"]["ReceiptDTO"][];
+      receipts: components["schemas"]["HistoryEntryDTO"][];
       undo: components["schemas"]["UndoTargetsDTO"];
     };
     /** NameInput */
@@ -9471,7 +9504,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          "application/json": components["schemas"]["ReceiptDTO"][];
+          "application/json": components["schemas"]["HistoryEntryDTO"][];
         };
       };
       /** @description Validation Error */

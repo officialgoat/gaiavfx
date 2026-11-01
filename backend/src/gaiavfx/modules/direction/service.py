@@ -788,6 +788,24 @@ class DirectionService:
     def read_receipt(self, session, receipt_id):
         return _public(_record(_get(session, ReceiptRecord, receipt_id)))
 
+    def history(self, session, movie_id, limit=50):
+        """The movie's newest receipts, each worded for its change history: the command, or what an undo reverses
+        ("Undo create cut") and what a redo puts back ("Redo create cut")."""
+        receipts = self.receipts(session, movie_id, limit)
+        by_id = {receipt["id"]: receipt for receipt in receipts}
+
+        def label(receipt):
+            depth, root = 0, receipt
+            while root["undoes"]:
+                depth += 1
+                root = by_id.get(root["undoes"]) or self.read_receipt(session, root["undoes"])
+            words = root["command"].replace("_", " ")
+            if not depth:
+                return words[:1].upper() + words[1:]
+            return ("Undo " if depth % 2 else "Redo ") + words
+
+        return [{**receipt, "label": label(receipt)} for receipt in receipts]
+
     def assemble_segment(self, session, segment_id):
         segment = self.read_segment(session, segment_id)
         cast = [

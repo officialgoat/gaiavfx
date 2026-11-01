@@ -42,7 +42,9 @@ export function EditorDialogs({
             ? "The first shot is built from the stage's views, so later scenes in this place look like it."
             : dialog === "buildSet"
               ? "One shot of this scene's take becomes a stage, so later scenes in this place can be built from it."
-              : "Shape your movie with segments, phases and cuts."
+              : dialog === "history"
+                ? "Each change to this movie, newest first. Undoing a change is itself a change you can undo."
+                : "Shape your movie with segments, phases and cuts."
       }
       open={!!dialog}
       onOpenChange={(open) => {
@@ -105,8 +107,8 @@ function DialogContent({
         <h2>GAIAVFX</h2>
         <p>A local-first filmmaking workstation.</p>
         <p>
-          Direct your film with segments, phases, cuts and references. Chat,
-          preparation and blind review are coming in this build.
+          Direct your film with segments, phases, cuts and references, prepare
+          and review candidates blind, and talk each shot through with Gaia.
         </p>
       </div>
     );
@@ -136,7 +138,7 @@ function DialogContent({
       <div className="receipt-list">
         {d.receipts.data?.map((receipt) => (
           <article key={receipt.id}>
-            <strong>{receipt.command.replaceAll("_", " ")}</strong>
+            <strong>{receipt.label}</strong>
             <small>{new Date(receipt.created_at).toLocaleString()}</small>
             <button
               disabled={

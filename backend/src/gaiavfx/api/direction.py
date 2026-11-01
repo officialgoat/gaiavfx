@@ -161,6 +161,10 @@ class ReceiptDTO(BaseModel):
     created_at: str
 
 
+class HistoryEntryDTO(ReceiptDTO):
+    label: str  # the change in words: "Create cut", "Undo create cut", "Redo create cut"
+
+
 class DirectionRevisionInput(DirectionInput):
     expected_revision: int = Field(strict=True, ge=1)
 
@@ -680,7 +684,7 @@ class MovieReadDTO(BaseModel):
     split_points: dict[str, list[DirectionSplitPointDTO]]
     keyframes: dict[str, list[KeyframeDTO]]
     selections: dict[str, SelectionsDTO]
-    receipts: list[ReceiptDTO]
+    receipts: list[HistoryEntryDTO]
     undo: UndoTargetsDTO
 
 
@@ -908,10 +912,10 @@ def direction_router(workspace, authenticate):
         with workspace.db.transaction() as session:
             return direction.remove_phase(session, phase_id, body.expected_revision)
 
-    @router.get("/movies/{movie_id}/receipts", response_model=list[ReceiptDTO])
+    @router.get("/movies/{movie_id}/receipts", response_model=list[HistoryEntryDTO])
     def receipts(movie_id: str, limit: int = Query(50, ge=1)):
         with workspace.db.transaction() as session:
-            return direction.receipts(session, movie_id, limit)
+            return direction.history(session, movie_id, limit)
 
     @router.post("/receipts/{receipt_id}/undo", response_model=UndoDTO)
     def undo(receipt_id: str):

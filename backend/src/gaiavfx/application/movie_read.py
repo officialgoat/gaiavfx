@@ -48,7 +48,7 @@ def movie_read(session, movie_id):
         "selections": {
             segment["id"]: selection_state(session, movie_id, segment["id"]) for segment in segments
         },
-        "receipts": direction.receipts(session, movie_id, RECEIPTS),
+        "receipts": direction.history(session, movie_id, RECEIPTS),
         "undo": direction.undo_targets(session, movie_id),
     }
 

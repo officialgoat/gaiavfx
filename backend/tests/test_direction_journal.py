@@ -198,6 +198,25 @@ def test_undo_and_redo_targets_follow_the_history(store):
         assert again["id"] != third["receipt"]["id"]
 
 
+def test_the_history_words_what_each_undo_reverses_and_each_redo_puts_back(store):
+    db, service = store
+    with db.transaction() as session:
+        segment = seed(service, session)
+        movie_id = segment["movie_id"]
+        edited = COMMANDS["update_segment"](service, session, segment)
+        undone = service.undo(session, edited["receipt"]["id"])
+        redone = service.undo(session, undone["id"])
+        service.undo(session, redone["id"])
+        labels = [entry["label"] for entry in service.history(session, movie_id, 4)]
+    # Newest first; a receipt beyond the window still names the command an older undo reverses.
+    assert labels == [
+        "Undo update segment",
+        "Redo update segment",
+        "Undo update segment",
+        "Update segment",
+    ]
+
+
 def composite(service, session, segment):
     """One authored intent: a cast member, a segment showing them and a cut in it."""
     movie_id = segment["movie_id"]
