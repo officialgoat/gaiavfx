@@ -88,6 +88,9 @@ class Tool:
     )
     # dropped in this order (lowest first) when the catalog would exceed the schema ceiling; None: never dropped
     overflow: ClassVar[int | None] = None
+    # The input field naming what an approved step of its kind targets (a cut, a scene, a stage); None for a tool no
+    # step aims. A call naming something else is refused before it runs (`require_target`).
+    target: ClassVar[str | None] = None
 
     def describe(self, context) -> str:
         """The catalog's text for this tool; a tool worded differently in a film overrides it."""
@@ -123,6 +126,44 @@ class Tool:
 
     def _run(self, context, value):
         raise NotImplementedError
+
+    def step_targets(self, context) -> list[str] | None:
+        """The ids the plan's current step lets this tool act on; None where the step does not constrain it."""
+        from gaiavfx.application.harness.tools.common import current_step
+
+        step = current_step(context)
+        if self.target is None or not step or step.kind != self.step_kind or not step.target:
+            return None
+        return self.targeted(context, step)
+
+    def targeted(self, context, step) -> list[str]:
+        """The ids the step's target names for this tool."""
+        return [step.target]
+
+    def supplied_target(self, context, supplied: dict) -> str | None:
+        return supplied.get(self.target) if self.target else None
+
+    def require_target(self, context, supplied: dict) -> None:
+        """Refuse a call that names something other than what the approved step targets."""
+        from gaiavfx.application.harness.tools.common import current_step
+        from gaiavfx.application.harness.tools.step_targets import label
+
+        targets = self.step_targets(context)
+        actual = self.supplied_target(context, supplied)
+        if targets is None or not actual or actual in targets:
+            return
+        step = current_step(context)
+        raise ApplicationError(
+            f"step_target_mismatch: '{step.title}' targets {label(context.state, step.target)}, not "
+            f"{label(context.state, actual)}. Retry {self.name} with "
+            + ", ".join(targets or [step.target])
+            + ".",
+            422,
+        )
+
+    def link(self, plan, result, value) -> str:
+        """Bind what this call did to the executing plan; the operation whose review the plan awaits, or ""."""
+        return ""
 
 
 def pin_property(schema, property_name, replacement):
@@ -550,9 +591,7 @@ def parse_action(raw, applicable, context=None):
         )
     tool, narrowed = found
     if context is not None:
-        from gaiavfx.application.harness.tools.step_targets import require_target
-
-        require_target(context, action.tool, action.input)
+        tool.require_target(context, action.input)
     try:
         value = tool.Input.model_validate(action.input)
     except ValidationError as error:

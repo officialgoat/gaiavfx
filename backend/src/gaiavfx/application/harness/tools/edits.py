@@ -22,7 +22,6 @@ from gaiavfx.application.harness.tools.common import (
     TransactionTool,
     direction_receipt,
     edited,
-    granted,
     scoped,
 )
 from gaiavfx.application.harness.tools.cut_angles import cut_result, resolve_angles
@@ -102,8 +101,6 @@ class EditCut(TransactionTool):
     def narrow(self, context):
         from gaiavfx.application.harness.tools.preparation_schema import cut_insertion_branches
 
-        if not granted(context, "edit"):
-            return None
         ids = [cut["id"] for cut in context.state.cuts]
         segments = [s["id"] for s in context.state.segments]
         angles = [a["id"] for p in context.state.places for a in p["angles"]]
@@ -265,8 +262,6 @@ class EditSegment(TransactionTool):
         context_frames: int | None = Field(default=None, gt=0, strict=True)
 
     def narrow(self, context):
-        if not granted(context, "edit"):
-            return None
         required = ["expected_revision", "subject_ids", "place", "delivered_frames", "continues"]
         specs = {"add": ([*required, "phases"], [*required, "phases", "style", "at"])}
         ids = [s["id"] for s in context.state.segments]
@@ -352,8 +347,6 @@ class EditPhase(TransactionTool):
         sound: str | None = Field(default=None, max_length=8000)
 
     def narrow(self, context):
-        if not granted(context, "edit"):
-            return None
         segments = [s["id"] for s in context.state.segments]
         phases = [p["id"] for s in context.state.segments for p in s["phases"]]
         specs = {}
@@ -447,8 +440,6 @@ class EditCast(TransactionTool):
         identity_asset_id: str | None = None
 
     def narrow(self, context):
-        if not granted(context, "edit"):
-            return None
         required = ["expected_revision", "name", "description", "keeps"]
         specs = {"add": (required, [*required, "identity_asset_id"])}
         ids = [s["id"] for s in context.state.cast]

@@ -7,6 +7,7 @@ from harness_kernel_support import draft_context
 from harness_support import action
 
 from gaiavfx.application.harness.actions import parse_action
+from gaiavfx.application.harness.tools.common import tool_schema
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.places import EditPlace
 from gaiavfx.modules.direction.service import DirectionService
@@ -47,7 +48,7 @@ def test_storyline_refusals_roll_back_all_segments_receipts_and_board(kernel):
     stale = tool.run(context, tool.Input(expected_revision=1, beats=beats)).discrepancy
     assert stale.startswith("Movie revision is 2. Call draft_storyline again")
     context.document.plan.grant.step_kinds = ["answer"]
-    assert tool.narrow(context) is None
+    assert tool_schema(context, tool) is None
     assert (
         "Not in the approved plan"
         in tool.run(context, tool.Input(expected_revision=2, beats=beats)).discrepancy
@@ -110,5 +111,5 @@ def test_place_add_set_grant_and_late_failure_rollback(kernel, monkeypatch):
     )
     assert tool.run(context, change).ok
     context.document.plan.grant.step_kinds = ["answer"]
-    assert tool.narrow(context) is None
+    assert tool_schema(context, tool) is None
     assert not tool.run(context, value).ok

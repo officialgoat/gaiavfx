@@ -134,6 +134,7 @@ def preparable(context, shot):
 
 class PrepareCut(TransactionTool):
     name = "prepare_cut"
+    target = "cut_id"
     step_kind = "prepare"
     description = "Prepare references, including free sheet assembly; wait for human reviews."
 
@@ -146,7 +147,25 @@ class PrepareCut(TransactionTool):
     def narrow(self, context):
         from gaiavfx.application.harness.tools.preparation_schema import prepare_schema
 
-        return prepare_schema(self.Input, context)
+        return prepare_schema(self, context)
+
+    def step_targets(self, context):
+        from gaiavfx.application.harness.tools.common import current_step
+
+        step = current_step(context)
+        if step and step.kind == "render":
+            from gaiavfx.application.harness.tools.preparation_progress import render_sheet_targets
+
+            return render_sheet_targets(context)
+        return super().step_targets(context)
+
+    def targeted(self, context, step):
+        from gaiavfx.application.harness.shots import targeted_shots
+
+        return [shot["id"] for shot in targeted_shots(context.state, step.target)]
+
+    def link(self, plan, result, value):
+        return result.payload.get("operation_id", "") if result.payload.get("review") else ""
 
     def execute(self, session, context, value):
         if context.cancelled():

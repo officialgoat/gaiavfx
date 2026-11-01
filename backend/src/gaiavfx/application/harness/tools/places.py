@@ -9,7 +9,7 @@ from gaiavfx.application.harness.actions import ToolResult, branch_by_op, inline
 from gaiavfx.application.harness.board import write_entry
 from gaiavfx.application.harness.knowledge import load
 from gaiavfx.application.harness.tools.authoring import PLACE_TEXT
-from gaiavfx.application.harness.tools.common import TransactionTool, granted, scoped
+from gaiavfx.application.harness.tools.common import TransactionTool, scoped
 from gaiavfx.application.harness.tools.input_hints import example, place_input
 from gaiavfx.application.harness.world import direction
 from gaiavfx.shared.contracts import StrictModel
@@ -49,8 +49,6 @@ class EditPlace(TransactionTool):
         angles: list[AngleText] = Field(default_factory=list, max_length=24)
 
     def narrow(self, context):
-        if not granted(context, "edit"):
-            return None
         schema = inlined(self.Input.model_json_schema())
         specs = {
             "add_place": {
@@ -91,6 +89,13 @@ class EditPlace(TransactionTool):
                 else:
                     branch["properties"].pop("angles")
         return schema
+
+    def link(self, plan, result, value):
+        if value.op in {"add_place", "add_angle"}:
+            current = next((s for s in plan.steps if s.status == "pending"), None)
+            if current:
+                current.target = (result.payload.get("place") or result.payload["angle"])["id"]
+        return ""
 
     def execute(self, session, context, value):
         # Direction refuses words that put a person or the movie's cast in the empty place.

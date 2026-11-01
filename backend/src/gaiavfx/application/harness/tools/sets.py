@@ -236,6 +236,7 @@ class LinkSet(TransactionTool):
 
 class FillSetMore(TransactionTool):
     name = "fill_set_more"
+    target = "set_id"
     step_kind = "build"
     overflow = 0
     description = (
@@ -253,6 +254,9 @@ class FillSetMore(TransactionTool):
         if step and step.kind == "build" and step.target in ids:
             ids = [step.target]  # a build step fills the stage it names
         return pin_enum(self.Input.model_json_schema(), "set_id", ids) if ids else None
+
+    def targeted(self, context, step):
+        return [r["id"] for r in getattr(context.state, "sets", []) if r["id"] == step.target]
 
     def execute(self, session, context, value):
         scoped(rows(context), value.set_id, "Stage")
@@ -276,6 +280,7 @@ class FillSetMore(TransactionTool):
 
 class BuildSetFromTake(TransactionTool):
     name = "build_set_from_take"
+    target = "segment_id"
     step_kind = "build"
     overflow = 1
     description = (
@@ -302,6 +307,9 @@ class BuildSetFromTake(TransactionTool):
         if step and step.kind == "build" and step.target in ids:
             ids = [step.target]  # a build step builds from the scene it names
         return pin_enum(self.Input.model_json_schema(), "segment_id", ids) if ids else None
+
+    def targeted(self, context, step):
+        return [r["id"] for r in context.state.segments if r["id"] == step.target]
 
     def execute(self, session, context, value):
         scoped(context.state.segments, value.segment_id, "Segment")

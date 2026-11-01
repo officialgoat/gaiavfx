@@ -191,10 +191,8 @@ def edited(context, row, *, structural=False, receipts=None):
 
 class TransactionTool(Tool):
     def _run(self, context, value):
-        from gaiavfx.application.harness.tools.step_targets import require_target
-
         try:
-            require_target(context, self.name, value.model_dump())
+            self.require_target(context, value.model_dump())
             if self.step_kind and (
                 not granted(context, self.step_kind) or not step_applicable(context, self)
             ):

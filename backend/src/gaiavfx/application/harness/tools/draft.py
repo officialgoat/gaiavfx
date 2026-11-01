@@ -11,7 +11,6 @@ from gaiavfx.application.harness.tools.common import (
     TransactionTool,
     candidates,
     edited,
-    granted,
     intent_receipt,
     scoped,
 )
@@ -122,8 +121,6 @@ class DraftStoryline(TransactionTool):
         beats: list[StoryBeat] = Field(min_length=1, max_length=DEFAULTS["beats_max"])
 
     def narrow(self, context):
-        if not granted(context, "edit"):
-            return None
         schema = inlined(self.Input.model_json_schema())
         beats = schema["properties"]["beats"]["items"]
         beat = beats["properties"]

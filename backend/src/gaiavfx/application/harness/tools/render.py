@@ -12,7 +12,7 @@ from gaiavfx.application.harness.tools.common import (
     permitted,
     scoped,
 )
-from gaiavfx.application.harness.tools.step_targets import target_ids, target_problem
+from gaiavfx.application.harness.tools.step_targets import target_problem
 from gaiavfx.application.harness.world import FINISHED, IN_FLIGHT, operations
 from gaiavfx.application.render_cut import start_render
 from gaiavfx.modules.agent.service import AgentStore
@@ -38,6 +38,7 @@ def render_blocked(ops, read):
 
 class RenderCandidates(TransactionTool):
     name = "render_candidates"
+    target = "segment_id"
     step_kind = "render"
     description = (
         "Render count takes (default 2) of required segment_id within budget. Never selects."
@@ -78,7 +79,7 @@ class RenderCandidates(TransactionTool):
                 context.state.reported_reviews,
             )
         ]
-        targets = target_ids(context, self.name)
+        targets = self.step_targets(context)
         if targets is not None:
             ids = targets
         if not ids:
@@ -95,6 +96,20 @@ class RenderCandidates(TransactionTool):
         schema["properties"]["count"].update(maximum=min(4, left), default=min(2, left))
         # The input validator enforces exactly one target on every execution path.
         return schema
+
+    def targeted(self, context, step):
+        if any(a["id"] == step.target for a in getattr(context.state, "people_analyses", [])):
+            return []
+        return [
+            s["id"]
+            for s in context.state.segments
+            if step.target == s["id"] or any(c["id"] == step.target for c in s["cuts"])
+        ]
+
+    def supplied_target(self, context, supplied):
+        return supplied.get("segment_id") or next(
+            (c["segment_id"] for c in context.state.cuts if c["id"] == supplied.get("cut_id")), None
+        )
 
     def execute(self, session, context, value):
         if context.cancelled():

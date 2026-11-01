@@ -8,7 +8,6 @@ from gaiavfx.application.harness.shots import shot_plan, shots
 from gaiavfx.application.harness.tools.common import permitted
 from gaiavfx.application.harness.tools.input_hints import known_empty_image, removal_requested
 from gaiavfx.application.harness.tools.insertion import insertion_defaults
-from gaiavfx.application.harness.tools.step_targets import target_ids
 from gaiavfx.application.harness.world import direction
 from gaiavfx.application.prepare_references import VIEW_ACTIONS, view_producer
 from gaiavfx.modules.direction.insertion import PLACEMENT_FIELDS
@@ -83,12 +82,12 @@ def cut_insertion_branches(schema, context):
     return branches[0] if len(branches) == 1 else {"oneOf": branches}
 
 
-def prepare_schema(model, context):
+def prepare_schema(tool, context):
     from gaiavfx.application.harness.tools.prepare import preparable
 
     if not permitted(context, "prepare"):
         return None
-    targets = target_ids(context, "prepare_cut")
+    targets = tool.step_targets(context)
     chosen = (
         [s for s in shots(context.state) if s["id"] in targets]
         if targets is not None
@@ -96,7 +95,7 @@ def prepare_schema(model, context):
     )
     if not chosen:
         return None
-    base = inlined(model.model_json_schema())
+    base = inlined(tool.Input.model_json_schema())
     places = {p["id"]: p for p in context.state.places}
     assets = [*context.attachments, *context.state.assets]
     grouped = {}

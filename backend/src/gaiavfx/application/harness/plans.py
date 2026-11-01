@@ -343,35 +343,7 @@ class PlanCommands:
                 {"kind": "operation", "id": result.waits_on, "budget_reserved": 0, "attached": True}
             )
         self._link_receipts(document, receipts)
-        if tool.name == "start_recast_run":
-            # The run's results wait in the recast's own review queue, not a Generation review
-            # set: the render step's next review waits for the user there.
-            producer = plan.current()
-            if producer and producer.kind == "render":
-                start = plan.steps.index(producer) + 1
-                review = next(
-                    (s for s in plan.steps[start:] if s.kind == "review" and s.status == "pending"),
-                    None,
-                )
-                if review:
-                    # The run's own range goes with the step: a later run over other shots must not
-                    # complete this review (Astra R-C). No range is the whole film.
-                    review.status = "awaiting_user"
-                    review.review = RecastReview(
-                        recast_id=value.recast_id,
-                        start=value.range.start if value.range else None,
-                        end=value.range.end if value.range else None,
-                    )
-            return
-        if tool.name == "edit_place" and value.op in {"add_place", "add_angle"}:
-            current = next((s for s in plan.steps if s.status == "pending"), None)
-            if current:
-                current.target = (result.payload.get("place") or result.payload["angle"])["id"]
-        operation_id = ""
-        if tool.name == "read_candidates":
-            operation_id = value.operation_id
-        elif tool.name == "prepare_cut" and result.payload.get("review"):
-            operation_id = result.payload.get("operation_id", "")
+        operation_id = tool.link(plan, result, value)
         if not operation_id:
             return
         with self.db.transaction() as session:

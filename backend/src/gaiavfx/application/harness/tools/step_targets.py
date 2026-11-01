@@ -1,8 +1,7 @@
-"""Match producer calls to the approved step, independently of model grammar."""
+"""What an approved step targets, in Gaia's words, and why it cannot be prepared or rendered yet. Each tool says
+which ids its step allows (`Tool.step_targets`)."""
 
-from gaiavfx.application.harness.shots import targeted_shots
 from gaiavfx.application.harness.tools.common import current_step
-from gaiavfx.shared.errors import ApplicationError
 
 
 def label(state, target):
@@ -19,64 +18,6 @@ def label(state, target):
     return target
 
 
-def target_ids(context, name):
-    step = current_step(context)
-    if step and step.kind == "render" and name == "prepare_cut":
-        from gaiavfx.application.harness.tools.preparation_progress import render_sheet_targets
-
-        return render_sheet_targets(context)
-    kinds = {
-        "prepare_cut": "prepare",
-        "render_candidates": "render",
-        "build_set_from_take": "build",
-        "fill_set_more": "build",
-    }
-    if not step or step.kind != kinds.get(name) or not step.target:
-        return None
-    if name == "build_set_from_take":
-        # A build step builds from the scene it names, or fills the stage it names (ADR 0020 §8).
-        return [s["id"] for s in context.state.segments if s["id"] == step.target]
-    if name == "fill_set_more":
-        return [r["id"] for r in getattr(context.state, "sets", []) if r["id"] == step.target]
-    if name == "render_candidates":
-        if any(a["id"] == step.target for a in getattr(context.state, "people_analyses", [])):
-            return []
-        return [
-            s["id"]
-            for s in context.state.segments
-            if step.target == s["id"] or any(c["id"] == step.target for c in s["cuts"])
-        ]
-    return [shot["id"] for shot in targeted_shots(context.state, step.target)]
-
-
-def target_refusal(context, name, supplied):
-    targets = target_ids(context, name)
-    if targets is None:
-        return ""
-    actual = supplied.get(
-        {"prepare_cut": "cut_id", "fill_set_more": "set_id"}.get(name, "segment_id")
-    )
-    if name == "render_candidates" and not actual:
-        actual = next(
-            (c["segment_id"] for c in context.state.cuts if c["id"] == supplied.get("cut_id")), None
-        )
-    if not actual or actual in targets:
-        return ""
-    step = current_step(context)
-    return (
-        f"step_target_mismatch: '{step.title}' targets {label(context.state, step.target)}, not {label(context.state, actual)}. Retry {name} with "
-        + ", ".join(targets or [step.target])
-        + "."
-    )
-
-
-def require_target(context, name, supplied):
-    if name in {"render_candidates", "prepare_cut", "build_set_from_take", "fill_set_more"} and (
-        reason := target_refusal(context, name, supplied)
-    ):
-        raise ApplicationError(reason, 422)
-
-
 def target_problem(context, name):
     step = current_step(context)
     if step and any(r["id"] == step.target for r in getattr(context.state, "recasts", [])):
@@ -85,7 +26,9 @@ def target_problem(context, name):
         # Render diagnostics already explain its prerequisites. An unavailable
         # optional sheet recovery is not an invalid preparation target.
         return ""
-    targets = target_ids(context, name)
+    from gaiavfx.application.harness.tools import DEFAULT_TOOLS
+
+    targets = next(t for t in DEFAULT_TOOLS if t.name == name).step_targets(context)
     if targets is None:
         return ""
     step = current_step(context)

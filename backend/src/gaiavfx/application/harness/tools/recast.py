@@ -341,6 +341,27 @@ class StartRecastRun(ReadRecast):
         ids = [r["id"] for r in rows(context) if not step or r["id"] == step.target]
         return pin_enum(inlined(self.Input.model_json_schema()), "recast_id", ids) if ids else None
 
+    def link(self, plan, result, value):
+        # The render step's next review waits for the user there, over the run's own range: a later run over other
+        # shots must not complete it (Astra R-C). No range is the whole film.
+        from gaiavfx.application.harness.session import RecastReview
+
+        producer = plan.current()
+        if producer and producer.kind == "render":
+            start = plan.steps.index(producer) + 1
+            review = next(
+                (s for s in plan.steps[start:] if s.kind == "review" and s.status == "pending"),
+                None,
+            )
+            if review:
+                review.status = "awaiting_user"
+                review.review = RecastReview(
+                    recast_id=value.recast_id,
+                    start=value.range.start if value.range else None,
+                    end=value.range.end if value.range else None,
+                )
+        return ""
+
     def execute(self, session, context, value):
         if context.cancelled():
             raise ApplicationError("Cancelled by the user.", 409)

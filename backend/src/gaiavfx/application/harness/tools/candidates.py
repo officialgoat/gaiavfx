@@ -47,6 +47,9 @@ class ReadCandidates(TransactionTool):
         ]
         return pin_enum(self.Input.model_json_schema(), "operation_id", ids) if ids else None
 
+    def link(self, plan, result, value):
+        return value.operation_id
+
     def execute(self, session, context, value):
         scoped(context.state.operations, value.operation_id, "Operation")
         operation = operations.operation(session, value.operation_id)

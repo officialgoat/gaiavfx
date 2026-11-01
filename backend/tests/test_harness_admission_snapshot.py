@@ -24,7 +24,7 @@ from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import DEFAULT_TOOLS, applicable_tools
 from gaiavfx.application.harness.tools.common import truthful_refusal
-from gaiavfx.application.harness.tools.step_targets import require_target, target_problem
+from gaiavfx.application.harness.tools.step_targets import target_problem
 from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.shared.errors import ApplicationError
 
@@ -63,8 +63,9 @@ def observe(context):
         "schema_bytes": len(schema),
         "absent_call": absent and refused(lambda: parse_action(action(absent), tools, context)),
         "targets": {
-            name: refused(lambda name=name: require_target(context, name, ELSEWHERE))
-            for name in PRODUCERS
+            tool.name: refused(lambda tool=tool: tool.require_target(context, ELSEWHERE))
+            for tool in DEFAULT_TOOLS
+            if tool.name in PRODUCERS
         },
         "target_problems": {name: target_problem(context, name) for name in PRODUCERS},
         "step_jobs_left": step_jobs_left(context),
