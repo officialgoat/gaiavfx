@@ -83,7 +83,10 @@ export async function seedProduction(
   const plates = await post<S["ReviewDTO"]>(
     `/api/production/operations/${plateOperation.id}/review`,
   );
-  const plate = await post<S["PlaceDTO"]>(`/api/production/candidates/${plates.members[0].candidate_id}/approve`, {});
+  const plate = await post<S["PlaceDTO"]>(
+    `/api/production/candidates/${plates.members[0].candidate_id}/approve`,
+    {},
+  );
   const body = {
     place_id: placeId,
     seed: 12,
@@ -124,7 +127,7 @@ export async function seedProduction(
       render: undefined,
       review: undefined,
     };
-  const approved: S["ProductionEvidenceDTO"][] = [];
+  const approved: S["EvidenceDTO"][] = [];
   for (const m of views.members)
     approved.push(
       await post(`/api/production/candidates/${m.candidate_id}/approve`, {}),
@@ -158,7 +161,10 @@ export async function seedProduction(
   const pins = await post<S["ReviewDTO"]>(
     `/api/production/operations/${insertion.id}/review`,
   );
-  await post(`/api/production/candidates/${pins.members[0].candidate_id}/approve`, {});
+  await post(
+    `/api/production/candidates/${pins.members[0].candidate_id}/approve`,
+    {},
+  );
   const layout = await get<S["ProductionSheetTilesDTO"]>(
     `/api/production/places/${placeId}/sheet-tiles`,
   );

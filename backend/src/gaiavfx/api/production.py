@@ -14,7 +14,7 @@ from pydantic import (
     model_validator,
 )
 
-from gaiavfx.api.direction import PlaceDTO, ReceiptDTO, SelectionDTO, SelectionsDTO
+from gaiavfx.api.direction import EvidenceDTO, PlaceDTO, ReceiptDTO, SelectionDTO, SelectionsDTO
 from gaiavfx.application import operation_kinds, review_approvals, set_seed, set_views
 from gaiavfx.application.authored import load_survey, validate_insertion
 from gaiavfx.application.candidate_review import (
@@ -483,18 +483,6 @@ class ReviewDTO(BaseModel):
     rejection: ProductionReferenceRejectionDTO | None = None
 
 
-class ProductionEvidenceDTO(BaseModel):
-    id: str
-    angle_id: str
-    kind: str
-    asset_id: str
-    approved: bool
-    approved_at: str | None
-    approved_by: str | None
-    inputs: dict | None
-    created_at: str
-
-
 class ProductionKeyframeDTO(BaseModel):
     receipt: ReceiptDTO | None = None
     subject_asset_id: str | None
@@ -723,10 +711,7 @@ def production_router(workspace, authenticate):
 
     @router.post(
         "/candidates/{candidate_id}/approve",
-        response_model=PlaceDTO
-        | ProductionEvidenceDTO
-        | ProductionKeyframeDTO
-        | ReplacementApprovalDTO,
+        response_model=PlaceDTO | EvidenceDTO | ProductionKeyframeDTO | ReplacementApprovalDTO,
     )
     def approve_candidate(candidate_id: str, body: ApprovalInput):
         """Approve a candidate as what its operation prepares: the place's plate, an angle's view, the cut's pin or

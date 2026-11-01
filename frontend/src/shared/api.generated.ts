@@ -5179,29 +5179,6 @@ export interface components {
       /** Checks */
       checks: components["schemas"]["PrescreenCheckDTO"][];
     };
-    /** ProductionEvidenceDTO */
-    ProductionEvidenceDTO: {
-      /** Id */
-      id: string;
-      /** Angle Id */
-      angle_id: string;
-      /** Kind */
-      kind: string;
-      /** Asset Id */
-      asset_id: string;
-      /** Approved */
-      approved: boolean;
-      /** Approved At */
-      approved_at: string | null;
-      /** Approved By */
-      approved_by: string | null;
-      /** Inputs */
-      inputs: {
-        [key: string]: unknown;
-      } | null;
-      /** Created At */
-      created_at: string;
-    };
     /** ProductionKeyframeDTO */
     ProductionKeyframeDTO: {
       receipt?: components["schemas"]["ReceiptDTO"] | null;
@@ -10575,7 +10552,7 @@ export interface operations {
         content: {
           "application/json":
             | components["schemas"]["PlaceDTO"]
-            | components["schemas"]["ProductionEvidenceDTO"]
+            | components["schemas"]["EvidenceDTO"]
             | components["schemas"]["ProductionKeyframeDTO"]
             | components["schemas"]["ReplacementApprovalDTO"];
         };
