@@ -64,6 +64,10 @@ whole while nothing has changed it since.
 One requested piece of generation work, with its frozen inputs, jobs and outputs.
 _Avoid_: run (a run is Recast's), task
 
+**Operation kind**:
+What an Operation prepares and how a person reviews its candidates: whether a review opens, whether it still waits
+on the person, and whether it is a Recast render a film keeps blind.
+
 **Attempt**:
 One try at producing the same product; a retry is a new Attempt of it.
 
@@ -83,6 +87,11 @@ The Take chosen for a Segment, by the user or provisionally by Gaia.
 
 **Review**:
 The user's blind ranking of lettered Takes.
+
+**Approval**:
+The user accepting one candidate as what its Operation prepares: a plate, a view, a pin or a replacement. Gaia never
+approves.
+_Avoid_: selection (a Selection is a Take's)
 
 **Process file**:
 Media a workflow makes along the way rather than for the user to use, hidden until asked for.
