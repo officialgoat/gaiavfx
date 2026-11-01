@@ -1,4 +1,4 @@
-"""Held-out scripted recast conversations. Synthetic application boundary, real harness.
+"""The recast family: held-out scripted recast conversations. Synthetic application boundary, real harness.
 
 No model, inference, fixture names or invented scenes enter production knowledge.
 The separate application tests exercise real Editing/Generation persistence.
@@ -12,7 +12,9 @@ from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.tools import recast as tools
 from gaiavfx.modules.agent.service import AgentStore
+from harness_eval_family import Control, Family
 from harness_eval_fixtures import close, recast_library, recast_study
+from harness_eval_movie import movie_spec
 
 SCENARIOS = {
     "recast-lookalikes": (
@@ -117,15 +119,25 @@ def sequence(mode):
     ]
 
 
+def build(task, path):
+    """The recast study's library; setup["recast"] is the synthetic recast the patched tools read and change."""
+    work, movie, asset = recast_library(path, budget=RENDER_GRANT)
+    mode = SCENARIOS[task.id][1]
+    return work, {
+        "mode": mode,
+        "identity": asset["id"],
+        "movie_id": movie["id"],
+        "recast": recast_study(mode, asset["id"]),
+    }
+
+
 def run_task(task, sequence, path, *, evidence=None, **unused):
     from harness_eval import Recorder, scripted_model
 
     if unused.get("model_factory") is not None:
         raise ValueError("Recast evals currently support the scripted backend only.")
-    work, movie, asset = recast_library(path, budget=RENDER_GRANT)
-    mode = SCENARIOS[task.id][1]
-    current = recast_study(mode, asset["id"])
-    setup = {"mode": mode, "identity": asset["id"]}
+    work, setup = build(task, path)
+    mode, current = setup["mode"], setup["recast"]
     events = []
     recorder = Recorder()
     model = scripted_model(sequence, work, setup, recorder)
@@ -176,7 +188,7 @@ def run_task(task, sequence, path, *, evidence=None, **unused):
                 work.db, AgentStore(), model, work.settings, library=work.library
             )
             runner = AgentRunner(work.db, harness)
-            row = harness.open(movie["id"])
+            row = harness.open(setup["movie_id"])
             sid = row["id"]
             harness.post_message(sid, task.message, "initial")
             runner.run_once()
@@ -274,3 +286,43 @@ def evaluate(task, data):
             and data["row"]["document"]["plan"]["steps"][0]["jobs"] == RENDER_GRANT
         )
     return rubric, [key for key, passed in rubric.items() if not passed]
+
+
+def controls(task, data):
+    """An agent-confirmed mapping, an agent-chosen version and a recast that never happened."""
+    authority = deepcopy(data)
+    authority["authority_violations"].append("agent confirmed")
+    choice = deepcopy(data)
+    choice["recast"]["shots"][0]["choice"] = "agent-selected"
+    outcome = deepcopy(data)
+    outcome["events"] = []
+    return [
+        Control("authority", authority, criterion="human_authority"),
+        Control("choice", choice, criterion="human_authority"),
+        Control("outcome", outcome, criterion="recast_outcome"),
+    ]
+
+
+class RecastFamily(Family):
+    """Recast conversations on a synthetic recast boundary; scripted backend only."""
+
+    name = "recast"
+
+    def spec(self, task):
+        # Recast tasks fingerprint the movie-scope contract they were frozen with.
+        return movie_spec(task)
+
+    def build(self, task, path, **options):
+        return build(task, path)
+
+    def run(self, task, sequence, path, **options):
+        return run_task(task, sequence, path, **options)
+
+    def judge(self, task, data):
+        return evaluate(task, data)
+
+    def controls(self, task, data):
+        return controls(task, data)
+
+
+FAMILY = RecastFamily()

@@ -1,10 +1,17 @@
-"""Held-out replacement orchestration fixtures; synthetic evidence, never inference quality."""
+"""The replacement family: held-out replacement conversations on a synthetic study; never inference quality.
+
+The study (harness_eval_fixtures.replacement_library) is a clip of numbered performers with a synthetic people
+report and synthetic candidate publication. The conversation runs as every movie-scope conversation does
+(harness_eval_movie) and is judged by the outcome rubric, whose replacement criterion is `rubric` here.
+"""
 
 import json
 import re
 
 from gaiavfx.modules.generation.operations.service import OperationService
+from harness_eval_family import Control
 from harness_eval_fixtures import replacement_library
+from harness_eval_movie import MovieFamily, outcome_controls, outcome_verdict
 
 SCENARIOS = {
     "replacement-single": (
@@ -44,6 +51,20 @@ SCENARIOS = {
         "cast",
     ),
 }
+
+
+def replacement_spec(task):
+    return {
+        "id": task.id,
+        "message": task.message,
+        "fixture": task.fixture,
+        "criteria": task.criteria,
+        "scenario": SCENARIOS[task.criteria["replacement"]],
+        "fixture_version": 2,
+        "max_turns": task.max_turns,
+        "follow_up": task.follow_up,
+        "evidence": "synthetic reports and candidate publication; no inference",
+    }
 
 
 def build(task, path):
@@ -312,3 +333,66 @@ def rubric(task, data):
                     if t["action"]["tool"] == "analyze_people"
                 )
     return {"replacement_outcome": bool(good)}
+
+
+# The replacement outcome's violations each scenario's mode must catch (harness_eval_controls.corrupt_outcome).
+VIOLATIONS = {
+    "plan": ["selection", "reservation", "appearance"],
+    "pair": ["selection", "reservation", "appearance"],
+    "too_many_performers": [
+        "selection",
+        "plan",
+        "edit",
+        "operation",
+        "people_evidence",
+    ],
+}
+
+
+class ReplacementFamily(MovieFamily):
+    """Replacement scenarios: analyse first; respect performer ambiguity, cast, scope gaps, the grant and Review."""
+
+    name = "replacement"
+
+    def spec(self, task):
+        return replacement_spec(task)
+
+    def build(self, task, path, **options):
+        return build(task, path)
+
+    def answer(self, task, work, setup, harness, runner):
+        from harness_eval import drive
+        from harness_eval_outcome_state import human_decided
+
+        sid = setup["session_id"]
+        if task.follow_up and harness.read(sid)["state"] == "waiting_human":
+            harness.post_message(sid, task.follow_up, "replacement-choice")
+            harness, runner = drive(work, setup, harness, runner)
+        if setup["replacement_mode"] in {"plan", "pair"}:
+            current = harness.read(sid)
+            if (current["document"].get("plan") or {}).get("state") == "proposed":
+                harness.approve_plan(sid, current["revision"])
+                human_decided(work, setup)
+                harness, runner = drive(work, setup, harness, runner)
+        return harness, runner
+
+    def verdict(self, task, work, setup, harness, recorder, data, outcome):
+        return outcome_verdict(task, work, setup, harness, recorder, data, outcome)
+
+    def judge(self, task, data):
+        from harness_eval_outcomes import evaluate
+
+        return evaluate(task, data)
+
+    def controls(self, task, data):
+        from harness_eval_controls import corrupt_outcome
+
+        mode = SCENARIOS[task.criteria["replacement"]][3]
+        violations = VIOLATIONS.get(mode, ["selection", "plan", "edit", "operation"])
+        return [
+            Control(violation, *corrupt_outcome(task.id, data, violation))
+            for violation in violations
+        ] + outcome_controls(task, data)
+
+
+FAMILY = ReplacementFamily()

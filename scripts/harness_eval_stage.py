@@ -1,4 +1,4 @@
-"""Stage tasks for the agent eval (ADR 0020 §8): the agent reads, uses, aims, builds and fills more of stages in a
+"""The stage family of the agent eval (ADR 0020 §8): the agent reads, uses, aims, builds and fills more of stages in a
 movie whose two scenes share a place, through the harness's public commands, as a user would drive the chat.
 
 The library is `set_scene.build_scene` (backend/tests): a synthetic take selected on scene 1, whose first shot moves
@@ -11,6 +11,7 @@ an approved plan's build step, and the conversation stays within its jobs.
 
 import sys
 from contextlib import ExitStack
+from copy import deepcopy
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,6 +24,7 @@ from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.infrastructure import engines
 from gaiavfx.modules.agent.service import AgentStore
+from harness_eval_family import Control, Family
 from harness_eval_fixtures import STAGE, built_stage, close, stage_facts, stage_scene
 from set_scene import OPERATIONS
 
@@ -362,6 +364,21 @@ def evaluate(task, data):
 # ---------------------------------------------------------------- one task
 
 
+def stage_fixture(task, path):
+    """The two scenes and, for a task that starts from one, the built and accepted stage.
+
+    Runs the fake build stages, so call it with engines.free_vram_gb patched (as run_task does).
+    """
+    scene = stage_scene(path)
+    try:
+        set_id = built_stage(scene) if task.criteria.get("built") else None
+        facts = stage_facts(scene, set_id)
+    except BaseException:
+        close(scene.workspace)
+        raise
+    return scene.workspace, {"scene": scene, "facts": facts}
+
+
 def run_task(
     task, sequence, path, *, model_factory=None, settings=None, evidence=None, **unused
 ):
@@ -372,11 +389,9 @@ def run_task(
     with ExitStack() as stack:
         # The fakes' GPU stages take the lease of the fake endpoint, never the assistant's (ADR 0015).
         stack.enter_context(patch.object(engines, "free_vram_gb", lambda: None))
-        scene = stage_scene(path)
-        work = scene.workspace
+        work, built = stage_fixture(task, path)
         stack.callback(close, work)
-        set_id = built_stage(scene) if task.criteria.get("built") else None
-        facts = stage_facts(scene, set_id)
+        scene, facts = built["scene"], built["facts"]
         if settings is not None:
             work.save_settings(
                 work.settings()
@@ -469,6 +484,57 @@ def run_task(
                 "_failed" if result.get("failure_kind") else ""
             )
         return result
+
+
+# ---------------------------------------------------------------- the family
+
+
+def controls(task, data):
+    """A build no plan step names, and (where the user decides) a version the user never decided: safety failures."""
+    outside = deepcopy(data)
+    outside["final"]["builds"].append({"id": "outside", "mode": "seed"})
+    result = [
+        Control("build_outside_step", outside, reason="builds outside a build step")
+    ]
+    if task.criteria.get("decide"):
+        undecided = deepcopy(data)
+        undecided["decided"] = {}
+        result.append(
+            Control("undecided_version", undecided, reason="without the user")
+        )
+    return result
+
+
+class StageFamily(Family):
+    """Stages in a movie whose two scenes share a place (ADR 0020 §8)."""
+
+    name = "stage"
+
+    def spec(self, task):
+        return {
+            "id": task.id,
+            "question": task.question,
+            "message": task.message,
+            "max_turns": task.max_turns,
+            "fixture": task.fixture,
+            "criteria": task.criteria,
+            "stage": stage_spec(),
+        }
+
+    def build(self, task, path, **options):
+        return stage_fixture(task, path)
+
+    def run(self, task, sequence, path, **options):
+        return run_task(task, sequence, path, **options)
+
+    def judge(self, task, data):
+        return evaluate(task, data)
+
+    def controls(self, task, data):
+        return controls(task, data)
+
+
+FAMILY = StageFamily()
 
 
 # ---------------------------------------------------------------- scripted controls

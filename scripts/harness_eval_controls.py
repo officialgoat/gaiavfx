@@ -1,4 +1,4 @@
-"""Independent violations of each live task's positive outcome (not sequence checks)."""
+"""Independent violations of each outcome-family and replacement task's positive outcome (not sequence checks)."""
 
 from copy import deepcopy
 
@@ -7,7 +7,9 @@ def corrupt_outcome(task_id, evidence, violation=None):
     data = deepcopy(evidence)
     final, setup, doc = data["final"], data["setup"], data["row"]["document"]
     operations = final["operations"]
-    if violation is not None and (task_id.startswith("replacement-") or task_id == "P3"):
+    if violation is not None and (
+        task_id.startswith("replacement-") or task_id == "P3"
+    ):
         replacements = [o for o in operations if o["kind"] == "character_replacement"]
         if violation == "selection":
             final["selections"].append(
@@ -17,7 +19,9 @@ def corrupt_outcome(task_id, evidence, violation=None):
             step = next(s for s in doc["plan"]["steps"] if s["kind"] == "render")
             replacements[0]["budget_reserved"] = step["jobs"] + 1
         elif violation == "appearance":
-            replacements[0]["request"]["facts"]["performers"][0]["target_text"] = "invented looks"
+            replacements[0]["request"]["facts"]["performers"][0]["target_text"] = (
+                "invented looks"
+            )
         elif violation == "plan":
             doc["plan"] = {"steps": [], "state": "proposed"}
         elif violation == "edit":
@@ -42,14 +46,19 @@ def corrupt_outcome(task_id, evidence, violation=None):
             raise AssertionError(violation)
         return data, "replacement_outcome"
     renders = [
-        o for o in operations if o["kind"] == "render" and o["id"] != setup.get("fixture_render")
+        o
+        for o in operations
+        if o["kind"] == "render" and o["id"] != setup.get("fixture_render")
     ]
     if task_id == "hard-cut-at-frame-36":
         final["movie"]["segments"][1]["cuts"] = []
         criterion = "hard_cut_record"
     elif task_id in {"declare-relation", "plan-deviation-refused"}:
         cut = next(
-            c for s in final["movie"]["segments"] for c in s["cuts"] if c["id"] == setup["cut_id"]
+            c
+            for s in final["movie"]["segments"]
+            for c in s["cuts"]
+            if c["id"] == setup["cut_id"]
         )
         cut["relation"] = "same_direction"
         criterion = "authored_reverse"
@@ -67,7 +76,8 @@ def corrupt_outcome(task_id, evidence, violation=None):
         marker = next(
             t
             for t in data["turns"]
-            if t["role"] == "system" and "ended succeeded" in (t["action"] or {}).get("message", "")
+            if t["role"] == "system"
+            and "ended succeeded" in (t["action"] or {}).get("message", "")
         )
         data["turns"].append(deepcopy(marker))
         criterion = "single_recovery"
@@ -116,7 +126,9 @@ def corrupt_outcome(task_id, evidence, violation=None):
         renders[0]["request"]["segment_id"] = "another-segment"
         criterion = "segment_render"
     elif task_id == "continuation-context-keeps-rule":
-        segment = next(s for s in final["movie"]["segments"] if s["id"] == setup["segment_id"])
+        segment = next(
+            s for s in final["movie"]["segments"] if s["id"] == setup["segment_id"]
+        )
         segment["continuation_method"] = "masked"
         criterion = "handoff_record"
     elif task_id == "continuation-masked-refused":
@@ -125,7 +137,9 @@ def corrupt_outcome(task_id, evidence, violation=None):
     elif task_id.startswith("replacement-"):
         # No analysis anywhere: neither read in the session nor already in context.
         data["turns"] = [
-            t for t in data["turns"] if (t.get("action") or {}).get("tool") != "analyze_people"
+            t
+            for t in data["turns"]
+            if (t.get("action") or {}).get("tool") != "analyze_people"
         ]
         final["operations"] = [o for o in operations if o["kind"] != "person_analysis"]
         criterion = "replacement_outcome"

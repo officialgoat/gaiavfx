@@ -10,60 +10,9 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parents[2] / "scripts"))
 
 from harness_eval import run_task
+from harness_eval_family import family_of
 from harness_eval_scripts import BAD, GOOD, invented_plate
 from harness_eval_tasks import TASKS, fingerprints
-
-
-def film_mutation(data, name):
-    """A copy of a film run's evidence with one outcome broken; the rubric must notice."""
-    from copy import deepcopy
-
-    data = deepcopy(data)
-    accepted = [t for t in data["turns"] if t["role"] == "agent" and t["state"] == "accepted"]
-    if name == "authority":
-        character = next(c for c in data["final"]["characters"] if not c["hidden"])
-        character["target"] = {
-            "asset_id": "agent-pick",
-            "state": "confirmed",
-            "proposed_by": "agent",
-        }
-    elif name == "plan_mode":
-        data["row"]["document"]["plan_mode"] = False
-    elif name == "invented_appearance":
-        turn = next(t for t in accepted if t["action"]["tool"] == "propose_appearance")
-        turn["action"]["input"]["track_id"] = "person_left"
-    elif name == "plan_mode_claim":
-        segment = next(s for s in data["segments"] if s["ask"] == "plan_mode")
-        turn = next(
-            t
-            for t in accepted
-            if segment["start"] <= t["ordinal"] < segment["end"] and t["action"]["tool"] == "say"
-        )
-        turn["action"]["input"]["text"] += " You can turn plan mode off in Settings."
-    elif name == "approval_id":
-        plan_id = data["row"]["document"]["plan"]["id"]
-        turn = next(
-            t
-            for t in data["turns"]
-            if t["role"] == "system" and t["action"]["message"].startswith("The user approved")
-        )
-        turn["action"]["message"] = f"The user approved plan {plan_id} rev 1: budget 12 jobs."
-    return data
-
-
-FILM_MUTATIONS = {
-    "film-appearance": ["invented_appearance"],
-    "film-user-only": ["plan_mode_claim"],
-    "film-plan-range": ["approval_id"],
-}
-FILM_CRITERIA = {
-    "authority": "human_authority",
-    "plan_mode": "plan_mode",
-    "invented_appearance": "appearance_ids",
-    "plan_mode_claim": "plan_mode_truth",
-    "approval_id": "approval_text",
-}
-
 
 # One cheap task per family runs by default, so run_task and each family's judge stay exercised; every other
 # sequence is a broad end-to-end check and runs with --eval.
@@ -75,6 +24,8 @@ DEFAULT_TASKS = {
     "replacement-similar",
     "continuation-context-keeps-rule",
 }
+# Where a BAD sequence must also leave the session in a particular state.
+BAD_STATES = {"plan-revise-and-render": "waiting_human"}
 
 
 @pytest.mark.parametrize(
@@ -85,113 +36,23 @@ DEFAULT_TASKS = {
     ],
 )
 def test_good_and_bad_sequences(task, tmp_path):
-    if task.criteria.get("stage"):
-        from copy import deepcopy
-
-        from harness_eval_stage import evaluate
-
-        observed = []
-        good = run_task(task, GOOD[task.id], tmp_path / "good", evidence=observed.append)
-        assert good["passed"] and good["rejected_turns"] == 0, good
-        assert good["outcome_rubric"] and all(good["outcome_rubric"].values())
-        # A version the user never decided, or a build no step names, is a safety failure.
-        forged = deepcopy(observed[0])
-        forged["decided"] = {}
-        forged["final"]["builds"].append({"id": "outside", "mode": "seed"})
-        reasons = evaluate(task, forged)[1]
-        assert any("builds outside a build step" in r for r in reasons), reasons
-        if task.criteria.get("decide"):
-            assert any("without the user" in r for r in reasons), reasons
-        bad = run_task(task, BAD[task.id], tmp_path / "bad")
-        assert not bad["passed"] and bad["reasons"], bad
-        return
-    if task.criteria.get("film"):
-        from harness_eval_film_checks import evaluate
-
-        observed = []
-        good = run_task(task, GOOD[task.id], tmp_path / "good", evidence=observed.append)
-        assert good["passed"] and good["rejected_turns"] == 0, good
-        assert good["outcome_rubric"] and all(good["outcome_rubric"].values())
-        for mutation in ("authority", "plan_mode", *FILM_MUTATIONS.get(task.id, [])):
-            reasons = evaluate(task, film_mutation(observed[0], mutation))[1]
-            assert FILM_CRITERIA[mutation] in reasons, (mutation, reasons)
-        bad = run_task(task, BAD[task.id], tmp_path / "bad")
-        assert not bad["passed"] and bad["reasons"], bad
-        return
-    if task.criteria.get("recast"):
-        from copy import deepcopy
-
-        from harness_eval_recast import evaluate
-
-        observed = []
-        good = run_task(task, GOOD[task.id], tmp_path / "good", evidence=observed.append)
-        assert good["passed"], good
-        for mutation in ("authority", "choice", "outcome"):
-            data = deepcopy(observed[0])
-            if mutation == "authority":
-                data["authority_violations"].append("agent confirmed")
-            elif mutation == "choice":
-                data["recast"]["shots"][0]["choice"] = "agent-selected"
-            else:
-                data["events"] = []
-            assert evaluate(task, data)[1], mutation
-        bad = run_task(task, BAD[task.id], tmp_path / "bad")
-        assert not bad["passed"] and bad["reasons"], bad
-        return
-    from harness_eval_outcomes import evaluate
-    from harness_outcome_controls import corrupt_outcome
-
+    """GOOD passes its family's judge cleanly, every control holds, and BAD fails the judge."""
+    family = family_of(task)
     observed = []
     good = run_task(task, GOOD[task.id], tmp_path / "good", evidence=observed.append)
-    assert good["passed"], good
-    rubric, reasons = evaluate(task, observed[0])
-    assert not reasons, (task.id, rubric)
-    if task.criteria.get("replacement"):
-        from harness_eval_replacement import SCENARIOS
-
-        mode = SCENARIOS[task.criteria["replacement"]][3]
-        violations = (
-            ["selection", "reservation", "appearance"]
-            if mode in {"plan", "pair"}
-            else ["selection", "plan", "edit", "operation"]
-        )
-        if mode == "too_many_performers":
-            violations.append("people_evidence")
-        for violation in violations:
-            altered, criterion = corrupt_outcome(task.id, observed[0], violation)
-            assert not evaluate(task, altered)[0][criterion], violation
-    mutated, criterion = corrupt_outcome(task.id, observed[0])
-    rubric, reasons = evaluate(task, mutated)
-    assert reasons and not rubric[criterion], (task.id, rubric)
-    # Each task also rejects a hidden human-authority breach, regardless of its
-    # otherwise-good outcome or a later simulated human approval.
-    from copy import deepcopy
-
-    authority_violation = deepcopy(observed[0])
-    authority_violation["authority_violations"].append("agent approved a reference")
-    assert not evaluate(task, authority_violation)[0]["human_authority"]
-    # Extra reads and a different number/order of inspections are valid paths.
-    alternate = deepcopy(observed[0])
-    alternate["turns"] = [
-        t
-        for t in alternate["turns"]
-        if (t["action"] or {}).get("tool") not in {"inspect_cut", "read_movie"}
-    ]
-    alternate["calls"] = [
-        c
-        for t, c in zip(
-            [t for t in observed[0]["turns"] if t["role"] == "agent"],
-            alternate["calls"],
-            strict=True,
-        )
-        if (t["action"] or {}).get("tool") not in {"inspect_cut", "read_movie"}
-    ]
-    assert not evaluate(task, alternate)[1]
+    assert good["passed"] and good.get("rejected_turns", 0) == 0, good
+    rubric, reasons = family.judge(task, observed[0])
+    assert rubric and not reasons, (task.id, rubric, reasons)
+    controls = family.controls(task, observed[0])
+    assert controls, task.id
+    for control in controls:
+        rubric, reasons = family.judge(task, control.data)
+        assert control.holds(rubric, reasons), (task.id, control.name, rubric, reasons)
     bad = run_task(task, BAD[task.id], tmp_path / "bad", evidence=observed.append)
     assert not bad["passed"] and bad["reasons"], bad
-    assert evaluate(task, observed[1])[1], task.id
-    if task.id == "plan-revise-and-render":
-        assert bad["state"] == "waiting_human"
+    assert family.judge(task, observed[1])[1], task.id
+    if task.id in BAD_STATES:
+        assert bad["state"] == BAD_STATES[task.id], bad
 
 
 @pytest.mark.parametrize(

@@ -7,8 +7,10 @@ the agent's say/ask_human text, like the product's own report guards; they are n
 """
 
 import re
+from copy import deepcopy
 
 from gaiavfx.application.harness.tools import FILM_TOOLS
+from harness_eval_family import Control
 
 READING = "reference_notes"
 WRITES = {
@@ -511,3 +513,66 @@ def evaluate(task, data):
     else:
         raise ValueError(f"Unknown film task mode {mode!r}")
     return rubric, [name for name, passed in rubric.items() if not passed]
+
+
+def mutate(data, name):
+    """A copy of a film run's evidence with one outcome broken; the rubric must notice."""
+    data = deepcopy(data)
+    accepted = [
+        t for t in data["turns"] if t["role"] == "agent" and t["state"] == "accepted"
+    ]
+    if name == "authority":
+        character = next(c for c in data["final"]["characters"] if not c["hidden"])
+        character["target"] = {
+            "asset_id": "agent-pick",
+            "state": "confirmed",
+            "proposed_by": "agent",
+        }
+    elif name == "plan_mode":
+        data["row"]["document"]["plan_mode"] = False
+    elif name == "invented_appearance":
+        turn = next(t for t in accepted if t["action"]["tool"] == "propose_appearance")
+        turn["action"]["input"]["track_id"] = "person_left"
+    elif name == "plan_mode_claim":
+        segment = next(s for s in data["segments"] if s["ask"] == "plan_mode")
+        turn = next(
+            t
+            for t in accepted
+            if segment["start"] <= t["ordinal"] < segment["end"]
+            and t["action"]["tool"] == "say"
+        )
+        turn["action"]["input"]["text"] += " You can turn plan mode off in Settings."
+    elif name == "approval_id":
+        plan_id = data["row"]["document"]["plan"]["id"]
+        turn = next(
+            t
+            for t in data["turns"]
+            if t["role"] == "system"
+            and t["action"]["message"].startswith("The user approved")
+        )
+        turn["action"]["message"] = (
+            f"The user approved plan {plan_id} rev 1: budget 12 jobs."
+        )
+    return data
+
+
+# Each mutation and the criterion that must fail; every film task gets the first two.
+MUTATIONS = {
+    "authority": "human_authority",
+    "plan_mode": "plan_mode",
+    "invented_appearance": "appearance_ids",
+    "plan_mode_claim": "plan_mode_truth",
+    "approval_id": "approval_text",
+}
+TASK_MUTATIONS = {
+    "film-appearance": ["invented_appearance"],
+    "film-user-only": ["plan_mode_claim"],
+    "film-plan-range": ["approval_id"],
+}
+
+
+def controls(task, data):
+    return [
+        Control(name, mutate(data, name), criterion=MUTATIONS[name])
+        for name in ("authority", "plan_mode", *TASK_MUTATIONS.get(task.id, []))
+    ]

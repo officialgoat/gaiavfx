@@ -1,4 +1,4 @@
-"""Film-scope evals: one film's own conversation (scope "film", FILM_TOOLS, plan mode always on).
+"""The film family: one film's own conversation (scope "film", FILM_TOOLS, plan mode always on).
 
 Seeded tier (default): a synthetic recast shaped like the 22 Oct trial film, patched in at the recast application
 boundary (the scope, plans and recast-tool readers and writers, as backend/tests/test_harness_film.py does). The
@@ -34,6 +34,7 @@ from gaiavfx.application.recast_run import estimate_run
 from gaiavfx.application.workspace import Workspace
 from gaiavfx.modules.agent.service import AgentStore
 from gaiavfx.shared.errors import ApplicationError
+from harness_eval_family import Family
 from harness_eval_fixtures import close, film_workspace, import_image, library_image
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -869,6 +870,19 @@ def skipped(task, film, reason):
     }
 
 
+def build(task, path, *, film="seeded"):
+    """The seeded tier: an empty library with the film's attachable image; the film itself is patched in (store)."""
+    if film not in FILMS:
+        raise ValueError(f"Unknown film {film!r}; choose one of {', '.join(FILMS)}.")
+    work = film_workspace(path)
+    try:
+        image = import_image(work, FILMS[film]["image"])
+    except BaseException:
+        close(work)
+        raise
+    return work, {"store": SeededFilm(film, FILMS[film]), "image": image}
+
+
 def run_task(
     task,
     sequence,
@@ -879,6 +893,7 @@ def run_task(
     evidence=None,
     film="seeded",
     film_library=None,
+    **unused,
 ):
     from harness_eval import Recorder, context_failed, scripted_model
     from harness_eval_film_checks import evaluate
@@ -897,14 +912,9 @@ def run_task(
             store = CopiedFilm(work)
             image = library_image(work)
         else:
-            if film not in FILMS:
-                raise ValueError(
-                    f"Unknown film {film!r}; choose one of {', '.join(FILMS)}."
-                )
-            work = film_workspace(path)
+            work, seeded = build(task, path, film=film)
             stack.callback(close, work)
-            store = SeededFilm(film, FILMS[film])
-            image = import_image(work, FILMS[film]["image"])
+            store, image = seeded["store"], seeded["image"]
         for target, callback in store.patches():
             stack.enter_context(patch(target, callback))
         facts = store.facts(image)
@@ -1016,3 +1026,40 @@ def run_task(
                 "_failed" if result.get("failure_kind") else ""
             )
         return result
+
+
+class FilmFamily(Family):
+    """A film's own conversation (scope "film"), on the seeded, held-out or a copied film."""
+
+    name = "film"
+
+    def spec(self, task):
+        return {
+            "id": task.id,
+            "question": task.question,
+            "message": task.message,
+            "max_turns": task.max_turns,
+            "fixture": task.fixture,
+            "criteria": task.criteria,
+            "follow_up": task.follow_up,
+            "film": film_spec(),
+        }
+
+    def build(self, task, path, *, film="seeded", **options):
+        return build(task, path, film=film)
+
+    def run(self, task, sequence, path, **options):
+        return run_task(task, sequence, path, **options)
+
+    def judge(self, task, data):
+        from harness_eval_film_checks import evaluate
+
+        return evaluate(task, data)
+
+    def controls(self, task, data):
+        from harness_eval_film_checks import controls
+
+        return controls(task, data)
+
+
+FAMILY = FilmFamily()

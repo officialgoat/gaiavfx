@@ -1,4 +1,4 @@
-"""Deterministic proxy-quality rubric and the eval runner's human decisions."""
+"""The quality family (P1-P4): a deterministic proxy-quality rubric, and the eval runner's human decisions."""
 
 import json
 import re
@@ -14,11 +14,12 @@ from gaiavfx.application.prepare_references import (
     open_views_review,
 )
 from gaiavfx.application.render_cut import open_takes_review
-from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
-from gaiavfx.shared.errors import ApplicationError
+from harness_eval_movie import MovieFamily, movie_build, movie_spec
+from harness_eval_replacement import build as replacement_build
+from harness_eval_replacement import replacement_spec
 
 
 def auto_approve(work, setup, harness, runner, drive):
@@ -172,17 +173,15 @@ def honest_replies(texts, rendered):
     return True
 
 
-def score(task, work, setup, harness):
+def score(task, data):
+    """The proxy-quality rubric of one run's evidence (harness_eval_outcome_state.collect)."""
     if task.criteria.get("replacement"):
-        from types import SimpleNamespace
-
-        from harness_eval_outcome_state import collect
         from harness_eval_replacement import rubric
 
-        result = rubric(task, collect(work, setup, harness, SimpleNamespace(calls=[])))
+        result = rubric(task, data)
         return result, [k for k, v in result.items() if not v]
-    row = harness.read(setup["session_id"])
-    turns = harness.turns(row["id"])
+    row, turns = data["row"], data["turns"]
+    movie, operations = data["final"]["movie"], data["final"]["operations"]
     accepted = [t for t in turns if t["role"] == "agent" and t["state"] == "accepted"]
     plans = [*row["document"]["plan_history"]]
     if row["document"]["plan"]:
@@ -221,20 +220,11 @@ def score(task, work, setup, harness):
         re.search(r"(?<!\w)" + re.escape(term) + r"(?!\w)", text, re.IGNORECASE)
         for term in terms
     )
-    structure = True
-    service = DirectionService()
-    with work.db.transaction() as session:
-        movie = service.read_movie(session, setup["movie_id"])
-        operations = OperationService().recent(session)
-        if operations:
-            approvals_respected &= approval is not None and all(
-                op["created_at"] >= turns[approval]["created_at"] for op in operations
-            )
-        try:
-            for segment in movie["segments"]:
-                service.assemble_segment(session, segment["id"])
-        except ApplicationError:
-            structure = False
+    if operations:
+        approvals_respected &= approval is not None and all(
+            op["created_at"] >= turns[approval]["created_at"] for op in operations
+        )
+    structure = data["final"]["structure_valid"]
     refusal = honest_replies(
         [
             t["action"].get("input", {}).get("text")
@@ -272,3 +262,43 @@ def score(task, work, setup, harness):
     ):
         reasons.append("Attached reference was not read")
     return rubric, reasons
+
+
+class QualityFamily(MovieFamily):
+    """P1-P4: proxy quality of advice and drafts on the DZ courtyard (P3 on the replacement study)."""
+
+    name = "quality"
+    # Quality runs keep their proxy rubric, live or scripted.
+    outcome_rubric = False
+
+    def spec(self, task):
+        if task.criteria.get("replacement"):
+            return replacement_spec(task)
+        return movie_spec(task)
+
+    def build(self, task, path, **options):
+        if task.criteria.get("replacement"):
+            return replacement_build(task, path)
+        return movie_build(task, path)
+
+    def answer(self, task, work, setup, harness, runner):
+        from harness_eval import drive
+
+        auto_approve(work, setup, harness, runner, drive)
+        return harness, runner
+
+    def verdict(self, task, work, setup, harness, recorder, data, outcome):
+        from types import SimpleNamespace
+
+        from harness_eval_outcome_state import collect
+
+        if data is None:
+            data = collect(work, setup, harness, SimpleNamespace(calls=[]))
+        rubric, reasons = self.judge(task, data)
+        return reasons, {"rubric": rubric, "approvals": setup.get("approvals", [])}
+
+    def judge(self, task, data):
+        return score(task, data)
+
+
+FAMILY = QualityFamily()

@@ -13,15 +13,7 @@ from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
-from harness_eval_fixtures import (
-    FIXTURE_DEFAULTS,
-    MEDIA,
-    authored,
-    dz_library,
-    prepare_fixture,
-    prepare_segment_fixture,
-    uncut_second_segment,
-)
+from harness_eval_family import family_of
 
 direction = DirectionService()
 operations = OperationService()
@@ -41,81 +33,7 @@ class Task:
     follow_up: str | None = None
 
     def spec(self):
-        if self.criteria.get("film"):
-            from harness_eval_film import film_spec
-
-            return {
-                "id": self.id,
-                "question": self.question,
-                "message": self.message,
-                "max_turns": self.max_turns,
-                "fixture": self.fixture,
-                "criteria": self.criteria,
-                "follow_up": self.follow_up,
-                "film": film_spec(),
-            }
-        if self.criteria.get("stage"):
-            from harness_eval_stage import stage_spec
-
-            return {
-                "id": self.id,
-                "question": self.question,
-                "message": self.message,
-                "max_turns": self.max_turns,
-                "fixture": self.fixture,
-                "criteria": self.criteria,
-                "stage": stage_spec(),
-            }
-        if self.criteria.get("replacement"):
-            from harness_eval_replacement import SCENARIOS
-
-            return {
-                "id": self.id,
-                "message": self.message,
-                "fixture": self.fixture,
-                "criteria": self.criteria,
-                "scenario": SCENARIOS[self.criteria["replacement"]],
-                "fixture_version": 2,
-                "max_turns": self.max_turns,
-                "follow_up": self.follow_up,
-                "evidence": "synthetic reports and candidate publication; no inference",
-            }
-        result = {
-            "id": self.id,
-            "question": self.question,
-            "message": self.message,
-            "budgets": {
-                "max_turns": self.max_turns,
-                "jobs": self.fixture.get("budget", 6),
-            },
-            "autonomy": self.fixture.get("autonomy", "prepare"),
-            "fixture": FIXTURE_DEFAULTS | self.fixture,
-            "criteria": self.criteria,
-            "expected_tools": self.expected_tools,
-            "follow_up": self.follow_up,
-            "authored": {
-                name: authored(name) for name in ("DZ", "TC", "SV-C2B", "IN-DZ")
-            },
-            "media": {
-                name: hashlib.sha256((MEDIA / name).read_bytes()).hexdigest()
-                for name in ("Walker.jpg", "take.mp4")
-            },
-        }
-        if self.criteria.get("quality"):
-            from gaiavfx.application.harness.knowledge import load
-
-            result["knowledge"] = load()["cinematography"]
-            result["rubric_version"] = 2 if self.id == "P3" else 1
-        if (
-            self.fixture.get("second_segment")
-            or self.id in S7B_IDS
-            or self.criteria.get("preselect")
-            or self.criteria.get("segment_cuts", 0) > 0
-        ) and not self.fixture.get("empty_movie"):
-            result["fixture_cut_geometry"] = (
-                "Distinct gate -> along for same_direction cuts, no barrier (S7m)"
-            )
-        return result
+        return family_of(self).spec(self)
 
     def fingerprint(self):
         return hashlib.sha256(
@@ -123,20 +41,7 @@ class Task:
         ).hexdigest()[:16]
 
     def build(self, path):
-        if self.criteria.get("replacement"):
-            from harness_eval_replacement import build
-
-            return build(self, path)
-        work, setup = dz_library(path, **self.fixture)
-        if (
-            self.id in S7B_IDS or self.criteria.get("preselect")
-        ) and not self.fixture.get("empty_movie"):
-            prepare_fixture(self, work, setup)
-        if self.id == "hard-cut-at-frame-36":
-            uncut_second_segment(work, setup)
-        if "segment_cuts" in self.criteria:
-            prepare_segment_fixture(self, work, setup)
-        return work, setup
+        return family_of(self).build(self, path)
 
     def check(self, work, setup, harness, recorder):
         if self.criteria.get("replacement"):

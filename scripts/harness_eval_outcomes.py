@@ -126,14 +126,7 @@ DEFINITIONS.update(
 
 
 def evaluate(task, data):
-    if task.criteria.get("film"):
-        from harness_eval_film_checks import evaluate as evaluate_film
-
-        return evaluate_film(task, data)
-    if task.criteria.get("recast"):
-        from harness_eval_recast import evaluate as evaluate_recast
-
-        return evaluate_recast(task, data)
+    """The outcome and replacement families' rubric: (rubric, failing criteria)."""
     state, initial, setup = data["final"], data["initial"], data["setup"]
     row, turns = data["row"], data["turns"]
     agents = [t for t in turns if t["role"] == "agent"]

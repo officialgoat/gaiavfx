@@ -214,8 +214,8 @@ def test_p3_requires_numbered_disambiguation(tmp_path, question, ok):
 
 
 def test_p3_correct_words_do_not_excuse_changes():
+    from harness_eval_controls import corrupt_outcome
     from harness_eval_replacement import rubric
-    from harness_outcome_controls import corrupt_outcome
 
     # P3's outcome: the numbered contact sheet is read, one numbered question is asked and nothing changes.
     movie = {"title": "Observatory", "segments": []}
