@@ -325,10 +325,10 @@ def test_compiler_gaps_use_render_references_and_sheet_capability(store, sheets)
 
 
 @pytest.mark.usefixtures("media")
-@pytest.mark.parametrize("edit", ["cut", "opening"])
+@pytest.mark.parametrize("edit", ["cut", "opening", "both"])
 def test_a_take_records_its_cuts_and_opening_and_an_edit_to_them_changes_it(store, edit):
     """A take's basis covers its cuts and the angle it opens on: Program and Export call it changed after such an
-    edit, and current again once the edit is undone."""
+    edit, and current again once the edit is undone; an authored edit of both, by its one Undo."""
     from gaiavfx.application import take_basis
     from gaiavfx.application.selected_takes import selection_state
 
@@ -368,25 +368,38 @@ def test_a_take_records_its_cuts_and_opening_and_an_edit_to_them_changes_it(stor
             return program["stale_reasons"]
 
         assert reasons() == []
-        cut = service.read_cut(session, cut["id"])
-        if edit == "cut":
-            changed = service.update_cut(
+
+        def reverse():
+            row = service.read_cut(session, cut["id"])
+            return service.update_cut(
                 session,
-                cut["id"],
-                cut["revision"],
+                row["id"],
+                row["revision"],
                 relation="reverse",
                 crosses_barrier=False,
                 relation_source="authored",
-            )
-            expected = "Cuts changed since this take."
-        else:
-            place = service.read_angle(session, cut["from_angle_id"])["place_id"]
+            )["receipt"]["id"]
+
+        def widen():
+            row = service.read_cut(session, cut["id"])
+            place = service.read_angle(session, row["from_angle_id"])["place_id"]
             wide = service.add_angle(session, place, "Wide")
-            changed = service.update_cut(
-                session, cut["id"], cut["revision"], from_angle_id=wide["id"]
+            receipt = service.update_cut(
+                session, row["id"], row["revision"], from_angle_id=wide["id"]
             )
             assert service.read_segment(session, segment["id"])["opening_angle_id"] == wide["id"]
-            expected = "Opening angle changed since this take."
-        assert expected in reasons()
-        service.undo(session, changed["receipt"]["id"])
+            return receipt["receipt"]["id"]
+
+        cuts, opening = "Cuts changed since this take.", "Opening angle changed since this take."
+        if edit == "cut":
+            receipt, expected = reverse(), {cuts}
+        elif edit == "opening":
+            receipt, expected = widen(), {opening}
+        else:
+            with service.authored(session, "update_segment", "segment", segment["id"]) as intent:
+                reverse()
+                widen()
+            receipt, expected = intent.id, {cuts, opening}
+        assert expected <= set(reasons())
+        service.undo(session, receipt)
         assert reasons() == []
