@@ -4,10 +4,8 @@ from copy import deepcopy
 
 import harness_support
 import pytest
+from harness_kernel_support import courtyard, draft_context, drafted, pack, post
 from harness_support import action
-from test_harness_drafting import draft_context
-from test_harness_e2e_context import pack
-from test_harness_follow_through import post
 
 from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.context import turn_messages
@@ -19,59 +17,6 @@ from gaiavfx.application.harness.world import direction
 from gaiavfx.shared.errors import ApplicationError
 
 kernel = harness_support.kernel
-
-
-def courtyard(kernel):
-    ctx, subject = draft_context(kernel)
-    with kernel.db.transaction() as session:
-        place = direction.create_place(session, "Arcade courtyard")
-        angles = [direction.add_angle(session, place["id"], n) for n in ("Side-on", "Reverse")]
-        direction.update_angle(
-            session,
-            angles[1]["id"],
-            1,
-            description="Wide view of open paving beyond the railing, olive trees and columns.",
-        )
-    ctx = kernel.harness.context(kernel.row, ctx.document, [])
-    beat = {
-        "title": "Walk",
-        "place": {"noun": "courtyard", "description": "Open paving"},
-        "subject_ids": [subject["id"]],
-        "continues": False,
-        "delivered_frames": 102,
-        "phases": [
-            {
-                "start_frame": 0,
-                "description": "Arin walks along the railing",
-                "screen_direction": "left to right",
-            }
-        ],
-        "cuts": [],
-    }
-    reverse = deepcopy(beat)
-    reverse.update(continues=True, title="Reverse")
-    reverse["cuts"] = [
-        {
-            "frame": 36,
-            "from_angle": angles[0]["id"],
-            "to_angle": angles[1]["id"],
-            "relation": "reverse",
-            "crosses_barrier": True,
-            "shot": "Arin walks beyond the railing",
-            "screen_direction": "right to left",
-        }
-    ]
-    return ctx, [beat, reverse]
-
-
-def drafted(kernel):
-    ctx, beats = courtyard(kernel)
-    tool = DraftStoryline()
-    result = tool.run(ctx, tool.Input(expected_revision=2, beats=beats))
-    assert result.ok, result.discrepancy
-    with kernel.db.transaction() as session:
-        segment = direction.read_movie(session, kernel.movie["id"])["segments"][1]
-    return kernel.harness.context(kernel.row, ctx.document, []), segment
 
 
 def test_o1_empty_angles_give_an_executable_example(kernel):

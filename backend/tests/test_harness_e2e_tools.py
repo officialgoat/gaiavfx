@@ -4,8 +4,9 @@ import json
 
 import harness_support
 import pytest
+from harness_kernel_support import call, context_for
+from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from harness_support import action
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.budget import Budget
@@ -21,22 +22,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
 UUID = "fe051e20-8d03-4103-a360-7ed7c4433b2c"
-
-
-@pytest.fixture
-def unplated(tmp_path):
-    from harness_eval_tasks import close, dz_library
-
-    work, setup = dz_library(tmp_path, plate=False)
-    try:
-        yield work, setup
-    finally:
-        close(work)
-
-
-def call(tool, context, **values):
-    _, value = parse_action(action(tool.name, **values), [(tool, tool.narrow(context))])
-    return tool.run(context, value)
 
 
 def test_identity_binding_and_prose_ids_refused_without_writes(world):

@@ -5,15 +5,15 @@ from copy import deepcopy
 
 import harness_support
 import pytest
+from harness_kernel_support import context_for, draft_context, executing
 from harness_support import action
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import ToolResult, action_schema, inlined, parse_action
 from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.loop import Harness
 from gaiavfx.application.harness.prompt import system_prompt
 from gaiavfx.application.harness.request import turn_request
-from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
+from gaiavfx.application.harness.session import AgentSession, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.plan import PlanStepTool, ProposePlan
@@ -29,24 +29,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
 kernel = harness_support.kernel
-
-
-def executing(*steps):
-    return Plan(
-        id="plan",
-        revision=1,
-        state="executing",
-        goal="Prepare then render Segment 2",
-        proposed_turn=0,
-        steps=list(steps),
-        budget_jobs=6,
-        grant=PlanGrant(
-            budget_jobs=6,
-            step_kinds=list(dict.fromkeys(s.kind for s in steps)),
-            approved_turn=1,
-            reserved_at_approval=0,
-        ),
-    )
 
 
 def test_wrong_plate_retry_uses_original_source_one_job_and_waits_for_its_approval(world):
@@ -129,8 +111,6 @@ def test_wrong_plate_retry_uses_original_source_one_job_and_waits_for_its_approv
     "bad", ["other_place", "unknown_place_alias", "missing_source", "order", "bounds"]
 )
 def test_draft_cuts_rollback_all_beats_and_receipts(kernel, bad):
-    from test_harness_drafting import draft_context
-
     ctx, subject = draft_context(kernel)
     with kernel.db.transaction() as session:
         place = direction.create_place(session, "Courtyard")

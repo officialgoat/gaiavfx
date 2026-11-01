@@ -1,7 +1,7 @@
 """E2e run 4: a wrong survey view that the user never approves must not block the cut for good."""
 
+from harness_kernel_support import context_for
 from harness_support import world  # noqa: F401 (fixture)
-from test_harness_tools import context_for
 
 from gaiavfx.application.authored import load_survey
 from gaiavfx.application.harness.tools.prepare import PrepareCut

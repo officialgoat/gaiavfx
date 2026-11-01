@@ -3,10 +3,10 @@
 from copy import deepcopy
 
 import harness_support
+from harness_kernel_support import draft_context
 from harness_support import action
 
 from gaiavfx.application.harness.actions import parse_action
-from gaiavfx.application.harness.session import AgentSession, Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.places import EditPlace
 from gaiavfx.modules.direction.service import DirectionService
@@ -14,33 +14,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 kernel = harness_support.kernel
 direction = DirectionService()
-
-
-def draft_context(kernel):
-    with kernel.db.transaction() as session:
-        subject = direction.add_subject(
-            session,
-            kernel.movie["id"],
-            1,
-            name="Storm lover",
-            description="A walker",
-            keeps=["plaid shirt"],
-            identity_asset_id=None,
-        )
-    doc = AgentSession.model_validate(kernel.row["document"])
-    doc.plan = Plan(
-        id="plan",
-        revision=1,
-        state="executing",
-        goal="Draft",
-        proposed_turn=0,
-        steps=[PlanStep(kind="edit", title="Draft")],
-        budget_jobs=0,
-        grant=PlanGrant(
-            budget_jobs=0, step_kinds=["edit"], approved_turn=1, reserved_at_approval=0
-        ),
-    )
-    return kernel.harness.context(kernel.row, doc, []), subject
 
 
 def test_storyline_refusals_roll_back_all_segments_receipts_and_board(kernel):

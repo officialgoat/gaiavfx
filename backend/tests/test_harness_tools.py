@@ -4,6 +4,7 @@ from dataclasses import replace
 
 import harness_support
 import pytest
+from harness_kernel_support import context_for
 
 from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.budget import Budget
@@ -22,13 +23,6 @@ from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 
 world = harness_support.world
-
-
-def context_for(work, setup):
-    harness = Harness(work.db, AgentStore(), None, work.settings)
-    row = harness.open(setup["movie_id"])
-    row = harness.set_plan_mode(row["id"], row["revision"], False)
-    return harness.context(row, AgentSession.model_validate(row["document"]), [], "test-turn")
 
 
 def test_message_attachments_identity_idempotency_and_text_only_history(world, monkeypatch):

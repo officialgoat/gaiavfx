@@ -4,8 +4,8 @@ from copy import deepcopy
 
 import harness_support
 import pytest
+from harness_kernel_support import courtyard, drafted
 from harness_support import action
-from test_harness_round6 import courtyard, drafted
 
 from gaiavfx.application.harness.actions import (
     action_schema,

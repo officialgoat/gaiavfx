@@ -5,7 +5,7 @@ import json
 from dataclasses import replace
 
 import harness_support
-from test_harness_tools import context_for
+from harness_kernel_support import context_for
 
 from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.tools.draft import DraftStoryline

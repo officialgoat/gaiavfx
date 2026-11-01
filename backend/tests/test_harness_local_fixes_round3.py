@@ -227,7 +227,7 @@ def test_n1_executing_render_plan_requires_read_before_review_report(tmp_path):
 
 
 def test_n3_explicit_seed_dispatch_refused_but_direct_input_retained(world):
-    from test_harness_tools import context_for
+    from harness_kernel_support import context_for
 
     from gaiavfx.application.harness.actions import parse_action
     from gaiavfx.application.harness.tools.render import RenderCandidates, render_seeds
@@ -295,7 +295,7 @@ def test_n6_already_declared_inspection_reports_without_preparation(world):
 
 @pytest.mark.parametrize("relation,source", [(None, "unknown"), ("reverse", "inferred")])
 def test_n6_does_not_claim_unauthored_relation_is_declared(world, relation, source):
-    from test_harness_tools import context_for
+    from harness_kernel_support import context_for
 
     from gaiavfx.application.harness.tools.reads import InspectCut
     from gaiavfx.modules.direction.service import DirectionService

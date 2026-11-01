@@ -6,11 +6,9 @@ from pathlib import Path
 import harness_support
 import pytest
 from harness_eval_tasks import run_idle
+from harness_kernel_support import approved_views, context_for, post, prepare, prepare_grant, survey
+from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from harness_support import action
-from test_harness_e2e_tools import unplated  # noqa: F401
-from test_harness_follow_through import post
-from test_harness_reference_text import prepare_grant
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.plans import review_outcome
 from gaiavfx.application.harness.shots import shots
@@ -37,20 +35,6 @@ RUN7 = json.loads((Path(__file__).parent / "fixtures/harness/run7_retries.json")
 SURVEY_NOTE = RUN7["operations"]["72052df0"]["rejection"]["note"]
 PIN_NOTE = RUN7["operations"]["93674061"]["rejection"]["note"]
 ANGLE = RUN7["operations"]["72052df0"]["request"]["plan"]["views"][0][1]
-
-
-def prepare(work, setup, **values):
-    ctx = context_for(work, setup)
-    ctx.turn_id += str(values.get("seed", 1))
-    return PrepareCut().run(ctx, PrepareCut.Input(cut_id=setup["cut_id"], **values))
-
-
-def survey(work, setup):
-    result = prepare(work, setup, seed=31)
-    assert result.ok, result.discrepancy
-    run_idle(work, setup["fake"])
-    with work.db.transaction() as session:
-        return open_views_review(session, result.waits_on)
 
 
 def test_h1_run7_same_survey_text_refused_before_reserving_jobs(world):
@@ -133,13 +117,6 @@ def reject(session, review, note):
     )
 
 
-def approved_views(work, setup):
-    review = survey(work, setup)
-    with work.db.transaction() as session:
-        for member in review["members"]:
-            approve_view(session, candidate_id=member["candidate_id"])
-
-
 def test_h1_run7_pin_refusal_is_atomic_and_changed_facing_passes(world):
     work, setup = world
     approved_views(work, setup)
@@ -184,7 +161,7 @@ def test_h1_run7_pin_refusal_is_atomic_and_changed_facing_passes(world):
 
 
 @pytest.mark.parametrize("empty", [True, False])
-def test_h1_plate_retries_compare_source_and_wording(unplated, empty):  # noqa: F811
+def test_h1_plate_retries_compare_source_and_wording(unplated, empty):
     work, setup = unplated
     plate = {"source_asset": setup["plate"]}
     plate.update(

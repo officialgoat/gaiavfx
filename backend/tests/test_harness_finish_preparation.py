@@ -6,12 +6,10 @@ from pathlib import Path
 
 import harness_support
 import pytest
-import test_harness_e2e_tools
 from harness_eval_tasks import run_idle
+from harness_kernel_support import approved_views, context_for, drafted, executing, prepare
+from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from harness_support import action
-from test_harness_round5 import executing
-from test_harness_round6 import drafted
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.budget import Budget
@@ -39,7 +37,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
 kernel = harness_support.kernel
-unplated = test_harness_e2e_tools.unplated
 RECORD = json.loads(
     (Path(__file__).parent / "fixtures/harness/run8_preparation.json").read_text("utf-8")
 )
@@ -170,8 +167,6 @@ def test_q1_render_does_not_gain_jobs_or_prepare_authority(world):
 
 
 def test_q1_run8_pin_resume_does_not_instruct_premature_completion(world):
-    from test_harness_honest_retries import approved_views, prepare
-
     work, setup = world
     approved_views(work, setup)
     pin = prepare(work, setup, seed=42)

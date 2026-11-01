@@ -4,8 +4,8 @@ from copy import deepcopy
 
 import harness_support
 import pytest
+from harness_kernel_support import post, story
 from harness_support import action
-from test_harness_follow_through import post, story
 
 from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.tools.draft import DraftStoryline
@@ -284,7 +284,7 @@ def test_l5_chain_request_explicitly_authorizes_render():
 
 def test_l5_reviewed_views_and_pin_still_need_free_sheet_assembly(tmp_path):
     from harness_eval_tasks import TASKS, close, run_idle
-    from test_harness_tools import context_for
+    from harness_kernel_support import context_for
 
     from gaiavfx.application.harness.tools.prepare import PrepareCut
     from gaiavfx.application.harness.tools.reads import InspectCut

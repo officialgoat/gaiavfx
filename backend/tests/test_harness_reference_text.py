@@ -10,18 +10,17 @@ from dataclasses import replace
 
 import harness_support
 import pytest
-import test_harness_e2e_tools
-from harness_eval_tasks import close, dz_library, run_idle
+from harness_eval_tasks import run_idle
+from harness_kernel_support import ANGLE, call, context_for, prepare_grant
+from harness_kernel_support import insertion_ready as insertion_ready  # noqa: PLC0414 - fixture
+from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from pydantic import ValidationError
-from test_harness_e2e_tools import call
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import action_schema
 from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.context import HEAD_CEILING, estimate
 from gaiavfx.application.harness.history import latest_user_message, references_read
 from gaiavfx.application.harness.knowledge import cinematography_head, load
-from gaiavfx.application.harness.session import Plan, PlanGrant, PlanStep
 from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.common import validate_text
 from gaiavfx.application.harness.tools.insertion import (
@@ -49,11 +48,6 @@ from gaiavfx.modules.direction.place_text import (
 from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
-unplated = test_harness_e2e_tools.unplated
-ANGLE = (
-    "From inside the gallery behind the black iron railing, looking out across the railing "
-    "into the sunlit cobblestone courtyard with potted olive trees and the far arcade"
-)
 RUN3_ANGLES = (
     (
         "Side-on view along the black iron railing, looking down the length of the courtyard. "
@@ -174,46 +168,6 @@ def test_t1_legacy_survey_text_refused_without_rewriting(world):
     with work.db.transaction() as session:
         assert direction.read_angle(session, angle["id"]) == angle
         assert not operations.recent(session)
-
-
-@pytest.fixture
-def insertion_ready(tmp_path):
-    work, setup = dz_library(tmp_path, insertion=False)
-    with work.db.transaction() as session:
-        angle = direction.read_angle(session, setup["angles"][2])
-        direction.update_angle(session, angle["id"], angle["revision"], description=ANGLE)
-        view = direction.record_evidence(session, angle["id"], "imported", setup["plate"])
-        direction.approve_evidence(session, view["id"])
-        segment = direction.read_segment(session, setup["segment_id"])
-        phase = segment["phases"][0]
-        direction.update_phase(
-            session,
-            phase["id"],
-            phase["revision"],
-            content={**phase["content"], "screen_direction": "left to right"},
-        )
-    try:
-        yield work, setup
-    finally:
-        close(work)
-
-
-def prepare_grant(context):
-    context.document.plan_mode = True
-    context.document.plan = Plan(
-        id="prepare-only",
-        revision=1,
-        state="executing",
-        goal="Prepare the reverse",
-        proposed_turn=0,
-        budget_jobs=2,
-        grant=PlanGrant(
-            budget_jobs=2, step_kinds=["prepare"], approved_turn=1, reserved_at_approval=0
-        ),
-        steps=[PlanStep(kind="prepare", title="Prepare reverse pin", jobs=2)],
-    )
-    context.budget = Budget(2, context.budget.spent)
-    return context
 
 
 def inline_wording(setup):

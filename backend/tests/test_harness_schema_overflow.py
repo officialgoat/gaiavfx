@@ -3,7 +3,7 @@
 import json
 
 import harness_support
-from test_harness_round5 import executing
+from harness_kernel_support import executing
 
 from gaiavfx.application.harness import context as harness_context
 from gaiavfx.application.harness.actions import action_schema

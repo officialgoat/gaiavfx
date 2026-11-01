@@ -5,11 +5,9 @@ from copy import deepcopy
 
 import harness_support
 import pytest
-import test_harness_reference_text
+from harness_kernel_support import ANGLE, context_for, draft, prepare_grant, story
+from harness_kernel_support import insertion_ready as insertion_ready  # noqa: PLC0414 - fixture
 from harness_support import action, run
-from test_harness_follow_through import draft, story
-from test_harness_reference_text import ANGLE, prepare_grant
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import action_schema, parse_action
 from gaiavfx.application.harness.budget import Budget
@@ -29,7 +27,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 kernel = harness_support.kernel
 world = harness_support.world
-insertion_ready = test_harness_reference_text.insertion_ready
 
 
 def plan(context, kind, target="", *, edit=False):

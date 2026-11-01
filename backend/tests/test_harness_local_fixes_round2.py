@@ -283,7 +283,7 @@ world = harness_support.world
 
 
 def test_recovery_examples_are_scoped_executable_and_rollback_safe(world):
-    from test_harness_tools import context_for
+    from harness_kernel_support import context_for
 
     from gaiavfx.application.harness.actions import parse_action
     from gaiavfx.application.harness.shots import shots

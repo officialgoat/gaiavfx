@@ -4,22 +4,14 @@ from copy import deepcopy
 
 import harness_support
 import pytest
+from harness_kernel_support import draft, post, story
 from harness_support import action
-from test_harness_drafting import draft_context
 
 from gaiavfx.application.harness.session import AgentSession
-from gaiavfx.application.harness.tools.draft import DraftStoryline
 from gaiavfx.application.harness.tools.plan import ProposePlan
 from gaiavfx.application.harness.world import direction
 
 kernel = harness_support.kernel
-
-
-def post(kernel, *sequence, message="Survey the courtyard for the reverse cut."):
-    kernel.model.replies = iter(sequence)
-    kernel.harness.post_message(kernel.id, message, str(len(kernel.model.calls)))
-    kernel.runner.run_once()
-    return [t for t in kernel.harness.turns(kernel.id) if t["role"] == "agent"]
 
 
 def test_k1_promise_then_plan(kernel):
@@ -214,46 +206,6 @@ def test_k2_inspect_other_segment_then_create_requested_cut(tmp_path):
 def test_k1_questions_and_conditional_offers_pass(kernel, text):
     turns = post(kernel, action("say", text=text))
     assert len(turns) == 1 and turns[0]["state"] == "accepted"
-
-
-def story(kernel, *, places=1, duplicate=False):
-    ctx, subject = draft_context(kernel)
-    with kernel.db.transaction() as session:
-        place = direction.create_place(session, "Courtyard")
-        angles = [direction.add_angle(session, place["id"], n) for n in ("gate", "reverse")]
-        if duplicate:
-            angles.append(direction.add_angle(session, place["id"], "REVERSE"))
-        if places == 2:
-            gallery = direction.create_place(session, "Gallery")
-            for name in ("gate", "reverse"):
-                direction.add_angle(session, gallery["id"], name)
-    ctx = kernel.harness.context(kernel.row, ctx.document, [])
-    beat = {
-        "title": "Reverse",
-        "place": {"noun": "courtyard", "description": "Stone paving"},
-        "subject_ids": [subject["id"]],
-        "continues": False,
-        "phases": [
-            {"start_frame": 0, "description": "Arin walks", "screen_direction": "left to right"}
-        ],
-        "from_angle": "GATE",
-        "cuts": [
-            {
-                "frame": 36,
-                "to_angle": "reverse",
-                "relation": "reverse",
-                "crosses_barrier": True,
-                "shot": "Arin walks past the railing from the reverse side.",
-                "screen_direction": "right to left",
-            }
-        ],
-    }
-    return ctx, beat, place, angles
-
-
-def draft(ctx, beats):
-    tool = DraftStoryline()
-    return tool.run(ctx, tool.Input(expected_revision=ctx.state.movie["revision"], beats=beats))
 
 
 def test_k3_single_place_and_case_insensitive_angle_names(kernel):

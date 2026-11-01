@@ -8,12 +8,10 @@ from types import SimpleNamespace
 
 import harness_support
 import pytest
-import test_harness_e2e_tools
+from harness_kernel_support import call, context_for, executing
+from harness_kernel_support import unplated as unplated  # noqa: PLC0414 - pytest fixture export
 from harness_support import action, run
 from pydantic import ValidationError
-from test_harness_e2e_tools import call
-from test_harness_round5 import executing
-from test_harness_tools import context_for
 
 from gaiavfx.application.harness.actions import parse_action
 from gaiavfx.application.harness.session import AgentSession, PlanStep
@@ -28,7 +26,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 world = harness_support.world
 kernel = harness_support.kernel
-unplated = test_harness_e2e_tools.unplated
 
 
 def test_d1_draft_same_camera_reverse_rolls_back(world):

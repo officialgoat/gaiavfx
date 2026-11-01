@@ -3,27 +3,11 @@
 import json
 
 import pytest
+from harness_kernel_support import pack
 
-from gaiavfx.application.harness.board import Whiteboard
 from gaiavfx.application.harness.budget import Budget
-from gaiavfx.application.harness.context import assemble, turn_messages
+from gaiavfx.application.harness.context import turn_messages
 from gaiavfx.shared.errors import ApplicationError
-
-
-def pack(turns, **kwargs):
-    return assemble(
-        "System",
-        "Brief",
-        "Tools",
-        {},
-        Whiteboard(),
-        "Active plan: create cut; pending review A/B",
-        turn_messages(turns),
-        32768,
-        output=2400,
-        summary="Earlier decisions and receipts",
-        **kwargs,
-    )
 
 
 def test_forty_messages_two_hundred_turns_every_request_fits():
