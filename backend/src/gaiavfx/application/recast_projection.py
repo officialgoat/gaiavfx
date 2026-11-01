@@ -547,14 +547,36 @@ def letter(index):
     return value
 
 
+def comparable_checks(values) -> set[str]:
+    """The checks a shot's versions can be compared on (usability round 1, A1): measured on every version, supported
+    and calibrated alike. A check one version lacks, or measures differently, would hint at how that version was
+    made, so it is left out for all of them."""
+    if not values:
+        return set()
+    first, *rest = values
+
+    def kind(check):
+        return check["calibrated"], check["verdict"] == "unsupported"
+
+    return {
+        c["check"]
+        for c in first["checks"]
+        if all(
+            any(x["check"] == c["check"] and kind(x) == kind(c) for x in v["checks"]) for v in rest
+        )
+    }
+
+
 def public_versions(values):
+    """A shot's versions as a person compares them blind: lettered, with only their comparable checks."""
     fields = ("check", "verdict", "calibrated", "measured", "reason")
+    comparable = comparable_checks(values)
     return [
         {
             "id": v["id"],
             "letter": letter(i),
             "asset_id": v["preview_asset"],
-            "checks": [{k: c[k] for k in fields} for c in v["checks"]],
+            "checks": [{k: c[k] for k in fields} for c in v["checks"] if c["check"] in comparable],
         }
         for i, v in enumerate(values)
     ]

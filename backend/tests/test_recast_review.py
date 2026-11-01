@@ -375,3 +375,46 @@ def test_cleared_mapping_does_not_feed_absent_shots(world):
     world.invoke(recast.feed)
     assert not world.calls["replacement"]
     assert world.invoke(recast.recast_state, state["id"])["run"]["state"] == "finished"
+
+
+def test_versions_carry_only_the_checks_they_all_measured_alike():
+    """Usability round 1 (A1): a check one version lacks, or measures differently (supported or not, calibrated or
+    not), would hint at how that version was made, so no version carries it."""
+
+    def check(name, verdict="pass", calibrated=True):
+        return {
+            "check": name,
+            "verdict": verdict,
+            "calibrated": calibrated,
+            "measured": 0.1,
+            "reason": name,
+        }
+
+    versions = [
+        {
+            "id": "a",
+            "preview_asset": "pa",
+            "checks": [
+                check("identity", calibrated=False),
+                check("only_a"),
+                check("letterbox"),
+                check("seam", "unsupported"),
+            ],
+        },
+        {
+            "id": "b",
+            "preview_asset": "pb",
+            "checks": [
+                check("identity", "fail", calibrated=False),
+                check("letterbox", "unsupported"),
+                check("seam", "unsupported"),
+            ],
+        },
+    ]
+    shown = p.public_versions(versions)
+    assert [v["letter"] for v in shown] == ["A", "B"]
+    assert [[c["check"] for c in v["checks"]] for v in shown] == [
+        ["identity", "seam"],
+        ["identity", "seam"],
+    ]
+    assert p.public_versions([]) == []

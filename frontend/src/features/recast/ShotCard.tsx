@@ -173,28 +173,6 @@ const verdictWord = (check: Check) =>
         ? "Failed"
         : "Passed";
 
-/** The checks a shot's versions can be compared on (usability round 1, A1): measured on every version, supported
- * and calibrated alike. A check that one version lacks, or measures differently, would hint at how that version was
- * made, so it is left out for all of them. */
-function comparableChecks(versions: { checks: Check[] }[]): Set<string> {
-  const [first, ...rest] = versions;
-  if (!first) return new Set();
-  return new Set(
-    first.checks
-      .filter((c) =>
-        rest.every((v) => {
-          const same = v.checks.find((x) => x.check === c.check);
-          return (
-            same &&
-            same.calibrated === c.calibrated &&
-            (same.verdict === "unsupported") === (c.verdict === "unsupported")
-          );
-        }),
-      )
-      .map((c) => c.check),
-  );
-}
-
 /** Original and the versions as tiles, each with its key: a tile shows its version in Program (pressed while shown),
  * the chosen one carries a mark, and Enter on a tile accepts what Program shows (the user at CP1: preview first). */
 function VersionTiles({ r }: { r: RecastController }) {
@@ -234,10 +212,8 @@ function CheckRows({ r }: { r: RecastController }) {
   if (r.original)
     return <p className="muted">The original film has no checks.</p>;
   // The card keeps the checks in their measured order (the approved comp); the tint and the icon mark a failure.
-  const comparable = comparableChecks(r.shot!.versions);
-  const checks = (r.previewVersion?.checks ?? []).filter((c) =>
-    comparable.has(c.check),
-  );
+  // Python sends only the checks every version can be compared on (recast_projection.comparable_checks).
+  const checks = r.previewVersion?.checks ?? [];
   // One constant sentence on every shot, whether or not a check is left out: a count, or a note shown only when
   // versions differ, told a blind reviewer the versions were made differently (usability round 2, T1-F1).
   const note = (
@@ -568,18 +544,14 @@ export function ShotCard({ r }: { r: RecastController }) {
         {!r.original && !!r.previewVersion?.checks.length && (
           <>
             <h3>Why the checks read so</h3>
-            {r.previewVersion.checks
-              .filter((c) => comparableChecks(shot.versions).has(c.check))
-              .map((check) => (
-                <p key={check.check}>
-                  {checkName(check.check)}: {check.reason}
-                </p>
-              ))}
+            {r.previewVersion.checks.map((check) => (
+              <p key={check.check}>
+                {checkName(check.check)}: {check.reason}
+              </p>
+            ))}
             {/* Pilot T1-F7: an uncalibrated or unsupported check gives no basis by itself; say what the words mean. */}
             {r.previewVersion.checks.some(
-              (c) =>
-                comparableChecks(shot.versions).has(c.check) &&
-                (!c.calibrated || c.verdict === "unsupported"),
+              (c) => !c.calibrated || c.verdict === "unsupported",
             ) && (
               <p className="muted">
                 Not calibrated: the score is measured, but no pass mark has been

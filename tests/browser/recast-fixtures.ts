@@ -395,7 +395,25 @@ export async function mockRecast(
               ? "The run is already active."
               : null;
     run.pause_refusal = run.state === "running" ? null : "No run is running.";
-    return value;
+    // As recast_projection.comparable_checks: a shot's versions carry only the checks they all measured alike.
+    const kind = (c: { calibrated: boolean; verdict: string }) =>
+      `${c.calibrated}:${c.verdict === "unsupported"}`;
+    const read = structuredClone(value);
+    for (const shot of read.shots) {
+      const [first, ...rest] = shot.versions;
+      const alike = new Set(
+        (first?.checks ?? [])
+          .filter((c) =>
+            rest.every((v) =>
+              v.checks.some((x) => x.check === c.check && kind(x) === kind(c)),
+            ),
+          )
+          .map((c) => c.check),
+      );
+      for (const version of shot.versions)
+        version.checks = version.checks.filter((c) => alike.has(c.check));
+    }
+    return read;
   };
   const film = {
     ...filmAsset,
