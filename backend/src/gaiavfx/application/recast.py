@@ -1078,25 +1078,6 @@ def start_head_pass(
         return finish(session, library, recast)
 
 
-def reveal_shot(session, library, recast_id, shot_id):
-    recast, _ = load(session, library, recast_id)
-    shot = _shot(recast, shot_id)
-    return {
-        "shot_id": shot_id,
-        "versions": [
-            {
-                "id": v["id"],
-                "letter": p.letter(i),
-                "windows": v["windows"],
-                **({"bridges": v["bridges"], "joins": v["joins"]} if "bridges" in v else {}),
-                "layer": v.get("layer"),
-                "parent": v.get("parent"),
-            }
-            for i, v in enumerate(p.versions(session, library, shot))
-        ],
-    }
-
-
 def start_conform(session, library, recast_id, *, mode, range, codec, request_key):
     from gaiavfx.application.recast_conform import start_conform as conform
 

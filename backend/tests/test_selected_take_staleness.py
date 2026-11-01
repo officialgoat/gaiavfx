@@ -4,6 +4,7 @@ import pytest
 from fastapi.testclient import TestClient
 from test_production_api import AUTH, get, post, setup, source_assets
 
+from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.editing.selections.staleness import changed_since_take
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.review import ReviewService
@@ -107,12 +108,24 @@ def test_selection_read_marks_changes_without_clearing(tmp_path, changed):
                 },
             ),
             "subject": (
-                f"/api/direction/subjects/{subject['id']}",
+                None,
                 {"expected_revision": subject["revision"], "description": "A runner"},
             ),
         }[changed]
-        response = client.patch(path, json=body, headers=AUTH)
-        assert response.status_code == 200, response.text
+
+        def change(values):
+            """The user's edit; a subject is edited in Direction (by the agent or the CLI)."""
+            if path is None:
+                fields = {key: value for key, value in values.items() if key != "expected_revision"}
+                with app.state.workspace.db.transaction() as session:
+                    return DirectionService().update_subject(
+                        session, subject["id"], values["expected_revision"], **fields
+                    )
+            response = client.patch(path, json=values, headers=AUTH)
+            assert response.status_code == 200, response.text
+            return response.json()
+
+        result = change(body)
         for _ in range(2):
             state = get(client, "/api/production/selections", params)
             assert state["current"]["id"] == selected["id"]
@@ -124,9 +137,7 @@ def test_selection_read_marks_changes_without_clearing(tmp_path, changed):
             assert state["history"][0]["stale"]
 
         assert judged()
-        undone = post(
-            client, f"/api/direction/receipts/{response.json()['receipt']['id']}/undo", status=200
-        )
+        undone = post(client, f"/api/direction/receipts/{result['receipt']['id']}/undo", status=200)
         state = get(client, "/api/production/selections", params)
         assert not state["current"]["stale"] and not state["history"][0]["stale"]
         # Export reads an Undo as Program does: the take is current again.
@@ -139,10 +150,7 @@ def test_selection_read_marks_changes_without_clearing(tmp_path, changed):
         assert judged() == []
         # An ordinary command restoring the same value is still a new change.
         same = {key: restored["record"][key] for key in body if key != "expected_revision"}
-        response = client.patch(
-            path, json=same | {"expected_revision": restored["record"]["revision"]}, headers=AUTH
-        )
-        assert response.status_code == 200, response.text
+        change(same | {"expected_revision": restored["record"]["revision"]})
         assert get(client, "/api/production/selections", params)["current"]["stale"]
 
 

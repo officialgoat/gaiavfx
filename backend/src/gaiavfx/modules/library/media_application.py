@@ -426,9 +426,3 @@ class MediaLibrary:
             raise ApplicationError("Collection not found.", 404)
         if not session.get(CollectionAsset, (collection_id, asset_id)):
             session.add(CollectionAsset(collection_id=collection_id, asset_id=asset_id))
-
-    def review(self, session: Session, asset_id: str, review: str):
-        self.get(session, asset_id)
-        if review not in {"unreviewed", "preferred", "rejected"}:
-            raise ApplicationError("Unknown review state.", 422)
-        session.get(AssetRecord, asset_id).review = review

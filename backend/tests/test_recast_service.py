@@ -657,6 +657,27 @@ def world(tmp_path, monkeypatch, recast_template):
     db.close()
 
 
+def shot_versions(world, recast_id, shot_id):
+    """A shot's versions with what the blind state leaves out: windows, seeds, bridges, layer and parent."""
+
+    def versions(session, library):
+        row, _report = recast.load(session, library, recast_id)
+        shot = next(s for s in row["shots"] if s["shot_id"] == shot_id)
+        return [
+            {
+                "id": v["id"],
+                "letter": p.letter(i),
+                "windows": v["windows"],
+                **({"bridges": v["bridges"], "joins": v["joins"]} if "bridges" in v else {}),
+                "layer": v.get("layer"),
+                "parent": v.get("parent"),
+            }
+            for i, v in enumerate(p.versions(session, library, shot))
+        ]
+
+    return world.invoke(versions)
+
+
 def edit(world, state, function, *args, **kwargs):
     result = world.invoke(
         function, state["id"], *args, expected_revision=state["revision"], **kwargs

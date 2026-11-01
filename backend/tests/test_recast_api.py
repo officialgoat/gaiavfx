@@ -11,6 +11,7 @@ from test_recast_feed import settle_all, waiting_reference
 from test_recast_lines import KEYS
 from test_recast_lines import voice as voice  # noqa: PLC0414
 from test_recast_service import recast_template as recast_template  # noqa: PLC0414
+from test_recast_service import shot_versions
 from test_recast_service import world as world  # noqa: PLC0414
 from test_recast_voice import (
     audition,
@@ -173,9 +174,7 @@ def test_every_recast_route(world, tmp_path, monkeypatch):
         settle_all(world, "character_replacement")
         world.invoke(recast.feed)
         settle_all(world, "shot_assembly")
-        reveal = client.get(base + "/shots/s0001/reveal")
-        assert reveal.status_code == 200
-        assert len(reveal.json()["versions"]) == 3
+        assert len(shot_versions(world, base.removeprefix("/api/recasts/"), "s0001")) == 3
         command("POST", "/shots/s0001/choice", version="original")
         command("POST", "/shots/s0001/choice", version="unchosen")
         assert state["shots"][0]["choice"] is None
@@ -234,7 +233,7 @@ def test_every_recast_route(world, tmp_path, monkeypatch):
 
         monkeypatch.setattr(p.store, "lock", no_write)
         monkeypatch.setattr(p.store, "save", no_write)
-        for url in (base, "/api/recasts", base + "/shots/s0001/reveal", face["url"]):
+        for url in (base, "/api/recasts", face["url"]):
             assert client.get(url).status_code == 200
 
 
@@ -280,7 +279,7 @@ def test_head_pass_409_commits_missing_or_retried_target_report(world, monkeypat
 
 
 @pytest.mark.parametrize("legacy", [False, True])
-def test_handoff_provenance_is_only_in_reveal(world, monkeypatch, legacy):
+def test_handoff_provenance_stays_out_of_the_blind_read(world, monkeypatch, legacy):
     from test_recast_feed import drain, long_shots, run
 
     state = drain(world, run(world, long_shots(world), budget=8)["id"])
@@ -306,9 +305,8 @@ def test_handoff_provenance_is_only_in_reveal(world, monkeypatch, legacy):
         blind = client.get(base)
         assert blind.status_code == 200 and "chained_from" not in blind.text
         assert '"bridges"' not in blind.text and '"joins"' not in blind.text
-        reveal = client.get(base + "/shots/s0001/reveal")
-        assert reveal.status_code == 200
-        version = reveal.json()["versions"][0]
+        # The provenance is still recorded on the shot's versions (the projection), only never served blind.
+        version = shot_versions(world, state["id"], "s0001")[0]
         if legacy:
             assert [w["chained_from"] for w in version["windows"]] == [
                 None,

@@ -447,11 +447,6 @@ class RecastSummaryDTO(BaseModel):
     updated_at: str
 
 
-class ShotRevealDTO(BaseModel):
-    shot_id: str
-    versions: list[dict]  # per version: windows with seed, treatment, framing, round, candidate ids
-
-
 class CreateRecastInput(RecastInputDTO):
     source_asset_id: str
     title: str | None = Field(default=None, max_length=120)
@@ -827,10 +822,6 @@ def recast_router(workspace, authenticate, token):
     @router.post("/{recast_id}/shots/{shot_id}/retake", response_model=RecastDTO)
     def retake(recast_id: str, shot_id: str, body: RetakeInput):
         return read(recast.retake_shot, recast_id, shot_id, **body.model_dump())
-
-    @router.get("/{recast_id}/shots/{shot_id}/reveal", response_model=ShotRevealDTO)
-    def reveal(recast_id: str, shot_id: str):
-        return read(recast.reveal_shot, recast_id, shot_id)
 
     @router.post("/{recast_id}/dialogue", response_model=RecastDTO)
     def start_dialogue(recast_id: str, body: RevisionInputDTO):

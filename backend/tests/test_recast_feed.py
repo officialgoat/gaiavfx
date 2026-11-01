@@ -3,7 +3,7 @@
 import json
 
 import pytest
-from test_recast_service import edit
+from test_recast_service import edit, shot_versions
 from test_recast_service import recast_template as recast_template  # noqa: PLC0414
 from test_recast_service import world as world  # noqa: PLC0414
 
@@ -139,7 +139,7 @@ def test_head_layer_reserves_feeds_reveals_chooses_and_chains(world):
     assert state["shots"][0]["versions"][0] == parent
     state = edit(world, state, recast.choose_version, shot["id"], version=derived["id"])
     assert state["shots"][0]["choice"]["version"] == derived["id"]
-    revealed = world.invoke(recast.reveal_shot, state["id"], shot["id"])["versions"][1]
+    revealed = shot_versions(world, state["id"], shot["id"])[1]
     assert revealed["layer"] == "head" and revealed["parent"]["version_id"] == parent["id"]
     # A head version can be a parent; changing the mapping does not change its target.
     state = edit(
@@ -303,8 +303,8 @@ def test_versions_blind_choice_retake_accumulates_and_reveal(world):
     assert [v["letter"] for v in state["shots"][0]["versions"]] == ["A", "B"]
     assert state["shots"][0]["retaking"] is False
     assert state["shots"][0]["choice"]["version"] == first["id"]
-    reveal = world.invoke(recast.reveal_shot, state["id"], "s0001")
-    assert len(reveal["versions"]) == 2 and reveal["versions"][0]["windows"][0]["seed"] == 123
+    reveal = shot_versions(world, state["id"], "s0001")
+    assert len(reveal) == 2 and reveal[0]["windows"][0]["seed"] == 123
     state = edit(world, state, recast.choose_version, "s0001", version="original")
     assert state["shots"][0]["status"] == "kept_original"
     state = edit(world, state, recast.choose_version, "s0001", version="unchosen")
@@ -529,7 +529,7 @@ def test_head_pass_uses_root_body_tracks_and_targets_in_each_window_after_retake
         world.invoke(recast.feed)
         settle_all(world, "shot_assembly")
         state = world.invoke(recast.recast_state, state["id"])
-        derived = world.invoke(recast.reveal_shot, state["id"], "s0001")["versions"][-1]
+        derived = shot_versions(world, state["id"], "s0001")[-1]
         assert derived["parent"]["track_ids"] == ["person0", "person1"]
         parent = derived["id"]
 
@@ -1374,7 +1374,7 @@ def test_reference_review_requires_confirmed_target(world, command):
 def test_head_layer_over_bridges_reserves_and_assembles_same_structure(world):
     state = drain(world, run(world, long_shots(world), budget=10)["id"])
     shot = state["shots"][0]
-    parent = world.invoke(recast.reveal_shot, state["id"], shot["id"])["versions"][0]
+    parent = shot_versions(world, state["id"], shot["id"])[0]
     assert len(parent["bridges"]) == 2
     state = edit(
         world,
@@ -1397,7 +1397,7 @@ def test_head_layer_over_bridges_reserves_and_assembles_same_structure(world):
             {**j, "kind": j["handoff"]} for j in parent["joins"]
         ]
     settle_all(world, "shot_assembly")
-    revealed = world.invoke(recast.reveal_shot, state["id"], shot["id"])["versions"][-1]
+    revealed = shot_versions(world, state["id"], shot["id"])[-1]
     assert revealed["layer"] == "head" and len(revealed["bridges"]) == 2
 
 

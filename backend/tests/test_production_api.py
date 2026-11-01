@@ -14,6 +14,7 @@ from fake_comfy import FakeComfy
 from fastapi.testclient import TestClient
 from PIL import Image
 from sqlalchemy import event, text
+from test_direction_api import assembled_segment
 
 from gaiavfx.api.app import create_app
 from gaiavfx.infrastructure.media import MediaTools
@@ -303,7 +304,7 @@ def test_complete_http_slice_and_guards(tmp_path):
             ).status_code
             == 409
         )
-        assert get(client, f"/api/direction/segments/{stored_segment['id']}/assembled") == segment
+        assert assembled_segment(app, stored_segment["id"]) == segment
         assert (
             client.post(
                 "/api/production/renders",

@@ -5,7 +5,7 @@ from copy import deepcopy
 
 import pytest
 from test_recast_feed import drain, run, settle_all
-from test_recast_service import edit
+from test_recast_service import edit, shot_versions
 from test_recast_service import recast_template as recast_template  # noqa: PLC0414
 from test_recast_service import world as world  # noqa: PLC0414
 
@@ -195,7 +195,7 @@ def test_reads_do_not_lock_or_save_and_cache_plan_and_face_index(world, monkeypa
     plans = len(world.calls["plan"])
     world.invoke(recast.recast_state, state["id"])
     world.invoke(recast.list_recasts)
-    world.invoke(recast.reveal_shot, state["id"], "s0001")
+    shot_versions(world, state["id"], "s0001")
     assert len(world.calls["plan"]) == plans
     reports = []
     original = world.film_api.film_analysis_report

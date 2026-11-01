@@ -52,24 +52,3 @@
 .telemetry-settings .inline-actions {
   flex-wrap: wrap;
 }
-.trace-links {
-  margin-block: 8px;
-}
-.trace-links .inline-actions {
-  flex-wrap: wrap;
-  gap: 12px;
-}
-.trace-links a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  text-decoration: none;
-}
-.trace-links a:hover {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.trace-links p {
-  margin: 4px 0 0;
-  overflow-wrap: anywhere;
-}

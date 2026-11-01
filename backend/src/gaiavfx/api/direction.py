@@ -6,7 +6,6 @@ from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, ConfigDict, Field, computed_field
 
 from gaiavfx.application import set_scenes, set_seed, sets
-from gaiavfx.application.authored import segment_to_dict
 from gaiavfx.application.continuation import METHODS, set_continuation
 from gaiavfx.application.direction_plans import plan_for_segment, plan_to_dict
 from gaiavfx.application.direction_reading import DIRECTION
@@ -185,13 +184,6 @@ class SubjectCreate(DirectionRevisionInput):
     identity_asset_id: str | None
 
 
-class SubjectPatch(DirectionRevisionInput):
-    name: str | None = None
-    description: str | None = None
-    keeps: list[str] | None = None
-    identity_asset_id: str | None = None
-
-
 class ContentDTO(DirectionInput):
     """Typed transport shape; Direction's content validator owns authored rules.
 
@@ -246,10 +238,6 @@ class PhaseTextDTO(ContentDTO):
 
 class ShotDTO(PhaseTextDTO):
     cast: list[str] = Field(default_factory=list)
-
-
-class LaterPhaseDTO(PhaseTextDTO):
-    start_frame: int
 
 
 class PhaseInput(DirectionInput):
@@ -405,28 +393,6 @@ class DirectionAngleTextCommandDTO(AngleDTO):
 
 class DirectionPlaceTextCommandDTO(PlaceDTO):
     receipt: ReceiptDTO
-
-
-class AuthoredSubjectDTO(BaseModel):
-    id: str
-    name: str
-    description: str
-    keeps: list[str]
-    identity_asset: str | None
-
-
-class AssembledSegmentDTO(BaseModel):
-    subjects: list[AuthoredSubjectDTO]
-    place: PlaceTextDTO
-    shots: list[ShotDTO]
-    cut_frames: list[int]
-    delivered_frames: int
-    continues: bool
-    style: str = Field(default_factory=str)
-    phases: list[LaterPhaseDTO] = Field(default_factory=list)
-    events: list[EventDTO] = Field(default_factory=list)
-    speech: list[SpeechDTO] = Field(default_factory=list)
-    states: list[StateDTO] = Field(default_factory=list)
 
 
 class AssessmentDTO(BaseModel):
@@ -732,23 +698,6 @@ def direction_router(workspace, authenticate):
                 session, movie_id, subject_id=body.id, **body.model_dump(exclude={"id"})
             )
 
-    @router.get("/movies/{movie_id}/subjects", response_model=list[SubjectDTO])
-    def subjects(movie_id: str):
-        with workspace.db.transaction() as session:
-            return direction.subjects(session, movie_id)
-
-    @router.patch("/subjects/{subject_id}", response_model=SubjectCommandDTO)
-    def update_subject(subject_id: str, body: SubjectPatch):
-        with workspace.db.transaction() as session:
-            return direction.update_subject(
-                session, subject_id, **body.model_dump(exclude_unset=True)
-            )
-
-    @router.post("/subjects/{subject_id}/remove", response_model=RemovedDTO)
-    def remove_subject(subject_id: str, body: DirectionRevisionInput):
-        with workspace.db.transaction() as session:
-            return direction.remove_subject(session, subject_id, body.expected_revision)
-
     @router.post(
         "/movies/{movie_id}/segments",
         response_model=SegmentCommandDTO,
@@ -776,15 +725,6 @@ def direction_router(workspace, authenticate):
     def segment(segment_id: str):
         with workspace.db.transaction() as session:
             return segment_dto(session, direction.read_segment(session, segment_id))
-
-    @router.get(
-        "/segments/{segment_id}/assembled",
-        response_model=AssembledSegmentDTO,
-        response_model_exclude_unset=True,
-    )
-    def assembled_segment(segment_id: str):
-        with workspace.db.transaction() as session:
-            return segment_to_dict(*direction.assemble_segment(session, segment_id))
 
     @router.patch(
         "/segments/{segment_id}",

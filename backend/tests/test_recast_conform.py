@@ -6,7 +6,7 @@ from unittest.mock import Mock
 
 import pytest
 from test_recast_feed import drain, run, settle_all
-from test_recast_service import edit
+from test_recast_service import edit, shot_versions
 from test_recast_service import recast_template as recast_template  # noqa: PLC0414
 from test_recast_service import world as world  # noqa: PLC0414
 
@@ -251,5 +251,5 @@ def test_retake_after_head_pass_keeps_letters_and_preview_uses_newest_assembly(w
     assert versions[2]["letter"] == "C"
     preview = submit(world, state, mode="preview_unreviewed", range={"start": 0, "end": 73})
     assert preview["request"]["choices"][0]["version"] == versions[2]["id"]
-    revealed = world.invoke(recast.reveal_shot, state["id"], "s0001")["versions"]
+    revealed = shot_versions(world, state["id"], "s0001")
     assert revealed[1]["layer"] == "head" and revealed[2]["layer"] is None

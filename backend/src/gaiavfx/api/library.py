@@ -48,10 +48,6 @@ class AssociationInput(StrictModel):
     role: str = "reference"
 
 
-class ReviewInput(StrictModel):
-    review: Literal["unreviewed", "preferred", "rejected"]
-
-
 class ImportDTO(BaseModel):
     asset: AssetDTO
     disposition: Literal["created", "reused"]
@@ -126,12 +122,6 @@ def library_router(workspace, authenticate, token: str):
     @router.get("/assets/{asset_id}", response_model=AssetDTO)
     def asset(asset_id: str):
         with w.db.transaction() as session:
-            return w.library.get(session, asset_id)
-
-    @router.patch("/assets/{asset_id}/review", response_model=AssetDTO)
-    def review_asset(asset_id: str, body: ReviewInput):
-        with w.db.transaction() as session:
-            w.library.review(session, asset_id, body.review)
             return w.library.get(session, asset_id)
 
     @router.get("/collections")

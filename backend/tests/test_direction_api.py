@@ -1,5 +1,6 @@
 """The read-only plan endpoint exposes a typed OpenAPI response."""
 
+import json
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -7,11 +8,20 @@ from test_direction_store import make_segment
 from wording_fixtures import GOLDEN, compile_fixture
 
 from gaiavfx.api.app import create_app
+from gaiavfx.application.authored import segment_to_dict
+from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.modules.direction.service import DirectionService
 from gaiavfx.modules.library.application import LibraryService
 
 MIGRATIONS = Path(__file__).parents[1] / "migrations"
 AUTH = {"Authorization": "Bearer test-token"}
+
+
+def assembled_segment(app, segment_id):
+    """The segment as Direction assembles it for a render, as JSON."""
+    with app.state.workspace.db.transaction() as session:
+        segment = segment_to_dict(*DIRECTION.assemble_segment(session, segment_id))
+    return json.loads(json.dumps(segment))
 
 
 def test_cut_plan_endpoint_and_missing_cut(tmp_path):
@@ -112,7 +122,7 @@ def test_persisted_authoring_receipts_and_undo_over_http(tmp_path):
         }
         segment = command(f"movies/{mid}/segments", {**data, "expected_revision": 3})
         sid = segment["id"]
-        continuous = read(f"segments/{sid}/assembled")
+        continuous = assembled_segment(app, sid)
         assert continuous["shots"] == [shot]
         assert continuous["cut_frames"] == []
         geometry = command("places", {"name": "Courtyard"})
@@ -129,7 +139,7 @@ def test_persisted_authoring_receipts_and_undo_over_http(tmp_path):
             },
         )
         assert cut["movie_id"] == mid and cut["receipt"]["target_id"] == sid
-        assembled = read(f"segments/{sid}/assembled")
+        assembled = assembled_segment(app, sid)
         assert assembled == {
             "subjects": [
                 {
@@ -160,20 +170,10 @@ def test_persisted_authoring_receipts_and_undo_over_http(tmp_path):
         assert stale["stale"] == {"kind": "Phase", "id": phase["id"], "revision": 2}
         undone = command(f"receipts/{changed['receipt']['id']}/undo", status=200)
         assert undone["command"] == "undo" and undone["undoes"] == changed["receipt"]["id"]
-        assert read(f"segments/{sid}/assembled") == assembled
+        assert assembled_segment(app, sid) == assembled
         receipts = read(f"movies/{mid}/receipts?limit=2")
         assert [r["id"] for r in receipts] == [undone["id"], changed["receipt"]["id"]]
         assert receipts[1]["undone_at"]
-        command("subjects/arin/remove", {"expected_revision": 4}, status=409)
-        changed_subject = command(
-            "subjects/arin", {"expected_revision": 1, "identity_asset_id": "image"}, "patch", 200
-        )
-        assert changed_subject["identity_asset_id"] == "image"
-        cleared = command(
-            "subjects/arin", {"expected_revision": 2, "identity_asset_id": None}, "patch", 200
-        )
-        assert cleared["identity_asset_id"] is None
-        assert read(f"movies/{mid}/subjects")[0]["revision"] == 3
         assert read(f"movies/{mid}/read")["movie"]["segments"][0]["cuts"][0]["movie_id"] == mid
         extra = command(f"movies/{mid}/segments", {**data, "expected_revision": 4})
         moved = command(
@@ -269,9 +269,7 @@ def test_schema_two_typed_content_survives_api_writes_and_reads(tmp_path):
             f"segments/{sid}/phases",
             {"expected_revision": 3, "start_frame": 90, "content": later},
         )
-        response = client.get(f"/api/direction/segments/{sid}/assembled")
-        assert response.status_code == 200, response.text
-        assembled = response.json()
+        assembled = assembled_segment(app, sid)
         assert assembled == {
             **authored,
             **{key: content[key] for key in ("style", "events", "speech", "states")},
@@ -301,27 +299,13 @@ def test_schema_two_typed_content_survives_api_writes_and_reads(tmp_path):
         )
         assert updated["content"] == cleared
         assert client.get(f"/api/direction/segments/{sid}").json()["content"] == cleared
-
-        changed = command(
-            "subjects/mara", {"expected_revision": 1, "keeps": ["coat", "bag"]}, "patch", 200
-        )
-        assert changed["keeps"] == ["coat", "bag"]
-        assert client.get(f"/api/direction/segments/{sid}/assembled").json()["subjects"][0][
-            "keeps"
-        ] == ["coat", "bag"]
-        for keeps in (["coat", "coat"], [" coat"], [""], "coat", [1]):
-            command("subjects/mara", {"expected_revision": 2, "keeps": keeps}, "patch", 422)
-        cleared_subject = command(
-            "subjects/mara", {"expected_revision": 2, "keeps": []}, "patch", 200
-        )
-        assert cleared_subject["keeps"] == []
         assert (
             client.get(f"/api/direction/movies/{movie['id']}/read").json()["movie"]["segments"][0][
                 "content"
             ]
             == cleared
         )
-        assert client.get(f"/api/direction/segments/{sid}/assembled").json() == {
+        assert assembled_segment(app, sid) == {
             **{
                 key: value
                 for key, value in assembled.items()
@@ -359,15 +343,10 @@ def test_direction_openapi_exposes_schema_two_content(tmp_path):
     schemas = create_app(tmp_path, MIGRATIONS, "test-token", enable_runner=False).openapi()[
         "components"
     ]["schemas"]
-    assembled = schemas["AssembledSegmentDTO"]["properties"]
-    for key, dto in (
-        ("phases", "LaterPhaseDTO"),
-        ("events", "EventDTO"),
-        ("speech", "SpeechDTO"),
-        ("states", "StateDTO"),
-    ):
-        assert assembled[key]["items"]["$ref"].endswith(f"/{dto}")
-    assert assembled["style"]["type"] == "string"
+    content = schemas["SegmentContentDTO"]["properties"]
+    for key, dto in (("events", "EventDTO"), ("speech", "SpeechDTO"), ("states", "StateDTO")):
+        assert content[key]["items"]["$ref"].endswith(f"/{dto}")
+    assert content["style"]["type"] == "string"
     assert "cast" in schemas["ShotDTO"]["properties"]
     assert schemas["SegmentCreate"]["properties"]["content"]["$ref"].endswith("/SegmentContentDTO")
     assert schemas["PhaseCreate"]["properties"]["content"]["$ref"].endswith("/ShotDTO")
@@ -406,10 +385,9 @@ def test_a_segment_with_no_cast_is_created_assembled_and_planned(tmp_path):
         response = client.post(f"/api/direction/movies/{movie['id']}/segments", json=body)
         assert response.status_code == 201, response.text
         sid = response.json()["id"]
-        assembled = client.get(f"/api/direction/segments/{sid}/assembled")
-        assert assembled.status_code == 200, assembled.text
-        assert assembled.json()["subjects"] == []
-        assert assembled.json()["shots"] == [{**shot, "cast": []}]
+        assembled = assembled_segment(app, sid)
+        assert assembled["subjects"] == []
+        assert assembled["shots"] == [{**shot, "cast": []}]
         plan = client.get(f"/api/direction/segments/{sid}/plan")
         assert plan.status_code == 200, plan.text
 

@@ -5,13 +5,11 @@ import re
 import secrets
 from collections import deque
 from itertools import pairwise
-from typing import Literal
 
 from fastapi import APIRouter
 from pydantic import BaseModel, Field, SecretStr
 
 from gaiavfx.infrastructure.telemetry.delivery import Delivery
-from gaiavfx.shared.errors import ApplicationError
 
 
 class TelemetrySettings(BaseModel):
@@ -50,10 +48,6 @@ class ConnectionResult(BaseModel):
     project_name: str
 
 
-class TraceLink(BaseModel):
-    url: str
-
-
 def telemetry_router(w):
     router = APIRouter(prefix="/settings/telemetry")
 
@@ -84,30 +78,6 @@ def telemetry_router(w):
         if not w.telemetry.store.status()["capture_error"]:
             w.telemetry.capture_error = None
         return w.telemetry.status()
-
-    @router.get("/links/{trace_id}", response_model=TraceLink)
-    def link(trace_id: str, kind: Literal["trace", "session"] = "trace"):
-        if not re.fullmatch(r"[a-f0-9]{32}", trace_id):
-            raise ApplicationError("Invalid trace identifier.", 422)
-        with w.telemetry.store.db() as db:
-            row = db.execute(
-                "SELECT session_id, destination FROM observations WHERE trace_id=? LIMIT 1",
-                (trace_id,),
-            ).fetchone()
-        if row is None:
-            raise ApplicationError("This trace has not been recorded yet.", 404)
-        ref = w.telemetry.reference(
-            {
-                "session_id": row["session_id"],
-                "destination_id": row["destination"],
-                "trace_id": trace_id,
-            }
-        )
-        if not ref or not ref[kind + "_url"]:
-            raise ApplicationError(
-                "Test the saved Langfuse connection to enable project links.", 422
-            )
-        return {"url": ref[kind + "_url"]}
 
     return router
 

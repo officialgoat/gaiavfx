@@ -15,7 +15,6 @@ import time
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
-from urllib.parse import quote
 
 from gaiavfx.shared.errors import ApplicationError
 from gaiavfx.shared.telemetry import QUIET, _active, _workflow
@@ -476,42 +475,6 @@ class Telemetry:
     def association(self, id):
         try:
             return self.store.association(id)
-        except Exception as error:
-            self.capture_failure(error)
-            return None
-
-    def reference(self, context):
-        if not context:
-            return None
-        try:
-            destination = self.store.destination(context["destination_id"])
-            base = destination["base_url"] if destination else None
-            project = destination.get("project_id") if destination else None
-            prefix = f"{base}/project/{quote(project, safe='')}" if project else None
-            with self.store.db() as db:
-                states = [
-                    r[0]
-                    for r in db.execute(
-                        "SELECT state FROM observations WHERE trace_id=?", (context["trace_id"],)
-                    )
-                ]
-            state = next(
-                (
-                    s
-                    for s in ("uncertain", "blocked", "failed", "pending", "sending")
-                    if s in states
-                ),
-                "delivered" if states else "recording",
-            )
-            return {
-                "session_id": context["session_id"],
-                "trace_id": context["trace_id"],
-                "trace_url": f"{prefix}/traces/{context['trace_id']}" if prefix else None,
-                "session_url": f"{prefix}/sessions/{quote(context['session_id'], safe='')}"
-                if prefix
-                else None,
-                "delivery_state": state,
-            }
         except Exception as error:
             self.capture_failure(error)
             return None

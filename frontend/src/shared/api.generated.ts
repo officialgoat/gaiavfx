@@ -120,23 +120,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/assets/{asset_id}/review": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Review Asset */
-    patch: operations["review_asset_api_v1_assets__asset_id__review_patch"];
-    trace?: never;
-  };
   "/api/v1/collections": {
     parameters: {
       query?: never;
@@ -379,23 +362,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/v1/settings/telemetry/links/{trace_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Link */
-    get: operations["link_api_v1_settings_telemetry_links__trace_id__get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/v1/settings/connections": {
     parameters: {
       query?: never;
@@ -544,45 +510,10 @@ export interface paths {
       path?: never;
       cookie?: never;
     };
-    /** Subjects */
-    get: operations["subjects_api_direction_movies__movie_id__subjects_get"];
+    get?: never;
     put?: never;
     /** Add Subject */
     post: operations["add_subject_api_direction_movies__movie_id__subjects_post"];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  "/api/direction/subjects/{subject_id}": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    /** Update Subject */
-    patch: operations["update_subject_api_direction_subjects__subject_id__patch"];
-    trace?: never;
-  };
-  "/api/direction/subjects/{subject_id}/remove": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Remove Subject */
-    post: operations["remove_subject_api_direction_subjects__subject_id__remove_post"];
     delete?: never;
     options?: never;
     head?: never;
@@ -622,23 +553,6 @@ export interface paths {
     head?: never;
     /** Update Segment */
     patch: operations["update_segment_api_direction_segments__segment_id__patch"];
-    trace?: never;
-  };
-  "/api/direction/segments/{segment_id}/assembled": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Assembled Segment */
-    get: operations["assembled_segment_api_direction_segments__segment_id__assembled_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
     trace?: never;
   };
   "/api/direction/segments/{segment_id}/continuation": {
@@ -2161,23 +2075,6 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-  "/api/recasts/{recast_id}/shots/{shot_id}/reveal": {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    /** Reveal */
-    get: operations["reveal_api_recasts__recast_id__shots__shot_id__reveal_get"];
-    put?: never;
-    post?: never;
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
   "/api/recasts/{recast_id}/dialogue": {
     parameters: {
       query?: never;
@@ -3316,30 +3213,6 @@ export interface components {
       /** Archived At */
       archived_at: string;
     };
-    /** AssembledSegmentDTO */
-    AssembledSegmentDTO: {
-      /** Subjects */
-      subjects: components["schemas"]["AuthoredSubjectDTO"][];
-      place: components["schemas"]["PlaceTextDTO"];
-      /** Shots */
-      shots: components["schemas"]["ShotDTO"][];
-      /** Cut Frames */
-      cut_frames: number[];
-      /** Delivered Frames */
-      delivered_frames: number;
-      /** Continues */
-      continues: boolean;
-      /** Style */
-      style?: string;
-      /** Phases */
-      phases?: components["schemas"]["LaterPhaseDTO"][];
-      /** Events */
-      events?: components["schemas"]["EventDTO"][];
-      /** Speech */
-      speech?: components["schemas"]["SpeechDTO"][];
-      /** States */
-      states?: components["schemas"]["StateDTO"][];
-    };
     /** AssessmentDTO */
     AssessmentDTO: {
       coverage: components["schemas"]["Coverage"];
@@ -3464,19 +3337,6 @@ export interface components {
        * @default reference
        */
       role: string;
-    };
-    /** AuthoredSubjectDTO */
-    AuthoredSubjectDTO: {
-      /** Id */
-      id: string;
-      /** Name */
-      name: string;
-      /** Description */
-      description: string;
-      /** Keeps */
-      keeps: string[];
-      /** Identity Asset */
-      identity_asset: string | null;
     };
     /** BoardEntry */
     BoardEntry: {
@@ -4750,17 +4610,6 @@ export interface components {
       } | null;
       /** Created At */
       created_at: string;
-    };
-    /** LaterPhaseDTO */
-    LaterPhaseDTO: {
-      /** Description */
-      description: string;
-      /** Screen Direction */
-      screen_direction: string;
-      /** Sound */
-      sound: string;
-      /** Start Frame */
-      start_frame: number;
     };
     /** LibraryDTO */
     LibraryDTO: {
@@ -6061,14 +5910,6 @@ export interface components {
       rejection?:
         components["schemas"]["ProductionReferenceRejectionDTO"] | null;
     };
-    /** ReviewInput */
-    ReviewInput: {
-      /**
-       * Review
-       * @enum {string}
-       */
-      review: "unreviewed" | "preferred" | "rejected";
-    };
     /** ReviewMemberDTO */
     ReviewMemberDTO: {
       /** Replacement Checks */
@@ -7231,15 +7072,6 @@ export interface components {
       /** Reasons */
       reasons?: string[];
     };
-    /** ShotRevealDTO */
-    ShotRevealDTO: {
-      /** Shot Id */
-      shot_id: string;
-      /** Versions */
-      versions: {
-        [key: string]: unknown;
-      }[];
-    };
     /**
      * ShotVersionDTO
      * @description One complete replacement of the shot (all windows assembled); anonymous until reveal.
@@ -7350,19 +7182,6 @@ export interface components {
       /** Identity Asset Id */
       identity_asset_id: string | null;
     };
-    /** SubjectPatch */
-    SubjectPatch: {
-      /** Expected Revision */
-      expected_revision: number;
-      /** Name */
-      name?: string | null;
-      /** Description */
-      description?: string | null;
-      /** Keeps */
-      keeps?: string[] | null;
-      /** Identity Asset Id */
-      identity_asset_id?: string | null;
-    };
     /** SurveyInput */
     SurveyInput: {
       /** Request Key */
@@ -7469,11 +7288,6 @@ export interface components {
       errors: {
         [key: string]: unknown;
       }[];
-    };
-    /** TraceLink */
-    TraceLink: {
-      /** Url */
-      url: string;
     };
     /** TurnDTO */
     TurnDTO: {
@@ -8006,41 +7820,6 @@ export interface operations {
       };
     };
   };
-  review_asset_api_v1_assets__asset_id__review_patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        asset_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["ReviewInput"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AssetDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   collections_api_v1_collections_get: {
     parameters: {
       query?: never;
@@ -8552,39 +8331,6 @@ export interface operations {
       };
     };
   };
-  link_api_v1_settings_telemetry_links__trace_id__get: {
-    parameters: {
-      query?: {
-        kind?: "trace" | "session";
-      };
-      header?: never;
-      path: {
-        trace_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["TraceLink"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   settings_api_v1_settings_connections_get: {
     parameters: {
       query?: never;
@@ -8849,37 +8595,6 @@ export interface operations {
       };
     };
   };
-  subjects_api_direction_movies__movie_id__subjects_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        movie_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SubjectDTO"][];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
   add_subject_api_direction_movies__movie_id__subjects_post: {
     parameters: {
       query?: never;
@@ -8902,76 +8617,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["SubjectCommandDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  update_subject_api_direction_subjects__subject_id__patch: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        subject_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["SubjectPatch"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["SubjectCommandDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  remove_subject_api_direction_subjects__subject_id__remove_post: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        subject_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody: {
-      content: {
-        "application/json": components["schemas"]["DirectionRevisionInput"];
-      };
-    };
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["RemovedDTO"];
         };
       };
       /** @description Validation Error */
@@ -9073,37 +8718,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["SegmentCommandDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  assembled_segment_api_direction_segments__segment_id__assembled_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        segment_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["AssembledSegmentDTO"];
         };
       };
       /** @description Validation Error */
@@ -12458,38 +12072,6 @@ export interface operations {
         };
         content: {
           "application/json": components["schemas"]["RecastDTO"];
-        };
-      };
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"];
-        };
-      };
-    };
-  };
-  reveal_api_recasts__recast_id__shots__shot_id__reveal_get: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        recast_id: string;
-        shot_id: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: never;
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          "application/json": components["schemas"]["ShotRevealDTO"];
         };
       };
       /** @description Validation Error */
