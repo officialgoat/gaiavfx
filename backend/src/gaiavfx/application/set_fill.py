@@ -39,6 +39,7 @@ from gaiavfx.integrations.minimax_h3 import probe as h3_probe
 from gaiavfx.integrations.minimax_h3.probe import build_probe_graph, compile_probe
 from gaiavfx.integrations.worldbuilder.fill import settings, still_geometry_graph
 from gaiavfx.modules.generation.operations.lifecycle import STOPPED, JobSpec
+from gaiavfx.modules.generation.operations.staged import stage
 from gaiavfx.modules.sets.probe import ProbeRequest
 from gaiavfx.shared.errors import ApplicationError
 
@@ -97,10 +98,6 @@ def frozen() -> dict:
 def _probe_knowledge(fill: dict) -> h3_probe.ProbeKnowledge | None:
     # A build frozen before the probe's compile was frozen with it compiles with the current one.
     return h3_probe.ProbeKnowledge(**fill["probe"]) if fill.get("probe") else None
-
-
-def stage(job) -> dict:
-    return (job.get("snapshot") or {}).get("stage") or {}
 
 
 def rounds_held(atlas: dict) -> int:

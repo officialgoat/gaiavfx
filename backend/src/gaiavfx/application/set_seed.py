@@ -503,10 +503,6 @@ def refusal(gate: dict) -> str:
     return REFUSALS.get(_reason(gate), "Could not reconstruct reliable geometry from this take.")
 
 
-def _stage(job) -> str | None:
-    return ((job.get("snapshot") or {}).get("stage") or {}).get("name")
-
-
 def advance_seed(session, operation, *, library):
     """The seed's stages (the module docstring): after geometry and atlas, refuse or add the splat; after the
     splat, write the set or begin filling; while filling, the next stage (`set_fill.advance`) until a stop rule, then

@@ -20,6 +20,7 @@ import numpy as np
 from gaiavfx.application import operation_start
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import spec as voice_spec
+from gaiavfx.modules.generation.operations import staged
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
 from gaiavfx.modules.generation.operations.outcome import cause
@@ -137,22 +138,6 @@ def start_dialogue_analysis(session, library, asset_id: str, *, retry_failed=Fal
     )
 
 
-def _output(job, key):
-    matches = [o for o in job["outputs"] if o.get("output_key") == key and o.get("artifact_id")]
-    if len(matches) != 1:
-        raise ApplicationError(f"Missing unique dialogue analysis artifact: {key}", 409)
-    return matches[0]
-
-
-def _frozen(output):
-    return {
-        "source": "artifact",
-        "artifact_id": output["artifact_id"],
-        "sha256": output["sha256"],
-        "directory": "input",
-    }
-
-
 def advance_dialogue_analysis(session, operation, *, library):
     """After stage 1, freeze stage 2 on the settled stems and transcript; after stage 2, close the gate. A stopped
     stage closes the gate too, so the operation settles failed or partial and the Voice step offers a retry."""
@@ -167,8 +152,8 @@ def advance_dialogue_analysis(session, operation, *, library):
         )
     steps = tuple(job["step"] for job in jobs)
     if steps == STEPS[:3]:
-        dialogue = _output(jobs[1], "dialogue")
-        transcript = _output(jobs[2], "transcript")
+        dialogue = staged.output(jobs[1], "dialogue", "dialogue analysis")
+        transcript = staged.output(jobs[2], "transcript", "dialogue analysis")
         return operations.resume(
             session,
             operation["id"],
@@ -178,20 +163,23 @@ def advance_dialogue_analysis(session, operation, *, library):
                     "analysis.speakers",
                     params=voice_spec.settings("analysis.speakers"),
                     kind="analysis",
-                    inputs={"audio": _frozen(dialogue), "segments": _frozen(transcript)},
+                    inputs={
+                        "audio": staged.frozen(dialogue),
+                        "segments": staged.frozen(transcript),
+                    },
                 ),
                 engine_job(
                     "analysis.tag",
                     params=voice_spec.settings("analysis.tag"),
                     kind="analysis",
-                    inputs={"audio": _frozen(dialogue)},
+                    inputs={"audio": staged.frozen(dialogue)},
                 ),
                 JobSpec(
                     "analysis",
                     "local",
                     "voice",
                     step="dialogue_envelope",
-                    inputs={"dialogue": _frozen(dialogue)},
+                    inputs={"dialogue": staged.frozen(dialogue)},
                     snapshot={
                         "step_spec": {"sample_rate": SAMPLE_RATE, "hop": HOP},
                         "resumable_local": True,
@@ -229,7 +217,7 @@ def stem_artifact(operation) -> dict:
     separate = [job for job in operation["jobs"] if job["step"] == "analysis.separate"]
     if len(separate) != 1:
         raise ApplicationError("Missing unique dialogue analysis artifact: dialogue", 409)
-    output = _output(separate[0], "dialogue")
+    output = staged.output(separate[0], "dialogue", "dialogue analysis")
     return {"artifact_id": output["artifact_id"], "sha256": output["sha256"]}
 
 
@@ -240,7 +228,9 @@ def segment_key(index: int, start: float) -> str:
 
 def _json(library, session, job, key):
     try:
-        return json.loads(library.read_blob(session, _output(job, key)["artifact_id"]))
+        return json.loads(
+            library.read_blob(session, staged.output(job, key, "dialogue analysis")["artifact_id"])
+        )
     except (ValueError, TypeError) as exc:
         raise ApplicationError(f"Invalid dialogue analysis report: {key}", 409) from exc
 
@@ -259,7 +249,9 @@ def dialogue_report(session, library, operation_id: str) -> dict | None:
         reports.move_to_end(token)
         return reports[token]
     jobs = {job["step"]: job for job in operation["jobs"]}
-    mix = library.artifact(session, _output(jobs["dialogue_audio"], "mix")["artifact_id"])["info"]
+    mix = library.artifact(
+        session, staged.output(jobs["dialogue_audio"], "mix", "dialogue analysis")["artifact_id"]
+    )["info"]
     transcript = _json(library, session, jobs["analysis.transcribe"], "transcript")
     speakers = _json(library, session, jobs["analysis.speakers"], "speakers")
     spans = _json(library, session, jobs["analysis.tag"], "spans")
@@ -270,7 +262,9 @@ def dialogue_report(session, library, operation_id: str) -> dict | None:
             "The speaker measurements do not match the transcript; retry the dialogue analysis.",
             409,
         )
-    envelope_id = _output(jobs["dialogue_envelope"], "envelope")["artifact_id"]
+    envelope_id = staged.output(jobs["dialogue_envelope"], "envelope", "dialogue analysis")[
+        "artifact_id"
+    ]
     with np.load(io.BytesIO(library.read_blob(session, envelope_id)), allow_pickle=False) as data:
         db = data["db"].astype(np.float64).tolist()
         hop = int(data["hop"])

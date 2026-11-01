@@ -39,6 +39,7 @@ from gaiavfx.application import operation_start
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.integrations.voice import engines as voice_engines
 from gaiavfx.integrations.voice import spec as voice_spec
+from gaiavfx.modules.generation.operations import staged
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED, JobSpec
 from gaiavfx.modules.generation.operations.outcome import cause
@@ -298,21 +299,6 @@ def latest(session, shas) -> tuple[dict | None, int]:
     return attempts(operations, session, lambda n: key(shas, n)).newest()
 
 
-def _stage_of(job) -> tuple[str | None, str | None]:
-    stage = (job.get("snapshot") or {}).get("stage") or {}
-    return stage.get("name"), stage.get("unit")
-
-
-def _current(jobs) -> dict:
-    """{(stage, unit): the newest job of that unit}: a retry supersedes the job it replaces."""
-    found = {}
-    for job in sorted(jobs, key=lambda j: j["ordinal"]):
-        name, unit = _stage_of(job)
-        if name in STAGES:
-            found[(name, unit)] = job
-    return found
-
-
 def _newest(current) -> str | None:
     names = [name for name, _ in current]
     return max(names, key=STAGES.index) if names else None
@@ -320,30 +306,7 @@ def _newest(current) -> str | None:
 
 def stopped_jobs(operation) -> list[dict]:
     """The current jobs (the newest per stage unit) that stopped: failed, cancelled or needing attention."""
-    if operation is None:
-        return []
-    current = _current(operation["jobs"])
-    return sorted(
-        (job for job in current.values() if job["state"] in STOPPED), key=lambda j: j["ordinal"]
-    )
-
-
-def _output(job, output_key):
-    matches = [
-        o for o in job["outputs"] if o.get("output_key") == output_key and o.get("artifact_id")
-    ]
-    if len(matches) != 1:
-        raise ApplicationError(f"Missing unique voice build artifact: {output_key}", 409)
-    return matches[0]
-
-
-def _frozen(output) -> dict:
-    return {
-        "source": "artifact",
-        "artifact_id": output["artifact_id"],
-        "sha256": output["sha256"],
-        "directory": "input",
-    }
+    return [] if operation is None else staged.stopped_jobs(operation["jobs"], STAGES)
 
 
 def _stage(name: str, unit: str) -> dict:
@@ -370,10 +333,10 @@ def manifest_artifact(operation) -> dict | None:
     """{"artifact_id", "sha256"} of the `voice_model` manifest of a succeeded build; None otherwise."""
     if not succeeded(operation):
         return None
-    job = _current(operation["jobs"]).get(("package", "package"))
+    job = staged.current_jobs(operation["jobs"], STAGES).get(("package", "package"))
     if job is None:
         return None
-    output = _output(job, "model")
+    output = staged.output(job, "model", "voice build")
     return {"artifact_id": output["artifact_id"], "sha256": output["sha256"]}
 
 
@@ -464,7 +427,7 @@ def build_view(operation) -> dict:
     A stopped job reads failed while the build awaits its retry."""
     if operation is None:
         return {"state": "not_started", "stage": None, "done": 0, "total": 0, "error": None}
-    current = _current(operation["jobs"])
+    current = staged.current_jobs(operation["jobs"], STAGES)
     unfinished = [name for (name, _), job in current.items() if job["state"] != "succeeded"]
     stage = max(unfinished, key=STAGES.index) if unfinished else _newest(current)
     created = {name for name, _ in current}
@@ -678,7 +641,7 @@ def retry_stopped(session, operation) -> dict:
     operation = operations.operation(session, operation["id"])
     if operation["kind"] != NAME:
         raise ApplicationError("Operation is not a voice build.", 422)
-    current = _current(operation["jobs"])
+    current = staged.current_jobs(operation["jobs"], STAGES)
     stage = _newest(current)
     stopped = [
         job for (name, _), job in current.items() if name == stage and job["state"] in STOPPED
@@ -711,7 +674,7 @@ class _Build:
 
     def __init__(self, session, library, operation):
         self.session, self.library, self.operation = session, library, operation
-        self.current = _current(operation["jobs"])
+        self.current = staged.current_jobs(operation["jobs"], STAGES)
         self.base = len(operation["jobs"])
         self.document = voice_spec.load()
         self._reports = {}
@@ -736,7 +699,7 @@ class _Build:
         )
 
     def output(self, stage: str, unit: str, output_key: str) -> dict:
-        return _output(self.job(stage, unit), output_key)
+        return staged.output(self.job(stage, unit), output_key, "voice build")
 
     def read(self, output) -> dict | list:
         artifact_id = output["artifact_id"]
@@ -761,8 +724,8 @@ class _Build:
 
     def seed_inputs(self) -> dict:
         manifest, _, clips = self.seed()
-        return {"seed": _frozen(manifest)} | {
-            f"clip:{clip_id}": _frozen(output) for clip_id, output in clips.items()
+        return {"seed": staged.frozen(manifest)} | {
+            f"clip:{clip_id}": staged.frozen(output) for clip_id, output in clips.items()
         }
 
     def references(self) -> dict:
@@ -770,7 +733,7 @@ class _Build:
         the bootstrap set used seed00 alone; the build's numbers are compared with theirs)."""
         _, _, clips = self.seed()
         first = next(iter(clips.values()), None)
-        return {"reference:00": _frozen(first)} if first else {}
+        return {"reference:00": staged.frozen(first)} if first else {}
 
     def library_clips(self) -> list[dict]:
         """The frozen library clips: {"id", "category", "speaker", "output"} in the library step's order."""
@@ -869,7 +832,7 @@ def _seed_stage(b: _Build) -> list[JobSpec]:
             "analysis.speakers",
             params=b.settings("analysis.speakers"),
             kind="analysis",
-            inputs={"audio": _frozen(samples), "segments": _frozen(transcript)},
+            inputs={"audio": staged.frozen(samples), "segments": staged.frozen(transcript)},
             stage=_stage("seed", "speakers"),
         ),
         JobSpec(
@@ -879,9 +842,9 @@ def _seed_stage(b: _Build) -> list[JobSpec]:
             step="voice_seed",
             depends_on=b.base,
             inputs={
-                "samples": _frozen(samples),
-                "transcript": _frozen(transcript),
-                "manifest": _frozen(manifest),
+                "samples": staged.frozen(samples),
+                "transcript": staged.frozen(transcript),
+                "manifest": staged.frozen(manifest),
                 "speakers": {"source": "job_artifact", "output_key": "speakers"},
             },
             snapshot={
@@ -939,7 +902,7 @@ def _material_stage(b: _Build) -> list[JobSpec]:
                 "analysis.speakers",
                 params=b.settings("analysis.speakers"),
                 kind="analysis",
-                inputs={f"clip:{clip['id']}": _frozen(clip["output"]) for clip in clips},
+                inputs={f"clip:{clip['id']}": staged.frozen(clip["output"]) for clip in clips},
                 stage=_stage("material", "library_speakers"),
             )
         )
@@ -965,7 +928,7 @@ def _convert_stage(b: _Build) -> list[JobSpec]:
                 "tts.superres",
                 params=superres,
                 kind="audio",
-                inputs={f"clip:{t['id']}": _frozen(t["output"]) for t in piece},
+                inputs={f"clip:{t['id']}": staged.frozen(t["output"]) for t in piece},
                 artifact_kind="voice_material",
                 stage=_stage("convert", f"superres:{n}"),
             )
@@ -974,7 +937,7 @@ def _convert_stage(b: _Build) -> list[JobSpec]:
     clips = b.library_clips()
     if not designed and not clips:
         return jobs
-    shared = b.references() | {"model": _frozen(b.output("material", "finetune", "model"))}
+    shared = b.references() | {"model": staged.frozen(b.output("material", "finetune", "model"))}
     size = build["convert_clips_per_job"]
     if clips:
         target = b.target_median()
@@ -996,7 +959,7 @@ def _convert_stage(b: _Build) -> list[JobSpec]:
                         "clip_speakers": speakers,
                     },
                     kind="audio",
-                    inputs={f"clip:{c['id']}": _frozen(c["output"]) for c in piece} | shared,
+                    inputs={f"clip:{c['id']}": staged.frozen(c["output"]) for c in piece} | shared,
                     artifact_kind="voice_material",
                     stage=_stage("convert", f"bootstrap:{n}"),
                 )
@@ -1007,7 +970,7 @@ def _convert_stage(b: _Build) -> list[JobSpec]:
                 "seedvc.convert",
                 params=convert | {"pitch_shift": 0},
                 kind="audio",
-                inputs={f"clip:{t['id']}": _frozen(t["output"]) for t in piece} | shared,
+                inputs={f"clip:{t['id']}": staged.frozen(t["output"]) for t in piece} | shared,
                 artifact_kind="voice_material",
                 stage=_stage("convert", f"designed:{n}"),
             )
@@ -1074,9 +1037,9 @@ def _filter_stage(b: _Build) -> list[JobSpec]:
         inputs = {"candidates": {"source": "job_artifact", "output_key": f"candidates:{n}"}}
         inputs |= seed_inputs
         for row in piece:
-            inputs[f"clip:{row['id']}"] = _frozen(clip_outputs[row["id"]])
+            inputs[f"clip:{row['id']}"] = staged.frozen(clip_outputs[row["id"]])
             if row.get("source_id"):
-                inputs[f"clip:{row['source_id']}"] = _frozen(clip_outputs[row["source_id"]])
+                inputs[f"clip:{row['source_id']}"] = staged.frozen(clip_outputs[row["source_id"]])
         jobs.append(
             engine_job(
                 "analysis.filter",
@@ -1095,8 +1058,8 @@ def _train_stage(b: _Build) -> list[JobSpec]:
     the previous chunk's checkpoint in the scratch) and the index."""
     inputs = b.seed_inputs()
     for n, job in enumerate(b.jobs("filter", "filter:")):
-        kept = _output(job, "kept")
-        inputs[f"kept:{n}"] = _frozen(kept)
+        kept = staged.output(job, "kept", "voice build")
+        inputs[f"kept:{n}"] = staged.frozen(kept)
         for row in b.read(kept):
             if row.get("kept", True):
                 inputs[f"clip:{row['id']}"] = copy.deepcopy(job["inputs"][f"clip:{row['id']}"])
@@ -1139,16 +1102,19 @@ def _package_stage(b: _Build) -> list[JobSpec]:
     last = b.job(
         "train", f"train:{train_ends(int(train['epochs']), int(train['chunk_epochs']))[-1]}"
     )
-    weights, index = _output(last, "model"), b.output("train", "index", "index")
+    weights, index = (
+        staged.output(last, "model", "voice build"),
+        b.output("train", "index", "index"),
+    )
     inputs = {
-        "weights": _frozen(weights),
-        "index": _frozen(index),
-        "dataset": _frozen(b.output("train", "prepare", "dataset")),
-        "speakers": _frozen(b.output("seed", "speakers", "speakers")),
-        "seed": _frozen(b.output("seed", "seed", "seed")),
+        "weights": staged.frozen(weights),
+        "index": staged.frozen(index),
+        "dataset": staged.frozen(b.output("train", "prepare", "dataset")),
+        "speakers": staged.frozen(b.output("seed", "speakers", "speakers")),
+        "seed": staged.frozen(b.output("seed", "seed", "seed")),
     }
     for n, job in enumerate(b.jobs("filter", "filter:")):
-        inputs[f"scored:{n}"] = _frozen(_output(job, "scored"))
+        inputs[f"scored:{n}"] = staged.frozen(staged.output(job, "scored", "voice build"))
     request = b.operation["request"]
     samples_job = b.job("samples", "samples")
     return [
@@ -1194,7 +1160,7 @@ def advance_voice_build(session, operation, *, library):
     """After a stage succeeded, append the next one with its inputs frozen as artifacts (a stage with nothing to do
     is passed over); after the package, close the gate so the build settles succeeded. A stopped job leaves the gate
     open and the stage alone: the human retry resumes it."""
-    current = _current(operation["jobs"])
+    current = staged.current_jobs(operation["jobs"], STAGES)
     stage = _newest(current)
     if stage is None:
         raise ApplicationError("The voice build has no stage to advance.", 409)
@@ -1280,7 +1246,7 @@ def start_voice_audition(
     if not (float(source_median_hz) > 0 and float(target_median_hz) > 0):
         raise ApplicationError("The audition needs the source and target medians.", 422)
     gaps = voice_spec.audition()["reel_gap_seconds"]
-    frozen_stem = _frozen(stem)
+    frozen_stem = staged.frozen(stem)
     return operation_start.create_operation(
         session,
         kind=AUDITION,
@@ -1321,8 +1287,8 @@ def start_voice_audition(
                 }
                 | {
                     "spans": {"source": "job_artifact", "output_key": "spans"},
-                    "model": _frozen(weights),
-                    "index": _frozen(index),
+                    "model": staged.frozen(weights),
+                    "index": staged.frozen(index),
                 },
                 artifact_kind="voice_material",
             ),

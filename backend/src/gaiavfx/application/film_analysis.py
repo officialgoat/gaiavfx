@@ -11,6 +11,7 @@ from gaiavfx.application.recast_steps import scan_frames, validate_faces
 from gaiavfx.integrations import person_analysis
 from gaiavfx.integrations.person_analysis.face_scan import face_scan_graph
 from gaiavfx.modules.direction.film import parse_film_policy
+from gaiavfx.modules.generation.operations import staged
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
@@ -66,13 +67,6 @@ def start_film_analysis(session, library, asset_id: str, *, request_key: str) ->
     )
 
 
-def _output(job, key):
-    matches = [d for d in job["outputs"] if d.get("output_key") == key and d.get("artifact_id")]
-    if len(matches) != 1:
-        raise ApplicationError(f"Missing unique film analysis artifact: {key}")
-    return matches[0]
-
-
 def advance_film_analysis(session, operation, *, library):
     """Freeze chunk jobs after shots, then merge only successfully collected chunks."""
     jobs = operation["jobs"]
@@ -90,7 +84,7 @@ def advance_film_analysis(session, operation, *, library):
         return operations.resume(
             session, operation["id"], {"decided_by": NAME, "stage": "stopped"}, jobs=[]
         )
-    shots_output = _output(jobs[0], "shots")
+    shots_output = staged.output(jobs[0], "shots", "film analysis")
     shots_id = shots_output["artifact_id"]
     shots = json.loads(library.read_blob(session, shots_id))
     spec = {
@@ -158,8 +152,8 @@ def advance_film_analysis(session, operation, *, library):
 
     chunks = [
         {
-            "map": artifact_input(_output(jobs[i], "map")),
-            "faces": artifact_input(_output(jobs[i + 1], "faces:reports:0")),
+            "map": artifact_input(staged.output(jobs[i], "map", "film analysis")),
+            "faces": artifact_input(staged.output(jobs[i + 1], "faces:reports:0", "film analysis")),
         }
         for i in range(1, len(jobs), 2)
     ]
@@ -197,10 +191,14 @@ def film_analysis_report(session, library, operation_id: str) -> dict | None:
     if operation["state"] != "succeeded":
         return None
     shots = json.loads(
-        library.read_blob(session, _output(operation["jobs"][0], "shots")["artifact_id"])
+        library.read_blob(
+            session, staged.output(operation["jobs"][0], "shots", "film analysis")["artifact_id"]
+        )
     )
     cast = json.loads(
-        library.read_blob(session, _output(operation["jobs"][-1], "cast")["artifact_id"])
+        library.read_blob(
+            session, staged.output(operation["jobs"][-1], "cast", "film analysis")["artifact_id"]
+        )
     )
     return {**shots, **cast}
 
@@ -209,11 +207,13 @@ def film_faces(session, library, operation_id: str) -> dict[str, np.ndarray]:
     operation = _operation(session, operation_id)
     if operation["state"] != "succeeded":
         raise ApplicationError("Film face scan is not complete.", 409)
-    artifact = _output(operation["jobs"][-1], "faces")["artifact_id"]
+    artifact = staged.output(operation["jobs"][-1], "faces", "film analysis")["artifact_id"]
     with np.load(io.BytesIO(library.read_blob(session, artifact)), allow_pickle=False) as data:
         faces = {key: data[key] for key in data.files}
     shots = json.loads(
-        library.read_blob(session, _output(operation["jobs"][0], "shots")["artifact_id"])
+        library.read_blob(
+            session, staged.output(operation["jobs"][0], "shots", "film analysis")["artifact_id"]
+        )
     )
     validate_faces(faces, shots["frame_count"])
     return faces

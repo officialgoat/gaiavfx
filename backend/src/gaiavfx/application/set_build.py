@@ -22,6 +22,7 @@ from gaiavfx.application import operation_start, set_fill
 from gaiavfx.application.engine_jobs import engine_job
 from gaiavfx.application.sets import STORE, build_view, set_state
 from gaiavfx.integrations.worldbuilder import rules
+from gaiavfx.modules.generation.operations import staged
 from gaiavfx.modules.generation.operations.attempts import attempts
 from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, STOPPED
 from gaiavfx.modules.generation.operations.outcome import failure
@@ -43,15 +44,6 @@ def _key(set_id, base_id, fix_ids, attempt) -> str:
 def _attempt(session, set_id, base_id, fix_ids) -> tuple[dict | None, int]:
     """The build for these fixes that is still under way, or the first attempt number not yet used."""
     return attempts(operations, session, lambda n: _key(set_id, base_id, fix_ids, n)).in_flight()
-
-
-def _frozen(artifact: dict) -> dict:
-    return {
-        "source": "artifact",
-        "artifact_id": artifact["id"],
-        "sha256": artifact["sha256"],
-        "directory": "input",
-    }
 
 
 def start_set_build(
@@ -106,12 +98,17 @@ def start_set_build(
     if existing is not None:
         return existing | {"_created": False}
     atlas = library.artifact(session, base["atlas_artifact_id"])
-    inputs, files = {"atlas": _frozen(atlas), **inputs}, {}
+    inputs, files = (
+        {"atlas": staged.frozen({"artifact_id": atlas["id"], "sha256": atlas["sha256"]}), **inputs},
+        {},
+    )
     for keyframe in members.values():
         still = library.get(session, keyframe["image_asset_id"])
         depth = library.artifact(session, keyframe["depth_artifact_id"])
         inputs[still["id"]] = {"sha256": still["sha256"]}
-        inputs[f"depth:{keyframe['id']}"] = _frozen(depth)
+        inputs[f"depth:{keyframe['id']}"] = staged.frozen(
+            {"artifact_id": depth["id"], "sha256": depth["sha256"]}
+        )
         files[keyframe["key"]] = {"image": still["id"], "data": f"depth:{keyframe['id']}"}
     meta = base["map_meta"] or {}
     prepared = f"v{base['ordinal']}-repair-{attempt}"
