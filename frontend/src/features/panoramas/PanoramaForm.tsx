@@ -40,6 +40,8 @@ export function PanoramaForm({
   const [place, setPlace] = useState("");
   const [light, setLight] = useState("");
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
+  // A landmark just added takes the focus, so its name can be typed at once.
+  const [added, setAdded] = useState<number | null>(null);
   const [pictureId, setPictureId] = useState<string | null>(null);
   const [setFov, setSetFov] = useState(false);
   const [hfov, setHfov] = useState(72);
@@ -152,6 +154,7 @@ export function PanoramaForm({
                 <li key={index}>
                   <MapPin size={14} aria-hidden className="muted" />
                   <input
+                    autoFocus={index === added}
                     aria-label={`Landmark ${index + 1}`}
                     value={landmark.what}
                     maxLength={80}
@@ -205,12 +208,13 @@ export function PanoramaForm({
               type="button"
               className="text-button"
               disabled={landmarks.length >= MAX_LANDMARKS}
-              onClick={() =>
+              onClick={() => {
+                setAdded(landmarks.length);
                 setLandmarks((all) => [
                   ...all,
                   { what: "", heading: nextHeading() },
-                ])
-              }
+                ]);
+              }}
             >
               <Plus size={14} aria-hidden /> Add a landmark
             </button>
