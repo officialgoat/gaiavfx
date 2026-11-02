@@ -52,7 +52,7 @@ Each of these concepts has one module, and its callers and tests go through that
 | Character derivatives | `application/recast_derivatives.py` | A character's face sheet and voice model: feed, approval, cancel and reconcile. |
 | Run scope | `application/recast_run.py` | Which shots a Recast run renders, its reservation and its estimate, why Plan, Start and Pause may not run (`refusals`, `start_blocked`), and when a range is reviewed (`reviewed`). |
 | Shot work | `application/recast_take.py` | The seam through which Recast asks for analyses, replacements, bridges and assembly. |
-| Recast test world | `backend/tests/recast_world_support.py`, `tests/browser_recast.py` | The second adapter at Recast's seams (film analysis, shot work, planner, dialogue, voice builds) for pytest and for the browser suite, which seeds real recasts through it instead of mocking Recast. |
+| Recast test world | `backend/tests/recast_world_support.py`, `tests/browser_recast.py` | The second adapter at Recast's seams (film analysis, shot work, planner, dialogue, voice builds) for pytest and for the browser suite, which seeds real recasts through it instead of mocking Recast; a long film is seeded once per spec file and only read. |
 | Conversation record | `application/harness/conversation.py` | A session's turns, its saved document and its summary. |
 | Grant budget | `application/harness/budget.py` | What Gaia has reserved, the session's limit, the current step's allowance, and every "jobs left". |
 | Report checks | `application/harness/tools/report_checks.py` | The current human turn and what a check remembers in it, read from the turns; say and ask_human run through it. |

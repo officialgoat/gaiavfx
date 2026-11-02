@@ -14,6 +14,8 @@ type S = components["schemas"];
 export type Scene = {
   shots?: number;
   length?: number;
+  /** The shots' first and end frames, in order, in place of `shots` shots of `length` frames. */
+  cuts?: [number, number][];
   rate?: [number, number];
   characters?: string[];
   title?: string;
@@ -208,11 +210,17 @@ export const test = base.extend<{ scene: Scene; world: RecastWorld }>({
 export { expect };
 
 /** A recast a spec file's tests only read, seeded once for the file and retired after it; long films live here, so
- * their seed is paid once. Each page reads it as the service read it after the seed, and every command it sends is
- * refused (409), so it never changes. Call at the file's top level; the returned function opens it for a page. */
+ * their seed is paid once. Each page reads it, and the list of recasts, as the service read them after the seed (the
+ * list computes every recast's state, so a long film's makes the Open film dialog wait), and every command it sends
+ * is refused (409), so it never changes. Call at the file's top level; the returned function opens it for a page. */
 export function sharedRecast(scene: Scene) {
   let context: APIRequestContext | undefined;
-  let shared: (RecastWorld & { seeded: S["RecastDTO"] }) | undefined;
+  let shared:
+    | (RecastWorld & {
+        seeded: S["RecastDTO"];
+        listed: S["RecastSummaryDTO"];
+      })
+    | undefined;
   test.beforeAll(async ({ playwright }) => {
     // Seeding a long film owns its time: a cold media cache encodes it once.
     test.setTimeout(600_000);
@@ -220,7 +228,12 @@ export function sharedRecast(scene: Scene) {
       baseURL: browserTestOrigin,
     });
     const world = await seedRecast(context, scene);
-    shared = { ...world, seeded: await world.read() };
+    const list = await context.get("/api/recasts", { headers: world.headers });
+    expect(list.ok(), await list.text()).toBeTruthy();
+    const listed = ((await list.json()) as S["RecastSummaryDTO"][]).find(
+      (r) => r.id === world.id,
+    )!;
+    shared = { ...world, seeded: await world.read(), listed };
   });
   test.afterAll(async () => {
     await shared?.retire();
@@ -234,6 +247,13 @@ export function sharedRecast(scene: Scene) {
   return async (page: Page) => {
     const recast = shared!;
     const calls = recastCommands(page);
+    await page.route(
+      (url) => url.pathname === "/api/recasts",
+      (route) =>
+        route.request().method() === "GET"
+          ? route.fulfill({ json: [recast.listed] })
+          : route.fallback(),
+    );
     await page.route(
       (url) => url.pathname === `/api/recasts/${recast.id}`,
       (route) =>

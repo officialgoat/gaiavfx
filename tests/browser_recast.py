@@ -118,7 +118,8 @@ class Link(BaseModel):
 
 
 class Scene(BaseModel):
-    """The recast a film spec starts from. Characters split the film's shots between them in turn. Each character's
+    """The recast a film spec starts from: `shots` shots of `length` frames, or the shots `cuts` names (first and end
+    frame of each, in order). Characters split the film's shots between them in turn. Each character's
     entry in `targets` is its picture: `confirmed` (the user's portrait), `proposed` (Gaia's portrait), `faceless` (the
     user's picture with no face) or None; `labels` name them, and with `shared` every character's picture is the same
     Library picture. `similar` pairs of characters look alike; `hidden` characters are set aside; `unknown` face tracks
@@ -137,6 +138,7 @@ class Scene(BaseModel):
 
     shots: int = Field(8, ge=1, le=2000)
     length: int = Field(48, ge=8)
+    cuts: list[tuple[int, int]] = []
     rate: tuple[int, int] = (24, 1)
     characters: list[str] = ["Mara"]
     title: str | None = None
@@ -187,6 +189,15 @@ class Settle(BaseModel):
     outcome: str = "succeeded"
     count: int | None = None
     head: bool | None = None
+
+
+def ffmpeg(args):
+    """FFmpeg with these arguments, quiet and away from the service's own stdin."""
+    subprocess.run(
+        [str(MediaTools().ffmpeg), "-nostdin", "-loglevel", "error", *args],
+        check=True,
+        stdin=subprocess.DEVNULL,
+    )
 
 
 def portrait(path: Path, seed: int, face=True, mark=""):
@@ -294,11 +305,8 @@ class BrowserWorld:
 
     def preview(self, index):
         def make(path):
-            subprocess.run(
+            ffmpeg(
                 [
-                    str(MediaTools().ffmpeg),
-                    "-loglevel",
-                    "error",
                     "-f",
                     "lavfi",
                     "-i",
@@ -310,8 +318,7 @@ class BrowserWorld:
                     "-pix_fmt",
                     "yuv420p",
                     str(path),
-                ],
-                check=True,
+                ]
             )
 
         return self.media(f"preview-{index}.mp4", make)
@@ -328,37 +335,41 @@ class BrowserWorld:
         return original
 
     def film(self, scene: Scene, tag: str):
-        frames = scene.shots * scene.length
+        frames = scene.cuts[-1][1] if scene.cuts else scene.shots * scene.length
         rate = f"{scene.rate[0]}/{scene.rate[1]}"
-        tools = MediaTools()
-        sound = ["-f", "lavfi", "-i", "sine=frequency=220:sample_rate=48000"]
+        # The soundtrack lasts as long as the picture, so neither waits for the other to end.
+        seconds = frames * scene.rate[1] / scene.rate[0]
+        sine = f"sine=frequency=220:sample_rate=48000:duration={seconds}"
         audio = {
-            "mono": sound + ["-shortest", "-c:a", "aac"],
-            "six": sound + ["-shortest", "-c:a", "aac", "-ac", "6"],
+            "mono": ["-f", "lavfi", "-i", sine],
+            "six": ["-f", "lavfi", "-i", sine],
+            "none": [],
+        }[scene.audio]
+        codecs = {
+            "mono": ["-c:a", "aac"],
+            "six": ["-c:a", "aac", "-ac", "6"],
             "none": ["-an"],
         }[scene.audio]
 
         def make(path):
-            subprocess.run(
+            ffmpeg(
                 [
-                    str(tools.ffmpeg),
-                    "-loglevel",
-                    "error",
                     "-f",
                     "lavfi",
                     "-i",
                     f"testsrc2=size=320x180:rate={rate}",
-                    *audio[: 4 if scene.audio != "none" else 0],
+                    *audio,
                     "-frames:v",
                     str(frames),
-                    *audio[4 if scene.audio != "none" else 0 :],
+                    *codecs,
                     "-c:v",
                     "libx264",
+                    "-preset",
+                    "veryfast",
                     "-pix_fmt",
                     "yuv420p",
                     str(path),
-                ],
-                check=True,
+                ]
             )
 
         sounds = "" if scene.audio == "mono" else f"-{scene.audio}"
@@ -366,11 +377,8 @@ class BrowserWorld:
             f"film-{frames}-{scene.rate[0]}-{scene.rate[1]}{sounds}.mp4", make
         )
         unique = MEDIA / f"film-{tag}.mp4"
-        subprocess.run(
+        ffmpeg(
             [
-                str(tools.ffmpeg),
-                "-loglevel",
-                "error",
                 "-y",
                 "-i",
                 str(original),
@@ -379,17 +387,22 @@ class BrowserWorld:
                 "-metadata",
                 f"comment={tag}",
                 str(unique),
-            ],
-            check=True,
+            ]
         )
         return unique
+
+    def imported(self, path, name):
+        """A file this world wrote, in the Library, which keeps its own copy: the world's goes."""
+        asset = self.workspace.import_media(path, name)["asset"]
+        path.unlink(missing_ok=True)
+        return asset
 
     def picture(self, name, tag, face=True):
         """A Library picture unique to this world: a portrait, or a flat picture with no face."""
         pictures = MEDIA / "pictures"
         pictures.mkdir(parents=True, exist_ok=True)
         path = portrait(pictures / f"{tag}.png", int(tag, 16), face, mark=tag)
-        return self.workspace.import_media(path, name + ".png")["asset"]["id"]
+        return self.imported(path, name + ".png")["id"]
 
     def wav(self, path, seconds, tag):
         """A 16 kHz tone `seconds` long; the tag's bytes open its samples, so two worlds never share a recording."""
@@ -411,7 +424,7 @@ class BrowserWorld:
         """A Library recording unique to this world."""
         named = f"{name}-{tag}.wav"
         path = self.wav(MEDIA / "recordings" / named, seconds, tag)
-        asset = self.workspace.import_media(path, named)["asset"]
+        asset = self.imported(path, named)
         return {"id": asset["id"], "name": asset["name"]}
 
     def artifact(self, session, path):
@@ -425,10 +438,16 @@ class BrowserWorld:
             self.count += 1
             tag = uuid.uuid4().hex[:8]
         name = f"{scene.title or 'The crossing'} · {tag}"
-        imported = self.workspace.import_media(self.film(scene, tag), name + ".mp4")
-        film_id = imported["asset"]["id"]
-        report = film_report(film_id, scene.shots, scene.length)
+        film_id = self.imported(self.film(scene, tag), name + ".mp4")["id"]
+        report = film_report(film_id, len(scene.cuts) or scene.shots, scene.length)
         report["fps"] = list(scene.rate)
+        for shot, track, (start, end) in zip(
+            report["shots"], report["tracks"], scene.cuts
+        ):
+            shot["start"], shot["end"] = start, end
+            track["frames"] = list(range(start, end, 5))
+        report["frame_count"] = report["shots"][-1]["end"]
+        span = {s["index"] - 1: s["end"] - s["start"] for s in report["shots"]}
         # Film analysis numbers shots from 0 (recast_steps.film_shots); the pytest world's report from 1.
         for shot in report["shots"]:
             shot["index"] -= 1
@@ -458,7 +477,7 @@ class BrowserWorld:
                     t["id"] for t in report["tracks"] if owners[t["id"]] == k
                 ],
                 "screen_time_frames": sum(
-                    scene.length for t in report["tracks"] if owners[t["id"]] == k
+                    span[t["shot"]] for t in report["tracks"] if owners[t["id"]] == k
                 ),
                 "shot_count": sum(1 for t in report["tracks"] if owners[t["id"]] == k),
                 "presence": [
@@ -479,7 +498,7 @@ class BrowserWorld:
         ]
         # Unknown faces: a track no cluster holds, in Shot 003 and the shots after it.
         for k in range(scene.unknown):
-            shot = report["shots"][min(2 + k, scene.shots - 1)]
+            shot = report["shots"][min(2 + k, len(report["shots"]) - 1)]
             n = len(report["tracks"]) + 1
             report["tracks"].append(
                 {
@@ -825,7 +844,7 @@ class BrowserWorld:
     def reel(self, operation_id, tag):
         """An audition reel, a Library candidate of the audition that made it."""
         path = self.wav(MEDIA / "recordings" / f"audition-{tag}.wav", 9.0, tag)
-        asset_id = self.workspace.import_media(path, "audition.wav")["asset"]["id"]
+        asset_id = self.imported(path, "audition.wav")["id"]
         with self.get().db.transaction() as session:
             session.get(AssetRecord, asset_id).provenance = [
                 {"type": "generation_candidate", "operation_id": operation_id}
@@ -930,8 +949,8 @@ class BrowserWorld:
         for take in range(takes):
             if take:
                 for index, shot in enumerate(state["shots"][:shots]):
-                    # A held, gapped or failed shot has no take to repeat.
-                    if index in states:
+                    # A held, gapped, failed or unmapped shot has no take to repeat.
+                    if index in states or not shot["versions"]:
                         continue
                     state = world.invoke(
                         recast.retake_shot,
@@ -949,7 +968,8 @@ class BrowserWorld:
                     range={"start": 0, "end": end},
                     render_budget=10 * shots * takes,
                 )
-            for _ in range(12):
+            # The feed renders two shots at a time: a round settles their windows, then their assemblies.
+            for _ in range(4 + shots):
                 self.feed()
                 for kind in ("character_replacement", "shot_assembly"):
                     with world.db.transaction() as session:
@@ -968,12 +988,16 @@ class BrowserWorld:
                             world.settle(session, operation["id"], outcome)
                     self.feed()
                 state = world.invoke(recast.recast_state, state["id"])
-                if all(
-                    s["status"] not in {"rendering", "queued", "analysing", "planned"}
+                busy = {
+                    s["index"] + 1: s["status"]
                     for i, s in enumerate(state["shots"][:shots])
                     if i not in held
-                ):
+                    and s["status"] in {"rendering", "queued", "analysing", "planned"}
+                }
+                if not busy:
                     break
+            else:
+                raise RuntimeError(f"Take {take + 1} did not finish rendering: {busy}")
         return state
 
     def retake(self, state, index, times):
@@ -1001,6 +1025,10 @@ class BrowserWorld:
                 state = world.invoke(recast.recast_state, state["id"])
                 if state["shots"][index]["status"] not in {"rendering", "queued"}:
                     break
+            else:
+                raise RuntimeError(
+                    f"Shot {index + 1}'s retake did not finish rendering."
+                )
         return state
 
     def measure(self, state, checks):
