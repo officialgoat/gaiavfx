@@ -83,6 +83,8 @@ OVERFLOW_ORDER = tuple(
 # cancelling, choosing, confirming and conforming stay human; none of them is a harness tool.
 FILM_TOOLS = frozenset(t.name for t in DEFAULT_TOOLS if t.film)
 KINDS = {t.name: t.step_kind for t in DEFAULT_TOOLS if t.step_kind}
+# The tools that only read: a turn of only these has done no work (report_checks.acted).
+READS = frozenset(t.name for t in DEFAULT_TOOLS if t.only_reads)
 
 
 def applicable_tools(context, tools=DEFAULT_TOOLS):

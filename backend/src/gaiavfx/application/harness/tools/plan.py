@@ -52,6 +52,8 @@ class ProposedStep(StrictModel):
 
 class ProposePlan(Tool):
     name = "propose_plan"
+    reports = True
+    waits_for_human = True
     film = True
     always = True
     description = PLAN_TEXT["rules"]

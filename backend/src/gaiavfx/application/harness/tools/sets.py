@@ -68,6 +68,7 @@ def rows(context):
 
 class ReadSet(TransactionTool):
     name = "read_set"
+    only_reads = True
     always = True
     overflow = 5
     description = (
@@ -96,6 +97,7 @@ class ReadSet(TransactionTool):
 
 class MarkSetIssue(ReadSet):
     name = "mark_set_issue"
+    only_reads = False
     overflow = 4
     description = (
         "Propose an issue on a stage for the user to see in its workbench, as the agent. Name grid cells (A1…) "
@@ -132,6 +134,7 @@ class MarkSetIssue(ReadSet):
 
 class SaveSetView(ReadSet):
     name = "save_set_view"
+    only_reads = False
     step_kind = "edit"
     always = False
     overflow = 2

@@ -17,6 +17,7 @@ from gaiavfx.shared.contracts import StrictModel
 
 class Say(Tool):
     name = "say"
+    reports = True
     film = True
     always = True
     description = prompt.SAY
@@ -79,7 +80,8 @@ class AskHuman(Tool):
     name = "ask_human"
     film = True
     always = True
-    reads = True
+    reads_attachments = True
+    waits_for_human = True
     description = prompt.ASK_HUMAN
     terminal = True
 

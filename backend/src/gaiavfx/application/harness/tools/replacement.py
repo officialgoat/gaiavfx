@@ -223,7 +223,7 @@ def refresh_analyses(session, state, attachments, library, turns=()):
 class AnalyzePeople(TransactionTool):
     name = "analyze_people"
     always = True
-    reads = True
+    reads_attachments = True
     overflow = 12
     description = (
         "Analyse people and object tracks in one video shot. Reading: no grant or render jobs."

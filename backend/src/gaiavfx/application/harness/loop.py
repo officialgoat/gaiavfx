@@ -383,7 +383,7 @@ class Harness(ConversationCommands, PlanCommands):
                 document.stop_reason = ""
                 return self._save(
                     session_id,
-                    "waiting_human" if tool.name in {"ask_human", "propose_plan"} else "idle",
+                    "waiting_human" if tool.waits_for_human else "idle",
                     document,
                 )
             if repeated and not novel and tool is None:

@@ -31,6 +31,7 @@ def bounded_content(value):
 
 class ReadMovie(Tool):
     name = "read_movie"
+    only_reads = True
     always = True
     description = "Read the movie's structure, references and current production state."
 
@@ -40,6 +41,7 @@ class ReadMovie(Tool):
 
 class InspectCut(TransactionTool):
     name = "inspect_cut"
+    only_reads = True
     always = True
     description = "Read one cut's plan, gaps, references and legal actions."
 
@@ -103,6 +105,7 @@ class InspectCut(TransactionTool):
 
 class ReadSegment(TransactionTool):
     name = "read_segment"
+    only_reads = True
     always = True
     description = "Read one segment's prose, phases, cuts, selection history and assembly errors."
 

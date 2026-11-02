@@ -83,8 +83,18 @@ class Tool:
     prepares: ClassVar[bool] = (
         False  # an edit that supplies a preparation's missing input, offered in a prepare step
     )
-    reads: ClassVar[bool] = (
+    reads_attachments: ClassVar[bool] = (
         False  # it reads the latest message's attachments, so it is offered before they are read
+    )
+    # The turn's record (`tools/report_checks`), declared by each tool on its own class:
+    only_reads: ClassVar[bool] = (
+        False  # it changes nothing: a turn of only these calls has done no work
+    )
+    reports: ClassVar[bool] = (
+        False  # it tells the user about the work: it waits for this message's renders
+    )
+    waits_for_human: ClassVar[bool] = (
+        False  # terminal, and the conversation then waits for the user
     )
     # dropped in this order (lowest first) when the catalog would exceed the schema ceiling; None: never dropped
     overflow: ClassVar[int | None] = None
@@ -112,12 +122,12 @@ class Tool:
 
     def reading_refusal(self, context):
         """The catalog and direct execution share the same read-before-acting gate."""
-        if context.unread_attachments and not self.reads:
+        if context.unread_attachments and not self.reads_attachments:
             return (
                 "Read the latest message's attachments before acting or discussing them: "
                 + ", ".join(context.unread_attachments)
             )
-        if context.unread_renders and self.name in {"say", "propose_plan"}:
+        if context.unread_renders and self.reports:
             return (
                 "Use read_candidates before reporting this message's completed renders: "
                 + ", ".join(context.unread_renders)

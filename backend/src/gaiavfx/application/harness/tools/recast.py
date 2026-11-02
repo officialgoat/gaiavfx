@@ -153,7 +153,8 @@ class ReadRecast(TransactionTool):
     name = "read_recast"
     film = True
     always = True
-    reads = True
+    reads_attachments = True
+    only_reads = True
     overflow = 9
     description = (
         "Read characters, mapping states, shot status counts, run and estimate. With shot (Shot 001 is 1): that "
@@ -192,7 +193,8 @@ class ReadRecast(TransactionTool):
 
 class ProposeCast(ReadRecast):
     name = "propose_cast"
-    reads = False
+    reads_attachments = False
+    only_reads = False
     overflow = 7
     description = "Propose a character's target image. A human must confirm; never guess between similar people."
 
@@ -265,7 +267,8 @@ class ProposeCast(ReadRecast):
 
 class ProposeAppearance(ReadRecast):
     name = "propose_appearance"
-    reads = False
+    reads_attachments = False
+    only_reads = False
     overflow = 6
     description = (
         "Propose a window person track as a user-named character. Only a human can confirm. Take the shot, "
@@ -324,7 +327,8 @@ class StartRecastRun(ReadRecast):
     name = "start_recast_run"
     step_kind = "render"
     always = False
-    reads = False
+    reads_attachments = False
+    only_reads = False
     overflow = 8
     description = "Start a planned recast within the render grant, with the estimate's range and mode. Results wait in the film's Review bin."
 

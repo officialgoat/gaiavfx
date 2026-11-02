@@ -141,7 +141,8 @@ def test_k1_a_promised_read_is_refused_once_and_the_read_follows(kernel):
 
 
 def test_k1_history_reads_work_and_approval_boundary():
-    from gaiavfx.application.harness.tools.report_checks import acted, said
+    from gaiavfx.application.harness.tools import DEFAULT_TOOLS
+    from gaiavfx.application.harness.tools.report_checks import NOTES, acted, said
 
     def turn_actions(turns):
         return acted(turns), said(turns)
@@ -150,13 +151,9 @@ def test_k1_history_reads_work_and_approval_boundary():
         return {"role": "agent", "state": state, "action": {"tool": name}}
 
     turns = [{"role": "human", "state": "accepted", "action": {"message": "Survey"}}]
-    for tool in (
-        "describe_reference",
-        "reference_notes",
-        "inspect_cut",
-        "read_movie",
-        "read_recast",
-    ):
+    reads = [t.name for t in DEFAULT_TOOLS if t.only_reads]
+    assert {"read_set", "read_recast", "inspect_cut", "describe_reference"} <= set(reads)
+    for tool in [*reads, NOTES]:
         turns.append(turn(tool))
     assert turn_actions(turns) == (False, False)
     turns.append(turn("say", "rejected"))

@@ -14,7 +14,8 @@ class DescribeReference(Tool):
     name, kind = "describe_reference", "image"
     film = True
     always = True
-    reads = True
+    reads_attachments = True
+    only_reads = True
     overflow = 16
     description = TEXT["describe"]
 
@@ -51,6 +52,7 @@ class DescribeReference(Tool):
 
 class AnalyzeReferenceVideo(DescribeReference):
     name, kind = "analyze_reference_video", "video"
+    only_reads = True
     film = False
     overflow = 15
     description = TEXT["analyze"]

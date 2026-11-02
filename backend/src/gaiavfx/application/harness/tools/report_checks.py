@@ -8,17 +8,8 @@ context.
 """
 
 RESUMED = ("The user approved the plan", "The user reviewed", "The user rejected the")
-# Calls that only read: a turn that made only these has done no work.
-READS = {
-    "read_movie",
-    "read_segment",
-    "inspect_cut",
-    "read_candidates",
-    "describe_reference",
-    "analyze_reference_video",
-    "reference_notes",
-    "read_recast",
-}
+# The loop's record of the notes it read from the attachments: a read, though no tool makes it.
+NOTES = "reference_notes"
 
 
 def current_turns(turns):
@@ -48,10 +39,13 @@ def said(turns):
 
 
 def acted(turns):
-    """Whether this turn did work: an accepted call of a tool that is not a read."""
+    """Whether this turn did work: an accepted call of a tool that does more than read (`Tool.only_reads`)."""
+    from gaiavfx.application.harness.tools import READS
+
     return any(
         (name := (t.get("action") or {}).get("tool"))
         and name not in READS
+        and name != NOTES
         and t["state"] == "accepted"
         for t in current_turns(turns)
     )

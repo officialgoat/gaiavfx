@@ -53,6 +53,19 @@ def test_action_schema_binds_each_tool_to_its_input():
     assert list(branch["properties"]) == ["tool", "thought", "input"]
 
 
+def test_each_tool_declares_its_record_on_its_own_class():
+    """A tool that acts never inherits `only_reads` from a read it extends (MarkSetIssue from ReadSet), and only a
+    terminal tool leaves the conversation waiting for the user."""
+    from gaiavfx.application.harness.tools import DEFAULT_TOOLS
+
+    for tool in DEFAULT_TOOLS:
+        if tool.only_reads:
+            assert "only_reads" in vars(type(tool)), tool.name
+        assert not tool.waits_for_human or tool.terminal, tool.name
+    assert {t.name for t in DEFAULT_TOOLS if t.waits_for_human} == {"ask_human", "propose_plan"}
+    assert {t.name for t in DEFAULT_TOOLS if t.reports} == {"say", "propose_plan"}
+
+
 def test_grammar_keeps_small_length_bounds_and_strips_large_ones():
     from gaiavfx.infrastructure.assistant import grammar_schema
 

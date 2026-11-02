@@ -33,6 +33,7 @@ def prescreen_summary(document):
 
 class ReadCandidates(TransactionTool):
     name = "read_candidates"
+    only_reads = True
     always = True
     description = "Read candidates blind; human ranking unlocks provenance."
 
