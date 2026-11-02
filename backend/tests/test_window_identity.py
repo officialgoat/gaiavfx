@@ -81,14 +81,11 @@ def test_single_cluster_margin_and_npz_arrays_are_read_once_per_window():
 def test_user_confirmation_bypasses_missing_margin_in_the_real_planner():
     from dataclasses import replace
 
-    from test_replacement_contract import mug_facts
-
-    from gaiavfx.application.replace_character import _plan
-    from gaiavfx.modules.recast.application import replacement_policy_text
+    from replacement_plan_support import mug_facts, round_plan
 
     facts = mug_facts()
     identity = replace(
         facts, tracks=tuple(replace(t, selected_by="identity") for t in facts.tracks)
     )
-    assert _plan(identity, replacement_policy_text()).gaps[0].code == "ambiguous_identity"
-    assert _plan(facts, replacement_policy_text()).arm is not None
+    assert round_plan(identity).gaps[0].code == "ambiguous_identity"
+    assert round_plan(facts).arm is not None

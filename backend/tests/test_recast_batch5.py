@@ -7,8 +7,17 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from test_mouth_facts import trial
-from test_replacement_contract import CAP, attempt, joint_facts, mug_facts, result
+from replacement_plan_support import (
+    CAP,
+    attempt,
+    first_round,
+    joint_facts,
+    lips,
+    mug_facts,
+    result,
+    round_plan,
+    trial,
+)
 
 from gaiavfx.application import recast_feed, recast_projection, recast_run, shot_assembly
 from gaiavfx.application import replace_character as app
@@ -26,6 +35,7 @@ from gaiavfx.modules.recast.replacement import (
     plan_replacement,
     to_record,
 )
+from gaiavfx.modules.recast.replacement_plan import HandoffChoice, ShotPins, effective_policy
 
 OLD_TEXT = (Path(__file__).parent / "fixtures/replacement/policy-before-batch5.toml").read_text()
 TEXT = replacement_policy_text()
@@ -44,10 +54,10 @@ def test_frozen_old_policy_keeps_inversion_escalation_joint_lock_and_draft():
     assert second.faceswap and second.seed_offset == 2
     joint = replace(joint_facts(), quiet=False, speaking=True, lips_unmeasured=True)
     assert not plan(joint, OLD_TEXT).arm.audio_lock
-    policy = app.effective_policy(OLD_TEXT, draft=True)
+    policy = effective_policy(OLD_TEXT, draft=True)
     assert (policy.renders, policy.max_rounds, policy.renders_per_round) == (1, 1, (1,))
     # The old request shape has neither a draft flag nor a FaceSwap pin.
-    policy = app.effective_policy(OLD_TEXT)
+    policy = effective_policy(OLD_TEXT)
     assert not policy.first_arm_faceswap_configured
     assert (policy.renders, policy.renders_per_round) == (4, (2, 1, 1))
     arm_record = to_record(first)
@@ -61,13 +71,13 @@ def test_frozen_old_policy_keeps_inversion_escalation_joint_lock_and_draft():
 
 def test_rgb_close_up_starts_faceswap_and_recast_retries_seed():
     facts = replace(mug_facts(), close_up=True)
-    first = app._plan(facts, TEXT, treatment_override="rgb", faceswap_override=True)
+    first = round_plan(facts, text=TEXT, treatment_override="rgb", faceswap_override=True)
     assert first.arm.treatment == "rgb" and first.arm.faceswap
     assert any("FaceSwap from round 0" in r for r in first.reasons)
-    second = app._plan(
+    second = round_plan(
         facts,
-        TEXT,
         (attempt(first.arm, (result("arcface_target"),)),),
+        text=TEXT,
         treatment_override="rgb",
         faceswap_override=True,
     )
@@ -91,16 +101,18 @@ def test_medium_and_joint_start_rgb_without_faceswap(facts):
 def test_pinned_treatment_reason_only_names_the_pin_on_round_zero(treatment):
     facts = mug_facts()
     args = {"treatment_override": treatment, "faceswap_override": False}
-    pinned = app._plan(facts, TEXT, **args)
+    pinned = round_plan(facts, text=TEXT, **args)
     assert pinned.arm.treatment == treatment
     assert f"First arm: {treatment} guide." in pinned.reasons
     assert f"Treatment pinned per shot: {treatment}." in pinned.reasons
     assert not any("policy default" in reason for reason in pinned.reasons)
-    retry = app._plan(facts, TEXT, (attempt(pinned.arm, (result("arcface_target"),)),), **args)
+    retry = round_plan(
+        facts, (attempt(pinned.arm, (result("arcface_target"),)),), text=TEXT, **args
+    )
     assert retry.arm.round == 1
     assert "likeness: seed" in retry.reasons
-    stopped = app._plan(
-        facts, TEXT, (attempt(pinned.arm, (result("arcface_target", "pass"),)),), **args
+    stopped = round_plan(
+        facts, (attempt(pinned.arm, (result("arcface_target", "pass"),)),), text=TEXT, **args
     )
     assert stopped.arm is None and stopped.stop
     for planned in (retry, stopped):
@@ -112,18 +124,20 @@ def test_pinned_treatment_reason_only_names_the_pin_on_round_zero(treatment):
 def test_frozen_old_policy_preserves_exact_first_retry_stop_and_bridge_reasons(speaking, treatment):
     facts = replace(mug_facts(), quiet=False, speaking=speaking)
     args = {"treatment_override": treatment}
-    first = app._plan(facts, OLD_TEXT, **args)
+    first = round_plan(facts, text=OLD_TEXT, **args)
     assert first.reasons == ()
     assert first.arm.audio_lock is speaking
-    retry = app._plan(facts, OLD_TEXT, (attempt(first.arm, (result("arcface_target"),)),), **args)
+    retry = round_plan(
+        facts, (attempt(first.arm, (result("arcface_target"),)),), text=OLD_TEXT, **args
+    )
     assert retry.reasons == ("likeness: seed",)
-    stopped = app._plan(
-        facts, OLD_TEXT, (attempt(first.arm, (result("arcface_target", "pass"),)),), **args
+    stopped = round_plan(
+        facts, (attempt(first.arm, (result("arcface_target", "pass"),)),), text=OLD_TEXT, **args
     )
     assert stopped.reasons == ("all calibrated checks passed",)
-    bridge = app._plan(
+    bridge = round_plan(
         replace(facts, handoff="bridge"),
-        OLD_TEXT,
+        text=OLD_TEXT,
         renders=1,
         bridge_arm=first.arm,
         crop_override=first.arm.crop,
@@ -134,7 +148,7 @@ def test_frozen_old_policy_preserves_exact_first_retry_stop_and_bridge_reasons(s
 
 
 def test_treatment_only_request_does_not_gain_new_pin_reason():
-    pinned = app._plan(mug_facts(), TEXT, treatment_override="inverted")
+    pinned = round_plan(mug_facts(), text=TEXT, treatment_override="inverted")
     assert pinned.arm.treatment == "inverted"
     assert pinned.reasons == ("First arm: inverted guide.",)
 
@@ -145,12 +159,12 @@ def test_close_up_without_backend_faceswap_falls_back_with_reason():
     )
     assert first.arm.treatment == "inverted" and not first.arm.faceswap
     assert any("without FaceSwap support" in r for r in first.reasons)
-    pinned = app._plan(
+    pinned = round_plan(
         replace(mug_facts(), close_up=True),
-        TEXT,
+        text=TEXT,
         treatment_override=first.arm.treatment,
         faceswap_override=first.arm.faceswap,
-        faceswap_supported=False,
+        support=replace(CAP.replacement, faceswap=False),
     )
     assert pinned.arm.treatment == "inverted" and not pinned.arm.faceswap
     assert any("without FaceSwap support" in r for r in pinned.reasons)
@@ -163,26 +177,22 @@ def test_006_joint_unmeasured_lips_lock_and_bridge_inherits(window, silent_inter
     derived = quiet_facts(series, presence, POLICY.mouth)
     assert derived.measured_frames == derived.open_frames == 0
     facts = replace(joint_facts(), quiet=False)
-    tracks = tuple(replace(t, presence=p) for t, p in zip(facts.tracks, presence))
-    request = app.ReplacementRequest(
-        "source",
-        "analysis",
-        tuple(app.PerformerChoice(t.id, f"target{i}") for i, t in enumerate(tracks)),
-        silent_intervals=silent_intervals,
+    facts = replace(
+        facts, tracks=tuple(replace(t, presence=p) for t, p in zip(facts.tracks, presence))
     )
-    people = {
-        t.id: {"mouth": {"aperture": s.aperture, "face_height": s.face_height}}
-        for t, s in zip(tracks, series)
-    }
-    quiet, _, speaking, _, unmeasured = app._mouth_facts(
-        request, people, tracks, POLICY, has_audio=True
-    )
-    assert not quiet and not speaking and unmeasured
-    facts = replace(facts, lips_unmeasured=unmeasured)
-    first = plan(facts)
+    mouth = {t.id: lips(m.aperture, m.face_height) for t, m in zip(facts.tracks, series)}
+
+    def window(has_audio=True, **changes):
+        reading_args = {"has_audio": has_audio, "mouth": mouth}
+        changes = {"silent_intervals": silent_intervals, **changes}
+        return first_round(facts, reading_args=reading_args, **changes)
+
+    read = window()
+    assert not read.facts.quiet and not read.facts.speaking and read.facts.lips_unmeasured
+    first = read.plan
     assert first.arm.audio_lock and any("joint; lips unmeasured" in r for r in first.reasons)
     bridge = plan_bridge(
-        replace(facts, handoff="bridge"),
+        replace(read.facts, handoff="bridge"),
         first.arm,
         first.arm.crop,
         CAP.replacement,
@@ -191,11 +201,14 @@ def test_006_joint_unmeasured_lips_lock_and_bridge_inherits(window, silent_inter
     )
     assert bridge.arm.audio_lock and bridge.arm.seed_count == 1
     assert not plan(joint_facts()).arm.audio_lock
-    for changes in ({"speaking": False}, {"speaking": True}, {"quiet": True}):
-        assert not app._mouth_facts(
-            replace(request, **changes), people, tracks, POLICY, has_audio=True
-        )[4]
-    assert not app._mouth_facts(request, people, tracks, POLICY, has_audio=False)[4]
+    # A quiet window has no silent intervals of its own.
+    for changes in (
+        {"speaking": False},
+        {"speaking": True},
+        {"quiet": True, "silent_intervals": ()},
+    ):
+        assert not window(**changes).facts.lips_unmeasured
+    assert not window(has_audio=False).facts.lips_unmeasured
 
 
 @pytest.mark.parametrize(
@@ -206,22 +219,16 @@ def test_joint_windows_without_a_lip_scan_do_not_derive_unmeasured_lock(
     scan, has_series, silent_intervals
 ):
     facts = replace(joint_facts(), quiet=False)
-    request = app.ReplacementRequest(
-        "source",
-        "analysis",
-        tuple(app.PerformerChoice(p.track_id, p.target_asset) for p in facts.performers),
+    unmeasured = lips([None] * 73, [None] * 73)
+    mouth = {t.id: unmeasured for t in facts.tracks} if has_series else None
+    read = first_round(
+        facts,
+        reading_args={"has_audio": True, "mouth": mouth, "mouth_scan": scan},
         silent_intervals=silent_intervals,
     )
-    people = {
-        t.id: {"mouth": {"aperture": [None] * 73, "face_height": [None] * 73}} if has_series else {}
-        for t in facts.tracks
-    }
-    quiet, intervals, speaking, _, unmeasured = app._mouth_facts(
-        request, people, facts.tracks, POLICY, scan, has_audio=True
-    )
-    assert intervals == silent_intervals
-    assert not quiet and not speaking and not unmeasured
-    assert not plan(replace(facts, speaking=speaking, lips_unmeasured=unmeasured)).arm.audio_lock
+    assert read.facts.silent_intervals == silent_intervals
+    assert not read.facts.quiet and not read.facts.speaking and not read.facts.lips_unmeasured
+    assert not read.plan.arm.audio_lock
 
 
 @pytest.mark.parametrize(
@@ -238,16 +245,16 @@ def test_joint_windows_without_a_lip_scan_do_not_derive_unmeasured_lock(
 def test_draft_only_retries_calibrated_likeness_once(check, verdict, advice, retry):
     facts = replace(mug_facts(), close_up=True)
     args = {"draft": True, "treatment_override": "rgb", "faceswap_override": True}
-    first = app._plan(facts, TEXT, **args)
+    first = round_plan(facts, text=TEXT, **args)
     assert first.arm.seed_count == 1
     checks = (result(check, verdict, advice),)
     prior = (attempt(first.arm, checks),)
-    second = app._plan(facts, TEXT, prior, **args)
+    second = round_plan(facts, prior, text=TEXT, **args)
     assert (second.arm is not None) is retry
-    assert app.effective_policy(TEXT, draft=True).renders == 2
+    assert effective_policy(TEXT, draft=True).renders == 2
     if retry:
         assert second.arm == replace(first.arm, round=1, seed_offset=1)
-        assert app._plan(facts, TEXT, (*prior, attempt(second.arm, checks)), **args).stop
+        assert round_plan(facts, (*prior, attempt(second.arm, checks)), text=TEXT, **args).stop
         assert any("Draft: one likeness retry" in r for r in second.reasons)
 
 
@@ -271,54 +278,25 @@ def test_new_policy_keys_are_closed_and_validated(old, new):
 
 @pytest.mark.parametrize("close_up", [False, True])
 @pytest.mark.parametrize("first_arm_faceswap", ["close_up", "never"])
-def test_fresh_windows_pin_window_one_faceswap_and_close_up(
-    monkeypatch, close_up, first_arm_faceswap
+def test_window_one_pins_its_treatment_faceswap_and_close_up_for_the_shot(
+    close_up, first_arm_faceswap
 ):
     text = TEXT.replace('faceswap = "close_up"', f'faceswap = "{first_arm_faceswap}"')
     expected = close_up and first_arm_faceswap == "close_up"
-    reports = {
-        str(i): {"source_asset": "source", "shot_start": a, "shot_end": b}
-        for i, (a, b, _) in enumerate(shot.shot_windows(0, 160))
-    }
-    monkeypatch.setattr(shot.operations, "operation", lambda session, key: reports[key])
-    monkeypatch.setattr(shot, "analysis_report", lambda session, report, library: report)
-    first = replace(mug_facts(), close_up=close_up)
-    monkeypatch.setattr(
-        shot, "plan_request", lambda *args, **kwargs: (first, {}, text, plan(first, text))
+    planned = first_round(text=text, close_up=close_up)
+    assert planned.pins == ShotPins("rgb", expected, close_up)
+    later = replace(mug_facts(), close_up=close_up)
+    args = {"treatment_override": "rgb", "faceswap_override": expected}
+    first_arm = round_plan(later, text=text, **args).arm
+    next_arm = round_plan(
+        later, (attempt(first_arm, (result("arcface_target"),)),), text=text, **args
+    ).arm
+    assert first_arm.faceswap is next_arm.faceswap is expected
+    # A policy that names no FaceSwap first arm pins only the treatment, unless the request pins FaceSwap.
+    assert first_round(text=OLD_TEXT, close_up=close_up).pins.faceswap_override is None
+    assert first_round(text=OLD_TEXT, close_up=close_up, faceswap_override=False).pins == ShotPins(
+        "inverted", False, close_up
     )
-    seen = []
-
-    def start(session, request, *args, **kwargs):
-        seen.append((request, kwargs))
-        return {"id": str(len(seen))}
-
-    monkeypatch.setattr(shot, "start_replacement", start)
-    shot.start_shot_replacement(
-        SimpleNamespace(begin_nested=nullcontext),
-        None,
-        source_asset="source",
-        window_analyses=list(reports),
-        performers=[{"tracks": {k: "actor" for k in reports}, "target_asset": "target"}],
-        mode="draft",
-        seed=7,
-        request_key="test",
-    )
-    assert len(seen) == 3
-    for request, kwargs in seen:
-        assert request.faceswap_override is expected and request.close_up is close_up
-        assert request.treatment_override == "rgb" and kwargs["draft"]
-        later = replace(mug_facts(), close_up=request.close_up)
-        first_arm = app._plan(
-            later, TEXT, treatment_override="rgb", faceswap_override=request.faceswap_override
-        ).arm
-        next_arm = app._plan(
-            later,
-            TEXT,
-            (attempt(first_arm, (result("arcface_target"),)),),
-            treatment_override="rgb",
-            faceswap_override=request.faceswap_override,
-        ).arm
-        assert first_arm.faceswap is next_arm.faceswap is expected
 
 
 def test_faceless_target_close_up_pins_faceswap_off_in_every_window(monkeypatch):
@@ -335,10 +313,10 @@ def test_faceless_target_close_up_pins_faceswap_off_in_every_window(monkeypatch)
 
     def fake_initial(session, request, library, **kwargs):
         initial.append(request)
-        planned = app._plan(
-            first, TEXT, treatment_override=None, faceswap_override=request.faceswap_override
+        planned = first_round(
+            first, faceswap_override=request.faceswap_override, close_up=first.close_up
         )
-        return first, {}, TEXT, planned
+        return planned, TEXT
 
     monkeypatch.setattr(shot, "plan_request", fake_initial)
     seen = []
@@ -456,7 +434,7 @@ def test_handoff_freezes_chosen_tone_report_and_passes_it_to_composite(monkeypat
         return json.dumps({"tone_anchor": tone})
 
     handoff = app._freeze_handoff(
-        None, app.HandoffChoice("w0", "retry"), facts, arm.crop, SimpleNamespace(read_blob=blob)
+        None, HandoffChoice("w0", "retry"), facts, arm.crop, SimpleNamespace(read_blob=blob)
     )
     assert reads == ["selected-checks"] and handoff["take"] == 1
     if decision:

@@ -203,7 +203,7 @@ def test_close_up_chain_without_shot_crop_table_still_requires_shared_crop(world
 
 
 def test_continuation_checks_last_saved_latent_and_pins_first_snapshot(monkeypatch):
-    from test_replacement_contract import mug_facts, plan
+    from replacement_plan_support import mug_facts, plan
 
     from gaiavfx.application import shot_replacement as shot
     from gaiavfx.modules.recast.replacement import to_record

@@ -100,6 +100,16 @@ def test_planner_version_replans_stored_recast_plans():
     assert recast_planning.PLANNER_VERSION == 10
 
 
+def speaking_window(facts=None, aperture=0.02, face_height=300, *, has_audio=True, **changes):
+    """The facts the Replacement plan reads from the actor's lips in a window of these facts."""
+    from replacement_plan_support import first_round, lips, mug_facts
+
+    facts = facts or mug_facts()
+    frames = facts.shot_end - facts.shot_start
+    mouth = {"actor": lips(aperture, face_height, frames)}
+    return first_round(facts, reading_args={"has_audio": has_audio, "mouth": mouth}, **changes)
+
+
 @pytest.mark.parametrize(
     "shot,window,speaking,intervals",
     [
@@ -110,44 +120,22 @@ def test_planner_version_replans_stored_recast_plans():
     ],
 )
 def test_trial_speaking_facts_and_audio_requirement(shot, window, speaking, intervals):
-    from test_mouth_facts import trial
-    from test_replacement_contract import POLICY, mug_facts
+    from replacement_plan_support import mug_facts, trial
 
     series, presence = trial(shot, window)
-    request = replacement.ReplacementRequest(
-        "source", "analysis", (replacement.PerformerChoice("actor", "target"),)
-    )
-    people = {
-        "actor": {"mouth": {"aperture": series[0].aperture, "face_height": series[0].face_height}}
-    }
-    tracks = mug_facts(len(presence[0])).tracks
-    quiet, silent, actual, _, _ = replacement._mouth_facts(
-        request, people, tracks, POLICY, has_audio=True
-    )
-    assert actual is speaking and silent == intervals
-    assert quiet == (shot == "056")
-    assert replacement._mouth_facts(request, people, tracks, POLICY, has_audio=False)[2] is False
+    facts = mug_facts(len(presence[0]))
+    lips = (series[0].aperture, series[0].face_height)
+    read = speaking_window(facts, *lips).facts
+    assert read.speaking is speaking and read.silent_intervals == intervals
+    assert read.quiet == (shot == "056")
+    assert speaking_window(facts, *lips, has_audio=False).facts.speaking is False
 
 
 @pytest.mark.parametrize("explicit", [True, False])
 def test_explicit_speaking_wins_but_requires_audio_and_a_nonquiet_window(explicit):
-    from dataclasses import replace
-
-    from test_replacement_contract import POLICY, mug_facts
-
-    request = replacement.ReplacementRequest(
-        "source", "analysis", (replacement.PerformerChoice("actor", "target"),), speaking=explicit
-    )
-    people = {"actor": {"mouth": {"aperture": [0.02] * 73, "face_height": [300] * 73}}}
-    tracks = mug_facts().tracks
-    assert replacement._mouth_facts(request, people, tracks, POLICY, has_audio=True)[2] is explicit
-    assert replacement._mouth_facts(request, people, tracks, POLICY, has_audio=False)[2] is False
-    assert (
-        replacement._mouth_facts(
-            replace(request, quiet=True), people, tracks, POLICY, has_audio=True
-        )[2]
-        is False
-    )
+    assert speaking_window(speaking=explicit).facts.speaking is explicit
+    assert speaking_window(speaking=explicit, has_audio=False).facts.speaking is False
+    assert speaking_window(speaking=explicit, quiet=True).facts.speaking is False
 
 
 def test_speaking_request_freezes_the_lock_in_render_jobs(work):
@@ -187,55 +175,59 @@ def test_speaking_request_freezes_the_lock_in_render_jobs(work):
 
 @pytest.mark.parametrize("explicit", [{"quiet": True}, {"silent_intervals": ((2, 20),)}])
 def test_explicit_quiet_facts_skip_malformed_mouth_series(explicit):
-    from test_replacement_contract import POLICY, mug_facts
+    from replacement_plan_support import first_round
 
-    request = replacement.ReplacementRequest(
-        "source",
-        "analysis",
-        (replacement.PerformerChoice("actor", "target"),),
+    planned = first_round(
+        reading_args={"has_audio": True, "mouth": {"actor": {"aperture": "malformed"}}},
         speaking=True,
         **explicit,
     )
-    assert replacement._mouth_facts(
-        request,
-        {"actor": {"mouth": {"aperture": "malformed"}}},
-        mug_facts().tracks,
-        POLICY,
-        has_audio=True,
-    ) == (request.quiet, request.silent_intervals, False, (), False)
+    facts = planned.facts
+    assert facts.quiet == explicit.get("quiet", False)
+    assert facts.silent_intervals == explicit.get("silent_intervals", ())
+    assert not facts.speaking and not facts.lips_unmeasured
+    assert not any("peaking" in r or "mouth" in r for r in planned.plan.reasons)
 
 
 @pytest.mark.parametrize("explicit", [None, True, False])
 @pytest.mark.parametrize("mode", ["single", "never", "joint", "head"])
-def test_reason_lines_distinguish_requests_and_actual_lock(monkeypatch, explicit, mode):
-    from dataclasses import replace
+def test_reason_lines_distinguish_requests_and_actual_lock(explicit, mode):
+    from replacement_plan_support import (
+        HEAD_BOXES,
+        TEXT,
+        edited,
+        first_round,
+        head_facts,
+        joint_facts,
+        lips,
+    )
 
-    from test_head_plan import planned
-    from test_replacement_contract import POLICY, joint_facts, mug_facts, plan
+    from gaiavfx.modules.recast.replacement_plan import HeadPassChoice
 
-    request = replacement.ReplacementRequest(
-        "source", "analysis", (replacement.PerformerChoice("actor", "target"),), speaking=explicit
-    )
-    people = {"actor": {"mouth": {"aperture": [0.02] * 73, "face_height": [300] * 73}}}
-    _, _, speaking, reasons, _ = replacement._mouth_facts(
-        request, people, mug_facts().tracks, POLICY, has_audio=True
-    )
-    facts = replace(
-        joint_facts() if mode == "joint" else mug_facts(), quiet=False, speaking=speaking
-    )
-    policy = replace(POLICY, audio_lock="never") if mode == "never" else POLICY
-    first = planned() if mode == "head" else plan(facts, policy=policy)
-    monkeypatch.setattr(
-        replacement,
-        "replacement_facts",
-        lambda *args: (
+    mouth = lips(0.02, 300)
+    if mode == "head":
+        boxes = {"box": [list(b) for b in HEAD_BOXES]}
+        first = first_round(
+            head_facts(),
+            renders=1,
+            reading_args={"has_audio": True, "mouth": {"one": {**mouth, **boxes}}},
+            head=HeadPassChoice("parent"),
+            speaking=explicit,
+        ).plan
+    else:
+        facts = joint_facts() if mode == "joint" else None
+        text = (
+            edited(TEXT, 'audio_lock = "speaking"', 'audio_lock = "never"')
+            if mode == "never"
+            else TEXT
+        )
+        mouths = {"actor": mouth, "woman": mouth} if mode == "joint" else {"actor": mouth}
+        first = first_round(
             facts,
-            {"contacts": {}, "concepts": ["person"]},
-            reasons,
-        ),
-    )
-    monkeypatch.setattr(replacement, "_plan", lambda *args, **kwargs: first)
-    actual = replacement.plan_request(None, request, None)[3].reasons
+            text=text,
+            reading_args={"has_audio": True, "mouth": mouths},
+            speaking=explicit,
+        ).plan
     expected = (
         "Speaking: 73 open source-lip frames"
         if explicit is None
@@ -244,33 +236,18 @@ def test_reason_lines_distinguish_requests_and_actual_lock(monkeypatch, explicit
         else "Not speaking (requested)"
     )
     expected += "; the render is locked to the window's speech." if first.arm.audio_lock else "."
-    assert expected in actual
+    assert expected in first.reasons
     if explicit is not None:
-        assert not any(r.startswith("Speaking:") for r in actual)
-    assert sum("the render is locked" in r for r in actual) == int(first.arm.audio_lock)
+        assert not any(r.startswith("Speaking:") for r in first.reasons)
+    assert sum("the render is locked" in r for r in first.reasons) == int(first.arm.audio_lock)
 
 
 @pytest.mark.parametrize(
     "opened,minimum,expected", [(11, 12, False), (12, 12, True), (12, 13, False)]
 )
 def test_speaking_uses_the_configured_minimum(opened, minimum, expected):
-    from dataclasses import replace
+    from replacement_plan_support import TEXT, edited
 
-    from test_replacement_contract import POLICY, mug_facts
-
-    request = replacement.ReplacementRequest(
-        "source", "analysis", (replacement.PerformerChoice("actor", "target"),)
-    )
-    people = {
-        "actor": {
-            "mouth": {
-                "aperture": [0.02] * opened + [0.001] * (73 - opened),
-                "face_height": [300] * 73,
-            }
-        }
-    }
-    policy = replace(POLICY, speaking_min_open_frames=minimum)
-    assert (
-        replacement._mouth_facts(request, people, mug_facts().tracks, policy, has_audio=True)[2]
-        is expected
-    )
+    text = edited(TEXT, "speaking_min_open_frames = 12", f"speaking_min_open_frames = {minimum}")
+    aperture = [0.02] * opened + [0.001] * (73 - opened)
+    assert speaking_window(None, aperture, text=text).facts.speaking is expected

@@ -413,7 +413,7 @@ def test_face_reference_operations_collect_real_assets_with_mocked_inference(tmp
 
 
 def test_approved_target_lowers_to_h3_and_face_check():
-    from test_replacement_contract import mug_facts, plan
+    from replacement_plan_support import mug_facts, plan
 
     from gaiavfx.application import replace_character
     from gaiavfx.application.operation_start import knowledge_snapshot

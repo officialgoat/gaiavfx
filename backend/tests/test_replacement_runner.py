@@ -24,6 +24,16 @@ from gaiavfx.infrastructure.media import MediaTools
 from gaiavfx.modules.editing.selections.service import SelectionService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.application import LibraryService, MediaLibrary
+from gaiavfx.modules.recast.replacement_plan import (
+    BridgeChoice,
+    HandoffChoice,
+    HeadPassChoice,
+    PerformerChoice,
+    ReplacementRequest,
+    WindowPlan,
+    bridge_facts,
+    parse_request,
+)
 
 
 def natural_colours(*_args, **_kwargs):
@@ -35,9 +45,8 @@ def natural_colours(*_args, **_kwargs):
 def test_bridge_facts_rebases_presence_and_quiet_intervals():
     from dataclasses import replace
 
-    from test_replacement_contract import mug_facts
+    from replacement_plan_support import mug_facts
 
-    from gaiavfx.application.replace_character import bridge_facts
     from gaiavfx.modules.recast.replacement import to_record
 
     left = replace(mug_facts(), silent_intervals=((20, 60),))
@@ -71,9 +80,8 @@ def test_bridge_facts_rebases_presence_and_quiet_intervals():
 def test_bridge_facts_accepts_partial_presence_and_refuses_only_missing_or_unresolved(presence):
     from dataclasses import replace
 
-    from test_replacement_contract import CAP, POLICY, mug_facts
+    from replacement_plan_support import CAP, POLICY, mug_facts
 
-    from gaiavfx.application.replace_character import bridge_facts
     from gaiavfx.modules.recast.replacement import scope_gaps, to_record
 
     left, right = mug_facts(), replace(mug_facts(), shot_start=51, shot_end=124)
@@ -684,14 +692,14 @@ def test_advancer_uses_successful_composites_without_refunding_failed_take(
     import json
     from types import SimpleNamespace
 
-    from test_replacement_contract import mug_facts
+    from replacement_plan_support import mug_facts, round_plan
 
     import gaiavfx.application.replace_character as replacement
     from gaiavfx.modules.recast.replacement import to_record
 
     facts = mug_facts()
     text = replacement.replacement_policy_text()
-    arm = replacement._plan(facts, text).arm
+    arm = round_plan(facts, text=text).arm
     composites = [
         {
             "step": "replacement_composite",
@@ -719,14 +727,6 @@ def test_advancer_uses_successful_composites_without_refunding_failed_take(
         + [{"snapshot": {}, "step": None, "executor": "comfy", "kind": "video"}] * 2,
     }
     monkeypatch.setattr(replacement.operations, "operation", lambda *args: op)
-    seen = []
-    original = replacement._plan
-
-    def plan(facts, text, attempts, renders=None, **kwargs):
-        seen.extend(attempts)
-        return original(facts, text, attempts, renders=renders, **kwargs)
-
-    monkeypatch.setattr(replacement, "_plan", plan)
     monkeypatch.setattr(replacement, "_round_jobs", lambda *args: [])
     monkeypatch.setattr(
         replacement.operations, "resume", lambda session, op_id, decision, **kwargs: decision
@@ -746,7 +746,9 @@ def test_advancer_uses_successful_composites_without_refunding_failed_take(
         )
     )
     decision = replacement.advance_replacement(None, op, library=library)
-    assert len(seen[0].takes) == 1 and seen[0].arm.seed_count == 2
+    # The round was planned from the one successful take of the two.
+    first = decision["attempts"][0]
+    assert len(first["takes"]) == 1 and first["arm"]["seed_count"] == 2
     assert decision["arm"]["framing"] == "active" and decision["arm"]["seed_offset"] == 2
     assert decision["seeds"] == [9]
 
@@ -756,7 +758,7 @@ def test_advancer_clamps_before_resume(monkeypatch, limit, reserved, expected):
     import json
     from types import SimpleNamespace
 
-    from test_replacement_contract import mug_facts
+    from replacement_plan_support import mug_facts, round_plan
 
     import gaiavfx.application.replace_character as replacement
     from gaiavfx.modules.recast.replacement import to_record
@@ -765,7 +767,7 @@ def test_advancer_clamps_before_resume(monkeypatch, limit, reserved, expected):
     text = replacement.replacement_policy_text().replace(
         "renders_per_round = [2, 1, 1]", "renders_per_round = [2, 2, 2]"
     )
-    arm = replacement._plan(facts, text).arm
+    arm = round_plan(facts, text=text).arm
     op = {
         "id": "op",
         "state": "awaiting_review",
@@ -912,7 +914,7 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from test_replacement_contract import mug_facts, plan
+    from replacement_plan_support import mug_facts, plan
 
     from gaiavfx.application import operation_start
     from gaiavfx.application import replace_character as replacement
@@ -985,10 +987,8 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
         replacement,
         "plan_request",
         lambda *args, **kwargs: (
-            facts,
-            {"tracks": [{"id": t.id, "concept": "person"} for t in facts.tracks]},
+            WindowPlan(facts, arm, [{"id": t.id, "concept": "person"} for t in facts.tracks]),
             replacement_policy_text(),
-            arm,
         ),
     )
     monkeypatch.setattr(
@@ -1002,12 +1002,12 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
     monkeypatch.setattr(
         replacement.MediaLibrary, "artifact", lambda *args: {"id": "latent", "sha256": "latent-sha"}
     )
-    request = replacement.ReplacementRequest(
+    request = ReplacementRequest(
         facts.source_asset,
         "analysis",
         (),
         seed=9,
-        handoff=replacement.HandoffChoice("previous", "chosen"),
+        handoff=HandoffChoice("previous", "chosen"),
         crop_override=arm.arm.crop,
     )
     if status:
@@ -1044,7 +1044,7 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from test_replacement_contract import mug_facts, plan
+    from replacement_plan_support import mug_facts, plan
 
     from gaiavfx.application import replace_character as replacement
     from gaiavfx.application.operation_start import knowledge_snapshot
@@ -1053,7 +1053,7 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
 
     left = mug_facts()
     right = replace(left, shot_start=51, shot_end=124)
-    facts = replacement.bridge_facts(
+    facts = bridge_facts(
         {"facts": to_record(left)}, {"facts": to_record(right)}, {"start": 26, "end": 99}
     )
     windows = []
@@ -1079,24 +1079,22 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
     bridge = {"join": 1, "start": 26, "end": 99, "generated": [48, 77], "windows": windows}
     successor = {"analysis_operation": "a1", "tracks": windows[1]["tracks"]}
     monkeypatch.setattr(replacement, "_bridge_data", lambda *args: (facts, bridge, successor))
-    request = replacement.ReplacementRequest(
+    request = ReplacementRequest(
         "source",
         "a1",
-        (replacement.PerformerChoice("actor", "target"),),
-        head=replacement.HeadPassChoice("parent"),
-        bridge=replacement.BridgeChoice(1, ("op0", "c0"), ("op1", "c1")),
+        (PerformerChoice("actor", "target"),),
+        head=HeadPassChoice("parent"),
+        bridge=BridgeChoice(1, ("op0", "c0"), ("op1", "c1")),
     )
-    replacement.parse_request(request)
-    merged, report, policy, planned = replacement.plan_request(None, request, SimpleNamespace(), 1)
+    parse_request(request)
+    window, policy = replacement.plan_request(None, request, SimpleNamespace(), 1)
+    merged, planned, tracks = window.facts, window.plan, window.tracks
     assert merged.handoff == "none" and planned.arm.framing == "head"
     assert planned.arm.treatment == "rgb" and not planned.arm.audio_lock
-    assert (
-        report["tracks"][0]["mouth"]["box"]
-        == [[840, 90, 930, 200]] * 25 + [[850, 90, 940, 200]] * 48
-    )
+    assert tracks[0]["mouth"]["box"] == [[840, 90, 930, 200]] * 25 + [[850, 90, 940, 200]] * 48
     frozen = {
         "facts": to_record(merged),
-        "tracks": report["tracks"],
+        "tracks": tracks,
         "policy": policy,
         "seed": 10,
         "knowledge": knowledge_snapshot(minimax_h3),
@@ -1115,7 +1113,7 @@ def test_head_bridge_merges_face_boxes_and_stays_rgb_unlocked(monkeypatch):
 def test_bridge_freeze_validates_raw_renders_and_retains_neighbour_crops(monkeypatch, invalid):
     from dataclasses import replace
 
-    from test_replacement_contract import mug_facts, plan
+    from replacement_plan_support import mug_facts, plan
 
     from gaiavfx.application import replace_character as replacement
     from gaiavfx.modules.recast.replacement import to_record
@@ -1173,7 +1171,7 @@ def test_bridge_freeze_validates_raw_renders_and_retains_neighbour_crops(monkeyp
         assets["w1"]["info"]["duration"] = 1
     monkeypatch.setattr(replacement, "_chosen_window", lambda session, key, *args: neighbours[key])
     monkeypatch.setattr(replacement.MediaLibrary, "asset_info", lambda session, key: assets[key])
-    choice = replacement.BridgeChoice(2, ("w0", "c0"), ("w1", "c1"))
+    choice = BridgeChoice(2, ("w0", "c0"), ("w1", "c1"))
     if invalid:
         with pytest.raises(replacement.ApplicationError, match="raw render differs"):
             replacement._bridge_data(None, choice, "source")

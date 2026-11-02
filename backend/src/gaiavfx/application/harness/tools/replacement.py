@@ -26,18 +26,17 @@ from gaiavfx.application.harness.tools.common import (
 )
 from gaiavfx.application.harness.world import FINISHED, IN_FLIGHT, operation_view, operations
 from gaiavfx.application.replace_character import (
-    PerformerChoice,
-    ReplacementRequest,
     people_for_asset,
     replacement_plan,
     start_people_analysis,
     start_replacement,
     validate_concepts,
 )
-from gaiavfx.application.replacement_selectors import position, selector_positions
 from gaiavfx.modules.library.media_application import MediaLibrary
 from gaiavfx.modules.recast.application import replacement_policy_text
 from gaiavfx.modules.recast.replacement import Box, parse_replacement_policy
+from gaiavfx.modules.recast.replacement_plan import PerformerChoice, ReplacementRequest
+from gaiavfx.modules.recast.selectors import position, selector_positions
 from gaiavfx.shared.contracts import StrictModel
 from gaiavfx.shared.errors import ApplicationError
 

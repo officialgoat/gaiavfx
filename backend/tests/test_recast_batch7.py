@@ -11,7 +11,7 @@ import pytest
 from recast_world_support import long_shots, run, settle_all
 from recast_world_support import recast_template as recast_template  # noqa: PLC0414
 from recast_world_support import world as world  # noqa: PLC0414
-from test_replacement_contract import CAP, attempt, mug_facts, result
+from replacement_plan_support import CAP, attempt, mug_facts, result, round_plan
 
 from gaiavfx.application import recast, recast_planning, recast_run
 from gaiavfx.application import recast_projection as p
@@ -25,6 +25,7 @@ from gaiavfx.modules.recast.replacement import (
     to_record,
     union_crop,
 )
+from gaiavfx.modules.recast.replacement_plan import ShotPins, WindowPlan, parse_request
 from gaiavfx.modules.recast.windows import bridge_layout, shot_windows
 
 TEXT = replacement_policy_text()
@@ -262,11 +263,11 @@ def test_fresh_window_requests_and_bridge_inputs_keep_the_planned_crop(monkeypat
 
     def initial(session, request, library, **kwargs):
         assert request.crop_override == (crop if pinned else None)
-        first = app._plan(all_facts[0], TEXT, crop_override=request.crop_override)
-        return all_facts[0], {}, TEXT, first
+        first = round_plan(all_facts[0], text=TEXT, crop_override=request.crop_override)
+        return WindowPlan(all_facts[0], first, (), ShotPins(first.arm.treatment)), TEXT
 
     def start(session, request, *args, **kwargs):
-        seen.append(app.parse_request(request))
+        seen.append(parse_request(request))
         return {"id": f"w{len(seen) - 1}"}
 
     monkeypatch.setattr(shot, "plan_request", initial)
@@ -289,11 +290,11 @@ def test_fresh_window_requests_and_bridge_inputs_keep_the_planned_crop(monkeypat
     for i, request in enumerate(seen):
         assert request.crop_override == (crop if pinned else None)
         assert request.save_latent is False and request.handoff is None and request.bridge is None
-        arm = app._plan(all_facts[i], TEXT, crop_override=request.crop_override).arm
-        retry = app._plan(
+        arm = round_plan(all_facts[i], text=TEXT, crop_override=request.crop_override).arm
+        retry = round_plan(
             all_facts[i],
-            TEXT,
             (attempt(arm, (result("background_geometry"),)),),
+            text=TEXT,
             crop_override=request.crop_override,
         )
         assert retry.stop is pinned  # Pinned geometry cannot escalate to active framing.

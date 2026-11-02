@@ -1,4 +1,4 @@
-"""Spatial selectors shared by replacement use cases and agent presentation."""
+"""Spatial selectors: where a person stands in a frame, in the words a replacement and Gaia use."""
 
 
 def position(track, native):

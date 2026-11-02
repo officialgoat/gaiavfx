@@ -5,7 +5,7 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
-from test_replacement_contract import CAP, mug_facts
+from replacement_plan_support import CAP, mug_facts
 from test_replacement_runner import analysed, drain, read
 from test_replacement_runner import work as replacement_work
 
@@ -25,6 +25,7 @@ from gaiavfx.modules.recast.replacement import (
     plan_replacement,
     to_record,
 )
+from gaiavfx.modules.recast.replacement_plan import PerformerChoice, ReplacementRequest
 
 work = replacement_work
 
@@ -75,9 +76,7 @@ def mug_analysis(monkeypatch):
             else {"kind": "image"}
         ),
     )
-    request = replacement.ReplacementRequest(
-        "shot", "analysis", (replacement.PerformerChoice("performer", "picture"),)
-    )
+    request = ReplacementRequest("shot", "analysis", (PerformerChoice("performer", "picture"),))
     return document, request
 
 
@@ -94,7 +93,8 @@ def test_speaking_uses_source_library_audio_metadata(mug_analysis, monkeypatch, 
             else {"kind": "image"}
         ),
     )
-    facts, _, _, plan = replacement.plan_request(None, request, None)
+    planned, _ = replacement.plan_request(None, request, None)
+    facts, plan = planned.facts, planned.plan
     assert facts.speaking is has_audio and plan.arm.audio_lock is has_audio
 
 
@@ -108,7 +108,8 @@ def test_minor_mug_track_keeps_crop_report_and_inversion_consistent(mug_analysis
 
     document, request = mug_analysis
     before = json.dumps(document)
-    facts, report_document, policy, plan = replacement.plan_request(None, request, None)
+    planned, policy = replacement.plan_request(None, request, None)
+    facts, plan = planned.facts, planned.plan
     assert plan.arm.framing == "crop" and not plan.gaps
     assert plan.arm.crop.box.x0 >= 473  # Keeps the real bystander plus dilation outside.
     assert plan.arm.crop.box.x1 >= 864 and plan.arm.crop.box.y1 >= 508
@@ -120,7 +121,7 @@ def test_minor_mug_track_keeps_crop_report_and_inversion_consistent(mug_analysis
         "minor" in r and "area=0.003479" in r and "presence=0.123288" in r and "dropped" in r
         for r in plan.reasons
     )
-    assert json.dumps(document) == before and report_document is document
+    assert json.dumps(document) == before and planned.tracks is document["tracks"]
     frozen = {
         "facts": to_record(facts),
         "tracks": document["tracks"],
@@ -153,7 +154,8 @@ def test_real_bystander_margin_overlap_still_has_typed_gap(mug_analysis):
     # Disjoint raw boxes overlap once both receive the policy's three-pixel dilation.
     document["tracks"][2]["box"] = to_record(Box(867, 57, 896, 160))
     document["tracks"][2]["presence"] = ["present"] * 73
-    facts, _, _, plan = replacement.plan_request(None, request, None)
+    planned, _ = replacement.plan_request(None, request, None)
+    facts, plan = planned.facts, planned.plan
     assert {b.track_id for b in facts.bystanders} == {"bystander", "minor"}
     assert plan.arm.framing == "active"
     assert [g.code for g in plan.gaps] == ["no_crop_fits"]
@@ -163,13 +165,12 @@ def test_real_bystander_margin_overlap_still_has_typed_gap(mug_analysis):
 
 def test_selected_minor_track_and_explicit_avoidance_are_not_silently_dropped(mug_analysis):
     _, request = mug_analysis
-    policy = parse_replacement_policy(replacement_policy_text())
-    selected = replace(request, performers=(replacement.PerformerChoice("minor", "picture"),))
-    facts, _, reasons = replacement.replacement_facts(None, selected, None, policy)
-    assert "minor" in {t.id for t in facts.tracks}
-    assert not any("Ignored minor" in r for r in reasons)
+    selected = replace(request, performers=(PerformerChoice("minor", "picture"),))
+    planned, _ = replacement.plan_request(None, selected, None)
+    assert "minor" in {t.id for t in planned.facts.tracks}
+    assert not any("Ignored minor" in r for r in planned.plan.reasons)
     explicit = replace(request, avoided_regions=(Box(854, 57, 896, 95),))
-    _, _, _, plan = replacement.plan_request(None, explicit, None)
+    plan = replacement.plan_request(None, explicit, None)[0].plan
     assert plan.arm.framing == "active"
     assert [g.code for g in plan.gaps] == ["no_crop_fits"]
 

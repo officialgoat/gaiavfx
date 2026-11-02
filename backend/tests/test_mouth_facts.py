@@ -1,26 +1,13 @@
-import json
 from dataclasses import replace
-from pathlib import Path
 
 import pytest
+from replacement_plan_support import EVIDENCE, trial
 
 from gaiavfx.modules.recast.application import replacement_policy_text
 from gaiavfx.modules.recast.mouth import MouthSeries, quiet_facts
 from gaiavfx.modules.recast.replacement import MouthPolicy, parse_replacement_policy
 
-ROOT = Path(__file__).parents[2]
 POLICY = parse_replacement_policy(replacement_policy_text()).mouth
-EVIDENCE = json.loads((ROOT / POLICY.evidence).read_text())
-
-
-def trial(shot, window, side="native"):
-    """The trial window's performers as (series, presence); every trial frame is present."""
-    row = next(w for w in EVIDENCE["windows"] if w["app_shot"] == shot and w["window"] == window)
-    series = tuple(
-        MouthSeries(tuple(p[side]["aperture"]), tuple(p[side]["face_height_px"]))
-        for p in row["performers"]
-    )
-    return series, tuple(("present",) * row["frames"] for _ in series)
 
 
 def facts(series, presence, policy=POLICY):

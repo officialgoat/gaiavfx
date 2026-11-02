@@ -5,46 +5,40 @@ from dataclasses import FrozenInstanceError, fields, replace
 from pathlib import Path
 
 import pytest
+from replacement_plan_support import (
+    CAP,
+    POLICY,
+    attempt,
+    geometry_fixture,
+    joint_facts,
+    mug_facts,
+    plan,
+    result,
+)
 from test_direction_kernel import fake_capabilities
 
-from gaiavfx.integrations.minimax_h3 import capabilities
 from gaiavfx.modules.recast.application import (
     default_replacement_policy,
 )
 from gaiavfx.modules.recast.application import (
     replacement_policy_text as shipped_policy_text,
 )
-from gaiavfx.modules.recast.person_crop import to_native
 from gaiavfx.modules.recast.replacement import (
     CHECKS,
     Arm,
     Attempt,
     Box,
-    Bystander,
     CheckResult,
     Gap,
     Letterbox,
     Occluder,
-    Performer,
     ReplacementFacts,
-    Track,
     parse_replacement_policy,
     plan_replacement,
     to_record,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures" / "parity"
-CAP = capabilities()
-# Preserve the A1 RGB research/golden cases and their shorter escalation ladder.
-POLICY = replace(
-    default_replacement_policy(),
-    treatment="rgb",
-    escalation=tuple(
-        r
-        for r in default_replacement_policy().escalation
-        if not (r.on == "likeness" and r.to in {"seed", "faceswap"})
-    ),
-)
 
 
 def replacement_policy_text():
@@ -59,90 +53,6 @@ def replacement_policy_text():
             "",
         )
     )
-
-
-def attempt(arm, checks):
-    return Attempt(arm, (checks,) * arm.seed_count)
-
-
-def geometry_fixture():
-    return json.loads((FIXTURES / "REPL-MUG-GEOMETRY.json").read_text(encoding="utf-8"))
-
-
-def mug_facts(frames=73):
-    """True actor/woman bounds; props and chair context are distinct regions."""
-    geometry = geometry_fixture()
-    lb = geometry["letterbox"]
-    native = tuple(geometry["frame"])
-    actor = Box(*to_native((588, 4, 863, 508), lb["fit"], lb["offset"], native))
-    woman = Box(*to_native((50, 173, 471, 508), lb["fit"], lb["offset"], native))
-    guide = json.loads((FIXTURES / "REPL-MUG-GUIDE.json").read_text(encoding="utf-8"))
-    prompt = guide["graph"]["conditioning"]["inputs"]["prompt"]
-    target = prompt.split(", with ", 1)[1].split(".\n", 1)[0]
-    action = prompt.split(
-        "[Shot 1] <Subject 1> appears as the standing performer at screen right. "
-    )[1].split(" Render natural scene colors.")[0]
-    return ReplacementFacts(
-        source_asset="source",
-        shot_start=0,
-        shot_end=frames,
-        native=native,
-        fps=24,
-        letterbox=Letterbox(tuple(lb["fit"]), tuple(lb["offset"]), tuple(lb["canvas"])),
-        performers=(
-            Performer(
-                "actor",
-                "target",
-                "subject",
-                target,
-                "standing performer",
-                "at screen right",
-                action,
-            ),
-        ),
-        bystanders=(Bystander("woman", "seated woman", "at screen left", ("her blue cup",)),),
-        tracks=(
-            Track("actor", actor, ("present",) * frames, None, "user"),
-            Track("woman", woman, ("present",) * frames, None, "user"),
-        ),
-        occluders=(),
-        scene_items=("the yellow mug, tableware and furniture",),
-        quiet=False,
-        silent_intervals=(),
-        required_context=tuple(
-            Box(*geometry["required"]["parts"][name]) for name in ("object-2 (yellow mug)", "chair")
-        ),
-        avoided_regions=(Box(*geometry["avoid"]["cup"]),),
-    )
-
-
-def joint_facts():
-    f = mug_facts()
-    first = replace(
-        f.performers[0],
-        action="The first replacement holds a yellow mug at chest height, looks toward the seated person, releases one hand from the mug, and lowers that hand toward the chair.",
-    )
-    second = Performer(
-        "woman",
-        "target-two",
-        None,
-        "short curly dark hair, a cream striped long-sleeve top and lilac overalls",
-        "seated performer",
-        "at screen left",
-        "The second replacement stays seated at the table, leaning forward with her chin on her hand and holding the blue cup.",
-    )
-    return replace(
-        f,
-        performers=(first, second),
-        bystanders=(),
-        avoided_regions=(),
-        quiet=True,
-        scene_items=("the yellow mug", "the blue cup", "tableware and furniture"),
-    )
-
-
-def plan(facts=None, prior=(), policy=POLICY, support=CAP.replacement):
-    return plan_replacement(facts or mug_facts(), support, policy, CAP.frame_grid, prior)
 
 
 def test_audio_lock_is_a_capability_gated_first_arm_decision():
@@ -206,7 +116,8 @@ def test_audio_lock_policy_values_are_validated(key, value):
 
 
 def test_speaking_head_pass_never_locks():
-    from test_head_plan import facts, planned
+    from replacement_plan_support import head_facts as facts
+    from replacement_plan_support import head_planned as planned
 
     assert planned(f=replace(facts(), speaking=True)).arm.audio_lock is False
 
@@ -274,10 +185,6 @@ def test_impossible_crop_falls_back_to_active_with_a_gap():
     assert not result.stop and result.arm.framing == "active" and result.arm.crop is None
     assert [g.code for g in result.gaps] == ["no_crop_fits"]
     assert any("falling back to active" in reason for reason in result.reasons)
-
-
-def result(check, verdict="fail", advice="none"):
-    return CheckResult(check, verdict, advice, None)
 
 
 @pytest.mark.parametrize(
@@ -731,8 +638,7 @@ def test_stored_facts_without_pixel_context_load_and_chained_ones_are_refused():
 
 
 def test_handoff_request_validation():
-    from gaiavfx.application.replace_character import parse_request
-    from gaiavfx.shared.errors import ApplicationError
+    from gaiavfx.modules.recast.replacement_plan import Refused, parse_request
 
     request = {
         "source_asset": "s",
@@ -742,9 +648,8 @@ def test_handoff_request_validation():
         "crop_override": to_record(plan().arm.crop),
     }
     assert parse_request(request).handoff.candidate_id == "candidate"
-    with pytest.raises(ApplicationError) as exc:
+    with pytest.raises(Refused, match="A latent handoff needs a predecessor and candidate"):
         parse_request({**request, "head": {"parent_asset": "parent"}})
-    assert exc.value.status == 422
 
 
 def test_shared_crop_covers_union_and_refuses_avoided_union():

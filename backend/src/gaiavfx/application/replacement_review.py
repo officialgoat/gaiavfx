@@ -3,10 +3,10 @@
 import json
 from dataclasses import asdict
 
-from gaiavfx.application.replace_character import effective_policy
 from gaiavfx.application.replacement_checks import take_checks
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.recast.replacement_plan import Refused, effective_policy
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -57,7 +57,7 @@ def replacement_members(session, review, library, *, revealed=False):
                     # This measurement discloses full-frame treatment before Reveal.
                     if revealed or check.check != "letterbox_difference"
                 ]
-            except (ApplicationError, OSError, KeyError, TypeError, ValueError):
+            except (ApplicationError, Refused, OSError, KeyError, TypeError, ValueError):
                 # A missing or malformed observation must not prevent ranking the take.
                 member["replacement_checks"] = []
         if revealed:

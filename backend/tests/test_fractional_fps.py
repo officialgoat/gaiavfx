@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 from fake_comfy import ReplacementComfy
 from PIL import Image
-from test_replacement_contract import mug_facts
+from replacement_plan_support import mug_facts
 from test_replacement_runner import drain, read
 
 from gaiavfx.application.operation_steps import LocalContext

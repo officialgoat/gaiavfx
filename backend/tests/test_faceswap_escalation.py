@@ -7,9 +7,19 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from test_head_plan import planned as head_plan
+from replacement_plan_support import (
+    CAP,
+    attempt,
+    edited,
+    first_round,
+    joint_facts,
+    mug_facts,
+    reading,
+    result,
+    round_plan,
+)
+from replacement_plan_support import head_planned as head_plan
 from test_replacement_checks import mug_analysis as mug_analysis  # noqa: PLC0414
-from test_replacement_contract import CAP, attempt, joint_facts, mug_facts, result
 from test_replacement_runner import work as work  # noqa: PLC0414
 
 from gaiavfx.application import replace_character as app
@@ -27,12 +37,21 @@ from gaiavfx.modules.recast.application import (
 )
 from gaiavfx.modules.recast.replacement import (
     Arm,
+    Box,
+    Performer,
     ReplacementFacts,
     ReplacementPlan,
+    Track,
     from_record,
     parse_replacement_policy,
     plan_replacement,
     to_record,
+)
+from gaiavfx.modules.recast.replacement_plan import (
+    HandoffChoice,
+    PerformerChoice,
+    ReplacementRequest,
+    parse_request,
 )
 
 
@@ -57,9 +76,56 @@ def plan(facts, prior=(), policy=POLICY, support=CAP.replacement):
 
 
 def request(**kwargs):
-    return app.ReplacementRequest(
-        "source", "analysis", (app.PerformerChoice("actor", "target"),), **kwargs
+    return ReplacementRequest("source", "analysis", (PerformerChoice("actor", "target"),), **kwargs)
+
+
+# Close-up facts are read without the mouth table, so a malformed face height cannot fail the lip reading first.
+CLOSE_UP = without_table(replacement_policy_text(), "mouth")
+
+
+def box(native, index):
+    """A performer standing in the middle of the canvas; a second one beside the first."""
+    w, h = native
+    return (0.4 * w + 40 * index, 0.1 * h, 0.6 * w + 40 * index, 0.9 * h)
+
+
+def close_up(heights, presence=None, *, native=(1920, 1000), text=CLOSE_UP, joint=False, **changes):
+    """Whether the Replacement plan calls a window a close-up from its performer's measured face heights (None for
+    no mouth series), and the close-up lines among its reasons."""
+    presence = presence or ["present"] * (len(heights) if heights is not None else 73)
+    names = ("actor", "two") if joint else ("actor",)
+    facts = ReplacementFacts(
+        "source",
+        0,
+        len(presence),
+        native,
+        24,
+        None,
+        tuple(
+            Performer(n, "target", None, None, "performer", "at the centre", None) for n in names
+        ),
+        (),
+        (),
+        (),
+        False,
+        (),
+        tuple(
+            Track(n, Box(*box(native, i)), tuple(presence), None, "user")
+            for i, n in enumerate(names)
+        ),
     )
+    mouth = (
+        {"actor": {"face_height": list(heights), "aperture": [0.0] * len(heights)}}
+        if heights is not None
+        else None
+    )
+    planned = first_round(facts, text=text, reading_args={"mouth": mouth}, **changes)
+    reasons = tuple(
+        r
+        for r in planned.plan.reasons
+        if r == "Close-up unmeasured" or r.startswith("Close-up: median") or "(requested)" in r
+    )
+    return planned.facts.close_up, reasons
 
 
 @pytest.mark.parametrize(
@@ -68,37 +134,28 @@ def request(**kwargs):
         ([None, 699, 699, 999], False),
         ([650, None, 700, 750], True),
         ([None, None], False),
-        ([], False),
         ([0, -1, float("nan")], False),
     ],
 )
 def test_median_measured_native_face_height(heights, expected):
-    people = {"actor": {"mouth": {"face_height": heights}, "presence": ["present"] * len(heights)}}
-    actual, reasons = app._close_up_facts(request(), people, (1920, 1000), POLICY)
+    actual, reasons = close_up(heights)
     assert actual is expected
     assert bool(reasons) is expected or reasons == ("Close-up unmeasured",)
 
 
 def test_close_up_derivation_is_optional_single_and_overridable():
-    people = {"actor": {"mouth": {"face_height": [740] * 73}, "presence": ["present"] * 73}}
-    assert app._close_up_facts(request(), people, (1920, 1000), POLICY) == (
-        True,
-        ("Close-up: median face 74% of the frame height.",),
-    )
-    assert not app._close_up_facts(request(), {"actor": {}}, (1920, 1000), POLICY)[0]
-    assert not app._close_up_facts(request(), people, (1920, 1000), replace(POLICY, faceswap=None))[
-        0
-    ]
-    joint = replace(request(), performers=(*request().performers, app.PerformerChoice("two", "t")))
-    assert app._close_up_facts(joint, people, (1920, 1000), POLICY) == (False, ())
+    tall = [740] * 73
+    assert close_up(tall) == (True, ("Close-up: median face 74% of the frame height.",))
+    assert not close_up(None)[0]
+    assert not close_up(tall, text=without_table(CLOSE_UP, "faceswap"))[0]
+    assert close_up(tall, joint=True) == (False, ())
     for explicit in (True, False):
-        assert (
-            app._close_up_facts(request(close_up=explicit), {"actor": {}}, (1920, 1000), POLICY)[0]
-            is explicit
-        )
-    assert not app._close_up_facts(request(close_up=False), people, (1920, 1000), POLICY)[0]
-    threshold = replace(POLICY, faceswap=replace(POLICY.faceswap, close_up_min_face_fraction=0.8))
-    assert not app._close_up_facts(request(), people, (1920, 1000), threshold)[0]
+        assert close_up(None, close_up=explicit)[0] is explicit
+    assert not close_up(tall, close_up=False)[0]
+    threshold = edited(
+        CLOSE_UP, "close_up_min_face_fraction = 0.7", "close_up_min_face_fraction = 0.8"
+    )
+    assert not close_up(tall, text=threshold)[0]
 
 
 def test_application_preview_freezes_fact_and_reason(mug_analysis):
@@ -111,7 +168,7 @@ def test_application_preview_freezes_fact_and_reason(mug_analysis):
 
 
 def test_close_up_derivation_matches_native_trial_series():
-    from test_mouth_facts import EVIDENCE, trial
+    from replacement_plan_support import EVIDENCE, trial
 
     assert POLICY.faceswap.close_up_min_face_fraction == 0.7
     seen = set()
@@ -120,11 +177,8 @@ def test_close_up_derivation_matches_native_trial_series():
         if shot not in {"058", "061", "056", "059", "006"}:
             continue
         series, presence = trial(shot, window["window"], side="native")
-        people = {
-            "actor": {"mouth": {"face_height": series[0].face_height}, "presence": presence[0]}
-        }
-        close_up, _ = app._close_up_facts(request(), people, (1920, 800), POLICY)
-        assert close_up is (shot in {"058", "061"}), (shot, window["window"])
+        measured, _ = close_up(series[0].face_height, list(presence[0]), native=(1920, 800))
+        assert measured is (shot in {"058", "061"}), (shot, window["window"])
         seen.add(shot)
     assert seen == {"058", "061", "056", "059", "006"}
 
@@ -133,13 +187,9 @@ def test_close_up_derivation_matches_native_trial_series():
     "measured,present,expected", [(1, 8, False), (2, 8, True), (2, 9, False), (0, 0, False)]
 )
 def test_close_up_requires_measurements_on_a_quarter_of_present_frames(measured, present, expected):
-    people = {
-        "actor": {
-            "mouth": {"face_height": [740] * measured + [None] * (present - measured) + [999] * 12},
-            "presence": ["present"] * present + ["absent"] * 12,
-        }
-    }
-    actual, reasons = app._close_up_facts(request(), people, (1920, 1000), POLICY)
+    heights = [740] * measured + [None] * (present - measured) + [999] * 12
+    presence = ["present"] * present + ["absent"] * 12
+    actual, reasons = close_up(heights, presence)
     assert actual is expected
     assert reasons == (
         ("Close-up: median face 74% of the frame height.",)
@@ -147,11 +197,10 @@ def test_close_up_requires_measurements_on_a_quarter_of_present_frames(measured,
         else ("Close-up unmeasured",)
     )
     if present:
-        stricter = replace(POLICY, min_face_frames_fraction=0.5)
-        assert app._close_up_facts(request(), people, (1920, 1000), stricter) == (
-            False,
-            ("Close-up unmeasured",),
+        stricter = edited(
+            CLOSE_UP, "min_face_frames_fraction = 0.25", "min_face_frames_fraction = 0.5"
         )
+        assert close_up(heights, presence, text=stricter) == (False, ("Close-up unmeasured",))
 
 
 def test_joint_explicit_close_up_is_refused_before_analysis():
@@ -159,7 +208,7 @@ def test_joint_explicit_close_up_is_refused_before_analysis():
 
     joint = replace(
         request(close_up=True),
-        performers=(app.PerformerChoice("one", "t"), app.PerformerChoice("two", "t")),
+        performers=(PerformerChoice("one", "t"), PerformerChoice("two", "t")),
     )
     with pytest.raises(ApplicationError, match="Close-up applies to a single performer") as error:
         app.replacement_plan(None, joint, library=None)
@@ -225,8 +274,8 @@ def test_advancer_gates_faceswap_from_frozen_knowledge(knowledge_kind, monkeypat
 
 @pytest.mark.parametrize("supported", [False, True])
 def test_continuation_initial_planning_uses_window_zero_faceswap_capability(monkeypatch, supported):
-    facts = replace(mug_facts(), close_up=True, handoff="latent")
-    window_zero = {"policy": replacement_policy_text(), "knowledge": knowledge_snapshot(minimax_h3)}
+    # The shipped policy starts a close-up on FaceSwap when the integration supports it.
+    window_zero = {"policy": shipped_policy_text(), "knowledge": knowledge_snapshot(minimax_h3)}
     if not supported:
         window_zero["knowledge"]["render.toml"] = without_table(
             window_zero["knowledge"]["render.toml"], "faceswap"
@@ -235,32 +284,19 @@ def test_continuation_initial_planning_uses_window_zero_faceswap_capability(monk
     if supported:
         current = replace(current, faceswap=None)
     monkeypatch.setattr(h3_graph, "render_presets", lambda: current)
-    monkeypatch.setattr(
-        app,
-        "replacement_facts",
-        lambda *args: (facts, {"contacts": {}, "concepts": ["person"]}, ()),
-    )
-    original_plan, seen = app._plan, []
-
-    def planning(*args, **kwargs):
-        seen.append(kwargs["faceswap_supported"])
-        assert args[1] == window_zero["policy"]
-        return original_plan(*args, **kwargs)
-
-    monkeypatch.setattr(app, "_plan", planning)
+    monkeypatch.setattr(app, "window_reading", lambda *args: reading(mug_facts()))
     choice = request(
-        handoff=app.HandoffChoice("window0", "chosen"), crop_override=plan(facts).arm.crop
+        handoff=HandoffChoice("window0", "chosen"),
+        crop_override=plan(mug_facts()).arm.crop,
+        close_up=True,
     )
-    first = app.plan_request(None, choice, None, continuation_snapshot=window_zero)[3]
-    assert seen == [supported] and not first.arm.faceswap
-    second = original_plan(
-        facts,
-        window_zero["policy"],
-        (attempt(first.arm, (result("residual_source"),)),),
-        faceswap_supported=seen[0],
-    )
-    assert second.arm.faceswap is supported
-    assert second.reasons == ("likeness: faceswap" if supported else "likeness: seed",)
+    first = app.plan_request(None, choice, None, continuation_snapshot=window_zero)[0].plan
+    assert first.arm.faceswap is supported
+    assert (
+        "Close-up: FaceSwap from round 0."
+        if supported
+        else "Close-up without FaceSwap support: inverted guide fallback."
+    ) in first.reasons
 
 
 def test_faceswap_hash_is_optional_but_validated():
@@ -294,14 +330,14 @@ def test_likeness_failure_stacks_then_retries_with_fresh_seeds(audio_lock):
 def test_pinned_treatment_allows_faceswap_before_seed_retries(treatment):
     facts = replace(mug_facts(), close_up=True, speaking=True)
     text = replacement_policy_text()
-    first = app._plan(facts, text, treatment_override=treatment).arm
+    first = round_plan(facts, text=text, treatment_override=treatment).arm
     checks = (result("residual_source"),)
     prior = (attempt(first, checks),)
-    second = app._plan(facts, text, prior, treatment_override=treatment)
+    second = round_plan(facts, prior, text=text, treatment_override=treatment)
     assert second.reasons == ("likeness: faceswap",)
     assert second.arm == replace(first, faceswap=True, seed_count=1, round=1, seed_offset=2)
-    third = app._plan(
-        facts, text, (*prior, attempt(second.arm, checks)), treatment_override=treatment
+    third = round_plan(
+        facts, (*prior, attempt(second.arm, checks)), text=text, treatment_override=treatment
     )
     assert third.reasons == ("likeness: seed",)
     assert third.arm == replace(second.arm, round=2, seed_offset=3)
@@ -324,7 +360,7 @@ def test_pinned_non_close_up_plans_and_stop_reasons_match_previous_behavior(
 ):
     facts = joint_facts() if joint else mug_facts()
     text = replacement_policy_text()
-    first = app._plan(facts, text, treatment_override=treatment).arm
+    first = round_plan(facts, text=text, treatment_override=treatment).arm
     prior = (attempt(first, checks),)
     # Reproduce the policy transformation before FaceSwap was introduced.
     previous = replace(
@@ -339,7 +375,7 @@ def test_pinned_non_close_up_plans_and_stop_reasons_match_previous_behavior(
         ),
     )
     expected = plan(facts, prior, previous)
-    actual = app._plan(facts, text, prior, treatment_override=treatment)
+    actual = round_plan(facts, prior, text=text, treatment_override=treatment)
     assert actual == expected
     if actual.arm and checks[0].check == "residual_source":
         assert actual.reasons == ("likeness: seed",)
@@ -385,11 +421,11 @@ def test_optional_tables_gate_capability_and_planning(monkeypatch):
     facts = replace(mug_facts(), close_up=True)
     prior = (attempt(plan(facts).arm, (result("residual_source"),)),)
     assert not plan(facts, prior, old_policy).arm.faceswap
-    assert not app._plan(
+    assert not round_plan(
         facts,
-        replacement_policy_text(),
         prior,
-        faceswap_supported=minimax_h3.capabilities(old_render).replacement.faceswap,
+        text=replacement_policy_text(),
+        support=minimax_h3.capabilities(old_render).replacement,
     ).arm.faceswap
     monkeypatch.setattr(h3_graph, "render_presets", lambda: old_render)
     assert minimax_h3.capabilities().replacement.faceswap is False
@@ -455,7 +491,7 @@ def test_legacy_facts_plans_and_arms_advance_and_lower_identically():
     knowledge["render.toml"] = without_table(knowledge["render.toml"], "faceswap")
     stored = {"facts": fact_record, "policy": policy_text, "knowledge": knowledge}
     prior = (attempt(loaded.arm, (result("residual_source"),)),)
-    next_plan = app._plan(loaded_facts, policy_text, prior)
+    next_plan = round_plan(loaded_facts, prior, text=policy_text)
     assert next_plan.reasons == ("likeness: seed",) and not next_plan.arm.faceswap
     for arm in (loaded.arm, next_plan.arm):
         _, presets, compiled, _ = app.round_render(stored, arm)
@@ -471,9 +507,7 @@ def test_legacy_facts_plans_and_arms_advance_and_lower_identically():
             compile_replacement(facts, arm), **args
         )
     assert (
-        app.parse_request(
-            {"source_asset": "s", "analysis_operation": "a", "performers": []}
-        ).close_up
+        parse_request({"source_asset": "s", "analysis_operation": "a", "performers": []}).close_up
         is None
     )
 

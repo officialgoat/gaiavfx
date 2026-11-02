@@ -1,17 +1,15 @@
 """Shot-local character replacement use cases; no editorial selection authority."""
 
 import json
-import math
 import re
+from contextlib import contextmanager
 from copy import deepcopy
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from fractions import Fraction
-from statistics import median
 
 from gaiavfx.application import operation_start
 from gaiavfx.application.candidate_review import existing_review
 from gaiavfx.application.replacement_checks import take_checks
-from gaiavfx.application.replacement_selectors import position, selector_positions
 from gaiavfx.infrastructure.database import new_id
 from gaiavfx.integrations import minimax_h3, person_analysis
 from gaiavfx.integrations.minimax_h3.graph import context_descriptor, parse_render
@@ -26,28 +24,28 @@ from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, 
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.media_application import MediaLibrary
-from gaiavfx.modules.recast import person_crop
 from gaiavfx.modules.recast.application import replacement_policy_text
-from gaiavfx.modules.recast.mouth import MouthSeries, quiet_facts
 from gaiavfx.modules.recast.replacement import (
     Arm,
     Attempt,
     Box,
-    Bystander,
     CropPlan,
     Gap,
-    Letterbox,
-    Occluder,
-    Performer,
     ReplacementFacts,
-    Track,
     from_record,
-    minor_bystander_reason,
     parse_replacement_policy,
-    plan_bridge,
-    plan_head_pass,
-    plan_replacement,
     to_record,
+)
+from gaiavfx.modules.recast.replacement_plan import (
+    BridgeReading,
+    Refused,
+    RoundSettings,
+    WindowReading,
+    bridge_facts,
+    effective_policy,
+    parse_request,
+    plan_round,
+    plan_window,
 )
 from gaiavfx.modules.recast.windows import bridge_layout
 from gaiavfx.shared.errors import ApplicationError
@@ -64,63 +62,6 @@ class ReplacementPlanningError(ApplicationError):
         super().__init__(
             "Replacement cannot start: " + "; ".join(f"{g.code}: {g.message}" for g in gaps), 409
         )
-
-
-@dataclass(frozen=True)
-class PerformerChoice:
-    track_id: str
-    target_asset: str
-    role: str = "performer"
-    position: str | None = None
-    target_subject_id: str | None = None
-    action: str | None = None
-    selected_by: str = "user"
-    # A caller's margin over user-curated characters (Recast) replaces the window's
-    # machine-cluster margin; None keeps the window's.
-    identity_margin: float | None = None
-
-
-@dataclass(frozen=True)
-class HeadPassChoice:
-    parent_asset: str
-
-
-@dataclass(frozen=True)
-class HandoffChoice:
-    predecessor_operation: str
-    candidate_id: str
-
-
-@dataclass(frozen=True)
-class BridgeChoice:
-    join: int
-    predecessor: tuple[str, str]
-    successor: tuple[str, str]
-
-
-@dataclass(frozen=True)
-class ReplacementRequest:
-    source_asset: str
-    analysis_operation: str
-    performers: tuple[PerformerChoice, ...]
-    seed: int = 0
-    required_context: tuple[Box, ...] = ()
-    avoided_regions: tuple[Box, ...] = ()
-    quiet: bool = False
-    scene_items: tuple[str, ...] = ()
-    occluders: tuple[Occluder, ...] = ()
-    silent_intervals: tuple[tuple[int, int], ...] = ()
-    performer_hands_visible: bool | None = None
-    source_target_similarity: float | None = None
-    treatment_override: str | None = None
-    faceswap_override: bool | None = None
-    head: HeadPassChoice | None = None
-    speaking: bool | None = None
-    handoff: HandoffChoice | None = None
-    crop_override: CropPlan | None = None
-    save_latent: bool = False
-    bridge: BridgeChoice | None = None
-    close_up: bool | None = None
 
 
 def _chosen_window(session, operation_id, candidate_id, source_asset):
@@ -212,67 +153,6 @@ def _freeze_handoff(session, choice, facts, crop, library):
     }
 
 
-def bridge_facts(predecessor_request, successor_request, layout):
-    """Merge source facts by film frame, splitting wording at the successor start."""
-    left = from_record(ReplacementFacts, predecessor_request["facts"])
-    right = from_record(ReplacementFacts, successor_request["facts"])
-    if (left.source_asset, left.native, left.fps) != (right.source_asset, right.native, right.fps):
-        raise ValueError("Bridge neighbours must share the source, canvas and frame rate")
-    if [p.target_asset for p in left.performers] != [p.target_asset for p in right.performers]:
-        raise ValueError("Bridge performers cannot be reconciled")
-    start, end, split = layout["start"], layout["end"], right.shot_start
-    if not left.shot_start <= start < split < end <= right.shot_end or left.shot_end < split:
-        raise ValueError("Bridge is not covered by its neighbours")
-    lt = {t.id: t for t in left.tracks}
-    paired = {
-        b.track_id: a.track_id for a, b in zip(left.performers, right.performers, strict=True)
-    }
-    tracks = []
-    for t in right.tracks:
-        if t.id not in paired:
-            # Only bound performers have identity across analyses. Keep successor
-            # bystander facts; protection pixels use the earliest covering masks.
-            tracks.append(
-                replace(t, presence=tuple(t.presence[max(0, f - split)] for f in range(start, end)))
-            )
-            continue
-        previous = lt[paired[t.id]]
-        presence = tuple(
-            previous.presence[f - left.shot_start] if f < split else t.presence[f - split]
-            for f in range(start, end)
-        )
-        if "unresolved" in presence or all(v == "absent" for v in presence):
-            raise ValueError("Bridge performer presence cannot be reconciled")
-        tracks.append(
-            replace(t, box=Box(*person_crop.union((previous.box, t.box))), presence=presence)
-        )
-    quiet = left.quiet and right.quiet
-    intervals = []
-    if not quiet:
-        for facts, lo, hi in ((left, start, split), (right, split, end)):
-            rows = ((0, facts.delivered_frames),) if facts.quiet else facts.silent_intervals
-            for a, b in rows:
-                a, b = max(lo, facts.shot_start + a), min(hi, facts.shot_start + b)
-                if a < b:
-                    a, b = a - start, b - start
-                    if intervals and intervals[-1][1] == a:
-                        intervals[-1] = (intervals[-1][0], b)
-                    else:
-                        intervals.append((a, b))
-    return replace(
-        right,
-        shot_start=start,
-        shot_end=end,
-        tracks=tuple(tracks),
-        quiet=quiet,
-        speaking=left.speaking or right.speaking,
-        silent_intervals=tuple(intervals),
-        required_context=tuple(dict.fromkeys((*left.required_context, *right.required_context))),
-        avoided_regions=tuple(dict.fromkeys((*left.avoided_regions, *right.avoided_regions))),
-        handoff="bridge",
-    )
-
-
 def _bridge_data(session, choice, source_asset):
     neighbours = [
         _chosen_window(session, *pair, source_asset)
@@ -325,106 +205,6 @@ def _bridge_data(session, choice, source_asset):
             }
         )
     return facts, {**layout, "windows": windows}, successor
-
-
-def parse_request(value):
-    """A ReplacementRequest from the API's or a producer's plain request, validated."""
-    if isinstance(value, ReplacementRequest):
-        request = value
-    else:
-        try:
-            data = dict(value)
-            for name, cls in (
-                ("performers", PerformerChoice),
-                ("required_context", Box),
-                ("avoided_regions", Box),
-                ("occluders", Occluder),
-            ):
-                data[name] = tuple(cls(**v) for v in data.get(name, ()))
-            data["scene_items"] = tuple(data.get("scene_items", ()))
-            data["silent_intervals"] = tuple(tuple(v) for v in data.get("silent_intervals", ()))
-            if data.get("head") is not None:
-                data["head"] = HeadPassChoice(**data["head"])
-            if data.get("handoff") is not None:
-                data["handoff"] = HandoffChoice(**data["handoff"])
-            if data.get("crop_override") is not None:
-                data["crop_override"] = from_record(CropPlan, data["crop_override"])
-            if data.get("bridge") is not None:
-                data["bridge"] = BridgeChoice(
-                    **{
-                        **data["bridge"],
-                        "predecessor": tuple(data["bridge"]["predecessor"]),
-                        "successor": tuple(data["bridge"]["successor"]),
-                    }
-                )
-            request = ReplacementRequest(**data)
-        except (TypeError, ValueError) as exc:
-            raise ApplicationError(f"Invalid replacement request: {exc}", 422) from exc
-    if request.handoff is not None and (
-        not isinstance(request.handoff, HandoffChoice)
-        or any(
-            not isinstance(v, str) or not v
-            for v in (request.handoff.predecessor_operation, request.handoff.candidate_id)
-        )
-        or request.head is not None
-    ):
-        raise ApplicationError(
-            "A latent handoff needs a predecessor and candidate, without a head pass.", 422
-        )
-    if request.bridge is not None and (
-        not isinstance(request.bridge, BridgeChoice)
-        or request.handoff is not None
-        or request.save_latent
-        or (request.crop_override is None and request.head is None)
-        or type(request.bridge.join) is not int
-        or request.bridge.join < 1
-        or any(
-            len(pair) != 2 or any(not isinstance(v, str) or not v for v in pair)
-            for pair in (request.bridge.predecessor, request.bridge.successor)
-        )
-    ):
-        raise ApplicationError("A bridge needs a crop and two frozen neighbour candidates.", 422)
-    if request.crop_override is not None and not isinstance(request.crop_override, CropPlan):
-        raise ApplicationError("Invalid shared crop.", 422)
-    if type(request.save_latent) is not bool:
-        raise ApplicationError("save_latent must be boolean.", 422)
-    if (request.save_latent or request.handoff) and (
-        request.crop_override is None or request.head is not None
-    ):
-        raise ApplicationError("Latent windows need a pinned crop and cannot be head passes.", 422)
-    if request.head is not None and (
-        not isinstance(request.head, HeadPassChoice)
-        or not isinstance(request.head.parent_asset, str)
-        or not request.head.parent_asset
-        or len(request.performers) != 1
-        or request.treatment_override not in {None, "rgb"}
-    ):
-        raise ApplicationError("A head pass needs one performer and an RGB parent asset.", 422)
-    if request.treatment_override not in {None, "rgb", "inverted"}:
-        raise ApplicationError("Invalid treatment override.", 422)
-    if request.faceswap_override is not None and type(request.faceswap_override) is not bool:
-        raise ApplicationError("FaceSwap override must be boolean.", 422)
-    if request.close_up is True and len(request.performers) != 1:
-        raise ApplicationError("Close-up applies to a single performer", 422)
-    if request.close_up is not None and type(request.close_up) is not bool:
-        raise ApplicationError("Close-up must be boolean.", 422)
-    if request.speaking is not None and type(request.speaking) is not bool:
-        raise ApplicationError("Speaking must be boolean.", 422)
-    if type(request.seed) is not int or not 0 <= request.seed <= 2**63 - 4:
-        raise ApplicationError(
-            "Replacement seed must leave room for four signed 64-bit library seeds.", 422
-        )
-    for name, limit in (
-        ("performers", 4),
-        ("required_context", 16),
-        ("avoided_regions", 16),
-        ("silent_intervals", 8),
-    ):
-        # Read-only planning can diagnose all four SAM person slots with a typed gap.
-        # The HTTP boundary and executable plans admit at most two performers.
-        if len(getattr(request, name)) > limit:
-            raise ApplicationError(f"{name} is limited to {limit} entries.", 422)
-    return request
 
 
 def validate_concepts(concepts):
@@ -618,333 +398,34 @@ def people_for_asset(session, asset_id, *, library):
     ]
 
 
-def _mouth_facts(request, people, tracks, policy, scan=None, *, has_audio=False):
-    """Explicit request facts win; otherwise derive them from the source performers' lips.
-
-    Returns (quiet, silent_intervals, speaking, reasons, lips_unmeasured). The request freezes
-    these facts, so every later round of the operation compiles the same wording.
-    """
-    grouping = "joint" if len(request.performers) == 2 else "single"
-    measure_outside_intervals = (
-        has_audio
-        and request.speaking is None
-        and grouping in policy.audio_lock_unmeasured
-        and policy.mouth is not None
-    )
-    if request.quiet or (request.silent_intervals and not measure_outside_intervals):
-        return request.quiet, request.silent_intervals, False, (), False
-    speaking = bool(request.speaking and has_audio and not request.quiet)
-    requested_reasons = (
-        ("Speaking (requested)." if request.speaking else "Not speaking (requested).",)
-        if request.speaking is not None
-        else ()
-    )
-    if policy.mouth is None:
-        return False, (), speaking, requested_reasons, False
-    present = sum(
-        any(states != "absent" for states in frame)
-        for frame in zip(
-            *(t.presence for t in tracks if t.id in {p.track_id for p in request.performers})
-        )
-    )
-
-    def unmeasured(measured, quiet=False):
-        return bool(
-            has_audio
-            and not quiet
-            and request.speaking is None
-            and measured < policy.min_face_frames_fraction * present
-        )
-
-    series = [people[p.track_id].get("mouth") for p in request.performers]
-    if scan == "unavailable" or any(s is None for s in series):
-        if request.silent_intervals:
-            return False, request.silent_intervals, False, (), False
-        reason = (
-            "The window face scan returned no lip landmarks (restart ComfyUI after updating "
-            "the people nodes); the mouth follows the source."
-            if scan == "unavailable"
-            else "No source mouth measurements in this analysis; the mouth follows the source."
-        )
-        return False, (), speaking, (reason, *requested_reasons), False
-    presence = {t.id: t.presence for t in tracks}
-    derived = quiet_facts(
-        tuple(MouthSeries(tuple(s["aperture"]), tuple(s["face_height"])) for s in series),
-        tuple(presence[p.track_id] for p in request.performers),
-        policy.mouth,
-    )
-    if request.silent_intervals:
-        return False, request.silent_intervals, False, (), unmeasured(derived.measured_frames)
-    quiet = derived.quiet
-    intervals = derived.silent_intervals
-    speaking = bool(
-        has_audio
-        and not quiet
-        and (
-            request.speaking
-            if request.speaking is not None
-            else derived.open_frames >= policy.speaking_min_open_frames
-        )
-    )
-    reasons = (derived.reason, *requested_reasons)
-    if speaking and request.speaking is None:
-        reasons += (f"Speaking: {derived.open_frames} open source-lip frames.",)
-    return quiet, intervals, speaking, reasons, unmeasured(derived.measured_frames, quiet)
+@contextmanager
+def planning_errors():
+    """The Replacement plan's refusals as the application's: the person's words, status 422."""
+    try:
+        yield
+    except Refused as exc:
+        raise ApplicationError(str(exc), 422) from exc
 
 
-def _close_up_facts(request, people, native, policy):
-    if len(request.performers) != 1:
-        if request.close_up is True:
-            raise ApplicationError("Close-up applies to a single performer", 422)
-        return False, ()
-    if request.close_up is not None:
-        return request.close_up, (
-            "Close-up (requested)." if request.close_up else "Not a close-up (requested).",
-        )
-    if policy.faceswap is None:
-        return False, ()
-    person = people[request.performers[0].track_id]
-    mouth = person.get("mouth") or {}
-    presence = person.get("presence", ())
-    present = sum(state == "present" for state in presence)
-    heights = [
-        h
-        for h, state in zip(mouth.get("face_height", ()), presence)
-        if state == "present" and type(h) in {int, float} and math.isfinite(h) and h > 0
-    ]
-    if not heights or not present or len(heights) / present < policy.min_face_frames_fraction:
-        return False, ("Close-up unmeasured",)
-    fraction = median(heights) / native[1]
-    close_up = fraction >= policy.faceswap.close_up_min_face_fraction
-    reasons = (f"Close-up: median face {fraction:.0%} of the frame height.",) if close_up else ()
-    return close_up, reasons
-
-
-def replacement_facts(session, request, library, policy):
-    """What the shot holds for this request: the chosen performers' tracks, crops, close-ups and mouth facts."""
+def window_reading(session, request, library) -> WindowReading:
+    """What the Replacement plan needs read for a window: its people report, the kind of each performer's target
+    picture and whether the source has audio."""
     analysis = operations.operation(session, request.analysis_operation)
-    report = analysis_report(session, analysis, library)
-    if report["source_asset"] != request.source_asset:
-        raise ApplicationError("Analysis belongs to a different source asset.", 422)
-    people = {t["id"]: t for t in report["tracks"] if t["concept"] == "person"}
-    choices = {p.track_id: p for p in request.performers}
-    if not choices or len(choices) != len(request.performers) or set(choices) - set(people):
-        raise ApplicationError("Select distinct people from this shot's analysis.", 422)
-    positions = selector_positions(
-        [people[p.track_id] for p in request.performers], report["native"]
+    return WindowReading(
+        analysis_report(session, analysis, library),
+        {
+            p.target_asset: MediaLibrary.asset_info(session, p.target_asset)["kind"]
+            for p in request.performers
+        },
+        MediaLibrary.asset_info(session, request.source_asset)["info"]["has_audio"],
     )
-    performers = []
-    for choice, derived_position in zip(request.performers, positions, strict=True):
-        target = MediaLibrary.asset_info(session, choice.target_asset)
-        if target["kind"] != "image":
-            raise ApplicationError("Replacement targets must be Library images.", 422)
-        # Direction currently has no last-editor provenance for subject descriptions.
-        performers.append(
-            Performer(
-                choice.track_id,
-                choice.target_asset,
-                choice.target_subject_id,
-                None,
-                choice.role,
-                choice.position or derived_position,
-                choice.action,
-            )
-        )
-    tracks = tuple(
-        Track(
-            t["id"],
-            from_record(Box, t["box"]),
-            tuple(t["presence"]),
-            t.get("identity_margin")
-            if t["id"] not in choices or choices[t["id"]].identity_margin is None
-            else choices[t["id"]].identity_margin,
-            choices[t["id"]].selected_by if t["id"] in choices else "user",
-        )
-        for t in people.values()
-    )
-    minor = {
-        t.id: reason
-        for t in tracks
-        if t.id not in choices and (reason := minor_bystander_reason(t, report["native"], policy))
-    }
-    tracks = tuple(t for t in tracks if t.id not in minor)
-    bystander_ids = set(people) - set(choices) - set(minor)
-    bystanders = tuple(
-        Bystander(t["id"], "person", f"at the {position(t, report['native'])[0]}", ())
-        for t in people.values()
-        if t["id"] in bystander_ids
-    )
-    required = list(request.required_context)
-    avoided = list(request.avoided_regions)
-    # Compute against the selected set, so a joint partner is never an avoided bystander.
-    contact_ids = {o for p in choices for o in report["contacts"].get(p, ())}
-    avoided_ids = bystander_ids | {o for p in bystander_ids for o in report["contacts"].get(p, ())}
-    avoided_ids -= contact_ids
-    for track in report["tracks"]:
-        if track["id"] in contact_ids:
-            required.append(from_record(Box, track["box"]))
-        if track["id"] in avoided_ids:
-            avoided.append(from_record(Box, track["box"]))
-    quiet, silent_intervals, speaking, mouth_reasons, lips_unmeasured = _mouth_facts(
-        request,
-        people,
-        tracks,
-        policy,
-        report.get("mouth_scan"),
-        has_audio=MediaLibrary.asset_info(session, request.source_asset)["info"]["has_audio"],
-    )
-    close_up, close_up_reasons = _close_up_facts(request, people, report["native"], policy)
-    facts = ReplacementFacts(
-        request.source_asset,
-        report["shot_start"],
-        report["shot_end"],
-        tuple(report["native"]),
-        Fraction(report["fps"]),
-        from_record(Letterbox, report["letterbox"]) if report["letterbox"] else None,
-        tuple(performers),
-        bystanders,
-        request.occluders,
-        request.scene_items,
-        quiet,
-        silent_intervals,
-        tracks,
-        request.performer_hands_visible,
-        request.source_target_similarity,
-        tuple(dict.fromkeys(required)),
-        tuple(dict.fromkeys(avoided)),
-        speaking=speaking,
-        handoff="latent" if request.handoff else "none",
-        close_up=close_up,
-        lips_unmeasured=lips_unmeasured,
-    )
-    return facts, report, (*minor.values(), *mouth_reasons, *close_up_reasons)
-
-
-def effective_policy(policy_text, renders=None, *, draft=False):
-    policy = parse_replacement_policy(policy_text)
-    if draft:
-        if policy.draft is None:
-            renders = 1
-        else:
-            policy = replace(
-                policy,
-                renders=sum(policy.draft.renders_per_round),
-                renders_per_round=policy.draft.renders_per_round,
-                max_rounds=len(policy.draft.renders_per_round),
-                escalation=tuple(
-                    row for row in policy.escalation if row.on in policy.draft.retry_on
-                ),
-            )
-    if renders is None:
-        return policy
-    if type(renders) is not int or not 1 <= renders <= policy.renders:
-        raise ApplicationError(f"renders must be an integer from 1 to {policy.renders}.", 422)
-    remaining, rounds = renders, []
-    for count in policy.renders_per_round:
-        if not remaining:
-            break
-        rounds.append(min(count, remaining))
-        remaining -= rounds[-1]
-    return replace(policy, renders=renders, renders_per_round=tuple(rounds), max_rounds=len(rounds))
-
-
-def _plan(
-    facts,
-    policy_text,
-    prior=(),
-    renders=None,
-    treatment_override=None,
-    *,
-    head=None,
-    face_boxes=(),
-    faceswap_supported=None,
-    crop_override=None,
-    bridge_arm=None,
-    faceswap_override=None,
-    draft=False,
-):
-    if prior and (head is not None or any(a.arm.framing == "head" for a in prior)):
-        raise ValueError("head pass runs one round")
-    cap = minimax_h3.capabilities()
-    policy = effective_policy(policy_text, renders, draft=draft)
-    if faceswap_supported is not None:
-        cap = replace(cap, replacement=replace(cap.replacement, faceswap=faceswap_supported))
-    pinned_fallback = (
-        faceswap_override is False
-        and treatment_override == "inverted"
-        and facts.close_up
-        and policy.first_arm_faceswap == "close_up"
-        and policy.treatment == "rgb"
-        and not cap.replacement.faceswap
-    )
-    if treatment_override is not None:
-        policy = replace(
-            policy,
-            treatment=treatment_override,
-            inverted_when_similarity_at_least=None,
-            # Old requests pin only treatment; their FaceSwap escalation stays intact.
-            escalation=tuple(row for row in policy.escalation if row.to != "treatment"),
-        )
-    if faceswap_override is not None:
-        policy = replace(
-            policy,
-            first_arm_faceswap="close_up" if faceswap_override else "never",
-            escalation=tuple(row for row in policy.escalation if row.to != "faceswap"),
-        )
-    if facts.handoff == "bridge":
-        if renders != 1 or bridge_arm is None or crop_override is None:
-            raise ApplicationError(
-                "A bridge requires one render, its successor arm and a crop.", 422
-            )
-        plan = plan_bridge(
-            facts, bridge_arm, crop_override, cap.replacement, policy, cap.frame_grid, prior
-        )
-    elif head is not None:
-        if renders != 1:
-            raise ApplicationError("A head pass requires renders = 1.", 422)
-        plan = plan_head_pass(facts, face_boxes, cap.replacement, policy, cap.frame_grid, prior)
-    else:
-        plan = plan_replacement(
-            facts, cap.replacement, policy, cap.frame_grid, prior, shared_crop=crop_override
-        )
-    if (
-        treatment_override is not None
-        and faceswap_override is not None
-        and policy.first_arm_faceswap_configured
-        and plan.arm is not None
-        and plan.arm.round == 0
-    ):
-        plan = replace(
-            plan, reasons=(*plan.reasons, f"Treatment pinned per shot: {treatment_override}.")
-        )
-    if faceswap_override is not None:
-        plan = replace(
-            plan, reasons=(*plan.reasons, f"FaceSwap pinned per shot: {faceswap_override}.")
-        )
-    if pinned_fallback:
-        plan = replace(
-            plan,
-            reasons=(
-                *plan.reasons,
-                "Close-up without FaceSwap support: inverted guide fallback (pinned per shot).",
-            ),
-        )
-    if draft and policy.draft is not None:
-        plan = replace(
-            plan,
-            reasons=(
-                *plan.reasons,
-                "Draft: one likeness retry; geometry advice and mouth failures do not retry.",
-            ),
-        )
-    return plan
 
 
 def plan_request(
     session, request, library, renders=None, *, continuation_snapshot=None, draft=False
 ):
-    """The facts, people report, frozen policy text and first-round plan of a replacement request; the
-    single-shot producer and each Recast window plan through it."""
+    """The window plan and the frozen policy text of a replacement request; the single-shot producer and each Recast
+    window plan through it. This reads the window; the Replacement plan decides."""
     if continuation_snapshot is not None and request.handoff is None and request.bridge is None:
         raise ApplicationError("Frozen continuation settings require a latent window.", 422)
     try:
@@ -953,63 +434,28 @@ def plan_request(
             if continuation_snapshot is not None
             else replacement_policy_text()
         )
-        bridge_arm = None
-        if request.bridge:
-            facts, bridge, successor = _bridge_data(session, request.bridge, request.source_asset)
-            if request.analysis_operation != successor["analysis_operation"]:
-                raise ApplicationError("Bridge analysis must be its successor's.", 422)
-            report = {"tracks": successor["tracks"], "contacts": {}, "concepts": ["person"]}
-            notes = ()
-            bridge_arm = from_record(Arm, bridge["windows"][1]["arm"])
-            if request.head:
-                chosen = next(
-                    (p for p in facts.performers if p.track_id == request.performers[0].track_id),
-                    None,
-                )
-                if chosen is None or chosen.target_asset != request.performers[0].target_asset:
-                    raise ApplicationError("Head bridge performer must match its body target.", 422)
-                index = facts.performers.index(chosen)
-                neighbours = bridge["windows"]
-                tracks = [
-                    next(t for t in w["tracks"] if t["id"] == w["selected_tracks"][index])
-                    for w in neighbours
-                ]
-                boxes = []
-                for frame in range(facts.shot_start, facts.shot_end):
-                    side = int(frame >= neighbours[1]["start"])
-                    series = (tracks[side].get("mouth") or {}).get("box")
-                    boxes.append(series[frame - neighbours[side]["start"]] if series else None)
-                merged_track = next(t for t in facts.tracks if t.id == chosen.track_id)
-                report = {
-                    **report,
-                    "tracks": [
-                        {
-                            **t,
-                            "presence": list(merged_track.presence),
-                            "mouth": {**(t.get("mouth") or {}), "box": boxes},
-                        }
-                        if t["id"] == chosen.track_id
-                        else t
-                        for t in report["tracks"]
-                    ],
-                }
-                facts = replace(
-                    facts,
-                    handoff="none",
-                    performers=(chosen,),
-                    bystanders=(
-                        *facts.bystanders,
-                        *(
-                            Bystander(p.track_id, "person", p.position, ())
-                            for p in facts.performers
-                            if p != chosen
-                        ),
-                    ),
-                )
-        else:
-            facts, report, notes = replacement_facts(
-                session, request, library, effective_policy(text, renders, draft=draft)
+        cap = minimax_h3.capabilities()
+        support = cap.replacement
+        if continuation_snapshot is not None:
+            # A continuation keeps its first window's FaceSwap support (read only for close-ups).
+            frozen = parse_render(continuation_snapshot["knowledge"]["render.toml"])
+            support = replace(
+                support, faceswap=minimax_h3.capabilities(frozen).replacement.faceswap
             )
+        with planning_errors():
+            if request.bridge:
+                facts, bridge, successor = _bridge_data(
+                    session, request.bridge, request.source_asset
+                )
+                reading = BridgeReading(facts, tuple(bridge["windows"]), successor)
+            else:
+                # A render count the policy refuses is refused before the window is read.
+                effective_policy(text, renders, draft=draft)
+                reading = window_reading(session, request, library)
+            planned = plan_window(
+                request, reading, text, support, cap.frame_grid, renders=renders, draft=draft
+            )
+        facts = planned.facts
         if getattr(library, "media", None) is not None and hasattr(library, "path"):
             info = library.media.probe(
                 library.path(session, facts.source_asset),
@@ -1019,72 +465,16 @@ def plan_request(
                 raise ReplacementPlanningError(
                     (Gap("unsupported_fps", "Variable frame rate is unsupported."),)
                 )
-        face_boxes = ()
-        if request.head is not None:
-            track = next(t for t in report["tracks"] if t["id"] == request.performers[0].track_id)
-            face_boxes = (track.get("mouth") or {}).get("box", [None] * facts.delivered_frames)
-            if report.get("mouth_scan") == "unavailable":
-                face_boxes = [None] * facts.delivered_frames
-        plan = _plan(
-            facts,
-            text,
-            renders=renders,
-            treatment_override=request.treatment_override,
-            faceswap_override=request.faceswap_override,
-            draft=draft,
-            head=request.head,
-            face_boxes=face_boxes,
-            crop_override=request.crop_override,
-            bridge_arm=bridge_arm,
-            **(
-                {
-                    "faceswap_supported": minimax_h3.capabilities(
-                        parse_render(continuation_snapshot["knowledge"]["render.toml"])
-                    ).replacement.faceswap
-                }
-                if continuation_snapshot is not None and facts.close_up
-                else {}
-            ),
-        )
-        if plan.arm is not None and plan.arm.audio_lock:
-            notes = tuple(
-                note[:-1] + "; the render is locked to the window's speech."
-                if note.startswith("Speaking:") or note == "Speaking (requested)."
-                else note
-                for note in notes
-            )
-        plan = replace(plan, reasons=(*plan.reasons, *notes))
-        selected = {p.track_id for p in facts.performers}
-        bystanders = {p.track_id for p in facts.bystanders}
-        required = {o for p in selected for o in report["contacts"].get(p, ())}
-        shared = required & {
-            o for p, objects in report["contacts"].items() if p in bystanders for o in objects
-        }
-        if shared:
-            plan = replace(
-                plan,
-                reasons=(
-                    *plan.reasons,
-                    "Objects touching both performer and bystander are required context only: "
-                    + ", ".join(sorted(shared)),
-                ),
-            )
-        if not any(c != "person" for c in report["concepts"]):
-            plan = replace(
-                plan,
-                reasons=(
-                    *plan.reasons,
-                    "No object concepts were analysed: context comes from explicit boxes and bystanders; inversion protects other people only.",
-                ),
-            )
-        return facts, report, text, plan
+        return planned, text
     except (TypeError, ValueError) as exc:
         raise ApplicationError(str(exc), 422) from exc
 
 
 def replacement_plan(session, request, *, library, renders: int | None = None, draft=False):
-    request = parse_request(request)
-    facts, _, _, plan = plan_request(session, request, library, renders, draft=draft)
+    with planning_errors():
+        request = parse_request(request)
+    planned, _ = plan_request(session, request, library, renders, draft=draft)
+    facts, plan = planned.facts, planned.plan
     result = to_record(plan)
     result["facts"] = {**to_record(facts), "fps": str(facts.fps)}
     result["crop_preview"] = (
@@ -1376,8 +766,9 @@ def start_replacement(
     continuation_snapshot=None,
     draft=False,
 ):
-    request = parse_request(request)
-    facts, report, policy_text, plan = plan_request(
+    with planning_errors():
+        request = parse_request(request)
+    planned, policy_text = plan_request(
         session,
         request,
         library,
@@ -1389,9 +780,11 @@ def start_replacement(
             else {}
         ),
     )
+    facts, plan = planned.facts, planned.plan
     if plan.arm is None:
         raise ReplacementPlanningError(plan.gaps)
-    policy = effective_policy(policy_text, renders, draft=draft)
+    with planning_errors():
+        policy = effective_policy(policy_text, renders, draft=draft)
     sources = {}
     for asset_id in (facts.source_asset, *(p.target_asset for p in facts.performers)):
         asset = MediaLibrary.asset_info(session, asset_id)
@@ -1428,7 +821,7 @@ def start_replacement(
         "source_asset": facts.source_asset,
         "analysis_operation": request.analysis_operation,
         "facts": to_record(facts),
-        "tracks": report["tracks"],
+        "tracks": planned.tracks,
         "policy": policy_text,
         "renders": renders,
         "treatment_override": request.treatment_override,
@@ -1461,9 +854,10 @@ def advance_replacement(session, operation, *, library):
     if operation["state"] != "awaiting_review" or operation["cancel_requested"]:
         return operation
     request = operation["request"]
-    policy = effective_policy(
-        request["policy"], request.get("renders"), draft=request.get("draft", False)
-    )
+    with planning_errors():
+        policy = effective_policy(
+            request["policy"], request.get("renders"), draft=request.get("draft", False)
+        )
     if any(
         j.get("snapshot", {}).get("face_check")
         and j["state"] not in {"succeeded", "failed", "cancelled", "needs_attention"}
@@ -1519,39 +913,23 @@ def advance_replacement(session, operation, *, library):
         reasons.append("Render reservation exhausted; closing the loop.")
     elif not empty_round:
         facts = from_record(ReplacementFacts, request["facts"])
+        cap = minimax_h3.capabilities()
+        support = cap.replacement
         # Only close-ups need the optional frozen capability; older requests and
         # non-close-up planning do not depend on render knowledge.
-        capability = {}
         if facts.close_up:
             render_text = request.get("knowledge", {}).get("render.toml")
-            capability["faceswap_supported"] = bool(
-                render_text
-                and minimax_h3.capabilities(parse_render(render_text)).replacement.faceswap
+            support = replace(
+                support,
+                faceswap=bool(
+                    render_text
+                    and minimax_h3.capabilities(parse_render(render_text)).replacement.faceswap
+                ),
             )
-        plan = _plan(
-            facts,
-            request["policy"],
-            tuple(attempts),
-            renders=request.get("renders"),
-            faceswap_override=request.get("faceswap_override"),
-            draft=request.get("draft", False),
-            **capability,
-            **(
-                {"crop_override": from_record(CropPlan, request["crop_override"])}
-                if request.get("crop_override")
-                else {}
-            ),
-            **(
-                {"bridge_arm": from_record(Arm, request["bridge"]["windows"][1]["arm"])}
-                if request.get("bridge")
-                else {}
-            ),
-            **(
-                {"treatment_override": request["treatment_override"]}
-                if request.get("treatment_override")
-                else {}
-            ),
-        )
+        with planning_errors():
+            plan = plan_round(
+                facts, RoundSettings.frozen(request), support, cap.frame_grid, tuple(attempts)
+            )
         arm = plan.arm
         reasons.extend(plan.reasons)
         if arm and arm.seed_count > remaining:

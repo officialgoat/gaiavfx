@@ -1001,7 +1001,7 @@ def test_composite_tone_report_and_legacy_pixels(tmp_path, monkeypatch, anchored
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from test_replacement_contract import mug_facts
+    from replacement_plan_support import mug_facts
 
     from gaiavfx.application import replacement_steps as steps
     from gaiavfx.application import tone_anchor as tone
@@ -1109,7 +1109,7 @@ def test_bridge_prepare_rebuilds_raw_neighbours_and_pads_short_tail(tmp_path, mo
     from dataclasses import replace
     from types import SimpleNamespace
 
-    from test_replacement_contract import mug_facts
+    from replacement_plan_support import mug_facts
 
     from gaiavfx.application import replacement_steps as steps
     from gaiavfx.application.operation_steps import LocalContext

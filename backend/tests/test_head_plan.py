@@ -6,6 +6,9 @@ from dataclasses import replace
 from pathlib import Path
 
 import pytest
+from replacement_plan_support import HEAD_BOXES as BOXES
+from replacement_plan_support import head_facts as facts
+from replacement_plan_support import head_planned as planned
 
 from gaiavfx.integrations.minimax_h3 import capabilities
 from gaiavfx.integrations.minimax_h3.replacement import (
@@ -23,11 +26,6 @@ from gaiavfx.modules.recast.application import (
 from gaiavfx.modules.recast.head import HeadGap, head_track
 from gaiavfx.modules.recast.replacement import (
     Arm,
-    Box,
-    Bystander,
-    Performer,
-    ReplacementFacts,
-    Track,
     from_record,
     parse_replacement_policy,
     plan_head_pass,
@@ -37,32 +35,6 @@ from gaiavfx.modules.recast.replacement import (
 
 POLICY = default_replacement_policy()
 CAP = capabilities()
-BOXES = [(800 + i * 60 / 72, 300, 875 + i * 60 / 72, 405) for i in range(73)]
-
-
-def facts():
-    return ReplacementFacts(
-        "film",
-        600,
-        673,
-        (1920, 800),
-        24,
-        None,
-        (Performer("one", "target", None, None, "performer", "at screen left", None),),
-        (Bystander("two", "person", "at screen right", ()),),
-        (),
-        (),
-        False,
-        (),
-        (
-            Track("one", Box(770, 270, 960, 750), ("present",) * 73, 0.5, "identity"),
-            Track("two", Box(960, 300, 1030, 700), ("present",) * 73, None, "user"),
-        ),
-    )
-
-
-def planned(f=None, boxes=BOXES, support=CAP.replacement, prior=()):
-    return plan_head_pass(f or facts(), boxes, support, POLICY, CAP.frame_grid, prior)
 
 
 def test_006_geometry_and_contract_round_trip():
@@ -203,14 +175,15 @@ def test_head_plan_cannot_offer_canvas_above_budget():
 
 
 def test_application_never_continues_a_head_arm():
-    from gaiavfx.application.replace_character import _plan, parse_request
+    from replacement_plan_support import round_plan
+
     from gaiavfx.modules.recast.replacement import Attempt, CheckResult
-    from gaiavfx.shared.errors import ApplicationError
+    from gaiavfx.modules.recast.replacement_plan import Refused, parse_request
 
     prior = (Attempt(planned().arm, ((CheckResult("residual_source", "fail", "none", 0.5),),)),)
     with pytest.raises(ValueError, match="one round"):
-        _plan(facts(), replacement_policy_text(), prior, renders=1)
-    with pytest.raises(ApplicationError) as exc:
+        round_plan(facts(), prior, text=replacement_policy_text(), renders=1)
+    with pytest.raises(Refused, match="A head pass needs one performer and an RGB parent asset."):
         parse_request(
             {
                 "source_asset": "film",
@@ -219,4 +192,3 @@ def test_application_never_continues_a_head_arm():
                 "head": {"parent_asset": ["invalid"]},
             }
         )
-    assert exc.value.status == 422

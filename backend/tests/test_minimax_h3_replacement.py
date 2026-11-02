@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 from parity_graph import signature
-from test_replacement_contract import CAP, joint_facts, mug_facts, plan
+from replacement_plan_support import CAP, joint_facts, mug_facts, plan
 
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.graph import parse_render, render_presets
@@ -436,9 +436,9 @@ def test_only_locked_graphs_require_full_denoise(denoise):
 
 
 def test_old_request_and_plan_records_advance_and_lower_without_a_lock():
-    from test_replacement_contract import POLICY, attempt, result
+    from replacement_plan_support import POLICY, attempt, result, round_plan
 
-    from gaiavfx.application.replace_character import _plan, round_render
+    from gaiavfx.application.replace_character import round_render
     from gaiavfx.modules.recast.application import replacement_policy_text
     from gaiavfx.modules.recast.replacement import (
         ReplacementFacts,
@@ -473,7 +473,7 @@ def test_old_request_and_plan_records_advance_and_lower_without_a_lock():
     assert not loaded.arm.audio_lock and not loaded_facts.speaking
     # Even today's enabled policy cannot switch on an existing arm during a retry.
     prior = (attempt(loaded.arm, (result("background_geometry"),)),)
-    advanced = _plan(loaded_facts, policy, prior)
+    advanced = round_plan(loaded_facts, prior, text=policy)
     assert advanced.arm.round == 1 and advanced.arm.framing == "active"
     assert advanced.arm.audio_lock is False
     assert plan(loaded_facts, prior=prior, policy=POLICY).arm.audio_lock is False

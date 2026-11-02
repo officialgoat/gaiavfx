@@ -529,6 +529,7 @@ def test_shot_user_confirmation_and_typed_gap_rollback(monkeypatch, selected_by,
     from gaiavfx.application import shot_replacement as shot
     from gaiavfx.application.replace_character import ReplacementPlanningError
     from gaiavfx.modules.recast.replacement import Gap
+    from gaiavfx.modules.recast.replacement_plan import ShotPins
 
     reports = {
         str(i): {"source_asset": "source", "shot_start": a, "shot_end": b}
@@ -543,19 +544,19 @@ def test_shot_user_confirmation_and_typed_gap_rollback(monkeypatch, selected_by,
             request.performers[0].selected_by == "identity"
             and request.performers[0].identity_margin is None
         ):
-            return (
-                None,
-                None,
-                None,
-                types.SimpleNamespace(
-                    arm=None, gaps=(Gap("identity_conflict", "Confirm this appearance."),)
-                ),
+            gap = types.SimpleNamespace(
+                arm=None, gaps=(Gap("identity_conflict", "Confirm this appearance."),)
             )
+            return types.SimpleNamespace(facts=None, plan=gap), None
         return (
-            types.SimpleNamespace(close_up=False),
-            None,
+            types.SimpleNamespace(
+                facts=types.SimpleNamespace(close_up=False),
+                plan=types.SimpleNamespace(
+                    arm=types.SimpleNamespace(treatment="rgb", faceswap=False)
+                ),
+                pins=ShotPins("rgb"),
+            ),
             replacement_policy_text(),
-            types.SimpleNamespace(arm=types.SimpleNamespace(treatment="rgb", faceswap=False)),
         )
 
     def start(session, request, *args, **kwargs):
@@ -613,7 +614,7 @@ def test_shot_user_confirmation_and_typed_gap_rollback(monkeypatch, selected_by,
 def test_latent_continuation_reuses_frozen_crop_policy_and_selection(
     monkeypatch, explicit_take, confirmed_window
 ):
-    from test_replacement_contract import mug_facts, plan
+    from replacement_plan_support import mug_facts, plan
 
     from gaiavfx.application import shot_replacement as shot
     from gaiavfx.modules.recast.replacement import to_record

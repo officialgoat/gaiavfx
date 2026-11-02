@@ -1,24 +1,18 @@
 """Compose ordinary ADR 0011 operations into a windowed shot."""
 
 import hashlib
-from dataclasses import replace
+from dataclasses import asdict, replace
 from typing import Literal
 
 from gaiavfx.application.replace_character import (
-    BridgeChoice,
-    HandoffChoice,
-    HeadPassChoice,
-    PerformerChoice,
     ReplacementPlanningError,
-    ReplacementRequest,
     analysis_report,
-    effective_policy,
     operations,
-    parse_request,
     plan_request,
-    replacement_facts,
+    planning_errors,
     start_people_analysis,
     start_replacement,
+    window_reading,
 )
 from gaiavfx.application.shot_assembly import (
     chain_take,
@@ -31,9 +25,17 @@ from gaiavfx.modules.recast.application import replacement_policy_text
 from gaiavfx.modules.recast.replacement import (
     CropPlan,
     from_record,
-    parse_replacement_policy,
     to_record,
-    union_crop,
+)
+from gaiavfx.modules.recast.replacement_plan import (
+    BridgeChoice,
+    HandoffChoice,
+    HeadPassChoice,
+    PerformerChoice,
+    ReplacementRequest,
+    ShotPins,
+    parse_request,
+    shot_crop,
 )
 from gaiavfx.modules.recast.windows import shot_handoff, shot_windows
 from gaiavfx.shared.errors import ApplicationError
@@ -131,10 +133,13 @@ def start_window_analyses(
 
 
 def shared_crop_for_windows(session, library, *, requests):
-    """Plan through Direction on every window's bound, authoritative facts."""
-    policy = effective_policy(replacement_policy_text())
-    facts = [replacement_facts(session, parse_request(r), library, policy)[0] for r in requests]
-    return to_record(union_crop(facts, policy, minimax_h3.capabilities().replacement))
+    """The one crop a latent shot's windows share, from every window's bound, authoritative facts; a ValueError
+    when none fits."""
+    with planning_errors():
+        windows = [(r, window_reading(session, r, library)) for r in map(parse_request, requests)]
+        return to_record(
+            shot_crop(windows, replacement_policy_text(), minimax_h3.capabilities().replacement)
+        )
 
 
 def start_shot_replacement(
@@ -217,22 +222,13 @@ def start_shot_replacement(
         if not faceswap_allowed:
             # A target without a human face (a robot) never takes FaceSwap, in any window.
             first = replace(first, faceswap_override=False)
-        facts, _, text, plan = plan_request(session, first, library, draft=mode == "draft")
-        if plan.arm is None:
-            raise ReplacementPlanningError(plan.gaps)
+        planned, _ = plan_request(session, first, library, draft=mode == "draft")
+        if planned.plan.arm is None:
+            raise ReplacementPlanningError(planned.plan.gaps)
         result = []
         for index, request in enumerate([first] if kind == "latent" else requests):
-            request = replace(
-                request,
-                crop_override=crop,
-                treatment_override=plan.arm.treatment,
-                **(
-                    {"faceswap_override": plan.arm.faceswap, "close_up": facts.close_up}
-                    if parse_replacement_policy(text).first_arm_faceswap_configured
-                    or not faceswap_allowed
-                    else {}
-                ),
-            )
+            # Every window keeps window one's treatment, and its FaceSwap when that is pinned.
+            request = replace(request, crop_override=crop, **asdict(planned.pins))
             result.append(
                 start_replacement(
                     session,
@@ -342,13 +338,7 @@ def continue_shot_replacement(
             for p in performers
         ),
         seed=seed,
-        treatment_override=first["request"]["first_plan"]["arm"]["treatment"],
-        faceswap_override=first["request"].get("faceswap_override"),
-        close_up=(
-            first["request"]["facts"].get("close_up", False)
-            if first["request"].get("faceswap_override") is not None
-            else None
-        ),
+        **asdict(ShotPins.frozen(first["request"])),
         handoff=HandoffChoice(predecessor["id"], take["window"]["candidate_id"]),
         crop_override=crop,
         save_latent=index < len(window_analyses) - 1,
