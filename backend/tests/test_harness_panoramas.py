@@ -11,6 +11,7 @@ from gaiavfx.application.harness.tools import applicable_tools
 from gaiavfx.application.harness.tools.panoramas import BuildStageFromPanorama, MakePanorama
 from gaiavfx.application.harness.tools.plan_check import check
 from gaiavfx.application.harness.view import panorama_lines
+from gaiavfx.application.harness.world import direction
 from gaiavfx.application.panoramas import RENDERS
 from gaiavfx.application.set_seed import fill_renders
 from gaiavfx.modules.generation.operations.service import OperationService
@@ -80,6 +81,19 @@ def test_the_plan_prices_panoramas_and_builds_only_from_the_place_it_drew(scene)
     ]
     refused = check(ctx, nowhere).discrepancy
     assert refused.startswith("build_target:") and "chosen panorama" not in refused
+    # One step draws both panoramas of a place (the live eval's model planned A and B apart).
+    apart = [
+        PlanStep(kind="prepare", title=f"Draw panorama {letter}", target="", jobs=RENDERS)
+        for letter in "AB"
+    ]
+    assert check(ctx, apart).discrepancy.startswith("panorama_once:")
+    # Building a stage from the chosen one is a build step, though its title names a panorama.
+    as_prepare = [
+        PlanStep(kind="prepare", title=DRAW, target="", jobs=RENDERS),
+        PlanStep(kind="prepare", title="Build stage from chosen panorama", target="", jobs=4),
+    ]
+    refused = check(ctx, as_prepare).discrepancy
+    assert refused.startswith("wrong_step_kind:") and s.place["id"] in refused
 
 
 def test_gaia_draws_waits_for_the_user_s_choice_and_builds_from_it(scene):
@@ -98,7 +112,7 @@ def test_gaia_draws_waits_for_the_user_s_choice_and_builds_from_it(scene):
         context(h, row, document),
         MakePanorama.Input(
             place_id=s.place["id"],
-            place="A small box room with a checkered floor",
+            description="A small box room with a checkered floor",
             landmarks=[{"what": "A door", "heading": 180}],
         ),
     )
@@ -135,12 +149,36 @@ def test_gaia_draws_waits_for_the_user_s_choice_and_builds_from_it(scene):
     assert stage["review"][-1]["stage"] == "done"
 
 
+def test_the_place_s_own_words_stand_in_for_a_description(scene):
+    s = scene
+    h, row, document = panorama_plan(s, ("prepare", DRAW, s.place["id"], RENDERS))
+    door = [{"what": "A door", "heading": 180}]
+    refused = MakePanorama().run(
+        context(h, row, document), MakePanorama.Input(place_id=s.place["id"], landmarks=door)
+    )
+    assert not refused.ok and "Write the place in description" in refused.discrepancy
+    with s.workspace.db.transaction() as session:
+        place = direction.read_place(session, s.place["id"])
+        direction.update_place(
+            session, place["id"], place["revision"], description="A small box room. Pale walls."
+        )
+    # As the live eval's model called it: no place_id (the step names the place) and a panorama's 360 as hfov.
+    started = MakePanorama().run(
+        context(h, row, document), MakePanorama.Input(landmarks=door, hfov=360)
+    )
+    assert started.ok, started
+    with s.workspace.db.transaction() as session:
+        request = OPERATIONS.operation(session, started.waits_on)["request"]
+    assert request["place"] == "A small box room. Pale walls."
+    assert request["place_id"] == s.place["id"] and request["mode"] == "description"
+
+
 def test_gaia_cannot_build_from_a_panorama_the_user_did_not_choose(scene):
     s = scene
     h, row, document = panorama_plan(s, ("prepare", DRAW, s.place["id"], RENDERS))
     started = MakePanorama().run(
         context(h, row, document),
-        MakePanorama.Input(place_id=s.place["id"], place="A small box room"),
+        MakePanorama.Input(place_id=s.place["id"], description="A small box room"),
     )
     drain(s.run)
     with s.workspace.db.transaction() as session:

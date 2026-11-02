@@ -18,6 +18,7 @@ from gaiavfx.application.harness.tools.common import (
     scoped,
 )
 from gaiavfx.application.harness.tools.plan_scope import producer_kinds
+from gaiavfx.application.harness.world import direction
 from gaiavfx.application.set_fill import FILL_TIME
 from gaiavfx.application.set_seed import fill_renders
 from gaiavfx.modules.panoramas.ask import MAX_LANDMARKS, MAX_PLACE, MAX_WHAT, PicturedPlace
@@ -85,7 +86,18 @@ def rows(context):
 
 class LandmarkInput(StrictModel):
     what: str = Field(min_length=1, max_length=MAX_WHAT)
-    heading: int = Field(ge=0, le=359)  # 0 ahead, 90 right, 180 behind, 270 left
+    heading: int = Field(
+        ge=0, le=359, description="Degrees: 0 ahead, 90 right, 180 behind, 270 left."
+    )
+
+
+def film_words(place: dict | None) -> str:
+    """The place's own description in the film, cut at a sentence end to the length a panorama request takes."""
+    words = (place or {}).get("description", "").strip()
+    if len(words) <= MAX_PLACE:
+        return words
+    cut = words[:MAX_PLACE]
+    return cut[: cut.rfind(". ") + 1] or cut
 
 
 class MakePanorama(TransactionTool):
@@ -95,20 +107,32 @@ class MakePanorama(TransactionTool):
     overflow = 1
     description = (
         "Draw two 360° panoramas of a place for the user to choose from in Library > Stages, inside a prepare step "
-        f"titled for panoramas ({panoramas.RENDERS} jobs). From words: describe the place as someone standing in it "
-        "would, name up to eight landmarks by heading (0 ahead, 90 right, 180 behind, 270 left) and the light; never "
-        "describe the image format, Python writes the model's prompt. From a picture: picture_id grows that still "
-        "into a panorama that keeps it; everything around it is invented, so say so. The user chooses one; never "
-        "choose for them."
+        f"titled for panoramas ({panoramas.RENDERS} jobs; one call draws both). From words: description is the place "
+        "as someone standing in it sees it, with up to eight landmarks by heading and the light; never describe the "
+        "image format, Python writes the model's prompt. From a picture: picture_id grows that still into a "
+        "panorama that keeps it; everything around it is invented, so say so. The user chooses one; never choose "
+        "for them."
     )
 
     class Input(StrictModel):
         place_id: str | None = None
-        place: str = Field(default="", max_length=MAX_PLACE)
+        description: str = Field(
+            default="",
+            max_length=MAX_PLACE,
+            description="The place in words, as someone standing in it sees it; left out, the place's own "
+            "description in the film.",
+        )
         landmarks: list[LandmarkInput] = Field(default_factory=list, max_length=MAX_LANDMARKS)
-        light: str = Field(default="", max_length=2 * MAX_WHAT)
-        picture_id: str | None = None
-        hfov: float | None = Field(default=None, ge=30, le=120)
+        light: str = Field(default="", max_length=2 * MAX_WHAT, description="The light, in words.")
+        picture_id: str | None = Field(
+            default=None, description="A still to grow into the panoramas instead of words."
+        )
+        # Unbounded here: the live eval's model sent 360 for a panorama from words, which the schema then refused.
+        hfov: float | None = Field(
+            default=None,
+            description="With picture_id only: the still's horizontal field of view, 30 to 120 degrees; left "
+            "out, it is measured.",
+        )
 
     def narrow(self, context):
         step = current_step(context)
@@ -126,19 +150,36 @@ class MakePanorama(TransactionTool):
     def execute(self, session, context, value):
         if not permitted(context, "prepare"):
             raise ApplicationError("Preparation autonomy is off.", 422)
-        if value.place_id:
-            scoped(context.state.places, value.place_id, "Place")
+        # The live eval's model never named the place; its step's target (Python fills the only place) is the one.
+        step = current_step(context)
+        places = {p["id"] for p in context.state.places}
+        place_id = value.place_id or (step.target if step and step.target in places else None)
+        place = None
+        if place_id:
+            scoped(context.state.places, place_id, "Place")
+            place = direction.read_place(session, place_id)
         budget.afford_step(context, panoramas.RENDERS)
+        # The live eval's model sent landmarks and light under a place_id but never the words: the film's own
+        # description of the place stands in for them.
+        words = value.description.strip() or film_words(place)
         if value.picture_id:
-            request = {"pictured": PicturedPlace(value.picture_id, value.hfov, value.place)}
-        elif value.place.strip():
+            if value.hfov is not None and not 30 <= value.hfov <= 120:
+                raise ApplicationError(
+                    "hfov is the still's own field of view, 30 to 120 degrees; leave it out to measure it.",
+                    422,
+                )
+            name = words or (place["name"] if place else "")
+            request = {"pictured": PicturedPlace(value.picture_id, value.hfov, name)}
+        elif words:
             landmarks = [item.model_dump() for item in value.landmarks]
-            request = {"described_place": panoramas.described(value.place, landmarks, value.light)}
+            request = {"described_place": panoramas.described(words, landmarks, value.light)}
         else:
-            raise ApplicationError("Describe the place, or give the picture to grow.", 422)
-        operation = panoramas.start_panorama(
-            session, context.library, place_id=value.place_id, **request
-        )
+            raise ApplicationError(
+                "Write the place in description, as someone standing in it sees it (landmarks and light are "
+                "optional), or give picture_id to grow a still.",
+                422,
+            )
+        operation = panoramas.start_panorama(session, context.library, place_id=place_id, **request)
         words = (
             "growing the picture into two panoramas that keep it; everything around it is invented"
             if value.picture_id

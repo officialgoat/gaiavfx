@@ -812,6 +812,26 @@ def built_stage(scene):
     return set_id
 
 
+def drawn_panoramas(scene):
+    """Two panoramas of the place drawn from words, ready for the user's choice."""
+    from gaiavfx.application import panoramas
+
+    work = scene.workspace
+    with work.db.transaction() as session:
+        panoramas.start_panorama(
+            session,
+            work.library,
+            place_id=scene.place["id"],
+            described_place=panoramas.described(
+                "A small box room with a checkered floor and pale walls",
+                [{"what": "A door", "heading": 180}],
+            ),
+        )
+    for _ in range(600):
+        if not scene.run.run_once():
+            break
+
+
 def stage_facts(scene, set_id):
     """The ids and names a stage task's messages and scripted controls use."""
     from gaiavfx.application import sets

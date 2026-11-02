@@ -62,7 +62,7 @@ for (const theme of ["dark", "light"] as const) {
           thought: "",
           input: {
             place_id: placeId,
-            place: `A sunlit cobblestone courtyard with potted olive trees (${theme})`,
+            description: `A sunlit cobblestone courtyard with potted olive trees (${theme})`,
             landmarks: [{ what: "An iron railing", heading: 180 }],
             light: "Late morning sun",
           },

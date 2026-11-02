@@ -25,10 +25,17 @@ from gaiavfx.application.harness.loop import Harness
 from gaiavfx.infrastructure import engines
 from gaiavfx.modules.agent.service import AgentStore
 from harness_eval_family import Control, Family
-from harness_eval_fixtures import STAGE, built_stage, close, stage_facts, stage_scene
+from harness_eval_fixtures import (
+    STAGE,
+    built_stage,
+    close,
+    drawn_panoramas,
+    stage_facts,
+    stage_scene,
+)
 from set_scene import OPERATIONS
 
-FIXTURE_VERSION = 1
+FIXTURE_VERSION = 2
 NOTES = "Movie scope; a synthetic take and fakes for every build stage; no renders, no inference-quality claim."
 BUILD_TOOLS = {"build_set_from_take", "fill_set_more", "build_stage_from_panorama"}
 WRITES = BUILD_TOOLS | {
@@ -428,7 +435,7 @@ def evaluate(task, data):
             checks["in a prepare step titled for them"] = bool(drawn)
         if mode in {"panorama_make", "panorama_choose_human"}:
             checks["chose nothing"] = not user_chose and not any(
-                p["chosen"] for p in made
+                p["chosen"] for p in final["panoramas"]
             )
             checks["built nothing"] = not new_builds
             checks["left the choice to the user"] = any(
@@ -464,6 +471,8 @@ def stage_fixture(task, path):
     scene = stage_scene(path)
     try:
         set_id = built_stage(scene) if task.criteria.get("built") else None
+        if task.criteria.get("drawn"):
+            drawn_panoramas(scene)
         facts = stage_facts(scene, set_id)
     except BaseException:
         close(scene.workspace)
@@ -765,7 +774,7 @@ def draw(work, setup):
     return action(
         "make_panorama",
         place_id=facts["place_id"],
-        place="A small box room with a checkered floor and pale walls",
+        description="A small box room with a checkered floor and pale walls",
         landmarks=[{"what": "A door", "heading": 180}],
         light="Even overcast light",
     )

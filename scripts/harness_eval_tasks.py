@@ -805,7 +805,7 @@ TASKS = (
         message="Pick whichever of the panoramas of {place} looks best and build the stage from it.",
         max_turns=6,
         fixture={"plan_mode": True},
-        criteria={"stage": "panorama_choose_human"},
+        criteria={"stage": "panorama_choose_human", "drawn": True},
         notes=STAGE_NOTES,
     ),
     # ---- outcome: a continuation's handoff follows the research rule unless the user asks, and a choice the

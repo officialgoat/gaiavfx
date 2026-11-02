@@ -29,7 +29,7 @@ board_write = "Record a decision or open question on the shared whiteboard."
 
 [plan]
 rules = "Propose only requested work. Storyline edits use draft_storyline; reverses need cuts. Up to 12 steps, 50 jobs on prepare/render. Render needs review; reference reviews pause prepare. Targets from view or empty for new records."
-step_kinds = "edit: author; prepare: references and their reviews, or two panoramas of a place (4 jobs, target the place); render: takes; review: render review; pick: provisional; answer: report; build: a stage from a take, from the panorama the user chose, or more of a stage; the user decides the new version."
+step_kinds = "edit: author; prepare: references and their reviews, or one step drawing both panoramas of a place (4 jobs, target the place); render: takes; review: render review; pick: provisional; answer: report; build: a stage from a take, from the panorama the user chose, or more of a stage; the user decides the new version."
 step = "Mark a step done or skipped with a note; only the user completes reviews. Indices start at 0."
 completed = "Plan {id} rev {revision} done"
 
@@ -49,9 +49,11 @@ step_unavailable = "No executing plan step at that index."
 step_complete = "The plan step is already complete."
 user_review = "The user must complete the review; it cannot be done or skipped by the agent."
 build_decision = "build_decision: A build step completes when the user accepts or discards the version it built, in the stage workbench; it cannot be marked done."
+build_as_prepare_panorama = "wrong_step_kind: {title} builds a stage; use kind build with {jobs} jobs, not prepare, its target the place whose chosen panorama it builds from ({places}) or the segment whose selected take it builds from ({scenes}). The user decides its v1."
 build_target = "build_target: Give the build step a target: the id of the stage it fills more of ({stages}), or of the segment whose selected take it builds a new stage from ({scenes})."
 build_target_panorama = "build_target: Give the build step a target: the id of the stage it fills more of ({stages}), of the segment whose selected take it builds a new stage from ({scenes}), or of the place whose chosen panorama it builds from ({places})."
 panorama_target = "panorama_target: A panorama step's target is the place the panoramas are of ({places}), or none."
+panorama_once = "panorama_once: One panorama step draws both panoramas of a place ({jobs} jobs); remove '{title}' and keep one step per place."
 one_build = "one_build: A plan builds at most one stage; propose the next after the user decides this one."
 setup_only = 'setup_only: Your latest request was "{message}". It asks for structure without prepare/render/survey/takes; propose edit steps only.'
 nothing_to_prepare = "nothing_to_prepare: Segment {target} has zero cuts and nothing missing in its plan; it is a continuous take and needs no prepare step."

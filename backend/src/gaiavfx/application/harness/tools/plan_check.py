@@ -17,6 +17,7 @@ from gaiavfx.application.harness.tools.common import refusal
 from gaiavfx.application.harness.tools.plan_costs import check_plan_costs, complete_costs
 from gaiavfx.application.harness.tools.plan_scope import producer_kinds, proposal_scope_refusal
 from gaiavfx.application.harness.tools.request_rules import count_refusal, plan_segment_count
+from gaiavfx.application.panoramas import RENDERS as PANORAMA_RENDERS
 from gaiavfx.application.set_seed import fill_renders
 
 PLAN_TEXT = load()["prompts"]["plan"]
@@ -272,19 +273,29 @@ def check(context, steps):
     for index, step in enumerate(steps):
         if step.kind == "review" and not any(s.kind == "render" for s in steps[:index]):
             return refuse("review_without_render")
+        if step.kind == "prepare" and stage_title(step.title):
+            # Before the panorama rule: the live eval's model planned "Build stage from chosen panorama" as a
+            # prepare step, which its title's "panorama" would otherwise pass as drawing panoramas.
+            places = panorama_places(context, steps[:index])
+            return refuse(
+                "build_as_prepare_panorama" if places else "build_as_prepare",
+                title=step.title,
+                jobs=fill_renders(),
+                scenes=scene_words or "none",
+                places=", ".join(places),
+            )
         if step.kind == "prepare" and panorama_title(step.title):
             # A place's panoramas: the place (or none) is the target, and no cut's preparation applies.
             ids = [p["id"] for p in context.state.places]
             if step.target and step.target not in ids:
                 return refuse("panorama_target", places=", ".join(ids) or "none")
+            if any(
+                s.kind == "prepare" and panorama_title(s.title) and s.target == step.target
+                for s in steps[:index]
+            ):
+                # The live eval's model planned "Panorama A" and "Panorama B" as two steps; one call draws both.
+                return refuse("panorama_once", title=step.title, jobs=PANORAMA_RENDERS)
             continue
-        if step.kind == "prepare" and stage_title(step.title):
-            return refuse(
-                "build_as_prepare",
-                title=step.title,
-                jobs=fill_renders(),
-                scenes=scene_words or "none",
-            )
         if step.kind == "prepare" and aim_title(step.title):
             return refuse("aim_as_prepare", title=step.title)
         if step.kind == "prepare" and edit_title(step.title):
