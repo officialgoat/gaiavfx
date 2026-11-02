@@ -77,8 +77,9 @@ def stage_preview(session, library, candidate_id: str, *, fill_unseen: bool = Tr
     return {
         "name": unique_name(session, name),
         "what": (
-            "MoGe-3 measures the panorama, the stage engine lays it out and fits a splat"
-            + (", then H3 fills the space it never saw." if fill_unseen else ".")
+            "Fills in what the panorama never saw, so views away from its centre hold together."
+            if fill_unseen
+            else "Builds only what the panorama saw from its centre."
         ),
         "estimate": estimate(fill_unseen),
     }

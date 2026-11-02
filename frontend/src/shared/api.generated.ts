@@ -2641,6 +2641,126 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/panoramas": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List Panoramas */
+    get: operations["list_panoramas_api_panoramas_get"];
+    put?: never;
+    /** Start */
+    post: operations["start_api_panoramas_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/panoramas/{operation_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read Panorama */
+    get: operations["read_panorama_api_panoramas__operation_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/panoramas/preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Preview */
+    post: operations["preview_api_panoramas_preview_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/panoramas/{operation_id}/more": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** More */
+    post: operations["more_api_panoramas__operation_id__more_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/panoramas/candidates/{candidate_id}/choose": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Choose */
+    post: operations["choose_api_panoramas_candidates__candidate_id__choose_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/panoramas/candidates/{candidate_id}/stage-preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Stage Preview */
+    get: operations["stage_preview_api_panoramas_candidates__candidate_id__stage_preview_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/panoramas/candidates/{candidate_id}/stage": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Build Stage */
+    post: operations["build_stage_api_panoramas_candidates__candidate_id__stage_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/agent/model": {
     parameters: {
       query?: never;
@@ -4618,6 +4738,13 @@ export interface components {
       /** Created At */
       created_at: string;
     };
+    /** LandmarkInput */
+    LandmarkInput: {
+      /** What */
+      what: string;
+      /** Heading */
+      heading: number;
+    };
     /** LibraryDTO */
     LibraryDTO: {
       /** Id */
@@ -5024,6 +5151,155 @@ export interface components {
       /** Operation Id */
       operation_id: string;
     };
+    /**
+     * PanoramaBuildDTO
+     * @description The stage built from the chosen panorama, in `set_seed.seed_state`'s words.
+     */
+    PanoramaBuildDTO: {
+      /**
+       * State
+       * @enum {string}
+       */
+      state: "building" | "refused" | "failed" | "done";
+      /** Name */
+      name: string;
+      /** Label */
+      label: string;
+      /** Message */
+      message: string;
+      /** Operation Id */
+      operation_id: string;
+      /** Set Id */
+      set_id: string | null;
+      /** Waiting */
+      waiting: boolean;
+      /** Can Retry */
+      can_retry: boolean;
+    };
+    /** PanoramaCandidateDTO */
+    PanoramaCandidateDTO: {
+      /**
+       * Letter
+       * @enum {string}
+       */
+      letter: "A" | "B";
+      /** Candidate Id */
+      candidate_id: string;
+      /** Asset Id */
+      asset_id: string;
+      image: components["schemas"]["PanoramaMediaDTO"];
+      seam: components["schemas"]["SeamCheckDTO"] | null;
+      plate: components["schemas"]["PlateCheckDTO"] | null;
+      /** Chosen */
+      chosen: boolean;
+    };
+    /** PanoramaDTO */
+    PanoramaDTO: {
+      /** Id */
+      id: string;
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: "description" | "picture";
+      /** Place Id */
+      place_id: string | null;
+      /** Place */
+      place: string;
+      /** Prompt */
+      prompt: string | null;
+      /** Attempt */
+      attempt: number;
+      /**
+       * State
+       * @enum {string}
+       */
+      state: "building" | "ready" | "chosen" | "stopped";
+      /** Stage */
+      stage: string | null;
+      /** Message */
+      message: string;
+      /** Candidates */
+      candidates: components["schemas"]["PanoramaCandidateDTO"][];
+      /** Chosen */
+      chosen: string | null;
+      build: components["schemas"]["PanoramaBuildDTO"] | null;
+      /** Created At */
+      created_at: string;
+    };
+    /**
+     * PanoramaInput
+     * @description Words about the place (with landmarks by heading and its light) or a picture to grow, never both.
+     */
+    PanoramaInput: {
+      /**
+       * Mode
+       * @enum {string}
+       */
+      mode: "description" | "picture";
+      /** Place Id */
+      place_id?: string | null;
+      /**
+       * Place
+       * @default
+       */
+      place: string;
+      /** Landmarks */
+      landmarks?: components["schemas"]["LandmarkInput"][];
+      /**
+       * Light
+       * @default
+       */
+      light: string;
+      /** Picture Id */
+      picture_id?: string | null;
+      /** Hfov */
+      hfov?: number | null;
+    };
+    /** PanoramaMediaDTO */
+    PanoramaMediaDTO: {
+      /** Thumbnail */
+      thumbnail: string;
+      /** Original */
+      original: string;
+    };
+    /** PanoramaPreviewDTO */
+    PanoramaPreviewDTO: {
+      /** What */
+      what: string;
+      /** Prompt */
+      prompt: string | null;
+      /** Estimate */
+      estimate: string;
+      /** Renders */
+      renders: number;
+      /** Licence */
+      licence: string;
+    };
+    /** PanoramaStageInput */
+    PanoramaStageInput: {
+      /** Name */
+      name?: string | null;
+      /**
+       * Fill Unseen
+       * @default true
+       */
+      fill_unseen: boolean;
+      /**
+       * Use For Place
+       * @default false
+       */
+      use_for_place: boolean;
+    };
+    /** PanoramaStagePreviewDTO */
+    PanoramaStagePreviewDTO: {
+      /** Name */
+      name: string;
+      /** What */
+      what: string;
+      /** Estimate */
+      estimate: string;
+    };
     /** PhaseCommandDTO */
     PhaseCommandDTO: {
       /** Id */
@@ -5162,6 +5438,21 @@ export interface components {
       /** Expected Revision */
       expected_revision: number;
       range?: components["schemas"]["FrameRangeDTO"] | null;
+    };
+    /** PlateCheckDTO */
+    PlateCheckDTO: {
+      /** Plate Psnr */
+      plate_psnr: number;
+      /** Green */
+      green: number;
+      /** Plate Pixels */
+      plate_pixels: number;
+      /** Heading */
+      heading: number;
+      /** Hfov */
+      hfov: number;
+      /** Vfov */
+      vfov: number;
     };
     /** PrescreenCheckDTO */
     PrescreenCheckDTO: {
@@ -6051,6 +6342,23 @@ export interface components {
       public_key?: string | null;
       /** Secret Key */
       secret_key?: string | null;
+    };
+    /** SeamCheckDTO */
+    SeamCheckDTO: {
+      /** Outside Identical */
+      outside_identical: boolean;
+      /** Green In Band */
+      green_in_band: number;
+      /** Clean */
+      clean: boolean;
+      /** Band Px */
+      band_px: number;
+      /** Feather Px */
+      feather_px: number;
+      /** Edge Step Before */
+      edge_step_before: number;
+      /** Edge Step After */
+      edge_step_after: number;
     };
     /** SeedPlaceDTO */
     SeedPlaceDTO: {
@@ -13119,6 +13427,264 @@ export interface operations {
           [name: string]: unknown;
         };
         content?: never;
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  list_panoramas_api_panoramas_get: {
+    parameters: {
+      query?: {
+        place_id?: string | null;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaDTO"][];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  start_api_panoramas_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PanoramaInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  read_panorama_api_panoramas__operation_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        operation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  preview_api_panoramas_preview_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PanoramaInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaPreviewDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  more_api_panoramas__operation_id__more_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        operation_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  choose_api_panoramas_candidates__candidate_id__choose_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        candidate_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  stage_preview_api_panoramas_candidates__candidate_id__stage_preview_get: {
+    parameters: {
+      query?: {
+        fill_unseen?: boolean;
+      };
+      header?: never;
+      path: {
+        candidate_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaStagePreviewDTO"];
+        };
+      };
+      /** @description Validation Error */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["HTTPValidationError"];
+        };
+      };
+    };
+  };
+  build_stage_api_panoramas_candidates__candidate_id__stage_post: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        candidate_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["PanoramaStageInput"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["PanoramaDTO"];
+        };
       };
       /** @description Validation Error */
       422: {

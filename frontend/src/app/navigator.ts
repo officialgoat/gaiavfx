@@ -101,6 +101,10 @@ interface Navigator {
   setLibrarySection: (section: string) => void;
   openFilm: (recastId: string) => void;
   openMovie: () => void;
+  /** The panorama attempt Library › Stages shows for review, if any. */
+  panoramaId: string | null;
+  /** Library › Stages, showing one panorama attempt (or the list when none is named). */
+  openPanoramas: (operationId?: string | null) => void;
   /** The one way to open a stage: it remembers where it was opened from, and Close goes back there. */
   openStage: (setId: string, focus?: SetSelection) => void;
   closeStage: () => void;
@@ -121,6 +125,7 @@ export const useNavigator = create<Navigator>((set, get) => {
     ...start,
     librarySection: "library",
     focusAssetId: undefined,
+    panoramaId: null,
     panel: null,
     go: (workspace) => {
       write(KEYS.workspace, workspace);
@@ -132,6 +137,15 @@ export const useNavigator = create<Navigator>((set, get) => {
     },
     setLibrarySection: (librarySection) =>
       set({ librarySection, focusAssetId: undefined }),
+    openPanoramas: (operationId = null) => {
+      set({
+        librarySection: "sets",
+        focusAssetId: undefined,
+        panoramaId: operationId,
+        panel: null,
+      });
+      get().go("library");
+    },
     openFilm: (recastId) => openDocument({ kind: "film", recastId }),
     openMovie: () => openDocument({ kind: "movie" }),
     openStage: (setId, focus = null) => {

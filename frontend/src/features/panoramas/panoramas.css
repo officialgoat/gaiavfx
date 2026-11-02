@@ -1,0 +1,600 @@
+/* Panoramas: Library › Stages' panorama attempts, their review and the 360° viewer (DESIGN.md tokens only). */
+
+/* The viewer */
+.panorama-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.panorama-tools {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  min-height: 30px;
+}
+.panorama-tools .text-button[aria-pressed="true"] {
+  background: var(--selected);
+  color: var(--text);
+}
+.panorama-readout {
+  margin-left: auto;
+  padding-left: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.panorama-look {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  min-height: 220px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--image-matte);
+  cursor: grab;
+  touch-action: none;
+}
+.panorama-look:active {
+  cursor: grabbing;
+}
+.panorama-look:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.panorama-viewer[data-compact] .panorama-look {
+  aspect-ratio: 2 / 1;
+  min-height: 160px;
+}
+.panorama-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.panorama-status {
+  position: absolute;
+  inset: auto 12px 12px;
+  margin: 0;
+  font-size: 12px;
+  color: #eeeeef;
+}
+.panorama-hint {
+  margin: 0;
+}
+
+/* Flat: the whole 2:1 picture with heading ticks, the seam at both edges and a grown picture's frame. */
+.panorama-flat {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.panorama-flat-frame {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--image-matte);
+}
+.panorama-flat-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}
+.panorama-flat-marks {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
+}
+.panorama-flat-marks line {
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+}
+.panorama-flat-marks rect {
+  vector-effect: non-scaling-stroke;
+}
+.panorama-ticks {
+  position: relative;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.panorama-ticks li {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.panorama-ticks li:first-child {
+  transform: none;
+}
+.panorama-ticks li:last-child {
+  transform: translateX(-100%);
+}
+
+/* A panorama still being drawn: a matte with the seam band waiting for its fill. */
+.panorama-pending {
+  position: relative;
+  aspect-ratio: 2 / 1;
+  border-radius: 3px;
+  background: var(--image-matte);
+  overflow: hidden;
+}
+.panorama-pending-band {
+  position: absolute;
+  inset: 0 auto 0 calc(50% - 2px);
+  width: 4px;
+  background: var(--accent);
+  opacity: 0.35;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .panorama-pending-band {
+    animation: panorama-band 1.6s ease-in-out infinite alternate;
+  }
+}
+@keyframes panorama-band {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 0.55;
+  }
+}
+
+/* Library › Stages: the attempts */
+.panorama-section {
+  margin: 0 0 22px;
+}
+.panorama-section h3,
+.sets-library > h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.panorama-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.panorama-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--text);
+  text-align: left;
+}
+.panorama-row:hover {
+  border-color: var(--accent);
+}
+.panorama-row-media {
+  display: flex;
+  gap: 6px;
+}
+.panorama-row-thumb {
+  position: relative;
+  display: block;
+  width: 132px;
+  aspect-ratio: 2 / 1;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--image-matte);
+}
+.panorama-row-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.panorama-row-thumb[data-chosen] {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.panorama-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.panorama-row-name {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panorama-letter {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  min-width: 18px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  color: #eeeeef;
+  background: #121214cc;
+}
+.set-chip[data-panorama="ready"] {
+  color: var(--warning);
+}
+.set-chip[data-panorama="chosen"] {
+  color: var(--wave);
+}
+.set-chip[data-panorama="stopped"] {
+  color: var(--danger);
+}
+
+/* The new-panorama form */
+.panorama-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 0 0 22px;
+  padding: 16px;
+  max-width: 760px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.panorama-form-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.panorama-form-head h3,
+.panorama-build h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+.panorama-modes {
+  display: inline-flex;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg);
+}
+.panorama-modes label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+}
+.panorama-modes input,
+.panorama-picture input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+.panorama-modes label:has(input:checked) {
+  background: var(--raised);
+  color: var(--text);
+  box-shadow: 0 1px 3px #0003;
+}
+.panorama-modes label:has(input:focus-visible),
+.panorama-picture:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.panorama-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.panorama-field > span {
+  color: var(--muted);
+}
+.panorama-field textarea {
+  resize: vertical;
+  line-height: 1.5;
+}
+.panorama-field small {
+  font-size: 11px;
+}
+.panorama-landmarks,
+.panorama-pictures,
+.panorama-fov {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.panorama-landmarks legend,
+.panorama-pictures legend,
+.panorama-fov legend {
+  margin-bottom: 4px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.panorama-landmarks ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.panorama-landmarks li {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 150px auto;
+  align-items: center;
+  gap: 8px;
+}
+.panorama-landmarks li input,
+.panorama-landmarks li select {
+  padding: 6px 8px;
+}
+.panorama-landmarks > .text-button {
+  align-self: flex-start;
+}
+.panorama-picture-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 8px;
+  max-height: 248px;
+  overflow-y: auto;
+  padding: 3px;
+}
+.panorama-picture {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--image-matte);
+  cursor: pointer;
+  outline: 1px solid var(--line);
+}
+.panorama-picture img,
+.panorama-picture-blank {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.panorama-picture:has(input:checked) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.panorama-fov {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 16px;
+}
+.panorama-fov legend {
+  flex-basis: 100%;
+}
+.panorama-fov > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+}
+.panorama-fov-set {
+  flex-basis: 100%;
+}
+.panorama-fov-set input {
+  flex: 1;
+  max-width: 320px;
+  padding: 0;
+  accent-color: var(--action);
+}
+.panorama-fov-set output {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.panorama-preview {
+  padding: 10px 12px;
+  border-radius: 5px;
+  background: var(--bg);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.panorama-preview p {
+  margin: 0 0 4px;
+}
+.panorama-preview p:last-child {
+  margin-bottom: 0;
+}
+.panorama-prompt {
+  margin: 6px 0 0;
+  max-width: 75ch;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+.panorama-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.panorama-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 12px;
+}
+
+/* The review */
+.panorama-review {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.panorama-review-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.panorama-review-head h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+.panorama-review-head p {
+  margin: 2px 0 0;
+}
+.panorama-review-head .set-chip {
+  margin-left: auto;
+}
+.panorama-message {
+  margin: 0;
+  font-size: 13px;
+}
+.panorama-review-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 920px) {
+  .panorama-review-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.panorama-side {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.panorama-side > .primary-button,
+.panorama-side > .secondary-button {
+  align-self: stretch;
+}
+.panorama-letters {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.panorama-letters legend {
+  margin-bottom: 6px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.panorama-letters label {
+  position: relative;
+  display: block;
+  aspect-ratio: 2 / 1;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--image-matte);
+  cursor: pointer;
+  outline: 1px solid var(--line);
+}
+/* The radio covers its tile, under the letter: a click anywhere on the picture chooses it. */
+.panorama-letters input {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.panorama-letters img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.panorama-letters label:has(input:checked) {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.panorama-letters label:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.panorama-chosen {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+  color: #eeeeef;
+  background: #121214cc;
+}
+.panorama-checks {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px 10px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.panorama-checks dt {
+  color: var(--muted);
+}
+.panorama-checks dd {
+  margin: 0;
+}
+.panorama-build {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+}
+.panorama-build p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.panorama-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+.panorama-read summary {
+  color: var(--muted);
+  cursor: pointer;
+}

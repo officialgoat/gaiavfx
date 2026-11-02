@@ -1,12 +1,29 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { FolderInput } from "lucide-react";
+import { FolderInput, Orbit } from "lucide-react";
+import { useNavigator } from "../../app/navigator";
+import { PanoramaForm } from "../panoramas/PanoramaForm";
+import { PanoramaReview } from "../panoramas/PanoramaReview";
+import { PanoramasSection } from "../panoramas/PanoramasSection";
 import { sets, versionLabel, type SetSummary } from "./client";
 import "./sets.css";
 
-/** Library › Sets: the saved sets, like saved characters. Opening one shows it in the set workbench. */
+/** Library › Sets: the saved sets, like saved characters. Opening one shows it in the set workbench. Panoramas start
+ * new stages here too: drawn from words or grown from a picture, reviewed and chosen before a stage is built. */
 export function SetsLibrary({ onOpen }: { onOpen: (set: SetSummary) => void }) {
+  const panoramaId = useNavigator((state) => state.panoramaId);
+  if (panoramaId)
+    return (
+      <section className="sets-library" aria-label="Stages">
+        <PanoramaReview key={panoramaId} id={panoramaId} />
+      </section>
+    );
+  return <StagesList onOpen={onOpen} />;
+}
+
+function StagesList({ onOpen }: { onOpen: (set: SetSummary) => void }) {
   const client = useQueryClient();
+  const [panorama, setPanorama] = useState(false);
   const list = useQuery({ queryKey: ["sets"], queryFn: sets.list });
   const [folder, setFolder] = useState("");
   const [importing, setImporting] = useState(false);
@@ -28,13 +45,33 @@ export function SetsLibrary({ onOpen }: { onOpen: (set: SetSummary) => void }) {
             mark what is wrong and keep views.
           </p>
         </div>
-        <button
-          className="secondary-button"
-          onClick={() => setImporting((v) => !v)}
-        >
-          <FolderInput size={14} aria-hidden /> Import stage bundle…
-        </button>
+        <div className="sets-library-actions">
+          <button
+            className="secondary-button"
+            aria-expanded={panorama}
+            onClick={() => setPanorama((v) => !v)}
+          >
+            <Orbit size={14} aria-hidden /> New stage from a panorama…
+          </button>
+          <button
+            className="secondary-button"
+            aria-expanded={importing}
+            onClick={() => setImporting((v) => !v)}
+          >
+            <FolderInput size={14} aria-hidden /> Import stage bundle…
+          </button>
+        </div>
       </header>
+      {panorama && (
+        <PanoramaForm
+          onCancel={() => setPanorama(false)}
+          onStarted={(started) => {
+            setPanorama(false);
+            useNavigator.getState().openPanoramas(started.id);
+          }}
+        />
+      )}
+      <PanoramasSection />
       {importing && (
         <form
           className="sets-import"
@@ -80,12 +117,13 @@ export function SetsLibrary({ onOpen }: { onOpen: (set: SetSummary) => void }) {
         </p>
       ) : !list.data?.length ? (
         <p className="set-empty">
-          No stages yet. Select a video take for a segment, then right-click the
-          segment and choose “Build a stage from this take…”. You can also
+          No stages yet. Start one from a panorama: describe the place or grow a
+          picture into 360°. Or select a video take for a segment, right-click
+          the segment and choose “Build a stage from this take…”. You can also
           import a stage bundle.
         </p>
       ) : (
-        <ul className="sets-grid">
+        <ul className="sets-grid" aria-label="Stages">
           {list.data.map((set) => (
             <li key={set.id}>
               <button className="set-card" onClick={() => onOpen(set)}>

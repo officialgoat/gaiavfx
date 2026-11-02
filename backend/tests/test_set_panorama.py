@@ -83,7 +83,7 @@ def test_a_chosen_panorama_becomes_a_stage_whose_k0_is_the_panorama(work):
     db, library, comfy, run = work
     attempt, candidate = chosen_panorama(db, library, run)
     preview = transact(db, set_panorama.stage_preview, library, candidate["id"], fill_unseen=False)
-    assert preview["name"].startswith("A narrow city-flat hall") and "MoGe-3" in preview["what"]
+    assert preview["name"].startswith("A narrow city-flat hall") and "MoGe-3" in preview["estimate"]
     build = transact(
         db,
         set_panorama.start_panorama_stage,

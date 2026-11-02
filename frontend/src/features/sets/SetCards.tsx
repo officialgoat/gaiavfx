@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Undo2 } from "lucide-react";
 import {
   AUTHOR_WORDS,
@@ -13,6 +14,7 @@ import {
   type SetState,
   type SetView,
 } from "./client";
+import { PanoramaViewer } from "../panoramas/PanoramaViewer";
 import type { SetController } from "./use-set";
 import { useSetWorkbench, type SetSelection } from "./set-workbench";
 
@@ -361,6 +363,7 @@ function KeyframeCard({
   const pending = exclusion?.state === "failed" ? null : exclusion;
   const failed = exclusion?.state === "failed" ? exclusion : null;
   const keeping = keyframe.keeping;
+  const [looking, setLooking] = useState(false);
   return (
     <div className="set-inspector">
       <h2>
@@ -369,11 +372,29 @@ function KeyframeCard({
           · {keyframe.was ? "Excluded, colour only" : ROLE_WORDS[keyframe.role]}
         </span>
       </h2>
-      <img
-        className="set-still"
-        src={keyframe.image.thumbnail}
-        alt={`Keyframe ${keyframe.label}`}
-      />
+      {keyframe.kind === "erp" && looking ? (
+        <PanoramaViewer
+          src={keyframe.image.original}
+          label={`Keyframe ${keyframe.label}, the stage's panorama`}
+          compact
+        />
+      ) : (
+        <img
+          className="set-still"
+          src={keyframe.image.thumbnail}
+          alt={`Keyframe ${keyframe.label}`}
+        />
+      )}
+      {keyframe.kind === "erp" && (
+        <button
+          type="button"
+          className="secondary-button"
+          aria-pressed={looking}
+          onClick={() => setLooking((v) => !v)}
+        >
+          {looking ? "Back to the still" : "Look around the panorama"}
+        </button>
+      )}
       <p className="muted">
         {keyframe.kind === "erp"
           ? "360° panorama"

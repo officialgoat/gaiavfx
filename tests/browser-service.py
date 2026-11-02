@@ -21,6 +21,7 @@ import browser_recast
 import synthetic_room
 from fake_comfy import FakeComfy
 from fill_answers import FillAnswers
+from panorama_answers import PanoramaAnswers
 
 real_create_app = bootstrap.create_app
 
@@ -67,15 +68,18 @@ def create_test_app(*args, **kwargs):
     # except the first round's first still, whose bent depth consolidation sets aside (Keep this still, §8).
     fill = FillAnswers(lambda: app.state.operations.db.root)
     fill.bent = {"r1p0"}
+    # Panoramas: Krea draws the synthetic room, Fibo fills green with it and MoGe measures it exactly.
+    panorama = PanoramaAnswers()
 
     class ServiceComfy(FakeComfy):
         def upload(self, url, source, filename, directory_type="input"):
             super().upload(url, source, filename, directory_type)
             fill.keep(filename, source)
+            panorama.keep(filename, source)
 
     def outputs(graph):
         nonlocal output_index
-        filled = fill.answer(graph)
+        filled = fill.answer(graph) or panorama.answer(graph)
         if filled is not None:
             return filled
         scanned = browser_recast.answer(graph, fill.files)
@@ -119,7 +123,7 @@ def create_test_app(*args, **kwargs):
     # Set renders run the worldbuilder worker with its fake splat renderer (ADR 0019 §3), and seeds from a take
     # its real gate and atlas with a fake splat fit (§4); repairs have no atlas_prepare engine here, so they stop
     # while preparing, as a library without engines does.
-    from gaiavfx.application import set_fill, set_seed, set_views
+    from gaiavfx.application import set_fill, set_panorama, set_seed, set_views
     from gaiavfx.application.engine_jobs import EngineCommand
     from gaiavfx.infrastructure import engines
 
@@ -130,6 +134,7 @@ def create_test_app(*args, **kwargs):
     app.state.operations.engines = {
         set_views.STEP: worker,
         set_seed.ATLAS: worker,
+        set_panorama.ATLAS: worker,
         set_seed.SPLAT: worker,
         **{
             step: worker
