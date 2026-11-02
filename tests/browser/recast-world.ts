@@ -31,6 +31,8 @@ export type Scene = {
   similar?: [number, number][];
   /** Characters (by index) the user has hidden. */
   hidden?: number[];
+  /** Characters (by index) with no face crop yet. */
+  faceless?: number[];
   /** Face tracks no character holds, from Shot 003 on. */
   unknown?: number;
   /** Each character's face sheet, made from its confirmed picture, taken to this state. */

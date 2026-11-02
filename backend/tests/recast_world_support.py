@@ -116,6 +116,7 @@ class RecastWorld:
         self.window_reports = {}
         self.versions = {}  # assembly operation id -> the versions it made
         self.previews = ["preview"]  # the preview assets versions show, in turn
+        self.patch = "patch"  # the replacement patch artifact every version names
         self.film_api = _module(FILM_ANALYSIS, FilmAnalysis(self))
         self.window_api = _module("fake_shot_work", ShotWork(self), names=recast_take.MODULES)
         self.real_planner = replace_character.replacement_plan
@@ -687,7 +688,7 @@ class ShotWork:
             "preview_asset": self.world.previews[
                 len(self.world.versions) % len(self.world.previews)
             ],
-            "patch_artifact": "patch",
+            "patch_artifact": self.world.patch,
             "checks": [
                 {
                     "check": "background_geometry",

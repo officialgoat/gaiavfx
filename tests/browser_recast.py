@@ -23,6 +23,8 @@ from fastapi import HTTPException
 from gaiavfx.application import operations, recast
 from gaiavfx.infrastructure.database import Base
 from gaiavfx.infrastructure.media import MediaTools
+from gaiavfx.modules.generation.operations.service import OperationService
+from gaiavfx.modules.library.assets import AssetRecord
 from PIL import Image, ImageDraw
 from pydantic import BaseModel, Field
 from recast_world_support import (
@@ -53,6 +55,7 @@ class Scene(BaseModel):
     user's picture with no face) or None; `labels` name them, and with `shared` every character's picture is the same
     Library picture. `similar` pairs of characters look alike; `hidden` characters are set aside; `unknown` face tracks
     belong to no character (from Shot 003 on). `sheets` take a character's face sheet to waiting, approved or rejected.
+    `faceless` characters have no face crop yet.
     `rendered` shots from the start get a finished Draft run's versions, `takes` of them; a planned shot's `links` join
     a faceless person to a character. `pictures` are more Library portraits, by name."""
 
@@ -71,6 +74,7 @@ class Scene(BaseModel):
     shared: bool = False
     similar: list[tuple[int, int]] = []
     hidden: list[int] = []
+    faceless: list[int] = []
     unknown: int = 0
     sheets: list[Literal["waiting", "approved", "rejected"] | None] = []
     planned: bool = False
@@ -166,13 +170,28 @@ class BrowserWorld:
                 self.world.install(self.patcher)
                 install_dialogue(self.world, self.patcher)
                 install_voice_builds(self.world, self.patcher)
-                # Versions show real previews whose names the page must never show (the blind checks).
+                # Versions show real previews whose names the page must never show (the blind checks); like an
+                # assembly's previews they are process files, which the Library leaves out.
                 self.world.previews = [
                     self.workspace.import_media(
                         self.preview(i), f"PRIVATE SEED ARM ROUND {i}.mp4"
                     )["asset"]["id"]
                     for i in range(4)
                 ]
+                with self.world.db.transaction() as session:
+                    for asset_id in self.world.previews:
+                        session.get(AssetRecord, asset_id).provenance = [
+                            {"type": "shot_assembly", "operation_id": "world-preview"}
+                        ]
+                    # A real patch artifact, so a conform of the world's versions can start.
+                    patch = MEDIA / "patch.bin"
+                    patch.write_bytes(b"recast world patch")
+                    prepared = workspace.library.prepare_blob(
+                        patch, "replacement_patch", {}
+                    )
+                    self.world.patch = workspace.library.register_artifact(
+                        session, prepared
+                    )["id"]
             return self.world
 
     def preview(self, index):
@@ -354,6 +373,9 @@ class BrowserWorld:
         with world.db.transaction() as session:
             for track in report["tracks"]:
                 index = track["shot"]
+                # A `faceless` character's tracks have no face crop yet.
+                if owners.get(track["id"]) in scene.faceless:
+                    continue
                 face = portrait(crops / f"face-{index % 24}.jpg", index * 37)
                 track["crop_artifact"] = self.artifact(session, face)
                 report["shots"][index]["poster_artifact"] = track["crop_artifact"]
@@ -633,6 +655,16 @@ class BrowserWorld:
                 and (order.head is None or bool(o["request"].get("head")) == order.head)
             ]
             for operation in waiting[: order.count]:
+                if order.kind == "recast_conform" and order.outcome == "succeeded":
+                    # A finished conform's film: the recast's own source stands in for it.
+                    job = operation["jobs"][0]
+                    world.move(session, job, "claimed", "running", "collecting")
+                    film = operation["request"]["source_asset"]
+                    world.ops.record_outputs(
+                        session, job["id"], [{"asset_id": film, "progress": 1}]
+                    )
+                    world.ops.transition(session, job["id"], "succeeded")
+                    continue
                 world.settle(session, operation["id"], order.outcome)
         self.feed()
         return world.invoke(recast.recast_state, recast_id)
@@ -675,8 +707,23 @@ def held(advance):
     return advance_unless_fixture
 
 
+def parked(start):
+    """A conform start whose local job waits for the spec, as fixture jobs do: a world's versions paste no pixels."""
+
+    def start_and_park(session, library, *args, **kwargs):
+        result = start(session, library, *args, **kwargs)
+        if result.get("_created", True):
+            for job in result["jobs"]:
+                if job["state"] == "queued":
+                    OperationService().transition(session, job["id"], "claimed")
+        return result
+
+    return start_and_park
+
+
 def install(app):
     browser = BrowserWorld(app)
+    recast.start_conform = parked(recast.start_conform)
     for kind, advance in list(operations.ADVANCERS.items()):
         operations.ADVANCERS[kind] = held(advance)
     operations.SWEEPS[:] = [

@@ -1,45 +1,26 @@
-import { test, expect, type Page, type Route } from "@playwright/test";
-import { filmAsset, mockRecast } from "./recast-fixtures";
+import type { Page, Route } from "@playwright/test";
 import { seedDirect } from "./direct-fixture";
 import type { components } from "../../frontend/src/shared/api.generated";
+import { expect, expectBlind, openFilm, test } from "./recast-world";
 
 type S = components["schemas"];
 
 // CP3-C (ADR 0017 amendment 11, ADR 0012 Amendment 7 §8): a film has its own conversation, keyed to its recast.
-// Plan mode is always on in a film, so its toggle is disabled with the reason and nothing asks to turn it off.
+// Plan mode is always on in a film, so its toggle is disabled with the reason and nothing asks to turn it off. The
+// recast is the service's own (tests/browser_recast.py); the film's conversation is routed, as no assistant runs here.
 
 test.use({ reducedMotion: "reduce" });
+/** Mara (the user's picture), Elias, and The courier, whom the user hid. */
+test.use({
+  scene: {
+    shots: 6,
+    characters: ["Mara", "Elias", "The courier"],
+    targets: ["confirmed", null, null],
+    hidden: [2],
+  },
+});
 
 const FILM_PLANS = "A film's conversation always plans before it renders.";
-
-async function openFilm(page: Page) {
-  await page.getByRole("button", { name: "File", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Open film/ }).click();
-  await page
-    .getByRole("dialog", { name: "Open film" })
-    .getByRole("button", { name: new RegExp(filmAsset.name) })
-    .first()
-    .click();
-  await expect(page.locator(".timeline-heading")).toContainText(filmAsset.name);
-}
-
-/** No version's asset name or operation reaches the page: text, titles, labels, alt text or values. */
-async function expectBlind(page: Page) {
-  const leaks = await page.evaluate(() => {
-    const secrets = ["PRIVATE SEED ARM ROUND", "hidden-operation"];
-    const found: string[] = [];
-    const text = document.body.innerText;
-    for (const secret of secrets)
-      if (text.includes(secret)) found.push(`text: ${secret}`);
-    for (const element of Array.from(document.querySelectorAll("*")))
-      for (const attribute of Array.from(element.attributes))
-        for (const secret of secrets)
-          if (attribute.value.includes(secret))
-            found.push(`${element.tagName} ${attribute.name}: ${secret}`);
-    return found;
-  });
-  expect(leaks).toEqual([]);
-}
 
 function filmSession(
   recastId: string,
@@ -105,7 +86,8 @@ function turn(
   };
 }
 
-/** The film's agent API: the recast is mocked, so its conversation is too. Movie conversations stay real. */
+/** The film's agent API: no assistant runs in the browser suite, so the film's conversation is routed. Movie
+ * conversations stay real. */
 async function mockFilmAgent(page: Page, recastId: string) {
   const requests: { method: string; url: URL; body: unknown }[] = [];
   let state: S["SessionStateDTO"] | null = null;
@@ -159,17 +141,15 @@ async function mockFilmAgent(page: Page, recastId: string) {
 test("a film talks in its own conversation, always plans, and mentions its characters", async ({
   page,
   request,
+  world,
 }) => {
   test.setTimeout(120_000);
   const movie = (await seedDirect(request)).movie;
-  const mock = await mockRecast(page);
-  mock.existing();
-  // A hidden character is not offered to @ mentions.
-  mock.value.characters[2].hidden = true;
-  const recastId = mock.value.id;
+  // A hidden character (The courier) is not offered to @ mentions.
+  const recastId = world.id;
   const agent = await mockFilmAgent(page, recastId);
   await page.goto("/");
-  await openFilm(page);
+  await openFilm(page, world);
   // The movie loaded at startup may have listed its own conversations before the film opened; from the film's
   // first listing on, every request is the film's.
   const listsFilm = (r: (typeof agent.requests)[number]) =>
@@ -223,7 +203,7 @@ test("a film talks in its own conversation, always plans, and mentions its chara
   });
   const sent = filmRequests().find((r) => r.url.pathname.endsWith("/messages"));
   expect((sent?.body as S["MessageInput"]).text).toBe(
-    "Recast @Mara with her picture\n\nReferences:\n@Mara (character: character-0)",
+    `Recast @Mara with her picture\n\nReferences:\n@Mara (character: ${world.characters[0]})`,
   );
   // Neither the first send nor Shift+Tab asked to turn plan mode off; nothing reached a movie's conversation.
   expect(
@@ -268,17 +248,16 @@ test("a film talks in its own conversation, always plans, and mentions its chara
 // process files.
 test("the film's Attach from Library leaves out process files and composites", async ({
   page,
+  world,
 }) => {
-  const mock = await mockRecast(page);
-  mock.existing();
-  await mockFilmAgent(page, mock.value.id);
+  await mockFilmAgent(page, world.id);
   const listings: URL[] = [];
   page.on("request", (r) => {
     const url = new URL(r.url());
     if (url.pathname.endsWith("/assets")) listings.push(url);
   });
   await page.goto("/");
-  await openFilm(page);
+  await openFilm(page, world);
   await page.getByRole("tab", { name: "Chat", exact: true }).click();
   const region = page.getByRole("region", { name: "Film conversation" });
   const before = listings.length;
@@ -300,10 +279,9 @@ test("the film's Attach from Library leaves out process files and composites", a
 
 test("a recast run's review step waits in the film's review queue, not in Review", async ({
   page,
+  world,
 }) => {
-  const mock = await mockRecast(page);
-  mock.existing();
-  const recastId = mock.value.id;
+  const recastId = world.id;
   const agent = await mockFilmAgent(page, recastId);
   agent.state = {
     session: filmSession(recastId, {
@@ -355,7 +333,7 @@ test("a recast run's review step waits in the film's review queue, not in Review
     turns: [],
   };
   await page.goto("/");
-  await openFilm(page);
+  await openFilm(page, world);
   await page.getByRole("tab", { name: "Chat", exact: true }).click();
   const plan = page.getByRole("region", { name: "Plan revision 1" });
   await expect(plan).toBeVisible();

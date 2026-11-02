@@ -1,59 +1,48 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import type { components } from "../../frontend/src/shared/api.generated";
-import { filmAsset, mockRecast } from "./recast-fixtures";
+import {
+  card,
+  expect,
+  expectBlind,
+  laneHeader,
+  openFilm,
+  panel,
+  test,
+  type RecastWorld,
+  type Scene,
+} from "./recast-world";
 
 // Usability round 2 (retained regression coverage C1, C11, C12, T6-F1, T2-F7): a film's
 // Jobs read as sentences without ids or paths, a refused conform says what to do, a conformed film's history reads in
-// words, the Cast shows faces large enough to tell apart, and a face check says when it waits for ComfyUI.
+// words, the Cast shows faces large enough to tell apart, and a face check says when it waits for ComfyUI. The recast
+// is the service's own (tests/browser_recast.py); Jobs, the Library asset and ComfyUI's status are routed where a case
+// needs an error or a state the service does not reach on its own.
 
-type Mock = Awaited<ReturnType<typeof mockRecast>>;
 type S = components["schemas"];
 
-async function openFilm(page: Page) {
-  await page.getByRole("button", { name: "File", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Open film/ }).click();
-  await page
-    .getByRole("dialog", { name: "Open film" })
-    .getByRole("button", { name: new RegExp(filmAsset.name) })
-    .first()
-    .click();
-  await expect(page.locator(".timeline-heading")).toContainText(filmAsset.name);
-}
+/** Mara and Elias (the user's pictures) and The courier (none, looks like Mara), taking 2 s shots in turn at 25 fps;
+ * one face in Shot 003 belongs to no one. */
+const FILM: Scene = {
+  shots: 8,
+  length: 50,
+  rate: [25, 1],
+  characters: ["Mara", "Elias", "The courier"],
+  targets: ["confirmed", "confirmed", null],
+  similar: [[0, 2]],
+  unknown: 1,
+};
+test.use({ scene: FILM });
 
-/** No version's asset name or operation reaches the page: text, titles, labels, alt text or values. */
-async function expectBlind(page: Page) {
-  const leaks = await page.evaluate(() => {
-    const secrets = ["PRIVATE SEED ARM ROUND", "hidden-operation"];
-    const found: string[] = [];
-    const text = document.body.innerText;
-    for (const secret of secrets)
-      if (text.includes(secret)) found.push(`text: ${secret}`);
-    for (const element of Array.from(document.querySelectorAll("*")))
-      for (const attribute of Array.from(element.attributes))
-        for (const secret of secrets)
-          if (attribute.value.includes(secret))
-            found.push(`${element.tagName} ${attribute.name}: ${secret}`);
-    return found;
-  });
-  expect(leaks).toEqual([]);
-}
-
-/** The fixture film, open, after `before` has set up the mock and any extra routes. */
-async function start(page: Page, before?: (mock: Mock) => unknown) {
-  const mock = await mockRecast(page);
-  mock.existing();
-  await before?.(mock);
+/** The world's film, open, after `before` has set up any routes. */
+async function start(page: Page, world: RecastWorld, before?: () => unknown) {
+  await before?.();
   await page.goto("/");
-  await openFilm(page);
-  return mock;
+  await openFilm(page, world);
 }
-
-const card = (page: Page) => page.locator(".film-properties");
-const panel = (page: Page) => page.locator(".film-project");
 
 async function selectCharacter(page: Page, id: string) {
   await page.getByRole("tab", { name: "Properties" }).click();
-  await page.locator(`[data-row="cast-${id}"] .cast-header`).click();
+  await page.locator(laneHeader(id)).click();
 }
 
 async function openConform(page: Page) {
@@ -62,6 +51,24 @@ async function openConform(page: Page) {
     .getByRole("button", { name: /^Conform: / })
     .click();
   return page.getByRole("dialog", { name: "Conform film" });
+}
+
+/** The service's read of the recast with `change` applied: a state the live service passes through too fast. */
+async function readAs(
+  page: Page,
+  world: RecastWorld,
+  change: (read: S["RecastDTO"]) => void,
+) {
+  await page.route(
+    (url) => url.pathname === `/api/recasts/${world.id}`,
+    async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      const response = await route.fetch();
+      const read = await response.json();
+      change(read);
+      return route.fulfill({ response, json: read });
+    },
+  );
 }
 
 const operation = (
@@ -110,6 +117,7 @@ const UUID = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i;
 
 test("C1: a film's Jobs read errors as sentences, hide a render's method, and offer cancel only while running", async ({
   page,
+  world,
 }) => {
   const ffmpeg =
     "0f3e2d1c-1111-4222-8333-444455556666: ffmpeg failed: [AVFilterGraph @ 00000186598de140] Error initializing filters\n" +
@@ -120,7 +128,7 @@ test("C1: a film's Jobs read errors as sentences, hide a render's method, and of
   const long =
     "5b6c7d8e-1111-4222-8333-444455556666: The voice model at /opt/gaiavfx/engines/seed-vc/checkpoints/model.pth could not be " +
     "loaded because the checkpoint is truncated or was written by a newer engine than the one installed here and now. Reinstall it.";
-  await start(page, () =>
+  await start(page, world, () =>
     page.route("**/api/production/operations?**", (route) =>
       route.fulfill({
         json: [
@@ -194,24 +202,26 @@ test("C1: a film's Jobs read errors as sentences, hide a render's method, and of
 
 test("C12: a chosen conform with nothing chosen says why, and the refusal clears when a setting changes", async ({
   page,
+  world,
 }) => {
   const sent: Record<string, unknown>[] = [];
-  const refusal =
-    "Nothing to conform: no shot has a chosen version, so the film would be the original. Choose versions in Review, or conform a preview with unreviewed drafts.";
-  await start(page, () =>
-    page.route("**/api/recasts/recast-1/conform", (route) => {
-      sent.push(route.request().postDataJSON());
-      return route.fulfill({ status: 409, json: { detail: refusal } });
-    }),
-  );
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      new URL(request.url()).pathname === `/api/recasts/${world.id}/conform`
+    )
+      sent.push(request.postDataJSON());
+  });
+  await start(page, world);
   const dialog = await openConform(page);
   const conform = dialog.getByRole("button", {
     name: "Conform film",
     exact: true,
   });
   const alert = dialog.getByRole("alert");
+  // No shot has a version: the service refuses either conform, each in its own words.
   await conform.click();
-  await expect(alert).toHaveText(refusal);
+  await expect(alert).toContainText("Nothing to conform");
   expect(sent.at(-1)).toMatchObject({
     mode: "chosen",
     codec: "h264",
@@ -221,7 +231,9 @@ test("C12: a chosen conform with nothing chosen says why, and the refusal clears
   await dialog.getByLabel("Versions").selectOption("preview_unreviewed");
   await expect(alert).toHaveCount(0);
   await conform.click();
-  await expect(alert).toHaveText(refusal);
+  await expect(alert).toHaveText(
+    "Nothing to preview: no shot in this range has a version yet.",
+  );
   expect(sent.at(-1)).toMatchObject({ mode: "preview_unreviewed" });
   await dialog.getByLabel("Codec").selectOption("prores");
   await expect(alert).toHaveCount(0);
@@ -231,33 +243,53 @@ test("C12: a chosen conform with nothing chosen says why, and the refusal clears
 
 test("T6-F1: a conformed film's Library history reads as a summary, without ids", async ({
   page,
+  world,
 }) => {
-  const mock = await start(page, () =>
-    page.route("**/api/v1/assets/conformed-film", (route) =>
+  const film = await (
+    await page.request.get(`/api/v1/assets/${world.film.asset_id}`, {
+      headers: world.headers,
+    })
+  ).json();
+  await start(page, world, async () => {
+    // A finished conform and its film, as the conform step records them.
+    await readAs(page, world, (read) => {
+      read.conforms.push({
+        operation_id: "conform-1",
+        mode: "preview_unreviewed",
+        range: { start: 50, end: 200 },
+        state: "succeeded",
+        progress: 1,
+        asset_id: "conformed-film",
+        created_at: "2026-10-22T10:00:00Z",
+        codec: "prores",
+        error: null,
+      });
+    });
+    await page.route("**/api/v1/assets/conformed-film", (route) =>
       route.fulfill({
         json: {
-          ...filmAsset,
+          ...film,
           id: "conformed-film",
           name: "The crossing - unreviewed preview - 00.00.02-00.00.08",
           provenance: [
             {
               type: "recast_conform",
-              recast_id: "recast-1",
+              recast_id: world.id,
               recast_revision: 7,
               mode: "preview_unreviewed",
               choices: [
                 {
-                  shot_id: "s0002",
+                  shot_id: world.shots[1],
                   version: "version-1-B",
                   patch_artifact: "patch-artifact-1",
                 },
                 {
-                  shot_id: "s0003",
+                  shot_id: world.shots[2],
                   version: "version-2-A",
                   patch_artifact: "patch-artifact-2",
                 },
               ],
-              source_asset: filmAsset.id,
+              source_asset: film.id,
               range: { start: 50, end: 200 },
               audio: "pcm_trimmed",
               video: "reencoded_prores_hq",
@@ -266,20 +298,8 @@ test("T6-F1: a conformed film's Library history reads as a summary, without ids"
           ],
         } satisfies S["AssetDTO"],
       }),
-    ),
-  );
-  mock.value.conforms.push({
-    operation_id: "conform-1",
-    mode: "preview_unreviewed",
-    range: { start: 50, end: 200 },
-    state: "succeeded",
-    progress: 1,
-    asset_id: "conformed-film",
-    created_at: "2026-10-22T10:00:00Z",
-    codec: "prores",
-    error: null,
+    );
   });
-  mock.value.revision++;
   const dialog = await openConform(page);
   await dialog.getByRole("button", { name: "Open result in Library" }).click();
   const history = page
@@ -295,7 +315,7 @@ test("T6-F1: a conformed film's Library history reads as a summary, without ids"
   const text = await history.innerText();
   for (const raw of [
     "recast_conform",
-    "recast-1",
+    world.id,
     "version-",
     "patch-artifact",
     "conform-operation",
@@ -306,80 +326,101 @@ test("T6-F1: a conformed film's Library history reads as a summary, without ids"
   await expectBlind(page);
 });
 
-test("C11: Cast rows and Same person? pairs show faces, and track boxes name their shot and frames", async ({
-  page,
-}) => {
-  const mock = await start(page, (mock) => {
-    // Elias has no face crop yet: his row keeps the generic icon.
-    mock.value.characters[1].face = null;
-  });
-  await panel(page).getByRole("button", { name: /^Cast/ }).click();
-  const rows = panel(page).locator(".project-record");
-  const mara = rows.filter({ hasText: "Mara" });
-  const face = mara.locator("img.project-record-face");
-  await expect(face).toHaveAttribute("alt", "");
-  await expect(face).toHaveAttribute("src", mock.value.characters[0].face!.url);
-  const box = (await face.boundingBox())!;
-  expect(box.width).toBeGreaterThanOrEqual(30);
-  expect(box.height).toBeGreaterThanOrEqual(30);
-  const elias = rows.filter({ hasText: "Elias" });
-  await expect(elias.locator("img")).toHaveCount(0);
-  await expect(elias.locator("svg")).toHaveCount(1);
-  // The pair's faces are large enough to judge.
-  const pair = panel(page)
-    .getByRole("list", { name: "Same person suggestions" })
-    .getByRole("listitem")
-    .first();
-  for (const img of await pair.locator(".film-same-faces img").all()) {
-    const size = (await img.boundingBox())!;
-    expect(size.width).toBeGreaterThanOrEqual(34);
-    expect(size.height).toBeGreaterThanOrEqual(34);
-  }
-  // The track drawer: thumbnails about 72 px wide, and boxes named by shot and frames.
-  await selectCharacter(page, "character-0");
-  await card(page).getByRole("button", { name: "Face tracks…" }).click();
-  const drawer = page.getByRole("dialog", { name: "Mara · tracks" });
-  const first = drawer.getByRole("checkbox", {
-    name: "Shot 001, 40 frames seen",
-    exact: true,
-  });
-  await expect(first).toBeVisible();
-  const thumbnail = (await drawer
-    .getByAltText("Face track")
-    .first()
-    .boundingBox())!;
-  expect(thumbnail.width).toBeGreaterThanOrEqual(70);
-  await first.check();
-  await expect(
-    drawer.getByRole("button", { name: "Move 1 track" }),
-  ).toBeEnabled();
-  // A track no character holds names its shot and that its identity is unknown.
-  await page.keyboard.press("Escape");
-  await panel(page)
-    .getByRole("button", { name: /^Unknown faces/ })
-    .click();
-  await expect(
-    page.getByRole("dialog", { name: "Unknown faces" }).getByRole("checkbox", {
-      name: "Shot 003, unknown identity",
+test.describe("Elias has no face crop yet", () => {
+  test.use({ scene: { ...FILM, faceless: [1] } });
+
+  test("C11: Cast rows and Same person? pairs show faces, and track boxes name their shot and frames", async ({
+    page,
+    world,
+  }) => {
+    const read = await world.read();
+    const seen = read.characters[0].tracks.find(
+      (t) => t.shot_id === world.shots[0],
+    )!.frames_with_face;
+    await start(page, world);
+    await panel(page).getByRole("button", { name: /^Cast/ }).click();
+    const rows = panel(page).locator(".project-record");
+    const mara = rows.filter({ hasText: "Mara" });
+    const face = mara.locator("img.project-record-face");
+    await expect(face).toHaveAttribute("alt", "");
+    await expect(face).toHaveAttribute("src", read.characters[0].face!.url);
+    const box = (await face.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(30);
+    expect(box.height).toBeGreaterThanOrEqual(30);
+    const elias = rows.filter({ hasText: "Elias" });
+    await expect(elias.locator("img")).toHaveCount(0);
+    await expect(elias.locator("svg")).toHaveCount(1);
+    // The pair's faces are large enough to judge.
+    const pair = panel(page)
+      .getByRole("list", { name: "Same person suggestions" })
+      .getByRole("listitem")
+      .first();
+    for (const img of await pair.locator(".film-same-faces img").all()) {
+      const size = (await img.boundingBox())!;
+      expect(size.width).toBeGreaterThanOrEqual(34);
+      expect(size.height).toBeGreaterThanOrEqual(34);
+    }
+    // The track drawer: thumbnails about 72 px wide, and boxes named by shot and frames.
+    await selectCharacter(page, world.characters[0]);
+    await card(page).getByRole("button", { name: "Face tracks…" }).click();
+    const drawer = page.getByRole("dialog", { name: "Mara · tracks" });
+    const first = drawer.getByRole("checkbox", {
+      name: `Shot 001, ${seen} frames seen`,
       exact: true,
-    }),
-  ).toBeVisible();
-  await expectBlind(page);
+    });
+    await expect(first).toBeVisible();
+    const thumbnail = (await drawer
+      .getByAltText("Face track")
+      .first()
+      .boundingBox())!;
+    expect(thumbnail.width).toBeGreaterThanOrEqual(70);
+    await first.check();
+    await expect(
+      drawer.getByRole("button", { name: "Move 1 track" }),
+    ).toBeEnabled();
+    // A track no character holds names its shot and that its identity is unknown.
+    await page.keyboard.press("Escape");
+    await panel(page)
+      .getByRole("button", { name: /^Unknown faces/ })
+      .click();
+    await expect(
+      page
+        .getByRole("dialog", { name: "Unknown faces" })
+        .getByRole("checkbox", {
+          name: "Shot 003, unknown identity",
+          exact: true,
+        }),
+    ).toBeVisible();
+    await expectBlind(page);
+  });
 });
 
 test("T2-F7: a face check says it waits for ComfyUI while ComfyUI is not reachable", async ({
   page,
+  world,
 }) => {
-  const mock = await start(page, (mock) => {
-    mock.value.characters[0].target!.face = "checking";
+  let reachable = true;
+  await start(page, world, async () => {
+    // Mara's picture is still being checked.
+    await readAs(page, world, (read) => {
+      read.characters[0].target!.face = "checking";
+    });
+    // The test service has no ComfyUI to ask; its status is whichever this case needs.
+    await page.route("**/api/v1/settings/comfy", (route) =>
+      route.fulfill({
+        json: reachable
+          ? { connected: true, version: "0.35" }
+          : { connected: false, error: "Connection refused" },
+      }),
+    );
   });
-  await selectCharacter(page, "character-0");
+  await selectCharacter(page, world.characters[0]);
   const mapping = card(page).locator(".film-card-mapping");
   await expect(mapping).toContainText("· checking the face");
-  mock.comfy.connected = false;
+  reachable = false;
   await page.reload();
-  await expect(page.locator(".timeline-heading")).toContainText(filmAsset.name);
-  await selectCharacter(page, "character-0");
+  await expect(page.locator(".timeline-heading")).toContainText(world.title);
+  await selectCharacter(page, world.characters[0]);
   await expect(mapping).toContainText("· the face check waits for ComfyUI");
   await expect(mapping).not.toContainText("checking the face");
   await expect(page.locator(".comfy-offline")).toBeVisible();
