@@ -257,9 +257,11 @@ class BrowserWorld:
         self.patcher = pytest.MonkeyPatch()
         self.world = None
         self.voice_builds = None
-        self.expressive_worlds = (
-            set()
-        )  # recasts whose scene set Settings' expressive folder
+        # Recasts whose scene set Settings' expressive folder.
+        self.expressive_worlds = set()
+        # Film asset id -> the Library assets imported for its world, the film among them; and the film importing now.
+        self.imports = {}
+        self.importing = None
         self.count = 0
 
     @property
@@ -393,9 +395,12 @@ class BrowserWorld:
         return unique
 
     def imported(self, path, name):
-        """A file this world wrote, in the Library, which keeps its own copy: the world's goes."""
+        """A file this world wrote, in the Library, which keeps its own copy: the world's goes. The film's world
+        keeps the asset's id, so retiring it leaves the Library as it found it."""
         asset = self.workspace.import_media(path, name)["asset"]
         path.unlink(missing_ok=True)
+        if self.importing:
+            self.imports.setdefault(self.importing, []).append(asset["id"])
         return asset
 
     def picture(self, name, tag, face=True):
@@ -440,6 +445,15 @@ class BrowserWorld:
             tag = uuid.uuid4().hex[:8]
         name = f"{scene.title or 'The crossing'} · {tag}"
         film_id = self.imported(self.film(scene, tag), name + ".mp4")["id"]
+        self.imports.setdefault(film_id, []).append(film_id)
+        self.importing = film_id
+        try:
+            return self.seeded(scene, world, film_id, name, tag)
+        finally:
+            self.importing = None
+
+    def seeded(self, scene, world, film_id, name, tag):
+        """The rest of a seed, once the film is in the Library: its analysis, cast, plans, renders and the rest."""
         report = film_report(film_id, len(scene.cuts) or scene.shots, scene.length)
         report["fps"] = list(scene.rate)
         for shot, track, (start, end) in zip(
@@ -856,11 +870,15 @@ class BrowserWorld:
         world = self.get()
         tag = uuid.uuid4().hex[:8]
         state = world.invoke(recast.recast_state, recast_id)
-        picture = self.picture(
-            f"{'Arin' if order.kind == 'confirmed' else 'Hallway'} · {tag}",
-            tag,
-            face={"faceless": False, "unreadable": None}.get(order.kind, True),
-        )
+        self.importing = state["film"]["asset_id"]
+        try:
+            picture = self.picture(
+                f"{'Arin' if order.kind == 'confirmed' else 'Hallway'} · {tag}",
+                tag,
+                face={"faceless": False, "unreadable": None}.get(order.kind, True),
+            )
+        finally:
+            self.importing = None
         world.invoke(
             recast.set_target,
             recast_id,
@@ -1099,10 +1117,23 @@ class BrowserWorld:
             ).fetchall()
         for row in ids:
             self.retire(row.id)
+        self.forget(asset_id)
+
+    def forget(self, film_id):
+        """Remove the Library assets a film's world imported, the film among them: nothing but the world's recast,
+        retired first, refers to them."""
+        imported = self.imports.pop(film_id, [])
+        if imported:
+            with self.get().db.transaction() as session:
+                session.execute(
+                    delete(AssetRecord.__table__).where(
+                        AssetRecord.__table__.c.id.in_(imported)
+                    )
+                )
 
     def retire(self, recast_id: str):
-        """Remove the recast's Editing rows so later specs' lists and feeds stay small, and clear an expressive folder
-        its scene set."""
+        """Remove the recast's Editing rows so later specs' lists and feeds stay small, the Library assets its world
+        imported, and an expressive folder its scene set."""
         world = self.get()
         if recast_id in self.expressive_worlds:
             self.expressive_worlds.discard(recast_id)
@@ -1114,11 +1145,16 @@ class BrowserWorld:
             for t in Base.metadata.sorted_tables
             if t.name.startswith("editing_recast_") and "recast_id" in t.c
         ]
+        recasts = Base.metadata.tables["editing_recasts"]
         with world.db.transaction() as session:
+            film = session.execute(
+                recasts.select().where(recasts.c.id == recast_id)
+            ).first()
             for table in reversed(tables):
                 session.execute(delete(table).where(table.c.recast_id == recast_id))
-            recasts = Base.metadata.tables["editing_recasts"]
             session.execute(delete(recasts).where(recasts.c.id == recast_id))
+        if film:
+            self.forget(film.source_asset_id)
 
 
 def resumed(world):
