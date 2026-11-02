@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
-import { Box } from "lucide-react";
+import { Box, Orbit } from "lucide-react";
+import { useNavigator } from "../../app/navigator";
 import { CommandButton, ContextArea } from "../shell/Menus";
 import type { DirectController } from "../project/use-direction";
 import type { ChatController } from "./use-chat";
@@ -235,7 +236,39 @@ export function Transcript({
               </ContextArea>
             );
           }
-          if (tool === "build_set_from_take" || tool === "fill_set_more")
+          if (tool === "make_panorama")
+            // Two panoramas in Python's words, and the way to the user's choice in Library > Stages.
+            return (
+              <article
+                key={turn.id}
+                className="chat-message chat-assistant"
+                tabIndex={0}
+              >
+                <div className="stage-build" data-state="started">
+                  <Orbit size={14} aria-hidden />
+                  <span className="stage-build-text">
+                    {string(payload.message) || "Drawing two panoramas"}
+                  </span>
+                  {string(payload.operation_id) && (
+                    <button
+                      className="secondary-button"
+                      onClick={() =>
+                        useNavigator
+                          .getState()
+                          .openPanoramas(string(payload.operation_id))
+                      }
+                    >
+                      Review panoramas
+                    </button>
+                  )}
+                </div>
+              </article>
+            );
+          if (
+            tool === "build_set_from_take" ||
+            tool === "fill_set_more" ||
+            tool === "build_stage_from_panorama"
+          )
             // The build's start in Python's words; its progress shows on the plan.
             return (
               <article

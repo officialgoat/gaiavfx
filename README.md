@@ -17,6 +17,7 @@ GAIAVFX is a local-first, chat-first movie workspace driven by ComfyUI. Discuss 
 - **Agent:** discuss the work, revise a plan, then approve its execution.
 - **Review:** rank candidates blind before selecting takes.
 - **Stages:** build a 3D stage from a generated take with gsplat, fill unseen space and use stage views in scenes. Research-grade; requires the separate worldbuilder engine.
+- **Panoramas:** draw two 360° panoramas of a place from words (Krea 2 with a 360 LoRA) or grow one from a picture (Fibo 2.0), with their seams closed and checked; choose one and build a stage from it (MoGe-3 depth, then the stage engine fills what it never saw). Opt-in: its weights are licensed for non-commercial use only, and it needs ComfyUI 0.43.
 - **Recast:** replace one or two characters across a film's shots, with human review.
 - **Image edits:** use Qwen-Image-Edit-2511 with its Lightning adapter.
 

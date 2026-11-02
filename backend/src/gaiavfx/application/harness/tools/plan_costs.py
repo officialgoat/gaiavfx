@@ -7,7 +7,8 @@ from gaiavfx.application.harness.replacement_context import (
 )
 from gaiavfx.application.harness.shots import shot_plan, shot_words, shots, targeted_shots
 from gaiavfx.application.harness.tools.input_hints import known_empty_image
-from gaiavfx.application.harness.tools.plan_scope import named_actions
+from gaiavfx.application.harness.tools.plan_scope import named_actions, producer_kinds
+from gaiavfx.application.panoramas import RENDERS as PANORAMA_RENDERS
 from gaiavfx.application.prepare_references import VIEW_ACTIONS, view_producer
 from gaiavfx.application.set_seed import fill_renders
 
@@ -89,6 +90,8 @@ def complete_costs(context, steps):
             # A build fills its stage's unseen space unless the agent says otherwise, so its step reserves the
             # probes' renders; a build that does not fill spends none of them.
             step.jobs = fill_renders()
+        if step.kind == "prepare" and step.jobs == 0 and "panorama" in producer_kinds(step.title):
+            step.jobs = PANORAMA_RENDERS
 
 
 def check_plan_costs(context, steps):
@@ -135,6 +138,14 @@ def check_plan_costs(context, steps):
                 )
             if not 1 <= step.jobs <= 4:
                 problems.append("replacement_jobs: reserve 1 to 4 renders for the analysed shot.")
+            continue
+        if step.kind == "prepare" and "panorama" in producer_kinds(step.title):
+            # Two panoramas, each drawn (or grown) and its seam filled: one attempt's renders, apart from any cut.
+            if step.jobs != PANORAMA_RENDERS:
+                problems.append(
+                    f"panorama_jobs: '{step.title}' draws two panoramas and fills their seams: "
+                    f"{PANORAMA_RENDERS} renders, not {step.jobs}."
+                )
             continue
         if step.kind == "build":
             renders = fill_renders()

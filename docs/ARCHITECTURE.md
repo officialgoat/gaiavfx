@@ -47,6 +47,8 @@ Each of these concepts has one module, and its callers and tests go through that
 | Replacement pixels | `application/replacement_pixels.py` | The numpy pixel operations of a replacement: resampling, crops, masks, pastes and letterbox checks. |
 | Signed links | `api/signed_links.py` | Media, splat and face URLs the renderer loads without its token: signed for what they serve, with one expiry rule. |
 | Stage build | `application/set_build.py`, `sets.build_view` | A stage build's operation and its readings: state, spend, and the workbench's label and banner. Why it stopped (`sets.stop_cause`, `STOP_WORDS`) is one rule the banner and Gaia both word. |
+| Panoramas | `modules/panoramas/`, `application/panoramas.py` | The model-free rules (`modules/panoramas`: requests in words about the place, ERP geometry the stage engine shares, the seam band fill that provably changes nothing outside the band, growing a picture and keeping its pixels) and the `panorama` operation: two candidates in lock-step, the advancer that closes their seams, and the user's choice, kept on the review and reached only through `review_approvals`. A panorama kind prepares a stage, not a place's shots (`OperationKind.prepares_shots`). |
+| Stage from a panorama | `application/set_panorama.py` | A seed (source `panorama`) from the chosen candidate: MoGe-3 and SAM 3 on the panorama, the engine's `atlas_from_panorama` (K0), the splat, and filling from the panorama's crops by R5's planner (`worldbuilder_splat/fill.py`). `set_seed` keeps the seed's stages, words, retry and provenance for both sources. |
 | Addressed issues | `modules/sets/service.py` (`addressed_issue_ids`) | The issues a built version addressed, for its review and for settling them. |
 | Stage run plan | `application/sets.py` (`run_plan`, `enqueue_fix`) | What Run queued fixes runs on a version, and the one admission for a fix. |
 | Character derivatives | `application/recast_derivatives.py` | A character's face sheet and voice model: feed, approval, cancel and reconcile. |
@@ -95,7 +97,8 @@ Collection registers media/assets or managed artifacts through Library and links
 | `minimax_h3/` | H3 rendering, continuation, replacement, survey and probes. `knowledge/` contains `pack`, `head`, `render`, `replacement`, `survey`, `probe` and `wording` TOMLs. `continuation.py` holds the handoff rule ([CONTINUATION.md](CONTINUATION.md)). |
 | `qwen_image_edit/` | Qwen image-edit graphs and prompt wording, with `render.toml` and `wording.toml`. |
 | `person_analysis/` | Face analysis and SAM tracking graphs; `knowledge/render.toml` declares model settings. |
-| `worldbuilder/` | Geometry extraction, take-to-stage rules and fill planning; `take`, `rules`, `fill` and `engines` TOMLs. |
+| `worldbuilder/` | Geometry extraction, take-to-stage and panorama-to-stage rules and fill planning; `take`, `panorama`, `rules`, `fill` and `engines` TOMLs. |
+| `panorama/` | Krea 2 Turbo with the 360 text-to-image LoRA (text to panorama), Fibo 2.0 Edit Turbo (seam band, picture outpaint) and MoGe-3 (a picture's field of view): the Worldbuilder research's winning recipes and wording, in `render.toml` and `wording.toml`. Needs ComfyUI 0.43 and the opt-in `panoramas` setup feature (non-commercial weights). |
 | `voice/` | Experimental voice specifications and expansion rules; `voice`, `expansion` and `engines` TOMLs. |
 
 Knowledge TOMLs hold model-specific settings and rules near their compilers. Python is authoritative for prompt syntax and persisted behavior. Snapshots preserve the resolved knowledge used by a job; changing defaults does not silently rewrite its run evidence. Integrations are explicit imports, not dynamically loaded plugins.

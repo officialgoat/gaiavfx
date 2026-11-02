@@ -46,6 +46,7 @@ class OperationKind:
     blind_render: bool = (
         False  # a Recast render: in an open film it reads alike whatever its method
     )
+    prepares_shots: bool = True  # it prepares the shots of its scope (a place's plate, views, sheet); a panorama prepares a stage
 
 
 KINDS = {
@@ -79,13 +80,15 @@ KINDS = {
             open_panorama_review,
             panorama_review_pending,
             gaia_opens=False,
+            prepares_shots=False,
         ),
     )
 }
 PREPARATION = {
-    name: kind for name, kind in KINDS.items() if kind.scope
-}  # what Gaia prepares and waits on
-REVIEWED = frozenset(name for name, kind in PREPARATION.items() if kind.opens)  # reference reviews
+    name: kind for name, kind in KINDS.items() if kind.scope and kind.prepares_shots
+}  # what Gaia prepares for shots and waits on
+# Reviews a plan's prepare step waits on: the shots' references and a place's panoramas.
+REVIEWED = frozenset(name for name, kind in KINDS.items() if kind.scope and kind.opens)
 VIEW_KINDS = frozenset(VIEW_PRODUCERS)  # their candidates are angle views, approved as evidence
 
 

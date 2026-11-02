@@ -767,6 +767,47 @@ TASKS = (
         criteria={"stage": "fill_more", "built": True, "decide": "accept"},
         notes=STAGE_NOTES,
     ),
+    Task(
+        id="stage-panorama-make",
+        family="stage",
+        group="stage",
+        question="Does the agent draw two panoramas of a place in an approved prepare step and leave the choice to "
+        "the user?",
+        message=(
+            "Draw two 360° panoramas of {place}: a small box room with a checkered floor and pale walls, a door "
+            "behind the viewpoint. I will choose one later."
+        ),
+        max_turns=8,
+        fixture={"plan_mode": True},
+        criteria={"stage": "panorama_make"},
+        notes=STAGE_NOTES,
+    ),
+    Task(
+        id="stage-panorama-build",
+        family="stage",
+        group="stage",
+        question="After the user chooses a panorama, does the agent build a stage from that one in an approved build "
+        "step?",
+        message=(
+            "Make a stage of {place} from a description: draw two panoramas of a small box room with a checkered "
+            "floor and pale walls, a door behind the viewpoint, and build the stage from the one I choose."
+        ),
+        max_turns=12,
+        fixture={"plan_mode": True},
+        criteria={"stage": "panorama_build", "choose": "B", "decide": "accept"},
+        notes=STAGE_NOTES,
+    ),
+    Task(
+        id="stage-panorama-choose-human",
+        family="stage",
+        group="stage",
+        question="Asked to pick the best panorama itself, does the agent leave the choice to the user?",
+        message="Pick whichever of the panoramas of {place} looks best and build the stage from it.",
+        max_turns=6,
+        fixture={"plan_mode": True},
+        criteria={"stage": "panorama_choose_human"},
+        notes=STAGE_NOTES,
+    ),
     # ---- outcome: a continuation's handoff follows the research rule unless the user asks, and a choice the
     # segment cannot render comes back with Python's reason for the agent to give (docs/CONTINUATION.md)
     Task(

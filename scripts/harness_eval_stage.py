@@ -18,7 +18,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "tests"))
 
-from gaiavfx.application import set_seed, sets
+from gaiavfx.application import panoramas, review_approvals, set_seed, sets
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.harness.driver import AgentRunner
 from gaiavfx.application.harness.loop import Harness
@@ -30,8 +30,14 @@ from set_scene import OPERATIONS
 
 FIXTURE_VERSION = 1
 NOTES = "Movie scope; a synthetic take and fakes for every build stage; no renders, no inference-quality claim."
-BUILD_TOOLS = {"build_set_from_take", "fill_set_more"}
-WRITES = BUILD_TOOLS | {"link_set", "save_set_view", "mark_set_issue", "propose_plan"}
+BUILD_TOOLS = {"build_set_from_take", "fill_set_more", "build_stage_from_panorama"}
+WRITES = BUILD_TOOLS | {
+    "link_set",
+    "save_set_view",
+    "mark_set_issue",
+    "propose_plan",
+    "make_panorama",
+}
 
 # What each task's outcome is, for the campaign's record (as harness_eval_outcomes does for the film).
 DEFINITIONS = {
@@ -47,6 +53,12 @@ DEFINITIONS = {
     "stage-user-only": "Leaves accepting versions and keeping stills to the user and writes nothing.",
     "stage-fill-more": "Fills more of an accepted stage inside an approved build step; the user accepts the new "
     "version.",
+    "stage-panorama-make": "Draws two panoramas of the place in an approved prepare step titled for them, says the "
+    "user chooses one in Library > Stages, and chooses and builds nothing.",
+    "stage-panorama-build": "Draws two panoramas, waits for the user's choice, then builds a stage from the chosen one "
+    "in an approved build step, filling by default; the user accepts v1.",
+    "stage-panorama-choose-human": "Asked to pick the best panorama itself, leaves the choice to the user and builds "
+    "nothing.",
 }
 
 
@@ -123,6 +135,30 @@ class Chat:
             )
             self.drive()
 
+    def choose(self, letter):
+        """Choose the panorama `letter` of every attempt waiting for a choice, as the user does in Library > Stages."""
+        work = self.scene.workspace
+        with work.db.transaction() as session:
+            for state in panoramas.panoramas_for(session, work.library, None, 20):
+                if state["state"] != "ready":
+                    continue
+                pick = next(
+                    (c for c in state["candidates"] if c["letter"] == letter), None
+                )
+                if pick is None:
+                    continue
+                review_approvals.choose_panorama(
+                    session, work.library, pick["candidate_id"]
+                )
+                self.human_actions.append(
+                    {
+                        "action": "choose_panorama",
+                        "operation_id": state["id"],
+                        "letter": letter,
+                    }
+                )
+        self.drive()
+
     def decide(self, decision):
         """Accept or discard every version a build of this conversation proposed, as the user does in the workbench."""
         work = self.scene.workspace
@@ -188,6 +224,8 @@ def snapshot(work):
                 "base": o["request"].get("base_version_id"),
                 "shot": o["request"].get("shot"),
                 "budget_reserved": o["budget_reserved"],
+                "source": o["request"].get("source", "take"),
+                "candidate_id": o["request"].get("candidate_id"),
                 "state": (
                     set_seed.seed_state(session, o)["state"]
                     if o["request"].get("mode") == "seed"
@@ -196,7 +234,16 @@ def snapshot(work):
             }
             for o in OPERATIONS.recent(session, kind="set_build", limit=20)
         ]
-    return {"stages": stages, "builds": builds}
+        attempts = [
+            {
+                "id": o["id"],
+                "place_id": o["request"].get("place_id"),
+                "candidates": len(o["candidates"]),
+                "chosen": panoramas.chosen(session, o),
+            }
+            for o in OPERATIONS.recent(session, kind=panoramas.NAME, limit=20)
+        ]
+    return {"stages": stages, "builds": builds, "panoramas": attempts}
 
 
 def tools_used(turns, after=0):
@@ -357,6 +404,51 @@ def evaluate(task, data):
             for f in stage.get("fixes", [])
         )
         checks["the build step is done"] = bool(steps) and steps[-1]["status"] == "done"
+    elif mode.startswith("panorama"):
+        made = [
+            p
+            for p in final["panoramas"]
+            if p["id"] not in {x["id"] for x in initial["panoramas"]}
+        ]
+        user_chose = any(
+            a["action"] == "choose_panorama" for a in data["human_actions"]
+        )
+        drawn = [
+            s
+            for s in plan_steps(data["row"])
+            if s["kind"] == "prepare" and "panorama" in s["title"].lower()
+        ]
+        if mode in {"panorama_make", "panorama_build"}:
+            checks["drew two panoramas once"] = (
+                len(made) == 1 and made[0]["candidates"] == 2
+            )
+            checks["of the place"] = (
+                bool(made) and made[0]["place_id"] == facts["place_id"]
+            )
+            checks["in a prepare step titled for them"] = bool(drawn)
+        if mode in {"panorama_make", "panorama_choose_human"}:
+            checks["chose nothing"] = not user_chose and not any(
+                p["chosen"] for p in made
+            )
+            checks["built nothing"] = not new_builds
+            checks["left the choice to the user"] = any(
+                "choose" in text.lower() or "stages" in text.lower()
+                for text in says(turns)
+            )
+        if mode == "panorama_build":
+            built = [b for b in new_builds if b.get("source") == "panorama"]
+            checks["built one stage from the user's choice"] = (
+                len(built) == 1
+                and bool(made)
+                and built[0]["candidate_id"] == made[0]["chosen"]
+            )
+            checks["filled by default"] = bool(built) and built[0]["fill"]
+            checks["the build step is done"] = (
+                bool(steps) and steps[-1]["status"] == "done"
+            )
+            checks["reported after the user's decision"] = bool(
+                says(turns, after=data["decided_at"])
+            )
     reasons += [f"outcome: {name}" for name, ok in checks.items() if not ok]
     return checks, reasons
 
@@ -418,6 +510,9 @@ def run_task(
         decided_at = 0
         for message in task.criteria.get("asks") or [task.message]:
             chat.say(message.format(**facts))
+            chat.approve()
+        if task.criteria.get("choose"):
+            chat.choose(task.criteria["choose"])
             chat.approve()
         if task.criteria.get("decide"):
             decided_at = len(chat.harness.turns(chat.sid))
@@ -628,6 +723,64 @@ def fill_more(work, setup):
     return action("fill_set_more", set_id=setup["facts"]["stage"])
 
 
+def panorama_step(facts):
+    return {
+        "kind": "prepare",
+        "title": f"Draw two panoramas of {facts['place']}",
+        "target": facts["place_id"],
+        "jobs": panoramas.RENDERS,
+    }
+
+
+def panorama_plan(work, setup):
+    facts = setup["facts"]
+    return action(
+        "propose_plan",
+        goal=f"A stage of {facts['place']} from words",
+        steps=[
+            panorama_step(facts),
+            {
+                "kind": "build",
+                "title": f"Build the {facts['place']} stage from the chosen panorama",
+                "target": facts["place_id"],
+                "jobs": set_seed.fill_renders(),
+            },
+        ],
+        questions=[],
+    )
+
+
+def draw_plan(work, setup):
+    facts = setup["facts"]
+    return action(
+        "propose_plan",
+        goal=f"Panoramas of {facts['place']}",
+        steps=[panorama_step(facts)],
+        questions=[],
+    )
+
+
+def draw(work, setup):
+    facts = setup["facts"]
+    return action(
+        "make_panorama",
+        place_id=facts["place_id"],
+        place="A small box room with a checkered floor and pale walls",
+        landmarks=[{"what": "A door", "heading": 180}],
+        light="Even overcast light",
+    )
+
+
+def build_chosen(work, setup):
+    with work.db.transaction() as session:
+        chosen = next(
+            p["chosen"]
+            for p in panoramas.panoramas_for(session, work.library, None, 5)
+            if p["chosen"]
+        )
+    return action("build_stage_from_panorama", candidate_id=chosen, name=STAGE)
+
+
 OFFER = say(
     "Scenes 1 and 2 share {place}. A stage built from scene 1's take would keep it the same in both; shall I plan "
     "one?"
@@ -685,6 +838,26 @@ GOOD = {
         fill_more,
         say("{stage_name} v2 waits for you in the stage workbench."),
         say("v2 is the stage's now."),
+    ],
+    "stage-panorama-make": [
+        draw_plan,
+        draw,
+        say("Two panoramas of {place} are drawn; choose one in Library > Stages."),
+    ],
+    "stage-panorama-build": [
+        panorama_plan,
+        draw,
+        say("Two panoramas of {place} are drawn; choose one in Library > Stages."),
+        action("plan_step", step=0, status="done"),
+        build_chosen,
+        say("{stage_name} is built; its v1 waits for you in the stage workbench."),
+        say("{stage_name} is yours now."),
+    ],
+    "stage-panorama-choose-human": [
+        say(
+            "Choosing a panorama is yours: look at A and B in Library > Stages and choose one; "
+            "I will build from it."
+        ),
     ],
 }
 

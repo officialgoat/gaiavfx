@@ -10,6 +10,7 @@ from gaiavfx.application.harness import history
 from gaiavfx.application.harness.actions import ToolContext
 from gaiavfx.application.harness.budget import Budget
 from gaiavfx.application.harness.scope import FilmState, scope_state, scope_view
+from gaiavfx.application.harness.tools.panoramas import refresh_panoramas
 from gaiavfx.application.harness.tools.render import reported_reviews
 from gaiavfx.application.harness.tools.replacement import refresh_analyses
 from gaiavfx.application.harness.tools.sets import refresh_sets
@@ -71,6 +72,7 @@ def refresh(session, state, attachments, library, turns):
     if not isinstance(state, FilmState):
         refresh_analyses(session, state, attachments, library, turns)
         refresh_sets(session, state, library, turns, history.latest_user_message(turns))
+        refresh_panoramas(session, state, library, turns, history.latest_user_message(turns))
 
 
 def for_plan_review(session, row, document, turns, library):

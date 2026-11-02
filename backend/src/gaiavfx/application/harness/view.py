@@ -110,6 +110,7 @@ def render_view(state, autonomy, budget, *, document=None):
             + (f"; built as place {places}" if places else "")
         )
     lines += ["read_set reads a stage's cameras, map, issues and views."] if state.sets else []
+    lines += panorama_lines(state)
     lines += set_candidates(state)
     for segment in state.segments:
         lines.append(
@@ -218,6 +219,29 @@ def selection_text(selection):
         return "none"
     label = "user-selected" if selection["authority"] == "user" else "provisional"
     return f"{label}: {selection['asset_id']} r{selection['revision']}"
+
+
+def panorama_lines(state) -> list[str]:
+    """A place's panoramas in the agent's words: drawing, waiting for the user's choice in Library > Stages, chosen
+    (build_stage_from_panorama builds from that one), or built."""
+    lines = []
+    for row in getattr(state, "panoramas", []):
+        place = next((p["name"] for p in state.places if p["id"] == row["place_id"]), None)
+        letters = ", ".join(f"{c['letter']} {c['candidate_id']}" for c in row["candidates"])
+        head = f"Panoramas {row['id']}" + (
+            f" of place {place} ({row['place_id']})" if place else ""
+        )
+        if row["build"]:
+            tail = f"stage build {row['build']['state']}: {row['build']['label']}"
+        elif row["chosen"]:
+            letter = next(c["letter"] for c in row["candidates"] if c["chosen"])
+            tail = f"the user chose {letter} ({row['chosen']}); build_stage_from_panorama builds from it"
+        elif row["state"] == "ready":
+            tail = f"{letters}; awaits the user's choice in Library > Stages, never yours"
+        else:
+            tail = row["message"]
+        lines.append(f"{head}: {tail}")
+    return lines
 
 
 def step_target(step, state):

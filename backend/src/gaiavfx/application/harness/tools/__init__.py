@@ -13,6 +13,7 @@ from gaiavfx.application.harness.tools.edits import (
     EditPlace,
     EditSegment,
 )
+from gaiavfx.application.harness.tools.panoramas import BuildStageFromPanorama, MakePanorama
 from gaiavfx.application.harness.tools.picks import PickProvisional
 from gaiavfx.application.harness.tools.plan import PlanStepTool, ProposePlan
 from gaiavfx.application.harness.tools.prepare import PrepareCut
@@ -60,6 +61,8 @@ DEFAULT_TOOLS = (
     LinkSet(),
     BuildSetFromTake(),
     FillSetMore(),
+    MakePanorama(),
+    BuildStageFromPanorama(),
     PickProvisional(),
     BoardWrite(),
     AskHuman(),

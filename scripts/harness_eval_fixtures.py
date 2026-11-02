@@ -822,6 +822,7 @@ def stage_facts(scene, set_id):
         "second": scene.second["id"],
         "corner": scene.angles["corner"]["id"],
         "place": scene.place["name"],
+        "place_id": scene.place["id"],
         "stage": set_id,
         "stage_name": STAGE,
         "camera": None,

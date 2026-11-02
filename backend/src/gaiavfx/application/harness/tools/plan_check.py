@@ -15,7 +15,7 @@ from gaiavfx.application.harness.replacement_context import latest_read_analysis
 from gaiavfx.application.harness.session import PLAN_JOBS_MAX, STEP_JOBS_MAX
 from gaiavfx.application.harness.tools.common import refusal
 from gaiavfx.application.harness.tools.plan_costs import check_plan_costs, complete_costs
-from gaiavfx.application.harness.tools.plan_scope import proposal_scope_refusal
+from gaiavfx.application.harness.tools.plan_scope import producer_kinds, proposal_scope_refusal
 from gaiavfx.application.harness.tools.request_rules import count_refusal, plan_segment_count
 from gaiavfx.application.set_seed import fill_renders
 
@@ -59,6 +59,26 @@ def edit_title(title):
             re.IGNORECASE,
         )
     )
+
+
+def panorama_title(title):
+    """A prepare step that makes panoramas of a place: it targets the place (or nothing) and reserves the attempt's
+    renders, apart from any cut's preparation."""
+    return "panorama" in producer_kinds(title)
+
+
+def panorama_places(context, steps) -> list[str]:
+    """The places a build step may build a stage for from a chosen panorama: one a panorama step earlier in the plan
+    targets, or one with a chosen panorama nothing was built from yet."""
+    earlier = [
+        s.target for s in steps if s.kind == "prepare" and panorama_title(s.title) and s.target
+    ]
+    chosen = [
+        p["place_id"]
+        for p in getattr(context.state, "panoramas", [])
+        if p["place_id"] and p["chosen"] and not p.get("build")
+    ]
+    return list(dict.fromkeys(earlier + chosen))
 
 
 def stage_title(title):
@@ -149,6 +169,11 @@ def default_producer_targets(context, steps):
     segments = context.state.segments
     for step in steps:
         if step.target or step.kind not in {"prepare", "render"}:
+            continue
+        if step.kind == "prepare" and panorama_title(step.title):
+            # A place's panoramas never take a cut; the only place is the one they are of.
+            if len(context.state.places) == 1:
+                step.target = context.state.places[0]["id"]
             continue
         recasts = getattr(context.state, "recasts", [])
         if (
@@ -247,6 +272,12 @@ def check(context, steps):
     for index, step in enumerate(steps):
         if step.kind == "review" and not any(s.kind == "render" for s in steps[:index]):
             return refuse("review_without_render")
+        if step.kind == "prepare" and panorama_title(step.title):
+            # A place's panoramas: the place (or none) is the target, and no cut's preparation applies.
+            ids = [p["id"] for p in context.state.places]
+            if step.target and step.target not in ids:
+                return refuse("panorama_target", places=", ".join(ids) or "none")
+            continue
         if step.kind == "prepare" and stage_title(step.title):
             return refuse(
                 "build_as_prepare",
@@ -263,11 +294,15 @@ def check(context, steps):
             return refuse("nothing_to_prepare", target=step.target)
         if step.jobs and step.kind not in {"prepare", "render", "build"}:
             return refuse("jobs_on_wrong_kind", kind=step.kind, title=step.title[:120])
-        if step.kind == "build" and step.target not in scenes + stages:
+        places = panorama_places(context, steps[:index])
+        if step.kind == "build" and step.target not in scenes + stages + places:
             # Each kind named apart: the live eval's model left the target out three times when one list mixed
             # scenes and stages.
             return refuse(
-                "build_target", scenes=scene_words or "none", stages=", ".join(stages) or "none"
+                "build_target_panorama" if places else "build_target",
+                scenes=scene_words or "none",
+                stages=", ".join(stages) or "none",
+                places=", ".join(places),
             )
         recast = step.kind == "render" and step.target in {
             r["id"] for r in getattr(context.state, "recasts", [])

@@ -20,6 +20,7 @@ KEYWORDS = {
     "assemble": r"assembl(?:e|es|ed|ing|y)|sheets?",
     "prepare": r"prepar(?:e|es|ed|ing|ation)",
     "render": r"render(?:s|ed|ing)?|takes?",
+    "panorama": r"panoramas?|360",
 }
 # The preparation actions a step title names for its costs, in the words above: a plate fit is named with removal,
 # and the place's views with its survey.

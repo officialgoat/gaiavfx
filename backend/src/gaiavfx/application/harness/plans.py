@@ -34,6 +34,7 @@ from gaiavfx.application.harness.world import (
     selections,
 )
 from gaiavfx.application.operation_kinds import REVIEWED, kind_of
+from gaiavfx.application.panoramas import letter_of
 from gaiavfx.application.recast_read import recast_state
 from gaiavfx.application.set_build import build_outcome, build_state, settled
 from gaiavfx.shared.errors import ApplicationError
@@ -393,6 +394,15 @@ def review_outcome(session, movie_id, operation):
         )
     if operation["kind"] == "render" and no_usable(review):
         return f"The user reviewed render {operation['id']}. " + no_usable_report(review)
+    if operation["kind"] == "panorama":
+        choice = (review or {}).get("context", {}).get("chosen")
+        if choice:
+            letter = letter_of(operation, choice["candidate_id"]) or "?"
+            return (
+                f"The user chose panorama {letter} ({choice['candidate_id']}) of {operation['id']}; "
+                "build_stage_from_panorama builds the stage from it."
+            )
+        return f"Panoramas {operation['id']} are superseded by a newer attempt; read its state."
     if operation["kind"] == "removal":
         if plate_approved(session, operation):
             return (

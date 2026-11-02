@@ -1,8 +1,8 @@
 {
  "film/executing": {
   "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, start_recast_run, ask_human, propose_plan, plan_step, describe_reference.",
-  "schema_bytes": 3728,
-  "schema_sha256": "f7521d80de9dda98644fbc43394d1963d2ceee76261b56b35dcf41202741c19e",
+  "schema_bytes": 3818,
+  "schema_sha256": "ec51556e8d78366ab27b6d94a4302a82a60864641f2c09e07af66eacc4ea4484",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -30,8 +30,8 @@
  },
  "film/executing/review": {
   "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, ask_human, say, propose_plan, plan_step, describe_reference.",
-  "schema_bytes": 3417,
-  "schema_sha256": "3eb60c187c005c0a28724a695cfe2e0df8ea93bc396d16dec6b5145ac2ab2561",
+  "schema_bytes": 3507,
+  "schema_sha256": "86df234568dcd4e60dfd48fcababa7024221728429c69384cad2b775b2e6ab01",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -59,8 +59,8 @@
  },
  "film/no-plan": {
   "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, board_write, ask_human, say, propose_plan, describe_reference.",
-  "schema_bytes": 3465,
-  "schema_sha256": "afa0b29a5a5ba8827d8e3974e91c818547ccf459b4fd5cc7753f56cce4d5b644",
+  "schema_bytes": 3555,
+  "schema_sha256": "7df09abeabb83ddee60fc89c792f0bf837b85c5db3c21a5983e6298076f861d9",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -88,8 +88,8 @@
  },
  "film/proposed": {
   "absent_call": "422: Tool 'read_movie' is not available in this state. Available tools: read_recast, propose_cast, propose_appearance, board_write, ask_human, say, propose_plan, describe_reference.",
-  "schema_bytes": 3465,
-  "schema_sha256": "afa0b29a5a5ba8827d8e3974e91c818547ccf459b4fd5cc7753f56cce4d5b644",
+  "schema_bytes": 3555,
+  "schema_sha256": "7df09abeabb83ddee60fc89c792f0bf837b85c5db3c21a5983e6298076f861d9",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -248,8 +248,8 @@
  },
  "movie/executing/answer/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -278,8 +278,8 @@
  },
  "movie/executing/answer/pending": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3040,
-  "schema_sha256": "727d68e886f009404198f7e133e73c478fe5ceba9aa618b60abc4b0eb7df68e3",
+  "schema_bytes": 3130,
+  "schema_sha256": "3f1169c112f274da32d05deeec73c6e157bc295e8e0aa3989339dc359c67441c",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -307,8 +307,8 @@
  },
  "movie/executing/build/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "Step target segment 1 (<id1>): has nothing left to prepare",
@@ -337,8 +337,8 @@
  },
  "movie/executing/build/pending": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3040,
-  "schema_sha256": "727d68e886f009404198f7e133e73c478fe5ceba9aa618b60abc4b0eb7df68e3",
+  "schema_bytes": 3130,
+  "schema_sha256": "3f1169c112f274da32d05deeec73c6e157bc295e8e0aa3989339dc359c67441c",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "Step target segment 1 (<id1>): has nothing left to prepare",
@@ -366,8 +366,8 @@
  },
  "movie/executing/edit/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -431,8 +431,8 @@
  },
  "movie/executing/pick/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -461,8 +461,8 @@
  },
  "movie/executing/pick/pending": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3040,
-  "schema_sha256": "727d68e886f009404198f7e133e73c478fe5ceba9aa618b60abc4b0eb7df68e3",
+  "schema_bytes": 3130,
+  "schema_sha256": "3f1169c112f274da32d05deeec73c6e157bc295e8e0aa3989339dc359c67441c",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -490,8 +490,8 @@
  },
  "movie/executing/prepare/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -520,8 +520,8 @@
  },
  "movie/executing/prepare/overflow-1": {
   "absent_call": "422: Tool 'edit_segment' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_phase, edit_cast, prepare_cut, ask_human, propose_plan, plan_step, describe_reference.",
-  "schema_bytes": 10825,
-  "schema_sha256": "78c1b4e3df7f4bb2d221b6fa24fb08291919fa0c124a9dd50f3d95734585829b",
+  "schema_bytes": 10915,
+  "schema_sha256": "00f0a101d0fbc17e672c8c52790765e123024eb36e5475f57856ea82da69b34f",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -553,8 +553,8 @@
  },
  "movie/executing/prepare/overflow-1500": {
   "absent_call": "422: Tool 'edit_place' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, prepare_cut, ask_human, propose_plan, plan_step.",
-  "schema_bytes": 6070,
-  "schema_sha256": "f4c30e179a6401526a1c4665b28f92eb8d405e25b91ebdbc59ea25b5d1cc7cc4",
+  "schema_bytes": 6160,
+  "schema_sha256": "14bca450be315a91739996b46048810a030ba6b27b470e12c80a5861faf94925",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -582,8 +582,8 @@
  },
  "movie/executing/prepare/pending": {
   "absent_call": "422: Tool 'edit_segment' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, edit_cut, edit_place, edit_phase, edit_cast, prepare_cut, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 11154,
-  "schema_sha256": "5eafb837715f54ef105f4f31d9c480632b9c321c9681afe546e94feb8cd087e4",
+  "schema_bytes": 11244,
+  "schema_sha256": "ade9683586cd594e649c02bc6598724366cb670365202aad5338dea92b46fd09",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -616,8 +616,8 @@
  },
  "movie/executing/render/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -646,8 +646,8 @@
  },
  "movie/executing/render/pending": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, render_candidates, ask_human, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3389,
-  "schema_sha256": "87dd0d8bb181bf60256336ff312a195e7657bead4b24e4f52d1d7e0e7bbd0cca",
+  "schema_bytes": 3479,
+  "schema_sha256": "a95f801c34b3fc1eed508c1298321496b6d7c6b113989b63165555133bf7dba5",
   "step_jobs_left": 2,
   "target_problems": {
    "build_set_from_take": "",
@@ -705,8 +705,8 @@
  },
  "movie/executing/review/awaiting_user": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -735,8 +735,8 @@
  },
  "movie/executing/review/pending": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, ask_human, say, propose_plan, plan_step, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3294,
-  "schema_sha256": "3078628d9412b2f6d1d860b046372749ba0f6bc8a1476efff848fdf31856ddbd",
+  "schema_bytes": 3384,
+  "schema_sha256": "70ed0ac229ef81ab1ee2b95e289238cd97b7141f1a9b5a2c9c01e2a13b7d202b",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -765,8 +765,8 @@
  },
  "movie/plan-mode/no-plan": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, board_write, ask_human, say, propose_plan, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3359,
-  "schema_sha256": "27c53e57e7d6ffc3652dd3395817ac692c2f9a2fffc1e4a639db4b7c1fddb07a",
+  "schema_bytes": 3449,
+  "schema_sha256": "028ff76596dfe2f6010ed341625eb2613d02191573b8eaf9f5d486c06ffcd582",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",
@@ -795,8 +795,8 @@
  },
  "movie/plan-mode/proposed": {
   "absent_call": "422: Tool 'edit_cut' is not available in this state. Available tools: read_movie, read_segment, inspect_cut, board_write, ask_human, say, propose_plan, describe_reference, analyze_reference_video.",
-  "schema_bytes": 3359,
-  "schema_sha256": "27c53e57e7d6ffc3652dd3395817ac692c2f9a2fffc1e4a639db4b7c1fddb07a",
+  "schema_bytes": 3449,
+  "schema_sha256": "028ff76596dfe2f6010ed341625eb2613d02191573b8eaf9f5d486c06ffcd582",
   "step_jobs_left": null,
   "target_problems": {
    "build_set_from_take": "",

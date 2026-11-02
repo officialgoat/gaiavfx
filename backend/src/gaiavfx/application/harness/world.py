@@ -110,6 +110,7 @@ class WorldState:
     people_analyses: list = field(default_factory=list)
     recasts: list = field(default_factory=list)
     sets: list = field(default_factory=list)
+    panoramas: list = field(default_factory=list)
     scope_kind: str = "movie"  # internal: a cut scope holds no first shot
 
     @property

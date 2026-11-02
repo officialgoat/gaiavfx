@@ -14,9 +14,10 @@ import numpy as np
 import synthetic_room as room
 from fake_comfy import FakeComfy
 from fill_answers import FillAnswers
+from panorama_answers import PanoramaAnswers
 from PIL import Image
 
-from gaiavfx.application import set_build, set_fill, set_seed
+from gaiavfx.application import set_build, set_fill, set_panorama, set_seed
 from gaiavfx.application.direction_reading import DIRECTION
 from gaiavfx.application.engine_jobs import EngineCommand
 from gaiavfx.application.operations import OperationRunner
@@ -71,14 +72,16 @@ class TakeComfy(FakeComfy):
         super().__init__(self.answer, polls_to_complete=1)
         self.graphs = []
         self.fill = FillAnswers(None)  # its root is set once the library exists
+        self.panoramas = PanoramaAnswers()
 
     def upload(self, url, source, filename, directory_type="input"):
         super().upload(url, source, filename, directory_type)
         self.fill.keep(filename, source)
+        self.panoramas.keep(filename, source)
 
     def answer(self, graph):
         self.graphs.append(graph)
-        filled = self.fill.answer(graph)
+        filled = self.fill.answer(graph) or self.panoramas.answer(graph)
         if filled is not None:
             return filled
         assert any(node["class_type"] == "GaiaSaveSetGeometry" for node in graph.values())
@@ -202,6 +205,7 @@ def build_scene(folder: Path, *, second_scene: bool = False) -> SimpleNamespace:
             step: worker
             for step in (
                 set_seed.ATLAS,
+                set_panorama.ATLAS,
                 set_seed.SPLAT,
                 set_build.STEPS[0],
                 set_fill.EXPLORE,

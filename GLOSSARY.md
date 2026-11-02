@@ -100,7 +100,7 @@ _Avoid_: intermediate, temp file
 ## Stages
 
 **Stage**:
-A Place built in 3D from a Take or a bundle, which views and scenes can use.
+A Place built in 3D from a Take, a chosen Panorama or a bundle, which views and scenes can use.
 _Avoid_: set (in user-facing words), environment
 
 **Version**:
@@ -111,7 +111,14 @@ A still with its depth and pose that a Stage version is built from, labelled K0,
 _Avoid_: pin, frame
 
 **Panorama**:
-K0, the Stage's ground-truth surround picture; it cannot be excluded.
+A 360° 2:1 surround picture of a place, drawn from words or grown from a picture, two at a time; the user chooses
+one in Library › Stages, and a Stage built from it keeps it as K0, its ground-truth surround picture, which cannot be
+excluded.
+_Avoid_: equirectangular, ERP (in user-facing words)
+
+**Seam**:
+Where a Panorama's left and right edges join, behind the viewpoint (heading 180). Every panorama's seam is closed by a
+band fill that changes nothing outside a narrow band.
 
 **Issue**:
 A problem marked on a Stage by the user, Gaia or the judge.
@@ -120,7 +127,7 @@ A problem marked on a Stage by the user, Gaia or the judge.
 What answers an Issue: reshoot, extend, retract (exclude) or keep.
 
 **Build**:
-The work that writes a Stage version: a seed from a Take, or a repair from queued Fixes.
+The work that writes a Stage version: a seed from a Take or a chosen Panorama, or a repair from queued Fixes.
 
 **Run plan**:
 What Run queued fixes would run on the Version the user looks at: its Fixes, in words, or why it cannot run.

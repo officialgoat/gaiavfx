@@ -8,6 +8,7 @@ neither the grant nor the render step's job allowance is expanded.
 from gaiavfx.application.harness.shots import shot_plan, shot_words, shots, targeted_shots
 from gaiavfx.application.harness.tools.common import current_step, granted
 from gaiavfx.application.harness.tools.plan_costs import cut_plan_refusal, preparation_needs
+from gaiavfx.application.harness.tools.plan_scope import producer_kinds
 from gaiavfx.application.harness.tools.prepare import (
     needed_jobs,
     preparable,
@@ -54,7 +55,8 @@ def out_of_scope_skip(context, index, remaining):
 def completion_refusal(context, index):
     plan = context.document.plan
     step = plan.steps[index]
-    if step.kind != "prepare":
+    if step.kind != "prepare" or "panorama" in producer_kinds(step.title):
+        # A place's panoramas prepare a stage, not its shots: the user's choice completes them.
         return ""
     later = {
         c["id"]

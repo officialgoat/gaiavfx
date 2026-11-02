@@ -512,6 +512,13 @@ def _members(session, library, operation) -> list[dict]:
     return sorted(members, key=lambda m: m["letter"])
 
 
+def letter_of(operation, candidate_id: str) -> str | None:
+    """A candidate's letter as the user sees it: A and B in seed order (never the review's shuffled letters)."""
+    candidate = next((c for c in operation["candidates"] if c["id"] == candidate_id), None)
+    job = next((j for j in operation["jobs"] if candidate and j["id"] == candidate["job_id"]), None)
+    return LETTERS[staged.stage(job)["unit"]] if job else None
+
+
 def chosen(session, operation) -> str | None:
     review = existing_review(session, operation["id"])
     choice = (review or {}).get("context", {}).get("chosen")
