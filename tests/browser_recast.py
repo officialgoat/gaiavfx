@@ -46,7 +46,7 @@ from recast_world_support import (
     install_voice_builds,
     succeed,
 )
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 MEDIA = Path(__file__).resolve().parents[1] / ".cache" / "recast-world"
 
@@ -1120,16 +1120,28 @@ class BrowserWorld:
         self.forget(asset_id)
 
     def forget(self, film_id):
-        """Remove the Library assets a film's world imported, the film among them: nothing but the world's recast,
-        retired first, refers to them."""
+        """Remove the Library assets a film's world imported, the film among them, and the face portraits and sheets
+        the recast feed made from its pictures: nothing but the world's recast, retired first, refers to them."""
         imported = self.imports.pop(film_id, [])
-        if imported:
-            with self.get().db.transaction() as session:
+        if not imported:
+            return
+        operations = Base.metadata.tables["generation_operations"]
+        candidates = Base.metadata.tables["generation_candidates"]
+        assets = AssetRecord.__table__
+        with self.get().db.transaction() as session:
+            made = (
                 session.execute(
-                    delete(AssetRecord.__table__).where(
-                        AssetRecord.__table__.c.id.in_(imported)
+                    select(candidates.c.asset_id)
+                    .join(operations, operations.c.id == candidates.c.operation_id)
+                    .where(
+                        operations.c.request["target_asset"].as_string().in_(imported)
                     )
                 )
+                .scalars()
+                .all()
+            )
+            session.execute(delete(candidates).where(candidates.c.asset_id.in_(made)))
+            session.execute(delete(assets).where(assets.c.id.in_([*imported, *made])))
 
     def retire(self, recast_id: str):
         """Remove the recast's Editing rows so later specs' lists and feeds stay small, the Library assets its world

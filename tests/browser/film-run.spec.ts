@@ -766,7 +766,8 @@ test.describe("Mara and Elias take four shots in turn, neither mapped", () => {
     await expect(budget).toHaveValue("20");
     // (4): planned; the budget is prefilled from the estimate.
     await world.settle("person_analysis");
-    await expect(mainReason(page)).toHaveCount(0);
+    // The first read after the windows are analysed plans the shots: seconds of the service's own work.
+    await expect(mainReason(page)).toHaveCount(0, { timeout: 20_000 });
     const planned = (await world.read()).estimate!;
     expect(planned.shots).toBe(2);
     await expect(budget).toHaveValue(String(planned.renders));
@@ -790,7 +791,7 @@ test.describe("Mara and Elias take four shots in turn, neither mapped", () => {
       "Wait for window analyses to finish.",
     );
     await world.settle("person_analysis");
-    await expect(mainReason(page)).toHaveCount(0);
+    await expect(mainReason(page)).toHaveCount(0, { timeout: 20_000 });
     const grown = (await world.read()).estimate!;
     expect(grown.renders).toBe(2 * planned.renders);
     await runSettings(page);
