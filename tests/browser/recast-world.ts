@@ -43,6 +43,8 @@ export type Scene = {
   takes?: number;
   /** More finished takes of the shots named (by index). */
   retakes?: Record<number, number>;
+  /** Shots (by index) held back: a planner gap, a failed render, or one rendering until the spec settles it. */
+  states?: Record<number, "gap" | "failed" | "rendering">;
   /** Each take's checks (the last repeats); by default an uncalibrated identity score and an unsupported seam. */
   checks?: {
     check: string;

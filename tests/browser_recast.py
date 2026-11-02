@@ -86,7 +86,8 @@ class Scene(BaseModel):
     belong to no character (from Shot 003 on). `sheets` take a character's face sheet to waiting, approved or rejected.
     `faceless` characters have no face crop yet.
     `rendered` shots from the start get a finished Draft run's versions, `takes` of them, and `retakes` more on the
-    shots it names; `checks` are each take's checks (the last repeats). A planned shot's `links` join
+    shots it names; `checks` are each take's checks (the last repeats). `states` hold a shot back: a planner `gap`, a
+    `failed` render, or one still `rendering` until the spec settles it. A planned shot's `links` join
     a faceless person to a character. `pictures` are more Library portraits, by name."""
 
     shots: int = Field(8, ge=1, le=2000)
@@ -111,6 +112,7 @@ class Scene(BaseModel):
     rendered: int = 0
     takes: int = Field(1, ge=1, le=6)
     retakes: dict[int, int] = {}
+    states: dict[int, Literal["gap", "failed", "rendering"]] = {}
     checks: list[list[Check]] = [CHECKS]
     links: list[Link] = []
     pictures: list[str] = []
@@ -457,8 +459,9 @@ class BrowserWorld:
                     expected_revision=state["revision"],
                     range=None,
                 )
+                state = self.gaps(state, scene)
             if scene.rendered:
-                state = self.render(state, scene.rendered, scene.takes)
+                state = self.render(state, scene.rendered, scene.takes, scene.states)
                 for index, times in scene.retakes.items():
                     state = self.retake(state, index, times)
                 self.measure(state, scene.checks)
@@ -633,13 +636,51 @@ class BrowserWorld:
             time.sleep(0.05)
         raise RuntimeError("The target picture's face check did not finish.")
 
-    def render(self, state, shots, takes):
-        """A finished Draft run over the first `shots` shots, run `takes` times: each shot has that many versions."""
+    def gaps(self, state, scene):
+        """A `gap` shot's window analysis tells the planner who it cannot tell apart, so its plan has a gap."""
+        from gaiavfx.application import recast_projection as p
+
         world = self.get()
+        with world.db.transaction() as session:
+            stored = p.store.load(session, state["id"])["shots"]
+        for index, kind in scene.states.items():
+            if kind != "gap":
+                continue
+            for operation in stored[index]["window_analysis_ops"]:
+                world.window_reports[operation]["gaps"] = [
+                    {
+                        "code": "identity_conflict",
+                        "message": "Confirm who this person is before rendering.",
+                    }
+                ]
+                world.touch_window(operation)
+        return world.invoke(recast.recast_state, state["id"])
+
+    def shot_of(self, session, operation):
+        """The index of the shot a window's or an assembly's work belongs to."""
+        world = self.get()
+        request = operation["request"]
+        analysis = request.get("analysis")
+        if analysis is None:
+            window = world.ops.operation(session, request["window_operations"][0])
+            analysis = window["request"]["analysis"]
+        start = world.window_reports[analysis]["shot_start"]
+        shots = world.film_of(request["source_asset"]).report["shots"]
+        return next(s["index"] for s in shots if s["start"] <= start < s["end"])
+
+    def render(self, state, shots, takes, states=None):
+        """A finished Draft run over the first `shots` shots, run `takes` times: each shot has that many versions. A
+        `failed` shot's renders fail and a `rendering` one's wait (`states`)."""
+        world = self.get()
+        states = states or {}
+        held = {i for i, kind in states.items() if kind in {"rendering", "gap"}}
         end = state["shots"][shots - 1]["end"]
         for take in range(takes):
             if take:
-                for shot in state["shots"][:shots]:
+                for index, shot in enumerate(state["shots"][:shots]):
+                    # A held, gapped or failed shot has no take to repeat.
+                    if index in states:
+                        continue
                     state = world.invoke(
                         recast.retake_shot,
                         state["id"],
@@ -663,12 +704,22 @@ class BrowserWorld:
                         for operation in world.ops.recent(
                             session, kind=kind, limit=500
                         ):
-                            world.settle(session, operation["id"])
+                            index = self.shot_of(session, operation)
+                            if states.get(index) == "rendering":
+                                continue
+                            outcome = (
+                                "failed"
+                                if states.get(index) == "failed"
+                                and kind == "character_replacement"
+                                else "succeeded"
+                            )
+                            world.settle(session, operation["id"], outcome)
                     self.feed()
                 state = world.invoke(recast.recast_state, state["id"])
                 if all(
                     s["status"] not in {"rendering", "queued", "analysing", "planned"}
-                    for s in state["shots"][:shots]
+                    for i, s in enumerate(state["shots"][:shots])
+                    if i not in held
                 ):
                     break
         return state

@@ -1,60 +1,64 @@
-import { test, expect, type Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
-import { filmAsset, mockRecast } from "./recast-fixtures";
+import {
+  expect,
+  expectBlind,
+  openFilm,
+  recastCommands,
+  test,
+  type RecastWorld,
+} from "./recast-world";
 
 // ADR 0017 §8 and §11 after CP1: the film's review queue is the Project panel's Review bin, with the shots waiting for
 // a choice, those that need attention in the run's range, and the failed ones, at the trackbar's counts. Versions
-// are shown first and Enter accepts (the user's preview-first decision).
+// are shown first and Enter accepts (the user's preview-first decision). The recast is the service's own
+// (tests/browser_recast.py): its statuses, counts and choices are Python's.
 
-async function openFilm(page: Page) {
-  await page.getByRole("button", { name: "File", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Open film/ }).click();
-  await page
-    .getByRole("dialog", { name: "Open film" })
-    .getByRole("button", { name: new RegExp(filmAsset.name) })
-    .first()
-    .click();
-  await expect(page.locator(".timeline-heading")).toContainText(filmAsset.name);
-}
+/** Mara and Elias (the user's pictures) take twelve 2 s shots in turn at 25 fps, all rendered twice, except: Shots
+ * 005 and 011 have a gap, Shots 007 and 010 failed, and Shot 008 is still rendering. Seven shots wait for review. */
+test.use({
+  scene: {
+    shots: 12,
+    length: 50,
+    rate: [25, 1],
+    characters: ["Mara", "Elias"],
+    targets: ["confirmed", "confirmed"],
+    rendered: 12,
+    takes: 2,
+    states: { 4: "gap", 10: "gap", 6: "failed", 9: "failed", 7: "rendering" },
+  },
+});
 
 const bins = (page: Page) => page.locator(".film-project .project-bins");
 const filters = (page: Page) =>
   page.getByRole("group", { name: "Review filter" });
 const trackbar = (page: Page) => page.getByRole("toolbar", { name: "Recast" });
 const breadcrumb = (page: Page) => page.locator(".workspace-breadcrumb");
+const shotsIn = (list: ReturnType<Page["getByRole"]>) =>
+  list
+    .getByRole("listitem")
+    .evaluateAll((els) =>
+      els.map((el) => /Shot \d{3}/.exec(el.textContent ?? "")?.[0]),
+    );
+const version = async (world: RecastWorld, index: number, letter: string) =>
+  (await world.read()).shots[index].versions.find((v) => v.letter === letter)!
+    .id;
+const choice = async (world: RecastWorld, index: number) =>
+  (await world.read()).shots[index].choice?.version ?? null;
 
-/** No version's asset name or operation reaches the page: text, titles, labels, alt text or values. */
-async function expectBlind(page: Page) {
-  const leaks = await page.evaluate(() => {
-    const secrets = ["PRIVATE SEED ARM ROUND", "hidden-operation"];
-    const found: string[] = [];
-    const text = document.body.innerText;
-    for (const secret of secrets)
-      if (text.includes(secret)) found.push(`text: ${secret}`);
-    for (const element of Array.from(document.querySelectorAll("*")))
-      for (const attribute of Array.from(element.attributes))
-        for (const secret of secrets)
-          if (attribute.value.includes(secret))
-            found.push(`${element.tagName} ${attribute.name}: ${secret}`);
-    return found;
-  });
-  expect(leaks).toEqual([]);
-}
-
-test.beforeEach(async ({ page }) => {
-  const mock = await mockRecast(page);
-  mock.existing();
-  (page as Page & { mock?: typeof mock }).mock = mock;
+const commands = new WeakMap<Page, ReturnType<typeof recastCommands>>();
+test.beforeEach(async ({ page, world }) => {
+  commands.set(page, recastCommands(page));
+  await page.goto("/");
+  await openFilm(page, world);
 });
-const mockOf = (page: Page) =>
-  (page as Page & { mock: Awaited<ReturnType<typeof mockRecast>> }).mock;
+const choices = (page: Page) =>
+  commands.get(page)!.filter((c) => c.path.endsWith("/choice"));
 
 test("the Review step opens the waiting shots; Enter accepts and advances, and the accepted row keeps its mark", async ({
   page,
+  world,
 }) => {
-  const mock = mockOf(page);
-  await page.goto("/");
-  await openFilm(page);
   await trackbar(page)
     .getByRole("button", { name: /^Review: / })
     .click();
@@ -66,20 +70,15 @@ test("the Review step opens the waiting shots; Enter accepts and advances, and t
   ).toHaveAttribute("aria-pressed", "true");
   const list = page.getByRole("list", { name: "Shots waiting for review" });
   const rows = list.getByRole("listitem");
-  // The fixture's waiting shots, in film order.
-  expect(
-    await rows.evaluateAll((els) =>
-      els.map((el) => /Shot \d{3}/.exec(el.textContent ?? "")?.[0]),
-    ),
-  ).toEqual([
+  // The waiting shots, in film order.
+  expect(await shotsIn(list)).toEqual([
     "Shot 001",
     "Shot 002",
+    "Shot 003",
+    "Shot 004",
+    "Shot 006",
+    "Shot 009",
     "Shot 012",
-    "Shot 013",
-    "Shot 023",
-    "Shot 024",
-    "Shot 034",
-    "Shot 035",
   ]);
   await expect(breadcrumb(page)).toContainText("Shot 001");
   await expect(rows.first().getByRole("button")).toHaveAttribute(
@@ -91,9 +90,7 @@ test("the Review step opens the waiting shots; Enter accepts and advances, and t
   // Show B, accept: the choice is saved and the next waiting shot is current; the accepted row stays, marked.
   await page.keyboard.press("2");
   await page.keyboard.press("Enter");
-  await expect
-    .poll(() => mock.value.shots[0].choice?.version)
-    .toBe("version-0-B");
+  await expect.poll(() => choice(world, 0)).toBe(await version(world, 0, "B"));
   await expect(breadcrumb(page)).toContainText("Shot 002");
   await expect(rows.first()).toContainText("Shot 001");
   await expect(rows.first()).toContainText("B chosen");
@@ -104,56 +101,48 @@ test("the Review step opens the waiting shots; Enter accepts and advances, and t
   await expect(rows.nth(1).getByRole("button")).toBeFocused();
   await expect(
     bins(page).getByRole("button", { name: /^Review/ }),
-  ).toContainText("7");
+  ).toContainText("6");
   // A row selects its shot.
   await rows.nth(4).getByRole("button").click();
-  await expect(breadcrumb(page)).toContainText("Shot 023");
+  await expect(breadcrumb(page)).toContainText("Shot 006");
   await expectBlind(page);
 });
 
 test("the queue's counts equal the trackbar's, and Failed lists the failed shots", async ({
   page,
+  world,
 }) => {
-  await page.goto("/");
-  await openFilm(page);
   await bins(page)
     .getByRole("button", { name: /^Review/ })
     .click();
   await expect(
     trackbar(page).getByRole("button", { name: /^Review: / }),
-  ).toHaveAccessibleName("Review: 8 waiting");
+  ).toHaveAccessibleName("Review: 7 waiting");
   await expect(
-    filters(page).getByRole("button", { name: "Waiting 8", exact: true }),
+    filters(page).getByRole("button", { name: "Waiting 7", exact: true }),
   ).toBeVisible();
   await expect(
-    trackbar(page).getByRole("button", { name: /^4 need attention/ }),
+    trackbar(page).getByRole("button", { name: /^2 need attention/ }),
   ).toBeVisible();
   await expect(
     filters(page).getByRole("button", {
-      name: "Attention 4",
+      name: "Attention 2",
       exact: true,
     }),
   ).toBeVisible();
   await filters(page)
-    .getByRole("button", { name: "Failed 3", exact: true })
+    .getByRole("button", { name: "Failed 2", exact: true })
     .click();
   const failed = page.getByRole("list", { name: "Failed shots" });
-  expect(
-    await failed
-      .getByRole("listitem")
-      .evaluateAll((els) =>
-        els.map((el) => /Shot \d{3}/.exec(el.textContent ?? "")?.[0]),
-      ),
-  ).toEqual(["Shot 011", "Shot 022", "Shot 033"]);
+  expect(await shotsIn(failed)).toEqual(["Shot 007", "Shot 010"]);
   await expect(failed.getByRole("listitem").first()).toContainText("Failed");
   await expectBlind(page);
 });
 
 test("the Review workspace opens the queue in the Project panel", async ({
   page,
+  world,
 }) => {
-  await page.goto("/");
-  await openFilm(page);
   // The Library tab is in front; the Review workspace brings the Project panel's queue forward.
   await page.getByRole("tab", { name: "Library" }).click();
   await page
@@ -172,6 +161,7 @@ test("the Review workspace opens the queue in the Project panel", async ({
 for (const theme of ["dark", "light"] as const)
   test(`the review queue passes axe's default rules, ${theme}`, async ({
     page,
+    world,
   }) => {
     await page.emulateMedia({ colorScheme: theme });
     await page.addInitScript((value) => {
@@ -180,8 +170,9 @@ for (const theme of ["dark", "light"] as const)
         JSON.stringify({ state: { theme: value }, version: 1 }),
       );
     }, theme);
-    await page.goto("/");
-    await openFilm(page);
+    // The film reopens from the stored document, now in this theme.
+    await page.reload();
+    await expect(page.locator(".timeline-heading")).toContainText(world.title);
     await page.keyboard.press("q");
     await expect(
       page.getByRole("list", { name: "Shots waiting for review" }),
@@ -201,11 +192,8 @@ for (const theme of ["dark", "light"] as const)
 
 test("Enter accepts only on the current row or the shown tile; elsewhere it selects or shows", async ({
   page,
+  world,
 }) => {
-  const mock = mockOf(page);
-  const choices = () => mock.calls.filter((c) => c.path.endsWith("/choice"));
-  await page.goto("/");
-  await openFilm(page);
   await trackbar(page)
     .getByRole("button", { name: /^Review: / })
     .click();
@@ -218,13 +206,11 @@ test("Enter accepts only on the current row or the shown tile; elsewhere it sele
   await expect(rows.nth(1).getByRole("button")).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(breadcrumb(page)).toContainText("Shot 002");
-  expect(choices()).toHaveLength(0);
+  expect(choices(page)).toHaveLength(0);
   // Now it is the current row: Enter accepts what Program shows for Shot 002.
   await page.keyboard.press("Enter");
-  await expect
-    .poll(() => mock.value.shots[1].choice?.version)
-    .toBe("version-1-A");
-  expect(choices()).toHaveLength(1);
+  await expect.poll(() => choice(world, 1)).toBe(await version(world, 1, "A"));
+  expect(choices(page)).toHaveLength(1);
   // A tile that is not shown: Enter shows it; only then does Enter accept.
   await page.getByRole("tab", { name: "Properties" }).click();
   await page.getByRole("button", { name: "Shot 012", exact: true }).click();
@@ -233,19 +219,18 @@ test("Enter accepts only on the current row or the shown tile; elsewhere it sele
   await tile.focus();
   await page.keyboard.press("Enter");
   await expect(tile).toHaveAttribute("aria-pressed", "true");
-  expect(choices()).toHaveLength(1);
+  expect(choices(page)).toHaveLength(1);
   await page.keyboard.press("Enter");
   await expect
-    .poll(() => mock.value.shots[11].choice?.version)
-    .toBe("version-11-B");
+    .poll(() => choice(world, 11))
+    .toBe(await version(world, 11, "B"));
   await expectBlind(page);
 });
 
 test("opening the queue brings the Project panel forward, even when the bin is already Review", async ({
   page,
+  world,
 }) => {
-  await page.goto("/");
-  await openFilm(page);
   await page.keyboard.press("q");
   await expect(
     page.getByRole("list", { name: "Shots waiting for review" }),
@@ -267,9 +252,8 @@ test("opening the queue brings the Project panel forward, even when the bin is a
 
 test("Q after a mouse-opened queue returns to the bin before and keeps the reviewer's shot", async ({
   page,
+  world,
 }) => {
-  await page.goto("/");
-  await openFilm(page);
   await bins(page)
     .getByRole("button", { name: /^Review/ })
     .click();
@@ -290,50 +274,41 @@ test("Q after a mouse-opened queue returns to the bin before and keeps the revie
 
 test("Need attention lists every gap in the film, and shots that start waiting join an open list", async ({
   page,
+  world,
 }) => {
-  const mock = mockOf(page);
-  // Gaps at shots 005, 016, 027 and 038; a run over shots 001-020 holds two of them. Usability round 2 (C4): the
-  // list is film-wide, and its note says how many are in the run's range.
-  mock.value.run.range = { start: 0, end: 1000 };
-  await page.goto("/");
-  await openFilm(page);
+  // Gaps at Shots 005 and 011, both in the run's range (the whole film). Usability round 2 (C4): the list is
+  // film-wide, and its note says how many are in the run's range.
   await expect(
-    trackbar(page).getByRole("button", { name: /^4 need attention/ }),
+    trackbar(page).getByRole("button", { name: /^2 need attention/ }),
   ).toBeVisible();
   await trackbar(page)
     .getByRole("button", { name: /need attention/ })
     .click();
   const attention = page.getByRole("list", { name: "Shots needing attention" });
-  expect(
-    await attention
-      .getByRole("listitem")
-      .evaluateAll((els) =>
-        els.map((el) => /Shot \d{3}/.exec(el.textContent ?? "")?.[0]),
-      ),
-  ).toEqual(["Shot 005", "Shot 016", "Shot 027", "Shot 038"]);
+  expect(await shotsIn(attention)).toEqual(["Shot 005", "Shot 011"]);
   await expect(page.locator(".queue-scope")).toHaveText(
-    "Shots with a gap, in the whole film; 2 of them in the run's range, 00:00:00–00:00:40.",
+    "Shots with a gap, in the whole film; 2 of them in the run's range, 00:00:00–00:00:24.",
   );
   await filters(page)
     .getByRole("button", { name: /^Waiting/ })
     .click();
   const waiting = page.getByRole("list", { name: "Shots waiting for review" });
-  await expect(waiting.getByRole("listitem")).toHaveCount(8);
-  // A shot finishes rendering while the list is open: it joins the list in film order.
-  mock.value.shots[7].status = "needs_review";
-  await expect(waiting.getByRole("listitem")).toHaveCount(9, {
+  await expect(waiting.getByRole("listitem")).toHaveCount(7);
+  // Shot 008 finishes rendering while the list is open: it joins the list in film order.
+  await world.settle("character_replacement");
+  await world.settle("shot_assembly");
+  await expect(waiting.getByRole("listitem")).toHaveCount(8, {
     timeout: 8000,
   });
-  await expect(waiting.getByRole("listitem").nth(2)).toContainText("Shot 008");
+  await expect(waiting.getByRole("listitem").nth(5)).toContainText("Shot 008");
 });
 
 // Usability round 1 (B17, T4-F1, T7-F4, T7-F1): opening the queue from the Review menu puts the focus on the current
 // row; a review key brings the focus back to where Enter accepts; each choice is announced.
 test("the Review menu's queue focuses the current row; review keys return focus; choices are announced", async ({
   page,
+  world,
 }) => {
-  await page.goto("/");
-  await openFilm(page);
   await page
     .getByRole("navigation", { name: "Application menus" })
     .getByRole("button", { name: "Review", exact: true })
@@ -366,9 +341,8 @@ test("the Review menu's queue focuses the current row; review keys return focus;
 // keys still show versions.
 test("Enter and the review keys work after a monitor button, the wipe slider and a closed menu", async ({
   page,
+  world,
 }) => {
-  await page.goto("/");
-  await openFilm(page);
   await page.keyboard.press("q");
   const waiting = page.getByRole("list", { name: "Shots waiting for review" });
   const row = waiting.getByRole("button", { pressed: true });
