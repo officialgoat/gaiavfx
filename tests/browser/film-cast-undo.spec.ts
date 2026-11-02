@@ -1,5 +1,11 @@
 import type { Page } from "@playwright/test";
-import { expect, recastCommands, test, type RecastWorld } from "./recast-world";
+import {
+  expect,
+  openFilm,
+  recastCommands,
+  test,
+  type RecastWorld,
+} from "./recast-world";
 
 // CP3 B3 (ADR 0017 amendment item 7, ADR 0012 Amendment 7 §1): a film's cast edits are journaled in the recast. The
 // notice after one offers Undo; Mod+Z undoes the film's newest step, a choice or a cast edit, and Mod+Shift+Z redoes
@@ -17,17 +23,6 @@ test.use({
     rendered: 1,
   },
 });
-
-async function openFilm(page: Page, world: RecastWorld) {
-  await page.getByRole("button", { name: "File", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Open film/ }).click();
-  await page
-    .getByRole("dialog", { name: "Open film" })
-    .getByRole("button", { name: new RegExp(world.title) })
-    .first()
-    .click();
-  await expect(page.locator(".timeline-heading")).toContainText(world.title);
-}
 
 /** No version's asset name or operation reaches the page: text, titles, labels, alt text or values. */
 async function expectBlind(page: Page) {

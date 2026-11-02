@@ -30,9 +30,10 @@ async function openFilm(page: Page, title: string) {
     .getByRole("button", { name: new RegExp(title) })
     .first()
     .click();
+  // Opening waits behind the movie's reads (recast-world.ts openFilm).
   await expect(
     page.getByRole("button", { name: "Shot 001", exact: true }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 20_000 });
 }
 
 async function returnToMovie(page: Page, title: string) {
