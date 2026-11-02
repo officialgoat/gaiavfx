@@ -1,5 +1,5 @@
 """The Recast read: what the film's page and Gaia see of a recast, as one RecastDTO, with the one rule for a
-shot's status and why a head pass may not start on it. Read only: it starts nothing.
+shot's status and why a head pass may not start on one of its versions. Read only: it starts nothing.
 """
 
 from copy import deepcopy
@@ -23,20 +23,85 @@ HEAD_PASS_FACE = {
 FACE_CHECKING = "Checking the target picture's face, which needs ComfyUI"
 
 
-def _head_pass_refusal(shot, characters) -> str | None:
-    """Why a head pass may not start on the shot's versions: it has none, it has not settled, no mapped character is
-    in its plan, or none of them has a target with a human face (then the first one's reason)."""
+def replaced_in(session, shot, assembly_id) -> dict:
+    """Who the version an assembly made replaced, and with what: each character of its root attempt, in that
+    attempt's performer order, with the window analyses, tracks and target pictures its window requests froze. A head
+    pass re-renders a version's heads with the pictures its bodies were rendered with, whatever the mapping says now.
+    """
+    plan = shot["plan"] or {}
+    root = p.operations.operation(session, assembly_id)
+    while root["request"].get("parent"):
+        root = p.operations.operation(session, root["request"]["parent"]["assembly_op"])
+    performers = plan.get("performers", [])
+    characters = next(
+        (
+            h.get("performers", performers)
+            for h in plan.get("_history", [])
+            if h["assembly"] == root["id"]
+        ),
+        performers,
+    )
+    bodies = [
+        p.operations.operation(session, o)["request"] for o in root["request"]["window_operations"]
+    ]
+    replaced = {}
+    for index, character_id in enumerate(characters):
+        if any(index >= len(body["facts"]["performers"]) for body in bodies):
+            continue
+        frozen = [body["facts"]["performers"][index] for body in bodies]
+        replaced[character_id] = {
+            "analyses": [body["analysis_operation"] for body in bodies],
+            "tracks": {b["analysis_operation"]: f["track_id"] for b, f in zip(bodies, frozen)},
+            "targets": {b["analysis_operation"]: f["target_asset"] for b, f in zip(bodies, frozen)},
+        }
+    return replaced
+
+
+def _face_refusal(session, library, asset_ids, faces) -> str | None:
+    """Why the pictures a character was rendered with cannot take a head pass, in `recast.start_head_pass`'s words: a
+    picture without a human face, or one that could not be checked, before one still being checked."""
+    pending = False
+    for asset_id in asset_ids:
+        if asset_id not in faces:
+            report = target_report(session, library, asset_id)
+            faces[asset_id] = report["state"] if report else "checking"
+        if faces[asset_id] == "checking":
+            pending = True
+        elif refusal := HEAD_PASS_FACE.get(faces[asset_id]):
+            return refusal
+    return FACE_CHECKING if pending else None
+
+
+def _head_pass(session, library, shot, version, replaced, faces) -> dict:
+    """Which characters a head pass on this version may re-render (in the plan's order), each with why not."""
+    if version["assembly"] not in replaced:
+        replaced[version["assembly"]] = replaced_in(session, shot, version["assembly"])
+    bindings = replaced[version["assembly"]]
+    characters = [
+        {
+            "character_id": c,
+            "refusal": _face_refusal(
+                session, library, dict.fromkeys(bindings[c]["targets"].values()), faces
+            ),
+        }
+        for c in (shot["plan"] or {}).get("performers", [])
+        if c in bindings
+    ]
+    refusals = [c["refusal"] for c in characters]
+    if not characters:
+        refusal = "Choose a mapped character in this shot's plan."
+    else:
+        refusal = None if None in refusals else refusals[0]
+    return {"head_pass": characters, "head_pass_refusal": refusal}
+
+
+def _head_pass_refusal(shot) -> str | None:
+    """Why a head pass may start on none of the shot's versions: it has none, or it has not settled."""
     if not shot["versions"]:
         return "This shot has no settled version."
     if shot["status"] in {"analysing", "queued", "rendering"}:
         return "Wait for this shot to settle before starting a head pass."
-    performers = [
-        characters[c] for c in (shot["plan"] or {}).get("performers", []) if c in characters
-    ]
-    if not performers:
-        return "Choose a mapped character in this shot's plan."
-    refusals = [c["head_pass_refusal"] for c in performers]
-    return None if None in refusals else refusals[0]
+    return None
 
 
 def _status(mapped, included, plan, versions, choice, windows, assembly, layers=()):
@@ -90,12 +155,11 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
     margin_min = p.policy().identity_margin_min
     characters, unknown = p.character_views(recast, report)
     for character in characters:
-        face = None
         if target := character["target"]:
             report_ = target_report(session, library, target["asset_id"])
-            target["face"] = face = report_["state"] if report_ else "checking"
-        character["head_pass_refusal"] = HEAD_PASS_FACE.get(face, FACE_CHECKING)
+            target["face"] = report_["state"] if report_ else "checking"
     targets = planning.mapped(recast)
+    replaced, faces = {}, {}
     shots, all_ops = [], []
     analyses = {}
     cast_by_shot = {}
@@ -109,10 +173,13 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
         mapped = any(a["character_id"] in targets for a in appearances)
         included = mapped if stored["included"] is None else stored["included"]
         try:
-            versions = p.public_versions(p.versions(session, library, stored))
+            recorded = p.versions(session, library, stored)
         except ApplicationError as exc:
             planning.error(stored, exc)
-            versions = []
+            recorded = []
+        versions = p.public_versions(recorded)
+        for version, record in zip(versions, recorded):
+            version.update(_head_pass(session, library, stored, record, replaced, faces))
         choices = [c for c in recast["choices"] if c["shot_id"] == stored["shot_id"]]
         choice = (
             {
@@ -200,9 +267,8 @@ def recast_state(session, library, recast_id, *, private_plans=False, expressive
                 ),
             }
         )
-    by_id = {c["id"]: c for c in characters}
     for shot in shots:
-        shot["head_pass_refusal"] = _head_pass_refusal(shot, by_id)
+        shot["head_pass_refusal"] = _head_pass_refusal(shot)
     selected = [s for s in shots if run_scope.covered(s, p.run_range(recast))]
     seconds = run_scope.measured_seconds([o for o in all_ops if not o["request"].get("head")])
     current = next((s["id"] for s in selected if s["id"] in active_shots), None)

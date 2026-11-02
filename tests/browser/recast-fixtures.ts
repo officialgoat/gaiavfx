@@ -409,8 +409,14 @@ export async function mockRecast(
           )
           .map((c) => c.check),
       );
-      for (const version of shot.versions)
+      for (const version of shot.versions) {
         version.checks = version.checks.filter((c) => alike.has(c.check));
+        // Every planned performer may take a head pass; film-headpass reads Python's rule.
+        version.head_pass ??= (shot.plan?.performers ?? []).map((id) => ({
+          character_id: id,
+          refusal: null,
+        }));
+      }
     }
     return read;
   };

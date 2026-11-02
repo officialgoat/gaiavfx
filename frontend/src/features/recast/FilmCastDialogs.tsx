@@ -212,8 +212,7 @@ export function FilmCastDialogs({
             <button
               key={character.id}
               type="button"
-              disabled={r.busy || !!character.head_pass_refusal}
-              title={character.head_pass_refusal ?? undefined}
+              disabled={r.busy}
               onClick={() => void r.headPass(character.id)}
             >
               {character.label}

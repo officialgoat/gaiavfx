@@ -535,7 +535,7 @@ def versions(session, library, stored):
         ):
             if version["id"] not in seen:
                 seen.add(version["id"])
-                result.append(version)
+                result.append({**version, "assembly": assembly})
     return result
 
 

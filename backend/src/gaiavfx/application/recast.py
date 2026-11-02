@@ -13,7 +13,7 @@ from gaiavfx.application import recast_run as run_scope
 from gaiavfx.application import recast_shell as shell
 from gaiavfx.application import recast_take
 from gaiavfx.application.recast_derivatives import advance_reference, cancel_reference
-from gaiavfx.application.recast_read import HEAD_PASS_FACE, recast_state
+from gaiavfx.application.recast_read import HEAD_PASS_FACE, recast_state, replaced_in
 from gaiavfx.application.target_faces import (
     TargetReportPending,
     TargetReportRefused,
@@ -704,37 +704,12 @@ def start_head_pass(
         parent.get("bridges", [])
     ):
         raise ApplicationError("Increase the render budget", 409)
-    assembly_id = next(
-        a
-        for a in p.assemblies(session, shot)
-        if any(v["id"] == version for v in recast_take.shot_work.shot_versions(session, library, a))
-    )
-    # The root body's performer order belongs to that attempt, not today's mapping.
-    ancestor = p.operations.operation(session, assembly_id)
-    while ancestor["request"].get("parent"):
-        ancestor = p.operations.operation(session, ancestor["request"]["parent"]["assembly_op"])
-    original_characters = next(
-        (
-            h.get("performers", plan["performers"])
-            for h in plan.get("_history", [])
-            if h["assembly"] == ancestor["id"]
-        ),
-        plan["performers"],
-    )
-    if character_id not in original_characters:
+    assembly_id = parent["assembly"]
+    replaced = replaced_in(session, shot, assembly_id).get(character_id)
+    if replaced is None:
         raise ApplicationError("The character was not replaced in this parent version.", 422)
-    index = original_characters.index(character_id)
-    binding = {"tracks": {}, "targets": {}, "selected_by": "user"}
-    analyses = []
-    for operation_id in ancestor["request"]["window_operations"]:
-        body = p.operations.operation(session, operation_id)["request"]
-        if index >= len(body["facts"]["performers"]):
-            raise ApplicationError("The character was not replaced in this parent version.", 422)
-        original = body["facts"]["performers"][index]
-        analysis = body["analysis_operation"]
-        analyses.append(analysis)
-        binding["tracks"][analysis] = original["track_id"]
-        binding["targets"][analysis] = original["target_asset"]
+    analyses = replaced["analyses"]
+    binding = {"tracks": replaced["tracks"], "targets": replaced["targets"], "selected_by": "user"}
     pending, refusal = False, None
     for asset_id in dict.fromkeys(binding["targets"].values()):
         face = target_report(session, library, asset_id)

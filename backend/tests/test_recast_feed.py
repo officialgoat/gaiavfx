@@ -119,7 +119,10 @@ def test_head_layer_reserves_feeds_reveals_chooses_and_chains(world):
     state = world.invoke(recast.recast_state, state["id"])
     assert [v["letter"] for v in state["shots"][0]["versions"]] == ["A", "B"]
     derived = state["shots"][0]["versions"][1]
-    assert set(derived) == {"id", "letter", "asset_id", "checks"}
+    # Still blind: a head pass's readiness names characters and their pictures' faces, read from the root body, so
+    # a derived version reads like its parent.
+    assert set(derived) == {"id", "letter", "asset_id", "checks", "head_pass", "head_pass_refusal"}
+    assert derived["head_pass"] == parent["head_pass"]
     assert state["shots"][0]["versions"][0] == parent
     state = edit(world, state, recast.choose_version, shot["id"], version=derived["id"])
     assert state["shots"][0]["choice"]["version"] == derived["id"]
@@ -250,7 +253,7 @@ def test_versions_blind_choice_retake_accumulates_and_reveal(world):
     state = drain(world, run(world, world.ready())["id"])
     first = state["shots"][0]["versions"][0]
     assert first["letter"] == "A"
-    assert set(first) == {"id", "letter", "asset_id", "checks"}
+    assert set(first) == {"id", "letter", "asset_id", "checks", "head_pass", "head_pass_refusal"}
     assert "candidate_id" not in json.dumps(state) and "treatment" not in json.dumps(state)
     state = edit(world, state, recast.choose_version, "s0001", version=first["id"])
     assert state["shots"][0]["status"] == "approved"
@@ -570,23 +573,51 @@ def test_head_target_refusal_uses_frozen_picture_before_reservation(
     assert current["estimate"] == state["estimate"]
 
 
-def test_the_read_says_why_a_head_pass_may_not_start_in_the_commands_words(world):
-    """The film's page reads a shot's and a character's head pass refusal from the Recast read."""
+def test_a_versions_head_pass_reads_the_pictures_it_was_rendered_with(world):
+    """The film's page reads a head pass's readiness per version, in the command's words: the pictures the version was
+    rendered with decide, as they do for `recast.start_head_pass`, not the character's target today."""
     ready = world.ready()
     assert {s["head_pass_refusal"] for s in ready["shots"]} == {"This shot has no settled version."}
     state = drain(world, run(world, ready)["id"])
     shot = state["shots"][0]
     cid = shot["plan"]["performers"][0]
-    character = next(c for c in state["characters"] if c["id"] == cid)
-    assert shot["head_pass_refusal"] is None and character["head_pass_refusal"] is None
+    rendered = shot["versions"][0]
+    assert shot["head_pass_refusal"] is None
+    assert rendered["head_pass"] == [{"character_id": cid, "refusal": None}]
+    assert rendered["head_pass_refusal"] is None
+    assert "head_pass_refusal" not in state["characters"][0]
+    # A picture without a face, chosen after the render, leaves the rendered version ready.
     state = edit(world, state, recast.set_target, cid, asset_id="picture2", label="Robot")
-    checking = "Checking the target picture's face, which needs ComfyUI"
-    assert state["shots"][0]["head_pass_refusal"] == checking
     world.settle_target("picture2", scores=(0.525,))
     state = world.invoke(recast.recast_state, state["id"])
+    assert state["shots"][0]["versions"][0]["head_pass_refusal"] is None
+    # A take rendered with that picture is refused, by the read and by the command alike.
+    state = edit(world, state, recast.retake_shot, shot["id"], mode="draft")
+    settle_all(world, "character_replacement")
+    world.invoke(recast.feed)
+    settle_all(world, "shot_assembly")
+    state = world.invoke(recast.recast_state, state["id"])
+    retaken = state["shots"][0]["versions"][-1]
     no_face = "Head pass needs a target with a human face"
-    assert state["shots"][0]["head_pass_refusal"] == no_face
-    assert next(c for c in state["characters"] if c["id"] == cid)["head_pass_refusal"] == no_face
+    assert retaken["head_pass"] == [{"character_id": cid, "refusal": no_face}]
+    assert retaken["head_pass_refusal"] == no_face
+    with pytest.raises(ApplicationError, match=no_face):
+        edit(
+            world,
+            state,
+            recast.start_head_pass,
+            shot["id"],
+            version=retaken["id"],
+            character_id=cid,
+        )
+    # With no target today, the first version still takes a head pass with the picture it was rendered with.
+    state = world.invoke(recast.clear_target, state["id"], cid, state["revision"])
+    first = state["shots"][0]["versions"][0]
+    assert first["head_pass_refusal"] is None
+    state = edit(
+        world, state, recast.start_head_pass, shot["id"], version=first["id"], character_id=cid
+    )
+    assert [layer["character_id"] for layer in state["shots"][0]["layers"]] == [cid]
 
 
 def test_feed_backfills_old_confirmed_targets_once_without_read_writes(world, monkeypatch):

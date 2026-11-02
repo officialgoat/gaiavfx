@@ -142,7 +142,6 @@ class CharacterDTO(BaseModel):
     lines_proposed: int = 0  # lines proposed for this character (computed or by the agent)
     lines_confirmed: int = 0
     voice: VoiceDTO | None = None  # None until recordings are chosen or proposed
-    head_pass_refusal: str | None = None  # why this character's target cannot take a head pass
 
 
 class AppearanceDTO(BaseModel):
@@ -205,6 +204,12 @@ class ShotCheckDTO(BaseModel):
     reason: str  # blind-safe
 
 
+class HeadPassCharacterDTO(BaseModel):
+    character_id: str
+    # Why the picture this version was rendered with cannot take a head pass.
+    refusal: str | None = None
+
+
 class ShotVersionDTO(BaseModel):
     """One complete replacement of the shot (all windows assembled); anonymous until reveal."""
 
@@ -212,6 +217,9 @@ class ShotVersionDTO(BaseModel):
     letter: str
     asset_id: str  # assembled preview video of the shot
     checks: list[ShotCheckDTO]
+    # The plan's characters this version replaced, read from the pictures it was rendered with.
+    head_pass: list[HeadPassCharacterDTO] = Field(default_factory=list)
+    head_pass_refusal: str | None = None  # why a head pass may start for none of them
 
 
 class ShotChoiceDTO(BaseModel):
@@ -260,7 +268,7 @@ class RecastShotDTO(BaseModel):
     status: ShotStatus
     versions: list[ShotVersionDTO]
     choice: ShotChoiceDTO | None
-    head_pass_refusal: str | None = None  # why a head pass may not start on its versions
+    head_pass_refusal: str | None = None  # why a head pass may start on none of its versions
 
 
 class EstimateDTO(BaseModel):

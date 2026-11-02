@@ -144,16 +144,18 @@ export function useRecast(active: boolean) {
   const shot = value?.shots.find((s) => s.id === shotId) ?? value?.shots[0];
   const previewVersion =
     shot?.versions.find((v) => v.id === preview) ?? shot?.versions[0];
-  const headPassCharacters = (shot?.plan?.performers ?? []).flatMap(
-    (id) => value?.characters.filter((c) => c.id === id) ?? [],
-  );
-  const headPassEligibleCharacters = headPassCharacters.filter(
-    (c) => !c.head_pass_refusal,
-  );
-  // Why a head pass may not start is Python's reading of the shot; showing the Original is this view's own.
+  // Who a head pass on the shown version may re-render, and why not, is Python's reading of that version: the
+  // pictures it was rendered with decide, not today's targets. Showing the Original is this view's own.
+  const headPassCharacters = (previewVersion?.head_pass ?? [])
+    .filter((h) => !h.refusal)
+    .flatMap(
+      (h) => value?.characters.filter((c) => c.id === h.character_id) ?? [],
+    );
   const headPassReason = original
     ? "Show a settled version instead of the original."
-    : (shot?.head_pass_refusal ?? undefined);
+    : (shot?.head_pass_refusal ??
+      previewVersion?.head_pass_refusal ??
+      undefined);
   const headPassContext = `${id}:${shot?.id}:${previewVersion?.id}`;
   const revision = { expected_revision: value?.revision ?? 0 };
   const message = (e: unknown) => failureText(e, RECAST_WORDING);
@@ -573,7 +575,7 @@ export function useRecast(active: boolean) {
   }
   async function headPass(characterId: string) {
     if (!shot || !previewVersion || headPassReason) return;
-    if (!headPassEligibleCharacters.some((c) => c.id === characterId)) return;
+    if (!headPassCharacters.some((c) => c.id === characterId)) return;
     const selected = shot;
     const version = previewVersion;
     setHeadPassPicker("");
@@ -687,13 +689,12 @@ export function useRecast(active: boolean) {
     headPass,
     headPassReason,
     headPassCharacters,
-    headPassEligibleCharacters,
     headPassPickerOpen: headPassPicker === headPassContext && !headPassReason,
     closeHeadPassPicker: () => setHeadPassPicker(""),
     startHeadPass: () => {
       if (headPassReason || runner.locked()) return;
-      if (headPassEligibleCharacters.length === 1)
-        void headPass(headPassEligibleCharacters[0].id);
+      if (headPassCharacters.length === 1)
+        void headPass(headPassCharacters[0].id);
       else setHeadPassPicker(headPassContext);
     },
     notice,

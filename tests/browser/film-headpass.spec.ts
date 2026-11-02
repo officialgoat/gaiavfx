@@ -274,7 +274,7 @@ test.describe("two mapped performers in one shot", () => {
 });
 
 // Python plans at most two mapped characters in a shot (recast_planning), and with one of two eligible the command
-// starts it directly; so neither the picker nor the sheet ever lists a character it must disable.
+// starts it directly; the picker and the sheet list only the characters the shown version lets a head pass re-render.
 
 test.describe("one mapped performer", () => {
   test.use({
@@ -473,26 +473,54 @@ test.describe("one mapped performer", () => {
     await expectBlind(page);
   });
 
-  test("head pass explains target face refusals and becomes ready for a human face", async ({
+  test("a version keeps the pictures it was rendered with: a target without a face chosen later leaves it ready", async ({
     page,
     world,
   }) => {
     await start(page, world);
     const button = headPass(page);
     await expect(button).toBeEnabled();
-    for (const [kind, reason] of [
-      ["faceless", "Head pass needs a target with a human face"],
-      ["unreadable", "The target picture could not be checked."],
-    ] as const) {
-      await world.target(0, kind);
-      await expect(button).toBeDisabled({ timeout: 8000 });
-      await expect(button).toHaveAttribute("title", reason);
-    }
-    await world.target(0, "confirmed");
-    await expect(button).toBeEnabled({ timeout: 8000 });
+    await world.target(0, "faceless");
+    await reload(page, world);
+    await expect(button).toBeEnabled();
+    await expect(button).toHaveAttribute(
+      "title",
+      "Head pass on version A for Mara",
+    );
     await expectBlind(page);
   });
 });
+
+for (const [kind, reason] of [
+  ["faceless", "Head pass needs a target with a human face"],
+  ["unreadable", "The target picture could not be checked."],
+] as const)
+  test.describe(`a version rendered with a ${kind} picture`, () => {
+    test.use({
+      scene: {
+        shots: 4,
+        characters: ["Mara", "Elias"],
+        targets: [kind, "confirmed"],
+        rendered: 1,
+      },
+    });
+
+    test("head pass says why in the command's words, whatever the target is now", async ({
+      page,
+      world,
+    }) => {
+      const calls = await start(page, world);
+      const button = headPass(page);
+      await expect(button).toBeDisabled();
+      await expect(button).toHaveAttribute("title", reason);
+      await world.target(0, "confirmed");
+      await reload(page, world);
+      await expect(button).toBeDisabled();
+      await expect(button).toHaveAttribute("title", reason);
+      expect(headPassCalls(calls)).toHaveLength(0);
+      await expectBlind(page);
+    });
+  });
 
 test.describe("a performer without a face", () => {
   test.use({

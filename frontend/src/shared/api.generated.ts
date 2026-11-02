@@ -3500,8 +3500,6 @@ export interface components {
        */
       lines_confirmed: number;
       voice?: components["schemas"]["VoiceDTO"] | null;
-      /** Head Pass Refusal */
-      head_pass_refusal?: string | null;
     };
     /** CharacterPatchInput */
     CharacterPatchInput: {
@@ -4493,6 +4491,13 @@ export interface components {
       /** Plan Jobs Max */
       plan_jobs_max: number;
       build?: components["schemas"]["AgentBuildDTO"] | null;
+    };
+    /** HeadPassCharacterDTO */
+    HeadPassCharacterDTO: {
+      /** Character Id */
+      character_id: string;
+      /** Refusal */
+      refusal?: string | null;
     };
     /** HeadPassInput */
     HeadPassInput: {
@@ -7066,6 +7071,10 @@ export interface components {
       asset_id: string;
       /** Checks */
       checks: components["schemas"]["ShotCheckDTO"][];
+      /** Head Pass */
+      head_pass?: components["schemas"]["HeadPassCharacterDTO"][];
+      /** Head Pass Refusal */
+      head_pass_refusal?: string | null;
     };
     /** SimilarCharacterDTO */
     SimilarCharacterDTO: {

@@ -24,14 +24,13 @@ export function HeadPassControl({ r }: { r: RecastController }) {
   const reason = command.reason?.(target);
   const description = (character: string) =>
     `Head pass on version ${r.previewVersion?.letter} for ${character}`;
-  if (r.headPassEligibleCharacters.length <= 1)
+  if (r.headPassCharacters.length <= 1)
     return (
       <button
         type="button"
         disabled={!!reason}
         title={
-          reason ??
-          description(r.headPassEligibleCharacters[0]?.label ?? "character")
+          reason ?? description(r.headPassCharacters[0]?.label ?? "character")
         }
         onClick={() => command.run(target)}
       >
@@ -67,10 +66,7 @@ export function HeadPassControl({ r }: { r: RecastController }) {
             <Dropdown.Item
               key={character.id}
               className="command-item"
-              disabled={!!reason || !!character.head_pass_refusal}
-              title={
-                character.head_pass_refusal ?? description(character.label)
-              }
+              title={description(character.label)}
               onSelect={() => void r.headPass(character.id)}
             >
               {description(character.label)}
