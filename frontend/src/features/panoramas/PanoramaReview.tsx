@@ -131,6 +131,7 @@ export function PanoramaReview({ id }: { id: string }) {
                   <input
                     type="radio"
                     name={`shown-${id}`}
+                    aria-label={`Panorama ${candidate.letter}${candidate.chosen ? ", chosen" : ""}`}
                     checked={current?.candidate_id === candidate.candidate_id}
                     onChange={() => setShown(candidate.candidate_id)}
                   />

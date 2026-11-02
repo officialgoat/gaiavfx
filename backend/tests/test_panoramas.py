@@ -88,6 +88,9 @@ def test_words_become_two_panoramas_with_closed_seams(work):
     assert started["_created"] and started["budget_reserved"] == 4
     again = transact(db, panoramas.start_panorama, library, described_place=HALL)
     assert again["id"] == started["id"] and not again["_created"]
+    # Every stage's jobs exist from the start; the words follow the first unfinished one.
+    fresh = transact(db, panoramas.panorama_state, library, started)
+    assert (fresh["stage"], fresh["message"]) == ("draw", "Drawing two panoramas…")
     drain(run)
     operation = transact(db, OPERATIONS.operation, started["id"])
     assert operation["state"] == "succeeded", operation["review"]

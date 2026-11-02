@@ -29,7 +29,7 @@ from gaiavfx.integrations.panorama.graph import (
 )
 from gaiavfx.integrations.panorama.prompt import compile_description, outpaint_prompt, seam_prompt
 from gaiavfx.modules.generation.operations import staged
-from gaiavfx.modules.generation.operations.lifecycle import STOPPED, JobSpec
+from gaiavfx.modules.generation.operations.lifecycle import JOB_TERMINAL, STOPPED, JobSpec
 from gaiavfx.modules.generation.operations.review import ReviewService
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.panoramas.ask import DescribedPlace, Landmark, PicturedPlace
@@ -581,8 +581,11 @@ def panorama_state(session, library, operation) -> dict:
     """An attempt in words: building (its stage), ready (two candidates to choose from), chosen, or stopped."""
     request = operation["request"]
     current = staged.current_jobs(operation["jobs"], STAGES)
-    newest = max(current.values(), key=lambda job: job["ordinal"]) if current else None
-    stage = staged.stage(newest)["name"] if newest else None
+    # The stage under way is the first unfinished job's (an attempt creates later stages' jobs up front).
+    ordered = sorted(current.values(), key=lambda job: job["ordinal"])
+    unfinished = [job for job in ordered if job["state"] not in JOB_TERMINAL]
+    shown = unfinished[0] if unfinished else ordered[-1] if ordered else None
+    stage = staged.stage(shown)["name"] if shown else None
     members = _members(session, library, operation)
     picked = chosen(session, operation)
     for member in members:

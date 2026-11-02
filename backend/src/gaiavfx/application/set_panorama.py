@@ -7,6 +7,7 @@ splat). Only a chosen panorama is built from; v1 is proposed for the person to a
 from __future__ import annotations
 
 import json
+import re
 from hashlib import sha256
 
 from gaiavfx.application import operation_start, panoramas, set_fill
@@ -55,6 +56,14 @@ def _chosen(session, candidate_id: str) -> tuple[dict, dict]:
     return candidate, operation
 
 
+def default_name(place: str) -> str:
+    """A stage's name from the place's words: their first clause, at most 60 characters, cut at a word."""
+    first = re.split(r"[,.;:]", " ".join(place.split()), maxsplit=1)[0].strip()
+    if len(first) > 60:
+        first = first[:60].rsplit(" ", 1)[0]
+    return first or "Panorama stage"
+
+
 def estimate(fill_unseen: bool) -> str:
     """What building means for the user's machine: MoGe-3 on the panorama, the fit, and filling's renders."""
     steps = rules.rebuild()["steps"]
@@ -73,7 +82,7 @@ def stage_preview(session, library, candidate_id: str, *, fill_unseen: bool = Tr
     """What building would do, in words, before it does."""
     _, operation = _chosen(session, candidate_id)
     request = operation["request"]
-    name = clip_words(request["place"] or "Panorama stage", 120)
+    name = default_name(request["place"])
     return {
         "name": unique_name(session, name),
         "what": (
@@ -98,7 +107,7 @@ def start_panorama_stage(
     candidate, operation = _chosen(session, candidate_id)
     request = operation["request"]
     asset = library.get(session, candidate["asset_id"])
-    name = clip_words(name or request["place"] or "Panorama stage", 120)
+    name = clip_words(name or default_name(request["place"]), 120)
     if not name:
         raise ApplicationError("Name the stage.", 422)
     place = None
