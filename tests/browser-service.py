@@ -17,6 +17,7 @@ from gaiavfx.infrastructure.media import MediaTools
 from PIL import Image
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "backend" / "tests"))
+import browser_recast
 import synthetic_room
 from fake_comfy import FakeComfy
 from fill_answers import FillAnswers
@@ -77,6 +78,9 @@ def create_test_app(*args, **kwargs):
         filled = fill.answer(graph)
         if filled is not None:
             return filled
+        scanned = browser_recast.answer(graph, fill.files)
+        if scanned is not None:
+            return scanned
         # A set from a take (ADR 0019 §4): the synthetic room's exact geometry, its camera moving through the room
         # for a segment's first shot and standing still for a later shot, so the gate passes once and refuses once
         # without filling.
@@ -169,6 +173,8 @@ def create_test_app(*args, **kwargs):
         return real_export(self, items, output, width, height, cancelled, progress)
 
     MediaTools.export_sequence = held_export
+    # Recast runs for real here, with the Recast test world's adapters at its seams (browser_recast.py).
+    browser_recast.install(app)
     return app
 
 

@@ -1,6 +1,6 @@
-import { test, expect, type Page } from "@playwright/test";
-import { filmAsset, mockRecast } from "./recast-fixtures";
+import type { Page } from "@playwright/test";
 import { openMovie, seedDirect } from "./direct-fixture";
+import { expect, recastCommands, test } from "./recast-world";
 
 // ADR 0017 U3a: a film opens as a document in the track workspace, and its keys and menus never reach the movie
 // that stays loaded behind it.
@@ -22,12 +22,12 @@ function watch(page: Page) {
   return { direction, problems };
 }
 
-async function openFilm(page: Page) {
+async function openFilm(page: Page, title: string) {
   await page.getByRole("button", { name: "File", exact: true }).click();
   await page.getByRole("menuitem", { name: /Open film/ }).click();
   const dialog = page.getByRole("dialog", { name: "Open film" });
   await dialog
-    .getByRole("button", { name: new RegExp(filmAsset.name) })
+    .getByRole("button", { name: new RegExp(title) })
     .first()
     .click();
   await expect(
@@ -55,33 +55,29 @@ test.describe("film document shell", () => {
 
   test("a film opens from File › Open film and reload restores it", async ({
     page,
+    world,
   }) => {
-    const mock = await mockRecast(page);
-    mock.existing();
     const seen = watch(page);
     await openMovie(page, data.movie.title);
-    await openFilm(page);
+    await openFilm(page, world.title);
     await expect(page.locator(".workspace-breadcrumb")).toContainText(
-      filmAsset.name,
+      world.title,
     );
-    await expect(page.locator(".timeline-heading")).toContainText(
-      filmAsset.name,
-    );
+    await expect(page.locator(".timeline-heading")).toContainText(world.title);
     await page.reload();
     await expect(
       page.getByRole("button", { name: "Shot 001", exact: true }),
     ).toBeVisible();
     await expect(page.locator(".workspace-breadcrumb")).toContainText(
-      filmAsset.name,
+      world.title,
     );
     expect(seen.problems).toEqual([]);
   });
 
   test("a film's keys and menus never reach the movie behind it, and the movie keeps its place", async ({
     page,
+    world,
   }) => {
-    const mock = await mockRecast(page);
-    mock.existing();
     const seen = watch(page);
     await openMovie(page, data.movie.title);
     await page.getByRole("button", { name: "Segment 02", exact: true }).click();
@@ -95,7 +91,7 @@ test.describe("film document shell", () => {
       zoom: await page.getByLabel("Timeline zoom").inputValue(),
     };
 
-    await openFilm(page);
+    await openFilm(page, world.title);
     await page.getByRole("button", { name: "Shot 002", exact: true }).click();
     for (const key of [
       "Control+k",
@@ -136,16 +132,16 @@ test.describe("film document shell", () => {
     expect(seen.problems).toEqual([]);
   });
 
-  test("a movie's keys never reach a recast", async ({ page }) => {
-    const mock = await mockRecast(page);
-    mock.existing();
+  test("a movie's keys never reach a recast", async ({ page, world }) => {
+    const calls = recastCommands(page);
     const seen = watch(page);
+    expect(world.id).toBeTruthy();
     await openMovie(page, data.movie.title);
     await page.getByRole("button", { name: "Segment 01", exact: true }).click();
     for (const key of ["1", "0", "r", "q", "w", "\\", "i", "o"])
       await page.keyboard.press(key);
     await page.waitForTimeout(300);
-    expect(mock.calls).toEqual([]);
+    expect(calls).toEqual([]);
     expect(seen.problems).toEqual([]);
   });
 });
@@ -157,32 +153,31 @@ const workspaces = (page: Page) =>
 
 test("a saved Recast workspace opens Direct with the film and shot it was on", async ({
   page,
+  world,
 }) => {
   const watched = watch(page);
-  const mock = await mockRecast(page);
-  mock.existing();
-  await page.addInitScript(() => {
-    if (sessionStorage.getItem("migrated")) return;
-    sessionStorage.setItem("migrated", "1");
-    localStorage.setItem("gaiavfx:workspace", "recast");
-    localStorage.setItem(
-      "gaiavfx:recast-place",
-      JSON.stringify({ id: "recast-1", shotId: "shot-6" }),
-    );
-    localStorage.removeItem("gaiavfx:document");
-  });
+  await page.addInitScript(
+    (place) => {
+      if (sessionStorage.getItem("migrated")) return;
+      sessionStorage.setItem("migrated", "1");
+      localStorage.setItem("gaiavfx:workspace", "recast");
+      localStorage.setItem("gaiavfx:recast-place", JSON.stringify(place));
+      localStorage.removeItem("gaiavfx:document");
+    },
+    { id: world.id, shotId: world.shots[6] },
+  );
   await page.goto("/");
   await expect(
     workspaces(page).getByRole("button", { name: "Direct", exact: true }),
   ).toHaveAttribute("aria-current", "page");
-  await expect(page.locator(".timeline-heading")).toContainText(filmAsset.name);
+  await expect(page.locator(".timeline-heading")).toContainText(world.title);
   await expect(page.locator(".workspace-breadcrumb")).toContainText("Shot 007");
   // The migration is done once: the workspace is saved as Direct, and a reload keeps the film.
   expect(
     await page.evaluate(() => localStorage.getItem("gaiavfx:workspace")),
   ).toBe("direct");
   await page.reload();
-  await expect(page.locator(".timeline-heading")).toContainText(filmAsset.name);
+  await expect(page.locator(".timeline-heading")).toContainText(world.title);
   expect(watched.problems).toEqual([]);
 });
 
@@ -240,15 +235,14 @@ test("no workspace tab or menu item names the retired Recast page", async ({
 test("the movie's edit notice stays with the movie when a film opens", async ({
   page,
   request,
+  world,
 }) => {
   const data = await seedDirect(request);
-  const mock = await mockRecast(page);
-  mock.existing();
   await openMovie(page, data.movie.title);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
   await page.getByRole("menuitem", { name: /^Undo/ }).click();
   await expect(page.locator(".studio-status")).toContainText("Change undone");
-  await openFilm(page);
+  await openFilm(page, world.title);
   await expect(page.locator(".studio-status")).not.toContainText(
     "Change undone",
   );
