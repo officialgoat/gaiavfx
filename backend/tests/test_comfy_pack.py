@@ -18,6 +18,7 @@ CORE = {
     "GaiaH3ContinuityTrim",
     "GaiaSaveSetGeometry",
     "GaiaSaveStillGeometry",
+    "GaiaSaveMoGeGeometry",
 }
 FACE = {"GaiaFaceScan", "GaiaFaceCheck"}
 

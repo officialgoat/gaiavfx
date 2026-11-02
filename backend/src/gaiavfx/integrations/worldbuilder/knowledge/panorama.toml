@@ -1,0 +1,30 @@
+# A stage built from a panorama. A build freezes this file with its request; a change here applies to new builds only.
+# The numbers are FlooPowder's Worldbuilder research (R4-R5) unless a line says otherwise.
+schema = 1
+
+# The panorama's distance: MoGe-3 split into 12 perspective views and merged (ComfyUI's MoGePanoramaInference); the
+# research ran MoGe-2 with these settings, the user chose MoGe-3 (2 November 2026).
+[geometry]
+moge = "moge_3_vitg_fp16.safetensors"
+resolution_level = 9
+split_resolution = 512
+merge_resolution = 1920
+batch_size = 4
+refine_steps = 3
+
+# SAM 3.1 on the whole panorama. "sky" finds also land on indoor walls, so a find is sky only where MoGe puts it at
+# least `sky_factor` times the place's typical distance (R4: real sky sat at 4.9x or more, false finds within 2.6x).
+# Windows and water carry reflections, never geometry; a find covering `glass_max` of the panorama or more is none
+# (with no window in view SAM 3 can return the whole frame).
+[masks]
+sam = "sam3.1_multiplex_fp16.safetensors"
+sky = ["sky"]
+glass = ["window", "water"]
+threshold = 0.4
+refine_iterations = 2
+sky_factor = 3.0
+glass_max = 0.5
+
+# A panorama with too little measured surface cannot hold a stage (open sea, a sky dome).
+[gate]
+min_surface = 0.25

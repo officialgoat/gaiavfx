@@ -1,0 +1,60 @@
+# How panoramas are drawn, filled and checked. The numbers are FlooPowder's Worldbuilder research winners
+# (docs/research/WORLDBUILDER_2026-10.md, R1-R2) unless a line says otherwise. A request freezes this file; a change
+# here applies to new requests only.
+schema = 1
+
+# Text to 360 ("pano-t2i", ranked first on every place in R2x): Krea 2 Turbo with the 360 text-to-image LoRA.
+[krea]
+unet = "krea2_turbo_int8_convrot.safetensors"
+clip = "qwen3vl_4b_fp8_scaled.safetensors"
+clip_type = "krea2"
+vae = "qwen_image_vae.safetensors"
+lora = "krea2_t2i_360_erp_lora_v1.safetensors"
+lora_strength = 1.0
+width = 2048
+height = 1024
+steps = 8
+cfg = 1.0
+sampler = "euler"
+scheduler = "simple"
+
+# Fibo 2.0 Edit Turbo: the seam band fill (gate G7) and the picture's outpaint ("f-out"). 4 steps at guidance 1;
+# negative prompts have no effect on Edit Turbo.
+[fibo]
+unet = "fibo2_edit_turbo_int8_convrot.safetensors"
+clip = "qwen3vl_4b_int8_convrot.safetensors"
+clip_type = "fibo2"
+vae = "flux2-vae.safetensors"
+width = 1536
+height = 768
+steps = 4
+cfg = 1.0
+sampler = "euler"
+scheduler = "simple"
+
+# A picture's field of view: MoGe-3 ViT-g with the field of view left to estimate (the user's choice of MoGe-3,
+# 2 November 2026; the research used MoGe-2).
+[plate]
+moge = "moge_3_vitg_fp16.safetensors"
+resolution_level = 9
+refine_steps = 3
+letterbox_threshold = 18
+erode = 8
+feather = 12
+
+# Two candidates a request; "Make two more" continues the sequence (7103, 7104, ...).
+[candidates]
+seeds = [7101, 7102]
+
+# The seam band: 96 of 2048 pixels, a 24-pixel feather each side (the pytorch360convert example).
+[seam]
+fraction = 0.046875
+feather = 0.01171875
+ring = 0.02
+green_max = 0.005
+
+# Minutes a job takes on the tested RTX 4090, for the preview's estimate (measured on the real stack).
+[estimate]
+draw = 1.0
+fill = 0.5
+measure = 0.5

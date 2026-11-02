@@ -25,6 +25,9 @@ from gaiavfx.infrastructure.media import MediaTools
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.integrations.minimax_h3.graph import build_graph, render_presets
 from gaiavfx.integrations.minimax_h3.prompt import compile_prompt
+from gaiavfx.integrations.panorama.graph import fibo_edit_graph
+from gaiavfx.integrations.panorama.graph import render as panorama_render
+from gaiavfx.integrations.panorama.prompt import seam_prompt
 from gaiavfx.integrations.qwen_image_edit.graph import build_edit_graph
 from gaiavfx.integrations.qwen_image_edit.prompt import compile_removal
 from gaiavfx.integrations.worldbuilder.graph import settings as take_settings
@@ -53,7 +56,7 @@ except ImportError:
         fix: str
 
 
-FEATURES = ("core", "image-edit", "stages")
+FEATURES = ("core", "image-edit", "stages", "panoramas")
 DOCTOR = "Run python -m gaiavfx.setup doctor."
 CONNECT_FIX = (
     "Start your configured ComfyUI, check --comfy-url, then run python -m gaiavfx.setup doctor."
@@ -96,6 +99,13 @@ def _graph(feature, remote, prefix, width, height, frames):
         )
     if feature == "stages":
         return take_geometry_graph(remote, start=0, end=frames, take=take_settings(), prefix=prefix)
+    if feature == "panoramas":
+        # Fibo 2.0's seam fill: the newest nodes and weights a panorama needs (Krea's files are checked by doctor).
+        render = panorama_render()
+        render["fibo"] = {**render["fibo"], "width": width, "height": height}
+        return fibo_edit_graph(
+            seam_prompt(), image_file=remote, seed=1, prefix=prefix, render=render
+        )
     raise ValueError(f"Unknown smoke feature: {feature}")
 
 
@@ -121,6 +131,8 @@ def build_smoke_graph(feature, remote, prefix, schema):
     grid = minimax_h3.capabilities().frame_grid
     frames = grid.length_base if feature == "core" else 3 if feature == "stages" else 1
     width = height = 256 if feature == "stages" else 64
+    if feature == "panoramas":
+        width, height = 256, 128
     draft = _graph(feature, remote, prefix, width, height, frames)
     if feature in {"core", "image-edit"}:
         node = draft["conditioning" if feature == "core" else "latent"]
@@ -139,6 +151,8 @@ def build_smoke_graph(feature, remote, prefix, schema):
             steps=graph["sample"]["inputs"]["steps"],
             reference_megapixels=graph["scaled_1"]["inputs"]["megapixels"],
         )
+    elif feature == "panoramas":
+        settings.update(steps=graph["sample"]["inputs"]["steps"])
     else:
         settings.update(fps=24, geometry_resolution=take_settings()["geometry"]["resolution"])
     return graph, settings

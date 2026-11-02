@@ -65,6 +65,16 @@ NODE_SETS = {
         "DA3Inference",
         "GaiaSaveSetGeometry",
     },
+    "panoramas": {
+        "UNETLoader",
+        "CLIPLoader",
+        "VAELoader",
+        "LoadImage",
+        "TextEncodeFibo2",
+        "KSampler",
+        "VAEDecode",
+        "SaveImage",
+    },
 }
 
 
@@ -109,6 +119,13 @@ def test_graph_uses_real_builder_nodes_and_knowledge(feature, schema):
         assert graph["lora_0"]["inputs"]["lora_name"] == qwen_presets().models["lora"]
         assert graph["scaled_1"]["inputs"]["megapixels"] == qwen_presets().image["megapixels"]
         assert graph["positive"]["inputs"]["prompt"].startswith("Remove the blue square")
+    elif feature == "panoramas":
+        inputs = graph["encode"]["inputs"]
+        assert (inputs["width"], inputs["height"]) == (settings["width"], settings["height"])
+        assert inputs["prompt"].startswith("Replace the bright green vertical band")
+        assert inputs["images.image_1"] == ["image_1", 0]
+        assert graph["image_1"]["inputs"]["image"] == "smoke/input"
+        assert graph["sample"]["inputs"]["steps"] == settings["steps"] == 4
     else:
         assert graph["shot"]["inputs"]["length"] == settings["frames"] == 3
         assert graph["frames"]["inputs"]["select_every_nth"] == 1
@@ -148,7 +165,14 @@ def media_payloads(tmp_path):
     video = smoke._prepare_input(
         "stages", tmp_path / "video", {"width": 64, "height": 64, "frames": 5, "fps": 24}, media
     )
-    return {"core": video.read_bytes(), "image-edit": image.getvalue(), "stages": arrays.getvalue()}
+    panorama = io.BytesIO()
+    Image.new("RGB", (256, 128), "grey").save(panorama, format="PNG")
+    return {
+        "core": video.read_bytes(),
+        "image-edit": image.getvalue(),
+        "stages": arrays.getvalue(),
+        "panoramas": panorama.getvalue(),
+    }
 
 
 class FakeComfy:
@@ -217,7 +241,9 @@ class FakeComfy:
                 )
             node = "save_video" if self.feature == "core" else "save"
             field = "geometry" if self.feature == "stages" else "images"
-            suffix = {"core": "mp4", "image-edit": "png", "stages": "npz"}[self.feature]
+            suffix = {"core": "mp4", "image-edit": "png", "stages": "npz", "panoramas": "png"}[
+                self.feature
+            ]
             outputs = {
                 node: {
                     field: [
@@ -284,7 +310,8 @@ def test_full_pass_through_real_gateway(feature, install_fake, tmp_path):
     assert result["result"] == "PASS", result
     assert {node["class_type"] for node in fake.graph.values()} == NODE_SETS[feature]
     assert result["outputs"][0]["bytes"] > 0
-    assert result["outputs"][0]["frames"] == {"core": 5, "image-edit": 1, "stages": 3}[feature]
+    frames = {"core": 5, "image-edit": 1, "stages": 3, "panoramas": 1}
+    assert result["outputs"][0]["frames"] == frames[feature]
     assert result["timings"] == {
         "queue_wait_seconds": 0.9,
         "run_seconds": 0.1,

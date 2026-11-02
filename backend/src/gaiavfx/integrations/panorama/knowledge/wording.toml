@@ -1,0 +1,15 @@
+# The words the models read. Panorama prompts are the research's verbatim (FlooPowder
+# scripts/prompts/worldbuilder: places/H*.json panorama_prompt, text/seam_band_fibo.txt, batches/r1c.json f-out).
+# Python compiles a person's place, landmarks and light into the description; nobody writes model syntax.
+schema = 1
+
+[description]
+trigger = "img-txt-2-360"
+preamble = "Photographic full 360-degree equirectangular panorama, 2:1 aspect ratio, centred level horizon, heading 0 at image centre, headings increasing clockwise, heading 180 at the joined edges."
+viewpoint = "From an eye-level viewpoint: {landmarks}."
+landmark = "{what} at {heading} degrees"
+tail = "Continuous geometry, no people, no labels."
+
+[edit]
+outpaint = "<image_1> is a 360-degree equirectangular panorama canvas: the photograph in its centre is real, the bright green area around it is unknown. Fill all of the green area so that the whole image becomes one seamless 360-degree equirectangular panorama of the same place, with the horizon level across the middle and the left and right edges matching. Keep the photograph in the centre unchanged."
+seam = "Replace the bright green vertical band in the middle of <image_1> with the scenery that continues seamlessly from both of its sides, in the same light, perspective and level horizon. Change nothing else in the image."

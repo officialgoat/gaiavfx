@@ -94,6 +94,8 @@ def test_integration_boundaries():
         "gaiavfx.modules.recast.replacement",
         # A fill probe's model-free request (ADR 0020 §6).
         "gaiavfx.modules.sets.probe",
+        # What a person asks a panorama to show, in words about the place.
+        "gaiavfx.modules.panoramas.ask",
     }
     violations = []
     for file, name in imports_in("integrations"):
