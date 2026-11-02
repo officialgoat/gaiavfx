@@ -1,5 +1,5 @@
 # A stage built from a panorama. A build freezes this file with its request; a change here applies to new builds only.
-# The numbers are FlooPowder's Worldbuilder research (R4-R5) unless a line says otherwise.
+# The numbers are the Worldbuilder research's (R4-R5) unless a line says otherwise.
 schema = 1
 
 # The panorama's distance: MoGe-3 split into 12 perspective views and merged (ComfyUI's MoGePanoramaInference); the

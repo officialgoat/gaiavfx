@@ -41,10 +41,14 @@ def _onto(mask: np.ndarray, shape) -> np.ndarray:
 def judge(arrays: dict, rules: dict) -> dict:
     """The panorama's sky, glass and measured surface by the research's rules, with the numbers that decided them."""
     distance = np.asarray(arrays["depth"], dtype=np.float32)
-    mask = np.asarray(arrays["mask"], dtype=bool) & np.isfinite(distance) & (distance > 0)
+    mask = (
+        np.asarray(arrays["mask"], dtype=bool) & np.isfinite(distance) & (distance > 0)
+    )
     found = _onto(np.asarray(arrays["sky"], dtype=bool), distance.shape)
     rest = mask & ~found
-    typical = float(np.median(distance[rest if rest.any() else mask])) if mask.any() else 0.0
+    typical = (
+        float(np.median(distance[rest if rest.any() else mask])) if mask.any() else 0.0
+    )
     sky = found & mask & (distance >= float(rules["sky_factor"]) * typical)
     glass = _onto(np.asarray(arrays["glass"], dtype=bool), distance.shape)
     too_much = bool(glass.mean() >= float(rules["glass_max"]))
@@ -62,12 +66,16 @@ def judge(arrays: dict, rules: dict) -> dict:
             "glass_ignored": too_much,
             "typical_distance": round(typical, 4),
             "passed": surface >= float(rules["min_surface"]),
-            "reason": None if surface >= float(rules["min_surface"]) else "little_surface",
+            "reason": None
+            if surface >= float(rules["min_surface"])
+            else "little_surface",
         },
     }
 
 
-def build_atlas(image_path: Path, geometry_path: Path, folder: Path, place: str, rules: dict) -> tuple[dict | None, dict]:
+def build_atlas(
+    image_path: Path, geometry_path: Path, folder: Path, place: str, rules: dict
+) -> tuple[dict | None, dict]:
     """The atlas (version 1, K0 the panorama) written into `folder`, or None when the gate refuses; and the verdict."""
     judged = judge(load(geometry_path), rules)
     if not judged["record"]["passed"]:
@@ -75,9 +83,15 @@ def build_atlas(image_path: Path, geometry_path: Path, folder: Path, place: str,
     image = np.asarray(Image.open(image_path).convert("RGB"))
     distance = judged["distance"]
     if image.shape[:2] != distance.shape:
-        image = np.asarray(Image.fromarray(image).resize(distance.shape[::-1], Image.LANCZOS))
-    key = mem.pano_keyframe(RECORD, image, distance, judged["mask"], glass=judged["glass"])
-    record = mem.keyframe_record(key, folder / "keyframes", folder, role="observed", source="panorama")
+        image = np.asarray(
+            Image.fromarray(image).resize(distance.shape[::-1], Image.LANCZOS)
+        )
+    key = mem.pano_keyframe(
+        RECORD, image, distance, judged["mask"], glass=judged["glass"]
+    )
+    record = mem.keyframe_record(
+        key, folder / "keyframes", folder, role="observed", source="panorama"
+    )
     atlas = ex.new_atlas(place, record)
     ex.save_atlas(atlas, folder / "atlas.json")
     return atlas, judged["record"]

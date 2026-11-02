@@ -30,7 +30,10 @@ class GaiaSaveSetGeometry:
         return {
             "required": {
                 "da3_geometry": ("DA3_GEOMETRY",),
-                "resolution": ("INT", {"default": 504, "min": 140, "max": 2520, "step": 14}),
+                "resolution": (
+                    "INT",
+                    {"default": 504, "min": 140, "max": 2520, "step": 14},
+                ),
                 "resize_method": (["upper_bound_resize", "lower_bound_resize"],),
                 "filename_prefix": ("STRING", {"default": "gaiavfx/set-geometry"}),
             },
@@ -42,7 +45,9 @@ class GaiaSaveSetGeometry:
     OUTPUT_NODE = True
     CATEGORY = "gaiavfx/sets"
 
-    def save(self, da3_geometry, resolution, resize_method, filename_prefix, people=None):
+    def save(
+        self, da3_geometry, resolution, resize_method, filename_prefix, people=None
+    ):
         import folder_paths
         from comfy.ldm.depth_anything_3.preprocess import compute_target_size
 
@@ -51,11 +56,28 @@ class GaiaSaveSetGeometry:
         image = da3_geometry["image"].detach().float().cpu().numpy()
         if image.shape[:3] != (count, height, width):
             raise ValueError("The DA3 frames and depth differ in size.")
-        extrinsics = da3_geometry["extrinsics"].detach().float().cpu().numpy().reshape((count, -1, 4))
+        extrinsics = (
+            da3_geometry["extrinsics"]
+            .detach()
+            .float()
+            .cpu()
+            .numpy()
+            .reshape((count, -1, 4))
+        )
         if extrinsics.shape[1] == 3:
-            bottom = np.tile(np.array([[[0.0, 0.0, 0.0, 1.0]]], np.float32), (count, 1, 1))
+            bottom = np.tile(
+                np.array([[[0.0, 0.0, 0.0, 1.0]]], np.float32), (count, 1, 1)
+            )
             extrinsics = np.concatenate([extrinsics, bottom], 1)
-        intrinsics = da3_geometry["intrinsics"].detach().float().cpu().numpy().reshape((count, 3, 3)).copy()
+        intrinsics = (
+            da3_geometry["intrinsics"]
+            .detach()
+            .float()
+            .cpu()
+            .numpy()
+            .reshape((count, 3, 3))
+            .copy()
+        )
         processed = compute_target_size(height, width, resolution, resize_method)
         intrinsics[:, 0, :] *= width / processed[1]
         intrinsics[:, 1, :] *= height / processed[0]
@@ -67,7 +89,9 @@ class GaiaSaveSetGeometry:
             if found.shape[0] == 0:  # SAM found nobody in these frames
                 found = np.zeros((count, height, width), np.float32)
             if found.shape != (count, height, width):
-                raise ValueError("The people masks and the frames differ in count or size.")
+                raise ValueError(
+                    "The people masks and the frames differ in count or size."
+                )
             mask = found > 0.5
         folder = Path(folder_paths.get_output_directory()) / filename_prefix
         folder.mkdir(parents=True, exist_ok=True)
@@ -76,14 +100,27 @@ class GaiaSaveSetGeometry:
             target,
             image=(np.clip(image, 0, 1) * 255).round().astype(np.uint8),
             depth=depth.astype(np.float32),
-            confidence=da3_geometry["confidence"].detach().float().cpu().numpy().astype(np.float32),
+            confidence=da3_geometry["confidence"]
+            .detach()
+            .float()
+            .cpu()
+            .numpy()
+            .astype(np.float32),
             extrinsics=extrinsics.astype(np.float32),
             intrinsics=intrinsics.astype(np.float32),
             people=mask,
             processed=np.asarray(processed, np.int32),
         )
-        subfolder = target.parent.relative_to(folder_paths.get_output_directory()).as_posix()
-        return {"ui": {"geometry": [{"filename": target.name, "subfolder": subfolder, "type": "output"}]}}
+        subfolder = target.parent.relative_to(
+            folder_paths.get_output_directory()
+        ).as_posix()
+        return {
+            "ui": {
+                "geometry": [
+                    {"filename": target.name, "subfolder": subfolder, "type": "output"}
+                ]
+            }
+        }
 
 
 class GaiaSaveStillGeometry:
@@ -124,9 +161,16 @@ class GaiaSaveStillGeometry:
         folder.mkdir(parents=True, exist_ok=True)
         target = folder / "geometry.npz"
         np.savez_compressed(target, **arrays)
-        subfolder = target.parent.relative_to(folder_paths.get_output_directory()).as_posix()
-        return {"ui": {"geometry": [{"filename": target.name, "subfolder": subfolder, "type": "output"}]}}
-
+        subfolder = target.parent.relative_to(
+            folder_paths.get_output_directory()
+        ).as_posix()
+        return {
+            "ui": {
+                "geometry": [
+                    {"filename": target.name, "subfolder": subfolder, "type": "output"}
+                ]
+            }
+        }
 
 
 class GaiaSaveMoGeGeometry:
@@ -161,7 +205,11 @@ class GaiaSaveMoGeGeometry:
             return value.detach().float().cpu().numpy()
 
         def masks(kind):
-            return [plain(finds[key]) for key in sorted(finds) if key.startswith(kind) and finds[key] is not None]
+            return [
+                plain(finds[key])
+                for key in sorted(finds)
+                if key.startswith(kind) and finds[key] is not None
+            ]
 
         intrinsics = moge_geometry.get("intrinsics")
         arrays = moge_arrays(
@@ -175,5 +223,13 @@ class GaiaSaveMoGeGeometry:
         folder.mkdir(parents=True, exist_ok=True)
         target = folder / "geometry.npz"
         np.savez_compressed(target, **arrays)
-        subfolder = target.parent.relative_to(folder_paths.get_output_directory()).as_posix()
-        return {"ui": {"geometry": [{"filename": target.name, "subfolder": subfolder, "type": "output"}]}}
+        subfolder = target.parent.relative_to(
+            folder_paths.get_output_directory()
+        ).as_posix()
+        return {
+            "ui": {
+                "geometry": [
+                    {"filename": target.name, "subfolder": subfolder, "type": "output"}
+                ]
+            }
+        }

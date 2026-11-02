@@ -290,7 +290,7 @@ url = "https://huggingface.co/mickmumpitz/Krea2-360-ERP-LoRAs/resolve/f2ff4c47c3
 features = ["panoramas"]
 optional = false
 license = "mit (a Krea 2 derivative: Krea 2's terms still apply to its use)"
-note = "Pinned HF LFS oid/size; the text-to-360 LoRA FlooPowder's Worldbuilder research ranked first (pano-t2i)."
+note = "Pinned HF LFS oid/size; the text-to-360 LoRA the Worldbuilder research ranked first (pano-t2i)."
 
 [[models]]
 file = "fibo2_edit_turbo_int8_convrot.safetensors"
