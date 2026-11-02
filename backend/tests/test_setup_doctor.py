@@ -24,7 +24,7 @@ class FakeGateway:
             for c in f["core_classes"] + f["node_classes"]
         }
         self.routes = {
-            "/system_stats": {"system": {"comfyui_version": "0.42.1"}},
+            "/system_stats": {"system": {"comfyui_version": "0.43.0"}},
             "/object_info": nodes,
             "/models": sorted({m["folder"] for m in manifest["models"]}),
             "/gaiavfx/health": {
@@ -99,6 +99,15 @@ def test_untested_version_warns_without_failing():
     checks = doctor.check_setup(gateway=fake, features="core", include_runtime=False)
     assert doctor.verdicts(checks) == {"core": "ok"}
     assert any(c.status == "optional" and "Untested" in c.detail for c in checks)
+
+
+def test_a_feature_names_its_own_comfyui_floor():
+    fake = FakeGateway()
+    fake.routes["/system_stats"]["system"]["comfyui_version"] = "0.42.1"
+    checks = doctor.check_setup(gateway=fake, features="core,panoramas", include_runtime=False)
+    assert doctor.verdicts(checks) == {"core": "ok", "panoramas": "mismatch"}
+    floor = next(c for c in checks if c.feature == "panoramas" and c.item == "ComfyUI")
+    assert "minimum 0.43.0" in floor.detail and floor.fix
 
 
 def test_nested_model_name_does_not_satisfy_the_graph_filename():

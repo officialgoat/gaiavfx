@@ -15,6 +15,10 @@ from gaiavfx.setup.manifest import (
 )
 
 DEFAULT_FEATURES = ["core", "image-edit", "stages", "recast"]
+PANORAMA_LICENCES = (
+    "Panoramas downloads Krea 2 (Krea 2 Community License) and Fibo 2.0 (CC BY-NC 4.0): "
+    "both are for non-commercial use only. Accept their terms before you use them."
+)
 
 
 def run_setup(*arguments):
@@ -103,7 +107,8 @@ def main(argv=None):
         "--features",
         nargs="+",
         default=DEFAULT_FEATURES,
-        choices=["core", "image-edit", "stages", "recast"],
+        choices=["core", "image-edit", "stages", "recast", "panoramas"],
+        help="Panoramas is opt-in: its Krea 2 and Fibo 2.0 weights are licensed for non-commercial use only",
     )
     parser.add_argument("--skip-models", action="store_true")
     parser.add_argument("--skip-assistant", action="store_true")
@@ -167,6 +172,8 @@ def main(argv=None):
                 else:
                     print("Choose 1, 2, 3 or 4." if saved else "Choose 1, 2 or 3.")
         print("Feature groups: " + ", ".join(args.features))
+        if "panoramas" in args.features:
+            print(PANORAMA_LICENCES)
         if (args.comfy_dir or args.install_comfy) and not args.skip_models:
             total = sum(
                 model["bytes"]

@@ -168,9 +168,9 @@ def test_git_comfy_install_uses_pins_without_starting(tmp_path, monkeypatch, cap
     monkeypatch.setattr(comfy_install, "python_path", lambda path: path / ".venv/python")
     args = argparse.Namespace(directory=tmp_path / "ComfyUI", version=None, git=True, cuda=None)
     assert comfy_install.install_comfy(args) == 0
-    assert calls[0][-1] == "v0.42.1"
+    assert calls[0][-1] == "v0.43.0"
     assert "3.13" in calls[1]
-    assert "torch==2.14.0" in calls[2]
+    assert "torch==2.14.1" in calls[2]
     assert "https://download.pytorch.org/whl/cu130" in calls[2]
     assert not any("main.py" in str(call) for call in calls)
     assert read_setup_file()["comfy_dir"] == str(args.directory)

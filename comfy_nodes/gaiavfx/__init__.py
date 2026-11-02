@@ -10,7 +10,7 @@ from server import PromptServer
 
 from .audio import GaiaH3AudioVAE
 from .continuity import GaiaH3ContinuityMasked, GaiaH3ContinuityTrim
-from .geometry import GaiaSaveSetGeometry, GaiaSaveStillGeometry
+from .geometry import GaiaSaveMoGeGeometry, GaiaSaveSetGeometry, GaiaSaveStillGeometry
 from .lora_loader import GaiaH3LoraLoader
 from .masked_span import GaiaH3MaskedSpan
 from .power_shift import GaiaH3PowerShift
@@ -40,6 +40,7 @@ _nodes = [
     GaiaH3ContinuityTrim,
     GaiaSaveSetGeometry,
     GaiaSaveStillGeometry,
+    GaiaSaveMoGeGeometry,
 ]
 if _insightface and _onnxruntime:
     from .people import GaiaFaceCheck
@@ -67,6 +68,7 @@ _DISPLAY_NAMES = {
     "GaiaFaceCheck": "Face Check",
     "GaiaSaveSetGeometry": "Save Set Geometry",
     "GaiaSaveStillGeometry": "Save Still Geometry",
+    "GaiaSaveMoGeGeometry": "Save MoGe Geometry",
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     name: f"GAIAVFX {_DISPLAY_NAMES[name]}" for name in NODE_CLASS_MAPPINGS

@@ -24,13 +24,13 @@ Voice conversion is experimental and requires manual engine setup.
 
 ## Built with ComfyUI, open weights only
 
-MiniMax H3 is the core video model. Every ComfyUI graph is built in Python by typed integrations and submitted through ComfyUI's API. The app maintains [one custom node pack](comfy_nodes/gaiavfx) with nine nodes and installs four pinned third-party packs. All model weights in the setup manifest are open weights, with the individual licence restrictions below.
+MiniMax H3 is the core video model. Every ComfyUI graph is built in Python by typed integrations and submitted through ComfyUI's API. The app maintains [one custom node pack](comfy_nodes/gaiavfx) with eleven nodes and installs four pinned third-party packs. All model weights in the setup manifest are open weights, with the individual licence restrictions below.
 
 The supplied launchers run ComfyUI with `--disable-api-nodes`: no partner or API nodes and no cloud model APIs are needed. Gaia runs a local Qwen GGUF through llama.cpp, or any OpenAI-compatible **local** server configured in Settings. GAIAVFX is our entry to the ComfyUI “Open Source Higgsfield” challenge for **Most Innovative** and the **Built with MiniMax H3** bonus, and it stays open weights only.
 
 ## Requirements and verified runs
 
-Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB RAM**, with **ComfyUI 0.42.1 portable** and `--lowvram --reserve-vram 4 --disable-api-nodes`. These are tested specifications, not minimum requirements. The installer offers to install missing Git, uv and Node.js **24+** (including npm): winget on Windows, with verified portable copies when winget is unavailable or fails. uv provides Python 3.12 for the app and Python 3.10 for the stages engine; no separate Python installation is needed. On Linux, install Git through your distro; the installer can provide portable uv and Node 24. Linux x86-64 via `install.sh` is best effort. The bundled Linux llama.cpp server is CPU-only unless you build it with CUDA or choose another local server.
+Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB RAM**, with **ComfyUI 0.43.0 portable** and `--lowvram --reserve-vram 4 --disable-api-nodes`. These are tested specifications, not minimum requirements. The installer offers to install missing Git, uv and Node.js **24+** (including npm): winget on Windows, with verified portable copies when winget is unavailable or fails. uv provides Python 3.12 for the app and Python 3.10 for the stages engine; no separate Python installation is needed. On Linux, install Git through your distro; the installer can provide portable uv and Node 24. Linux x86-64 via `install.sh` is best effort. The bundled Linux llama.cpp server is CPU-only unless you build it with CUDA or choose another local server.
 
 | Model feature group | Disk for weights |
 |---|---:|
@@ -38,7 +38,8 @@ Windows is the primary platform. Tested on **Windows 11, RTX 4090 24 GB, 64 GB R
 | image-edit | 28.9 GiB |
 | recast | 61.1 GiB |
 | stages | 66.1 GiB |
-| All 18 files, shared files counted once | **95.3 GiB (102.4 GB)** |
+| panoramas (opt-in; Krea 2 and Fibo 2.0 are non-commercial) | 34.5 GiB |
+| All 25 files, shared files counted once | **128.0 GiB (137.4 GB)** |
 
 Leave additional space for ComfyUI, download archives, Python environments, generated media and the assistant (about 18.4 GB of model/projector files).
 
@@ -126,7 +127,7 @@ On 29 October 2026, Swift 1.5 ran on the RTX 4090 with the app's own llama-serve
 
 The tables below come from [the setup manifest](backend/src/gaiavfx/setup/manifest/comfy.toml); regenerate with `python scripts/update_readme_models.py`. Folder names are relative to `ComfyUI/models` unless mapped by extra model paths.
 
-You must accept each model's licence, including the MiniMax H3 community licence, SAM licence and InsightFace's non-commercial research terms. **Open weights does not mean unrestricted use. GAIAVFX's GPL-3.0-or-later licence does not cover model weights.** NativeAudioLock is installed from the author's public repository, has no declared upstream licence, and is never vendored here. Motion Context is pinned to the tested v0.6.2 revision.
+You must accept each model's licence, including the MiniMax H3 community licence, SAM licence, InsightFace's non-commercial research terms and, for the opt-in Panoramas feature, the Krea 2 Community License and Fibo 2.0's CC BY-NC 4.0 (both non-commercial). **Open weights does not mean unrestricted use. GAIAVFX's GPL-3.0-or-later licence does not cover model weights.** NativeAudioLock is installed from the author's public repository, has no declared upstream licence, and is never vendored here. Motion Context is pinned to the tested v0.6.2 revision.
 
 <details>
 <summary>Model files, sizes, features, licences and sources</summary>
@@ -142,8 +143,8 @@ You must accept each model's licence, including the MiniMax H3 community licence
 | `qwen_image_edit_2511_fp8mixed.safetensors` | `diffusion_models` | 19.12 GiB | image-edit | apache-2.0 | [repo](https://huggingface.co/Comfy-Org/Qwen-Image-Edit_ComfyUI) |
 | `Qwen-Image-Edit-2511-Lightning-4steps-V1.0-bf16.safetensors` | `loras` | 810.2 MiB | image-edit | apache-2.0 | [repo](https://huggingface.co/lightx2v/Qwen-Image-Edit-2511-Lightning) |
 | `qwen_2.5_vl_7b_fp8_scaled.safetensors` | `text_encoders` | 8.74 GiB | image-edit | apache-2.0 | [repo](https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI) |
-| `qwen_image_vae.safetensors` | `vae` | 242.0 MiB | image-edit | apache-2.0 | [repo](https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI) |
-| `sam3.1_multiplex_fp16.safetensors` | `checkpoints` | 1.63 GiB | recast, stages | sam-license | [repo](https://huggingface.co/Comfy-Org/sam3) |
+| `qwen_image_vae.safetensors` | `vae` | 242.0 MiB | image-edit, panoramas | apache-2.0 | [repo](https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI) |
+| `sam3.1_multiplex_fp16.safetensors` | `checkpoints` | 1.63 GiB | recast, stages, panoramas | sam-license | [repo](https://huggingface.co/Comfy-Org/sam3) |
 | `h3_character_swap_pro4500_1000.safetensors` | `loras` | 147.9 MiB | recast | minimax-h3-community-license-agreement | [repo](https://huggingface.co/akatz-ai/MiniMax-H3-Character-Swap-LoRA) |
 | `SS_FaceSwap_MiniMax_H3_REF2VA.safetensors` | `loras` | 62.6 MiB | recast | apache-2.0 | [repo](https://huggingface.co/UntMods/FaceSwap_MiniMaxH3_REF2VA) |
 | `depth_anything_3_base.safetensors` | `geometry_estimation` | 516.4 MiB | stages | apache-2.0 | [repo](https://huggingface.co/Comfy-Org/Depth-Anything-3) |
@@ -152,6 +153,13 @@ You must accept each model's licence, including the MiniMax H3 community licence
 | `det_10g.onnx` | `insightface/models/buffalo_l` | 16.1 MiB | recast | InsightFace pretrained models: non-commercial research; separate licensing for other use | [repo](https://huggingface.co/vjump21848/buffalo_l_unzip) |
 | `w600k_r50.onnx` | `insightface/models/buffalo_l` | 166.3 MiB | recast | InsightFace pretrained models: non-commercial research; separate licensing for other use | [repo](https://huggingface.co/vjump21848/buffalo_l_unzip) |
 | `2d106det.onnx` | `insightface/models/buffalo_l` | 4.8 MiB | recast | InsightFace pretrained models: non-commercial research; separate licensing for other use | [repo](https://huggingface.co/vjump21848/buffalo_l_unzip) |
+| `krea2_turbo_int8_convrot.safetensors` | `diffusion_models` | 12.57 GiB | panoramas | krea-2-community-license (non-commercial) | [repo](https://huggingface.co/Comfy-Org/Krea-2) |
+| `qwen3vl_4b_fp8_scaled.safetensors` | `text_encoders` | 4.88 GiB | panoramas | krea-2-community-license (non-commercial) | [repo](https://huggingface.co/Comfy-Org/Krea-2) |
+| `krea2_t2i_360_erp_lora_v1.safetensors` | `loras` | 218.0 MiB | panoramas | mit (a Krea 2 derivative: Krea 2's terms still apply to its use) | [repo](https://huggingface.co/mickmumpitz/Krea2-360-ERP-LoRAs) |
+| `fibo2_edit_turbo_int8_convrot.safetensors` | `diffusion_models` | 7.83 GiB | panoramas | cc-by-nc-4.0 (BRIA AI; non-commercial) | [repo](https://huggingface.co/Comfy-Org/Fibo-2.0) |
+| `qwen3vl_4b_int8_convrot.safetensors` | `text_encoders` | 4.52 GiB | panoramas | cc-by-nc-4.0 (BRIA AI repack of Qwen3-VL-4B; non-commercial) | [repo](https://huggingface.co/Comfy-Org/Fibo-2.0) |
+| `flux2-vae.safetensors` | `vae` | 320.6 MiB | panoramas | cc-by-nc-4.0 (as shipped in the Fibo 2.0 repack) | [repo](https://huggingface.co/Comfy-Org/Fibo-2.0) |
+| `moge_3_vitg_fp16.safetensors` | `geometry_estimation` | 2.33 GiB | panoramas | mit | [repo](https://huggingface.co/Comfy-Org/MoGe) |
 <!-- setup-models:end -->
 
 </details>
@@ -159,7 +167,7 @@ You must accept each model's licence, including the MiniMax H3 community licence
 <!-- setup-packs:start -->
 | Node pack | Pinned revision | Features | Licence |
 |---|---|---|---|
-| [gaiavfx](comfy_nodes/gaiavfx) | `0.1.0` | core, recast, stages | GPL-3.0-or-later |
+| [gaiavfx](comfy_nodes/gaiavfx) | `0.1.0` | core, recast, stages, panoramas | GPL-3.0-or-later |
 | [ComfyUI-H3-Motion-Context](https://github.com/NikoDemon80/ComfyUI-H3-Motion-Context) | `5335715abe54c1a9bfbe3494da29aae3e8635ce3` | core, recast | GPL-3.0 (LICENSE file) |
 | [ComfyUI-H3-NativeAudioLock](https://github.com/Shrek3OnVH5/MiniMax-H3-NativeAudio-MusicVideo-Workflow) | `11a95f623b98496923714db99da0aecec672cbd4` | recast | NO LICENSE DECLARED |
 | [ComfyUI-KJNodes](https://github.com/kijai/ComfyUI-KJNodes) | `6ab7e8130e449ed2c0037589bcf84146ceb7fc9c` | core, recast, stages | GPL-3.0 (LICENSE file) |

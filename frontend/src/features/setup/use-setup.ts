@@ -10,6 +10,7 @@ export const featureNames: Record<string, string> = {
   "image-edit": "Image edit",
   recast: "Recast",
   stages: "Stages",
+  panoramas: "Panoramas (non-commercial models)",
   runtime: "Agent and tools",
 };
 

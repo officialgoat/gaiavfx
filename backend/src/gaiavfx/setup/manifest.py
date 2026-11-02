@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Literal
 
 Status = Literal["ok", "missing", "mismatch", "unknown", "optional"]
-FEATURES = ("core", "image-edit", "recast", "stages")
+FEATURES = ("core", "image-edit", "recast", "stages", "panoramas")
 FOLDERS = {
     "diffusion_models",
     "text_encoders",

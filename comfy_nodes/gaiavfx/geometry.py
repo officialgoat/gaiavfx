@@ -4,6 +4,9 @@
 GaiaSaveStillGeometry (ADR 0020 §4) saves a fill probe's still geometry: MoGe-2's depth and mask and SAM 3's glass
 (`still.py`).
 
+GaiaSaveMoGeGeometry saves a panorama's geometry for a stage built from it (MoGe-3's radial distance, SAM 3's sky and
+glass finds), or one picture's depth and field of view for a panorama grown from it (`panorama.py`).
+
 GaiaSaveSetGeometry takes Depth Anything 3's multiview geometry (DA3_GEOMETRY, comfy_extras/nodes_depth_anything_3.py:
 depth (B,H,W), confidence (B,H,W), extrinsics (1,B,3|4,4) world-to-camera, intrinsics (1,B,3,3) in pixels, the frames
 as image (B,H,W,3)) and, optionally, the people SAM 3 tracked in the same frames (MASK, (B,H,W)). It writes
@@ -124,3 +127,53 @@ class GaiaSaveStillGeometry:
         subfolder = target.parent.relative_to(folder_paths.get_output_directory()).as_posix()
         return {"ui": {"geometry": [{"filename": target.name, "subfolder": subfolder, "type": "output"}]}}
 
+
+
+class GaiaSaveMoGeGeometry:
+    """A panorama's geometry, or one picture's, for Panoramas: MoGe's distance (or depth and field of view) and SAM 3's
+    sky and glass finds, saved as one `geometry.npz` (`panorama.moge_arrays`)."""
+
+    FINDS = 4  # optional detection masks of each kind, at most
+
+    @classmethod
+    def INPUT_TYPES(cls):
+        optional = {f"sky_{n}": ("MASK",) for n in range(cls.FINDS)}
+        optional.update({f"glass_{n}": ("MASK",) for n in range(cls.FINDS)})
+        return {
+            "required": {
+                "moge_geometry": ("MOGE_GEOMETRY",),
+                "filename_prefix": ("STRING", {"default": "gaiavfx/panorama"}),
+            },
+            "optional": optional,
+        }
+
+    RETURN_TYPES = ()
+    FUNCTION = "save"
+    OUTPUT_NODE = True
+    CATEGORY = "gaiavfx/sets"
+
+    def save(self, moge_geometry, filename_prefix, **finds):
+        import folder_paths
+
+        from .panorama import moge_arrays
+
+        def plain(value):
+            return value.detach().float().cpu().numpy()
+
+        def masks(kind):
+            return [plain(finds[key]) for key in sorted(finds) if key.startswith(kind) and finds[key] is not None]
+
+        intrinsics = moge_geometry.get("intrinsics")
+        arrays = moge_arrays(
+            plain(moge_geometry["depth"]),
+            plain(moge_geometry["mask"]),
+            None if intrinsics is None else plain(intrinsics),
+            masks("sky_"),
+            masks("glass_"),
+        )
+        folder = Path(folder_paths.get_output_directory()) / filename_prefix
+        folder.mkdir(parents=True, exist_ok=True)
+        target = folder / "geometry.npz"
+        np.savez_compressed(target, **arrays)
+        subfolder = target.parent.relative_to(folder_paths.get_output_directory()).as_posix()
+        return {"ui": {"geometry": [{"filename": target.name, "subfolder": subfolder, "type": "output"}]}}

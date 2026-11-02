@@ -16,7 +16,7 @@ Paths below are under [backend/src/gaiavfx](../backend/src/gaiavfx).
 | `setup/` | Manifest-driven dependency installation, read-only doctor checks and explicit inference smoke tests. |
 | `shared/` | Common errors, context and telemetry interfaces. |
 
-[frontend/](../frontend) consumes generated Python API contracts; do not hand-edit generated TypeScript. [desktop/](../desktop) hosts the renderer and local service. [comfy_nodes/gaiavfx/](../comfy_nodes/gaiavfx) is the single maintained custom node pack (nine nodes); third-party packs are installed separately.
+[frontend/](../frontend) consumes generated Python API contracts; do not hand-edit generated TypeScript. [desktop/](../desktop) hosts the renderer and local service. [comfy_nodes/gaiavfx/](../comfy_nodes/gaiavfx) is the single maintained custom node pack (eleven nodes); third-party packs are installed separately.
 
 ### Where a concept lives
 

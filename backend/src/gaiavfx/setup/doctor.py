@@ -172,12 +172,15 @@ def check_setup(
             actual = _version(version)
             minimum = _version(baseline["min_version"])
             tested = _version(baseline["tested_version"])
-            status = "unknown" if actual is None else "mismatch" if actual < minimum else "ok"
-            detail = f"ComfyUI {version or 'version unknown'}; minimum {baseline['min_version']}, tested {baseline['tested_version']}."
-            checks.extend(
-                Check(f, "ComfyUI", status, detail, install if status != "ok" else "")
-                for f in selected
-            )
+            for f in selected:
+                # A feature may need a newer ComfyUI than the app does (Panoramas need Fibo 2.0's nodes).
+                needed = manifest["features"][f].get("min_version", baseline["min_version"])
+                floor = max(minimum, _version(needed))
+                status = "unknown" if actual is None else "mismatch" if actual < floor else "ok"
+                detail = f"ComfyUI {version or 'version unknown'}; minimum {needed}, tested {baseline['tested_version']}."
+                checks.append(
+                    Check(f, "ComfyUI", status, detail, install if status != "ok" else "")
+                )
             if actual and minimum <= actual < tested:
                 checks.extend(
                     Check(

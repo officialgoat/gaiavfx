@@ -16,10 +16,10 @@ from gaiavfx.setup.models import extra_model_paths, model_candidates, model_path
 
 def test_manifest_validated_and_pinned():
     manifest = load_manifest()
-    assert len(manifest["models"]) == 18
+    assert len(manifest["models"]) == 25
     assert all(m["sha256"] and m["url"] for m in manifest["models"])
     assert manifest["comfyui"]["min_version"] == "0.35.0"
-    assert manifest["comfyui"]["tested_version"] == "0.42.1"
+    assert manifest["comfyui"]["tested_version"] == "0.43.0"
     assert any(p.get("subdir") for p in manifest["node_packs"])
 
 
@@ -75,6 +75,8 @@ def test_every_graph_class_is_declared_for_its_feature():
             feature = "recast"
         elif relative.startswith("qwen_image_edit/"):
             feature = "image-edit"
+        elif relative.startswith("panorama/") or relative == "worldbuilder/panorama.py":
+            feature = "panoramas"
         elif relative.startswith("worldbuilder/") or relative in {
             "minimax_h3/probe.py",
             "minimax_h3/survey.py",
@@ -177,5 +179,6 @@ def test_setup_file_merges_and_tolerates_invalid_input(tmp_path, monkeypatch):
     file.write_text("not JSON")
     assert read_setup_file() == {}
     assert selected_features(["core,stages", "core"]) == ["core", "stages"]
+    assert "panoramas" in selected_features(None)
     with pytest.raises(ValueError):
         selected_features("not-a-feature")
