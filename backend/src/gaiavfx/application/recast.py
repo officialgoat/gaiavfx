@@ -151,6 +151,7 @@ def set_not_same(session, library, recast_id, *, expected_revision, pairs):
     recast, report = shell.load(session, library, recast_id, expected_revision)
     journal = journaling.capture(recast, report)
     stored = {(n["character_a"], n["character_b"]) for n in recast["not_same"]}
+    added = []
     for a, b in pairs:
         if a == b:
             raise ApplicationError("A character cannot be set aside from itself.", 422)
@@ -159,6 +160,7 @@ def set_not_same(session, library, recast_id, *, expected_revision, pairs):
         pair = tuple(sorted((a, b)))
         if pair not in stored:
             stored.add(pair)
+            added.append((a, b))
             recast["not_same"].append(
                 {
                     "recast_id": recast["id"],
@@ -167,7 +169,7 @@ def set_not_same(session, library, recast_id, *, expected_revision, pairs):
                     "created_at": timestamp(),
                 }
             )
-    return shell.journaled(session, library, recast, journal, "set_not_same")
+    return shell.journaled(session, library, recast, journal, "set_not_same", added=added)
 
 
 def move_tracks(session, library, recast_id, *, expected_revision, track_ids, to):

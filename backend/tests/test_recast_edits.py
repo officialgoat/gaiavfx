@@ -40,6 +40,9 @@ def test_a_set_aside_pair_is_hidden_both_ways_for_good(world):
     state, (a, b, c) = three_clusters(world)
     fingerprints = [s["plan"] and s["plan"].get("_fingerprint") for s in state["shots"]]
     state = edit(world, state, recast.set_not_same, pairs=[(b, a)])
+    # The summary names the pair as the user did, whatever order the store keeps it in.
+    labels = {v["id"]: v["label"] for v in state["characters"]}
+    assert state["edits"][0]["summary"] == f"Set aside {labels[b]} and {labels[a]}"
     assert b not in similar(state, a) and a not in similar(state, b)
     assert c in similar(state, a)
     assert state["not_same"] == [{"character_a": min(a, b), "character_b": max(a, b)}]

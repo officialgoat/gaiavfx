@@ -189,11 +189,8 @@ def summary_for(command, journal, recast, **facts):
             parts.append(f"{verb.lower()} it" if parts else f"{verb} {new['label']}")
         return " and ".join(parts) or f"Edited {new['label']}"
     if command == "set_not_same":
-        added = [
-            (n["character_a"], n["character_b"])
-            for n in recast["not_same"]
-            if f"{n['character_a']}|{n['character_b']}" not in journal.before["not_same"]
-        ]
+        # The pairs as the user named them, so the summary reads as the page's notice does.
+        added = facts["added"]
         if len(added) == 1:
             return f"Set aside {label(added[0][0])} and {label(added[0][1])}"
         return f"Set aside {len(added)} pairs as not the same person"
