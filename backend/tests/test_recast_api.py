@@ -7,13 +7,8 @@ import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
-from test_recast_feed import settle_all, waiting_reference
-from test_recast_lines import KEYS
-from test_recast_lines import voice as voice  # noqa: PLC0414
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import shot_versions
-from test_recast_service import world as world  # noqa: PLC0414
-from test_recast_voice import (
+from recast_world_support import (
+    KEYS,
     audition,
     build_operation,
     character,
@@ -21,9 +16,15 @@ from test_recast_voice import (
     drive,
     feed_writes,
     mara,
+    settle_all,
+    shot_versions,
     succeed,
+    waiting_reference,
 )
-from test_recast_voice import builds as builds  # noqa: PLC0414
+from recast_world_support import builds as builds  # noqa: PLC0414
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import voice as voice  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 
 from gaiavfx.api.recast import LinesDTO, RecastDTO, recast_router
 from gaiavfx.application import recast
@@ -239,7 +240,7 @@ def test_every_recast_route(world, tmp_path, monkeypatch):
 
 @pytest.mark.parametrize("failed", [False, True])
 def test_head_pass_409_commits_missing_or_retried_target_report(world, monkeypatch, failed):
-    from test_recast_feed import drain, run
+    from recast_world_support import drain, run
 
     from gaiavfx.application import target_faces
 
@@ -280,7 +281,7 @@ def test_head_pass_409_commits_missing_or_retried_target_report(world, monkeypat
 
 @pytest.mark.parametrize("legacy", [False, True])
 def test_handoff_provenance_stays_out_of_the_blind_read(world, monkeypatch, legacy):
-    from test_recast_feed import drain, long_shots, run
+    from recast_world_support import drain, long_shots, run
 
     state = drain(world, run(world, long_shots(world), budget=8)["id"])
     if legacy:

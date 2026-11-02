@@ -5,10 +5,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from test_recast_feed import drain, run, settle_all
-from test_recast_service import edit, shot_versions
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
+from recast_world_support import drain, edit, run, settle_all, shot_versions
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 
 from gaiavfx.api.recast import RecastDTO
 from gaiavfx.application import recast

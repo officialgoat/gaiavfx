@@ -4,10 +4,9 @@ import inspect
 from copy import deepcopy
 
 import pytest
-from test_recast_feed import drain, run, settle_all
-from test_recast_service import edit, shot_versions
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
+from recast_world_support import drain, edit, run, settle_all, shot_versions
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 
 from gaiavfx.application import operations, recast, recast_take, replace_character
 from gaiavfx.application import recast_planning as planning
@@ -283,14 +282,18 @@ def test_the_shot_work_seam_holds_one_signature_per_method(world):
     ]
     assert sorted(methods) == sorted(recast_take.MODULES)
     production = recast_take.Production()
+
+    def shape(function):
+        return [
+            (q.name, q.kind, q.default) for q in inspect.signature(function).parameters.values()
+        ]
+
     for name in methods:
-        declared = list(inspect.signature(getattr(recast_take.ShotWork, name)).parameters.values())
+        declared = shape(getattr(recast_take.ShotWork, name))[1:]
         real = getattr(production, name)
         assert real is getattr(recast_take.MODULES[name], name)
-        assert [(q.name, q.kind, q.default) for q in declared[1:]] == [
-            (q.name, q.kind, q.default) for q in inspect.signature(real).parameters.values()
-        ], name
-        assert callable(getattr(world.window_api, name)), name
+        assert shape(real) == declared, name
+        assert shape(getattr(world.window_api, name)) == declared, name
     with pytest.raises(AttributeError):
         production.shot_windows  # noqa: B018 - Direction's windows are not shot work
 

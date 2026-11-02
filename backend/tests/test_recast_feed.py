@@ -3,39 +3,23 @@
 import json
 
 import pytest
-from test_recast_service import edit, shot_versions
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
+from recast_world_support import (
+    drain,
+    edit,
+    long_shots,
+    run,
+    settle_all,
+    settle_reference,
+    shot_versions,
+    waiting_reference,
+)
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 
 from gaiavfx.application import recast
 from gaiavfx.application import recast_projection as p
 from gaiavfx.application.operations import OperationRunner
 from gaiavfx.shared.errors import ApplicationError
-
-
-def run(world, state, budget=20, mode="draft", frame_range=None):
-    return edit(world, state, recast.start_run, mode=mode, range=frame_range, render_budget=budget)
-
-
-def settle_all(world, kind):
-    with world.db.transaction() as session:
-        for operation in world.ops.recent(session, kind=kind):
-            world.settle(session, operation["id"])
-
-
-def drain(world, recast_id):
-    for _ in range(12):
-        world.invoke(recast.feed)
-        settle_all(world, "character_replacement")
-        world.invoke(recast.feed)
-        settle_all(world, "shot_assembly")
-        world.invoke(recast.feed)
-        state = world.invoke(recast.recast_state, recast_id)
-        if state["run"]["state"] == "finished" and all(
-            s["status"] not in {"rendering", "queued"} for s in state["shots"]
-        ):
-            return state
-    raise AssertionError("Run did not finish")
 
 
 def test_feed_order_idempotence_budget_resume_finish(world):
@@ -773,19 +757,6 @@ def test_head_pass_starts_all_missing_window_targets_and_prefers_refusal(
         assert p.store.load(session, state["id"])["shots"][0]["layers"] == []
 
 
-def long_shots(world, count=1, length=175):
-    world.report["shots"] = [
-        {"index": i + 1, "start": i * length, "end": (i + 1) * length, "poster_artifact": None}
-        for i in range(count)
-    ]
-    world.report["frame_count"] = count * length
-    world.report["tracks"] = world.report["tracks"][:count]
-    for i, track in enumerate(world.report["tracks"]):
-        track["frames"] = list(range(i * length, (i + 1) * length, 5))
-    world.report["clusters"][0]["track_ids"] = [t["id"] for t in world.report["tracks"]]
-    return world.ready()
-
-
 def test_latent_feed_waits_reserves_replays_and_retakes(world):
     from gaiavfx.application.recast_feed import used
 
@@ -996,43 +967,6 @@ def test_last_join_uses_chain_take_in_draft_and_each_succeeded_take_in_final(
         assert all(o["budget_reserved"] == 1 for o in ops)
     state = drain(world, state["id"])
     assert state["run"]["renders_used"] == (5 if mode == "draft" else 16)
-
-
-def settle_reference(world, kind, state="succeeded"):
-    """Settle fixture jobs through Generation; retain image assets/candidates as collection would."""
-    from gaiavfx.modules.library.assets import AssetRecord
-
-    with world.db.transaction() as session:
-        operation = world.ops.recent(session, kind=kind)[0]
-        for job in operation["jobs"]:
-            if state == "succeeded" and job["step"] != "portrait_crop":
-                asset_id = job["id"]
-                session.add(
-                    AssetRecord(
-                        id=asset_id,
-                        sha256=asset_id,
-                        name=asset_id,
-                        kind="image",
-                        path=asset_id,
-                        mime="image/png",
-                        info={"width": 768, "height": 1024},
-                        provenance=[
-                            {"type": "generation_candidate", "operation_id": operation["id"]}
-                        ],
-                    )
-                )
-                world.ops.add_candidate(session, job["id"], asset_id, "image", "image")
-        world.settle(session, operation["id"], state)
-        return world.ops.operation(session, operation["id"])
-
-
-def waiting_reference(world, state):
-    world.invoke(recast.feed)
-    portraits = settle_reference(world, "face_portraits")
-    world.invoke(recast.feed)
-    sheet = settle_reference(world, "face_sheet")
-    world.invoke(recast.feed)
-    return world.invoke(recast.recast_state, state["id"]), portraits, sheet
 
 
 def test_face_references_advance_alongside_latent_and_preserve_its_target(world):

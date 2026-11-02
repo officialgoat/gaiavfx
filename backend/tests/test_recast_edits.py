@@ -3,11 +3,10 @@
 from copy import deepcopy
 
 import pytest
+from recast_world_support import MIGRATIONS, drain, edit, run, waiting_reference
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 from sqlalchemy import select
-from test_recast_feed import drain, run, waiting_reference
-from test_recast_service import MIGRATIONS, edit
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
 
 from gaiavfx.api.recast import RecastDTO
 from gaiavfx.application import recast, recast_edits

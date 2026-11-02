@@ -8,212 +8,39 @@ operation found by its content key, created through the world's operation servic
 """
 
 import json
-import sys
-from hashlib import sha256
 from importlib import import_module
-from types import ModuleType, SimpleNamespace
+from types import SimpleNamespace
 
 import pytest
+from recast_world_support import (
+    AUDITION_STOPPED,
+    KEYS,
+    TRAINING,
+    analysed,
+    audition,
+    build_operation,
+    character,
+    checked,
+    drive,
+    edit,
+    feed_writes,
+    mara,
+    succeed,
+)
+from recast_world_support import builds as builds  # noqa: PLC0414 - shared fixture
+from recast_world_support import (
+    recast_template as recast_template,  # noqa: PLC0414 - shared fixture
+)
+from recast_world_support import voice as voice  # noqa: PLC0414 - shared fixture
+from recast_world_support import world as world  # noqa: PLC0414 - shared fixture
 from test_boundaries import SOURCE, imported_names
-from test_recast_lines import KEYS, analysed
-from test_recast_lines import voice as voice  # noqa: PLC0414 - shared fixture
-from test_recast_service import edit
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414 - shared fixture
-from test_recast_service import world as world  # noqa: PLC0414 - shared fixture
 
-from gaiavfx.api.recast import RecastDTO, VoiceDTO
+from gaiavfx.api.recast import VoiceDTO
 from gaiavfx.application import recast, recast_derivatives, recast_edits, recast_lines, recast_voice
 from gaiavfx.application import recast_projection as p
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL, JobSpec
-from gaiavfx.modules.library.assets import AssetRecord
 from gaiavfx.shared.errors import ApplicationError
 
-# Library audio recordings of the target (seconds); `picture` is the world's image.
-RECORDINGS = {
-    "rec_a": 12.0,
-    "rec_b": 18.0,
-    "rec_c": 20.0,
-    "rec_d": 25.0,
-    "short": 10.0,
-    "long": 70.0,
-}
-STOPPED = frozenset({"failed", "cancelled", "needs_attention"})
-TRAINING = "The voice build failed while training the voice. Retry; if it fails again, the app log has the details."
-
-
-@pytest.fixture
-def builds(world, monkeypatch):
-    with world.db.transaction() as session:
-        for asset_id, seconds in RECORDINGS.items():
-            session.add(
-                AssetRecord(
-                    id=asset_id,
-                    sha256="sha-" + asset_id,
-                    name=f"{asset_id}.wav",
-                    kind="audio",
-                    path=asset_id,
-                    mime="audio/wav",
-                    info={"duration": seconds, "has_audio": True},
-                )
-            )
-        session.add(
-            AssetRecord(
-                id="reel",
-                sha256="sha-reel",
-                name="audition.wav",
-                kind="audio",
-                path="reel",
-                mime="audio/wav",
-                info={"duration": 9.0, "has_audio": True},
-                provenance=[{"type": "generation_candidate", "operation_id": "audition"}],
-            )
-        )
-    fake = ModuleType("gaiavfx.application.voice_build")
-    calls = {"start": [], "cancel": [], "retry": [], "audition": []}
-    reels = {}  # audition operation id -> reel asset id
-
-    def key(shas, attempt):
-        return sha256(json.dumps(["voice_build", list(shas), 1, attempt]).encode()).hexdigest()[:12]
-
-    def latest(session, shas):
-        operation, attempt = None, 1
-        while (found := world.ops.for_request(session, key(shas, attempt))) is not None:
-            operation, attempt = found, attempt + 1
-        return (operation, attempt - 1) if operation else (None, 1)
-
-    def start_voice_build(session, library, sample_asset_ids, *, library_scan, attempt):
-        calls["start"].append(
-            {"ids": list(sample_asset_ids), "attempt": attempt, "digest": library_scan["digest"]}
-        )
-        shas = [library.get(session, asset_id)["sha256"] for asset_id in sample_asset_ids]
-        request = {
-            "samples": list(sample_asset_ids),
-            "version": 1,
-            "attempt": attempt,
-            "library": {
-                "folder": library_scan["folder"],
-                "digest": library_scan["digest"],
-                "clips": len(library_scan["clips"]),
-                "categories": library_scan["categories"],
-            },
-        }
-        return world.ops.create(
-            session,
-            kind="voice_build",
-            request=request,
-            request_key=key(shas, attempt),
-            jobs=[
-                JobSpec("analysis", "local", "fixture", step="voice_samples"),
-                JobSpec("analysis", "local", "fixture", step="analysis.transcribe"),
-            ],
-            budget=0,
-            budget_limit=None,
-            awaits_review=True,
-        )
-
-    def cancel_build(session, shas):
-        calls["cancel"].append(list(shas))
-        operation, _ = latest(session, shas)
-        if operation and operation["state"] not in OPERATION_TERMINAL:
-            world.ops.request_cancel(session, operation["id"])
-
-    def stopped_jobs(operation):
-        if operation["state"] != "awaiting_review":
-            return []
-        return [j for j in operation["jobs"] if j["state"] in STOPPED]
-
-    def retry_stopped(session, operation):
-        calls["retry"].append(operation["id"])
-        return operation
-
-    def build_view(operation):
-        if operation["state"] == "succeeded":
-            state = "succeeded"
-        elif operation["state"] in OPERATION_TERMINAL or stopped_jobs(operation):
-            state = "failed"
-        else:
-            state = "running"
-        return {
-            "state": state,
-            "stage": {"running": "material", "failed": "train"}.get(state),
-            "done": sum(j["state"] == "succeeded" for j in operation["jobs"]),
-            "total": 27,
-            "error": TRAINING if state == "failed" else None,
-        }
-
-    def audition_view(operation):
-        view = build_view(operation)
-        return view | {
-            "stage": "audition",
-            "error": "The voice build failed while converting the audition. Retry; if it fails again, the app "
-            "log has the details."
-            if view["state"] == "failed"
-            else None,
-        }
-
-    def manifest_artifact(operation):
-        if operation["state"] != "succeeded":
-            return None
-        return {"artifact_id": "hidden-artifact-" + operation["id"], "sha256": "manifest-sha"}
-
-    def voice_manifest(session, library, operation_id):
-        return {
-            "target_median_hz": 190.0,
-            "operation_id": operation_id,
-            "weights": {"artifact_id": "hidden-weights", "sha256": "weights-sha"},
-            "index": {"artifact_id": "hidden-index", "sha256": "index-sha"},
-        }
-
-    def audition_reel(operation):
-        if operation["state"] != "succeeded" or operation["id"] not in reels:
-            return None
-        return {"asset_id": reels[operation["id"]], "output_key": "reel", "kind": "audio"}
-
-    def start_voice_audition(session, library, **kwargs):
-        calls["audition"].append(kwargs)
-        return world.create_op(
-            session,
-            "voice_audition",
-            kwargs["request_key"],
-            {
-                "lines": [line["key"] for line in kwargs["lines"]],
-                "source_median_hz": kwargs["source_median_hz"],
-                "target_median_hz": kwargs["target_median_hz"],
-                "voice_model": kwargs.get("voice_model"),
-                "attempt": kwargs.get("attempt", 1),
-            },
-            steps=["voice_audition_cut", "rvc.convert", "voice_reel"],
-        )
-
-    for name, value in {
-        "NAME": "voice_build",
-        "AUDITION": "voice_audition",
-        "BUILD_VERSION": 1,
-        "STOPPED": STOPPED,
-        "key": key,
-        "latest": latest,
-        "start_voice_build": start_voice_build,
-        "cancel_build": cancel_build,
-        "stopped_jobs": stopped_jobs,
-        "retry_stopped": retry_stopped,
-        "build_view": build_view,
-        "audition_view": audition_view,
-        "manifest_artifact": manifest_artifact,
-        "voice_manifest": voice_manifest,
-        "audition_reel": audition_reel,
-        "start_voice_audition": start_voice_audition,
-    }.items():
-        setattr(fake, name, value)
-    monkeypatch.setitem(sys.modules, fake.__name__, fake)
-    return SimpleNamespace(fake=fake, calls=calls, reels=reels, key=key)
-
-
 # --- helpers ----------------------------------------------------------------------------------------------------------
-
-
-def checked(state):
-    RecastDTO.model_validate(state)
-    return state
 
 
 def invoke(world, function, state, *args, **kwargs):
@@ -232,10 +59,6 @@ def read(world, state, **kwargs):
     return checked(world.invoke(recast.recast_state, state["id"], **kwargs))
 
 
-def character(state, character_id):
-    return next(c for c in state["characters"] if c["id"] == character_id)
-
-
 def stored(world, state, character_id):
     with world.db.transaction() as session:
         row = p.store.load(session, state["id"])
@@ -244,70 +67,6 @@ def stored(world, state, character_id):
 
 def columns(row):
     return {k: row[k] for k in recast_edits.VOICE}
-
-
-def mara(world):
-    """A recast whose only character is Mara."""
-    state = world.create()
-    cid = state["characters"][0]["id"]
-    return edit(world, state, recast.patch_character, cid, label="Mara"), cid
-
-
-def build_operation(world, ids, attempt=None):
-    shas = ["sha-" + asset_id for asset_id in ids]
-    with world.db.transaction() as session:
-        operation, found = sys.modules["gaiavfx.application.voice_build"].latest(session, shas)
-    assert attempt is None or found == attempt
-    return operation
-
-
-def drive(world, operation_id, states):
-    """Move the operation's queued jobs, in order, to these end states."""
-    with world.db.transaction() as session:
-        for job, state in zip(world.ops.operation(session, operation_id)["jobs"], states):
-            if job["state"] != "queued":
-                continue
-            world.ops.transition(session, job["id"], "claimed")
-            world.ops.transition(session, job["id"], "running")
-            if state == "succeeded":
-                world.ops.transition(session, job["id"], "collecting")
-            failure = {} if state == "succeeded" else {"error": "worker said X:/secret/x.wav"}
-            world.ops.transition(session, job["id"], state, **failure)
-
-
-def succeed(world, operation_id):
-    drive(world, operation_id, ["succeeded", "succeeded"])
-    with world.db.transaction() as session:
-        world.ops.resume(session, operation_id, {"stage": "done"}, jobs=[])
-        assert world.ops.operation(session, operation_id)["state"] == "succeeded"
-
-
-def feed_writes(world, state, character_id, **values):
-    """What the voice feed (P5d) writes: feed-owned columns, without a revision."""
-    with world.db.transaction() as session:
-        p.store.lock(session, state["id"])
-        row = p.store.load(session, state["id"])
-        next(c for c in row["characters"] if c["id"] == character_id).update(values)
-        p.store.save(session, row)
-
-
-def audition(world, state, character_id, build, *, outcome="succeeded", attempt=1, builds=None):
-    """An audition the feed started (P5d), settled; a succeeded one has the reel candidate."""
-    with world.db.transaction() as session:
-        row = p.store.load(session, state["id"])
-        stand = next(c for c in row["characters"] if c["id"] == character_id)
-        key = recast_derivatives.audition_key(row, stand, "hidden-artifact-" + build["id"], attempt)
-        operation = world.create_op(
-            session,
-            "voice_audition",
-            key,
-            {"lines": ["00000-200"], "source_median_hz": 120.0, "target_median_hz": 190.0},
-            steps=["voice_audition_cut"],
-        )
-        world.settle(session, operation["id"], outcome)
-    if builds is not None and outcome == "succeeded":
-        builds.reels[operation["id"]] = "reel"
-    return operation
 
 
 def waiting(world, builds, state, cid, ids=("rec_a", "rec_b")):
@@ -835,7 +594,6 @@ def test_the_dialogue_stem_is_the_succeeded_analysis_separated_dialogue():
 
 STEM = {"artifact_id": "hidden-stem", "sha256": "stem-sha"}
 WAITING_FOR_LINES = "Confirm at least 3 of Mara's lines to hear an audition."
-AUDITION_STOPPED = "The voice build failed while converting the audition. Retry; if it fails again, the app log has the details."
 HIDDEN_IDS = ("hidden-artifact", "hidden-stem", "hidden-weights", "hidden-index")
 
 

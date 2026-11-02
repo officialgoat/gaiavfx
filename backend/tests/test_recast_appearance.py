@@ -4,9 +4,9 @@ from copy import deepcopy
 
 import numpy as np
 import pytest
-from test_recast_service import edit
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
+from recast_world_support import edit
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 
 from gaiavfx.application import recast, recast_appearance, recast_planning
 from gaiavfx.application import recast_projection as p
@@ -360,7 +360,7 @@ def test_suggestions_skip_minor_decided_and_nonadjacent_tracks():
 
 
 def test_suggestion_use_case_reads_masks_outside_writer_and_rechecks_revision(world, monkeypatch):
-    from test_recast_feed import long_shots
+    from recast_world_support import long_shots
 
     state = long_shots(world)
     operations = world.calls["analysis"]
@@ -407,7 +407,7 @@ def test_suggestion_use_case_reads_masks_outside_writer_and_rechecks_revision(wo
 
 
 def test_window_link_does_not_waive_identity_margin_in_other_windows(world):
-    from test_recast_feed import long_shots
+    from recast_world_support import long_shots
 
     state = long_shots(world, length=124)
     character = state["characters"][0]["id"]
@@ -585,7 +585,7 @@ def test_suggestions_require_positive_continuity_or_clothing_above_provisional_t
 
 @pytest.mark.parametrize("linked", [False, True], ids=["partly-voted", "partly-linked"])
 def test_unbound_performer_advises_confirming_remaining_windows(world, linked):
-    from test_recast_feed import long_shots
+    from recast_world_support import long_shots
 
     state = long_shots(world, length=124)
     first, second = world.calls["analysis"]

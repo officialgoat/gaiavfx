@@ -8,9 +8,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
-from test_recast_feed import long_shots, run, settle_all
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
+from recast_world_support import long_shots, run, settle_all
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 from test_replacement_contract import CAP, attempt, mug_facts, result
 
 from gaiavfx.application import recast, recast_planning, recast_run

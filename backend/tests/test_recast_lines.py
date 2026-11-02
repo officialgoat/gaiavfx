@@ -6,21 +6,28 @@ and its report is a six-segment fixture whose embeddings make the two characters
 """
 
 import json
-import math
-import sys
-from importlib import import_module
-from types import ModuleType, SimpleNamespace
 
 import pytest
-from test_recast_service import MIGRATIONS, edit
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414 - shared fixture
-from test_recast_service import world as world  # noqa: PLC0414 - shared fixture
+from recast_world_support import (
+    KEYS,
+    LINES,
+    MIGRATIONS,
+    analysed,
+    cast,
+    checked,
+    edit,
+    settle_dialogue,
+)
+from recast_world_support import (
+    recast_template as recast_template,  # noqa: PLC0414 - shared fixture
+)
+from recast_world_support import voice as voice  # noqa: PLC0414 - shared fixture
+from recast_world_support import world as world  # noqa: PLC0414 - shared fixture
 
-from gaiavfx.api.recast import LinesDTO, RecastDTO
+from gaiavfx.api.recast import LinesDTO
 from gaiavfx.application import recast, recast_edits, recast_lines, recast_shell
 from gaiavfx.application import recast_projection as p
 from gaiavfx.infrastructure.database import timestamp
-from gaiavfx.modules.generation.operations.lifecycle import OPERATION_TERMINAL
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.assets import AssetRecord
 from gaiavfx.modules.recast import dialogue as rule
@@ -28,104 +35,6 @@ from gaiavfx.shared.errors import ApplicationError
 
 LATER = recast_edits.LATER
 REANALYSED = recast_edits.REANALYSED
-# (start, end, text, speaker): A is seen in shots 1-2 (0-6.08 s), B in shots 3-4 (6.08-12.17 s).
-LINES = [
-    (0.20, 1.00, "Hello there.", "A"),
-    (1.50, 2.40, "How are you today?", "A"),
-    (3.30, 4.20, "I am fine.", "A"),
-    (4.60, 5.60, "Let us go to the market.", "A"),
-    (6.30, 7.30, "Not now.", "B"),
-    (9.30, 10.30, "Later, then.", "B"),
-]
-KEYS = [f"{i:05d}-{round(start * 1000)}" for i, (start, *_rest) in enumerate(LINES)]
-
-
-def embedding(speaker, index):
-    vector = [0.01 * math.sin(index * 7 + d) for d in range(192)]
-    vector[0 if speaker == "A" else 1] = 1.0
-    return vector
-
-
-def fixture_report():
-    db = [-80.0] * 1217
-    segments, speakers = [], {}
-    for index, (start, end, text, speaker) in enumerate(LINES):
-        words = text.split()
-        step = (end - start) / len(words)
-        segments.append(
-            {
-                "key": KEYS[index],
-                "index": index,
-                "start": start,
-                "end": end,
-                "text": text,
-                "words": [
-                    {
-                        "start": round(start + k * step, 3),
-                        "end": round(start + (k + 1) * step, 3),
-                        "word": word,
-                    }
-                    for k, word in enumerate(words)
-                ],
-            }
-        )
-        speakers[KEYS[index]] = {"ecapa": embedding(speaker, index), "median_hz": 100.0 + index}
-        db[round(start * 100) : round(end * 100)] = [-20.0] * (
-            round(end * 100) - round(start * 100)
-        )
-    return {
-        "version": 1,
-        "sample_rate": 48000,
-        "offset_samples": 0,
-        "samples": 584_000,
-        "channels": 2,
-        "segments": segments,
-        "speakers": speakers,
-        "whisper_spans": [[9.2, 10.4]],
-        "envelope": {"hop": 480, "db": db},
-    }
-
-
-@pytest.fixture
-def voice(world, monkeypatch):
-    real = import_module("gaiavfx.application.dialogue_analysis")
-    fake = ModuleType(real.__name__)
-    for name in ("NAME", "DIALOGUE_VERSION", "SAMPLE_RATE", "STEPS", "latest", "audio_gap"):
-        setattr(fake, name, getattr(real, name))
-    fake.dialogue_view = real.dialogue_view
-    report = fixture_report()
-    calls = []
-
-    def start_dialogue_analysis(session, library, asset_id, *, retry_failed=False):
-        calls.append((asset_id, retry_failed))
-        asset = library.get(session, asset_id)
-        gap = real.audio_gap(asset)
-        if gap:
-            raise ApplicationError(gap["message"], 422)
-        existing, attempt = real.latest(session, asset)
-        if existing:
-            settled = existing["state"] in OPERATION_TERMINAL and existing["state"] != "succeeded"
-            if not (retry_failed and settled):
-                return existing | {"_created": False}
-            attempt += 1
-        request = {"source_asset": asset_id, "version": real.DIALOGUE_VERSION, "attempt": attempt}
-        return world.create_op(
-            session, real.NAME, real._key(asset, attempt), request, steps=list(real.STEPS)
-        )
-
-    def dialogue_report(session, library, operation_id):
-        operation = world.ops.operation(session, operation_id)
-        return report if operation["state"] == "succeeded" else None
-
-    fake.start_dialogue_analysis = start_dialogue_analysis
-    fake.dialogue_report = dialogue_report
-    monkeypatch.setitem(sys.modules, real.__name__, fake)
-    return SimpleNamespace(real=real, fake=fake, report=report, calls=calls)
-
-
-def checked(state):
-    RecastDTO.model_validate(state)
-    return state
 
 
 def invoke(world, function, state, *args, **kwargs):
@@ -142,28 +51,6 @@ def lines(world, state):
 
 def line(world, state, key):
     return next(item for item in lines(world, state)["lines"] if item["segment_key"] == key)
-
-
-def settle_dialogue(world, state):
-    with world.db.transaction() as session:
-        world.settle(session, state["dialogue"]["operation_id"])
-    return checked(world.invoke(recast.recast_state, state["id"]))
-
-
-def cast(world):
-    """A recast whose film shows A in shots 1-2 and B in shots 3-4."""
-    state = world.create()
-    state = edit(world, state, recast.move_tracks, track_ids=["t3", "t4"], to="new")
-    a, b = (c["id"] for c in state["characters"])
-    state = edit(world, state, recast.patch_character, a, label="Mara")
-    state = edit(world, state, recast.patch_character, b, label="Tom")
-    return state, a, b
-
-
-def analysed(world):
-    state, a, b = cast(world)
-    state = invoke(world, recast_lines.start_dialogue_analysis, state)
-    return settle_dialogue(world, state), a, b
 
 
 def rows(world, state):

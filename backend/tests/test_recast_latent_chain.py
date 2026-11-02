@@ -4,10 +4,10 @@ import re
 from types import SimpleNamespace
 
 import pytest
+from recast_world_support import long_shots, run, settle_all
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 from test_recast_batch7 import crop_planner, stored_shot
-from test_recast_feed import long_shots, run, settle_all
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
 
 from gaiavfx.application import recast, recast_feed, recast_planning, recast_run, shot_assembly
 from gaiavfx.application import recast_projection as p

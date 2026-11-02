@@ -6,9 +6,9 @@ from pathlib import Path
 
 import pytest
 from PIL import Image
-from test_recast_service import edit
-from test_recast_service import recast_template as recast_template  # noqa: PLC0414
-from test_recast_service import world as world  # noqa: PLC0414
+from recast_world_support import edit
+from recast_world_support import recast_template as recast_template  # noqa: PLC0414
+from recast_world_support import world as world  # noqa: PLC0414
 
 from gaiavfx.application import recast
 from gaiavfx.application import recast_projection as p
