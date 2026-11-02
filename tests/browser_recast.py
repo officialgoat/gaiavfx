@@ -36,11 +36,25 @@ from sqlalchemy import delete
 MEDIA = Path(__file__).resolve().parents[1] / ".cache" / "recast-world"
 
 
+class Link(BaseModel):
+    """A person the shot's window analysis found with no face, linked to a character: proposed by the analysis with
+    its evidence, or then confirmed by the user."""
+
+    shot: int
+    character: int
+    state: Literal["proposed", "confirmed"] = "proposed"
+    track: str = "back"
+    evidence: dict = {}
+
+
 class Scene(BaseModel):
     """The recast a film spec starts from. Characters split the film's shots between them in turn. Each character's
     entry in `targets` is its picture: `confirmed` (the user's portrait), `proposed` (Gaia's portrait), `faceless` (the
-    user's picture with no face) or None. `similar` pairs of characters look alike; `rendered` shots from the start get
-    a finished Draft run's versions, `takes` of them."""
+    user's picture with no face) or None; `labels` name them, and with `shared` every character's picture is the same
+    Library picture. `similar` pairs of characters look alike; `hidden` characters are set aside; `unknown` face tracks
+    belong to no character (from Shot 003 on). `sheets` take a character's face sheet to waiting, approved or rejected.
+    `rendered` shots from the start get a finished Draft run's versions, `takes` of them; a planned shot's `links` join
+    a faceless person to a character. `pictures` are more Library portraits, by name."""
 
     shots: int = Field(8, ge=1, le=2000)
     length: int = Field(48, ge=8)
@@ -52,10 +66,17 @@ class Scene(BaseModel):
         "confirmed"
     ]
     ensemble: int = 0
+    labels: list[str | None] = []
+    shared: bool = False
     similar: list[tuple[int, int]] = []
+    hidden: list[int] = []
+    unknown: int = 0
+    sheets: list[Literal["waiting", "approved", "rejected"] | None] = []
     planned: bool = False
     rendered: int = 0
     takes: int = Field(1, ge=1, le=4)
+    links: list[Link] = []
+    pictures: list[str] = []
 
 
 class Picture(BaseModel):
@@ -306,6 +327,20 @@ class BrowserWorld:
             {"a": f"c{a + 1:02d}", "b": f"c{b + 1:02d}", "max_similarity": 0.88}
             for a, b in scene.similar
         ]
+        # Unknown faces: a track no cluster holds, in Shot 003 and the shots after it.
+        for k in range(scene.unknown):
+            shot = report["shots"][min(2 + k, scene.shots - 1)]
+            n = len(report["tracks"]) + 1
+            report["tracks"].append(
+                {
+                    **report["tracks"][0],
+                    "id": f"t{n}",
+                    "shot": shot["index"],
+                    "frames": list(range(shot["start"], shot["end"], 5)),
+                    "faces": list(range(15 * (n - 1), 15 * n)),
+                }
+            )
+            report["unknown_track_ids"].append(f"t{n}")
         crops = MEDIA / "crops"
         crops.mkdir(parents=True, exist_ok=True)
         with world.db.transaction() as session:
@@ -330,16 +365,19 @@ class BrowserWorld:
             with world.db.transaction() as session:
                 world.settle(session, state["analysis"]["operation_id"])
             state = world.invoke(recast.recast_state, state["id"])
-            for character, label in zip(state["characters"], scene.characters):
+            for index, (character, label) in enumerate(
+                zip(state["characters"], scene.characters)
+            ):
                 state = world.invoke(
                     recast.patch_character,
                     state["id"],
                     character["id"],
                     expected_revision=state["revision"],
                     label=label,
-                    hidden=False,
+                    hidden=index in scene.hidden,
                 )
             state = self.cast(state, scene, tag)
+            state = self.sheets(state, scene)
             if scene.planned or scene.rendered:
                 state = world.invoke(
                     recast.plan_recast,
@@ -349,39 +387,52 @@ class BrowserWorld:
                 )
             if scene.rendered:
                 state = self.render(state, scene.rendered, scene.takes)
+            state = self.links(state, scene)
             # The scene is where the spec starts, not a history: its cast edits leave no entries to undo.
             edits = Base.metadata.tables["editing_recast_edits"]
             with world.db.transaction() as session:
                 session.execute(delete(edits).where(edits.c.recast_id == state["id"]))
+        pictures = []
+        for index, label in enumerate(scene.pictures):
+            named = f"{label} · {tag}-p{index}"
+            pictures.append(
+                {"id": self.picture(named, f"{tag}{index + 64:02x}"), "label": named}
+            )
         return {
             "id": state["id"],
             "title": name,
             "film": {"asset_id": film_id, "name": name + ".mp4"},
             "shots": [s["id"] for s in state["shots"]],
             "characters": [c["id"] for c in state["characters"]],
+            "pictures": pictures,
         }
 
     def cast(self, state, scene, tag):
         """Each character's picture, as the user or Gaia set it; a confirmed picture's face check has run."""
         world = self.get()
         commands = {"proposed": recast.propose_target}
+        shared = None
         for index, (character, kind) in enumerate(
             zip(state["characters"], scene.targets)
         ):
             if kind is None:
                 continue
-            picture = self.picture(
+            picture = shared or self.picture(
                 f"{'Arin' if kind in {'confirmed', 'proposed'} else 'Hallway'} · {tag}-{index}",
                 f"{tag}{index:02x}",
                 face={"faceless": False, "unreadable": None}.get(kind, True),
             )
+            if scene.shared:
+                shared = picture
+            label = scene.labels[index] if index < len(scene.labels) else None
             state = world.invoke(
                 commands.get(kind, recast.set_target),
                 state["id"],
                 character["id"],
                 expected_revision=state["revision"],
                 asset_id=picture,
-                label={"confirmed": "Arin", "proposed": "Arin proposal"}.get(
+                label=label
+                or {"confirmed": "Arin", "proposed": "Arin proposal"}.get(
                     kind, "Hallway"
                 ),
             )
@@ -390,6 +441,89 @@ class BrowserWorld:
             if kind not in {None, "proposed"}:
                 self.checked(state["id"], index)
         return world.invoke(recast.recast_state, state["id"])
+
+    def sheets(self, state, scene):
+        """Each character's face sheet, made from its confirmed picture by the live runner, to the state asked."""
+        world = self.get()
+        for index, wanted in enumerate(scene.sheets):
+            if wanted is None:
+                continue
+            deadline = time.monotonic() + 60
+            while True:
+                self.feed()
+                state = world.invoke(recast.recast_state, state["id"])
+                reference = (state["characters"][index]["target"] or {}).get(
+                    "reference"
+                )
+                if reference and reference["state"] == "waiting":
+                    break
+                if time.monotonic() > deadline:
+                    raise RuntimeError(f"The face sheet did not wait: {reference}")
+                time.sleep(0.1)
+            command = {
+                "approved": recast.approve_reference,
+                "rejected": recast.reject_reference,
+            }.get(wanted)
+            if command:
+                state = world.invoke(
+                    command,
+                    state["id"],
+                    state["characters"][index]["id"],
+                    expected_revision=state["revision"],
+                )
+        return state
+
+    def links(self, state, scene):
+        """Each link's person: a track with no face in the shot's first window analysis, proposed by the analysis with
+        its evidence and, if asked, confirmed."""
+        from gaiavfx.application import recast_projection as p
+
+        world = self.get()
+        for link in scene.links:
+            with world.db.transaction() as session:
+                stored = p.store.load(session, state["id"])["shots"][link.shot]
+            operation = stored["window_analysis_ops"][0]
+            window = world.window_reports[operation]
+            window["tracks"].append(
+                {
+                    **window["tracks"][0],
+                    "id": link.track,
+                    "identity": {"film_tracks": {}, "margin": None},
+                    "identity_margin": None,
+                }
+            )
+            world.touch_window(operation)
+            character = state["characters"][link.character]["id"]
+            shot = stored["shot_id"]
+            state = world.invoke(recast.recast_state, state["id"])
+            state = world.invoke(
+                recast.propose_appearance,
+                state["id"],
+                shot,
+                operation,
+                link.track,
+                character,
+                expected_revision=state["revision"],
+                proposed_by="analysis",
+                evidence={
+                    **link.evidence,
+                    "candidates": [
+                        {"character_id": character, **candidate}
+                        for candidate in link.evidence.get("candidates", [])
+                    ],
+                },
+            )
+            if link.state == "confirmed":
+                state = world.invoke(
+                    recast.confirm_appearance,
+                    state["id"],
+                    shot,
+                    operation,
+                    link.track,
+                    character,
+                    expected_revision=state["revision"],
+                )
+        return state
 
     def target(self, recast_id: str, order: Picture):
         world = self.get()
