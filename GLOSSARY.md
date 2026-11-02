@@ -163,6 +163,14 @@ A Recast's render pass over a frame range, in draft or final mode, within a budg
 **Run scope**:
 The Shots a Run renders over its range, what it reserves for each, and what that costs.
 
+**Replacement plan**:
+What one window of a Shot renders in its first round and each round after, and why, decided from the request and
+what was read of the window; it also says which treatment and FaceSwap the Shot's later windows keep.
+_Avoid_: planner (for the whole), plan (alone, where a Run's plan is meant)
+
+**Head pass**:
+A re-render of a Version's heads only, with the Target pictures that Version was rendered with.
+
 **Version (Recast)**:
 One complete, assembled coverage of a Shot, shown blind with a letter.
 
