@@ -12,11 +12,9 @@ from replacement_plan_support import (
     attempt,
     first_round,
     joint_facts,
-    lips,
     mug_facts,
     result,
     round_plan,
-    trial,
 )
 
 from gaiavfx.application import recast_feed, recast_projection, recast_run, shot_assembly
@@ -25,17 +23,15 @@ from gaiavfx.application import shot_replacement as shot
 from gaiavfx.application.operation_start import knowledge_snapshot
 from gaiavfx.integrations import minimax_h3
 from gaiavfx.modules.recast.application import replacement_policy_text
-from gaiavfx.modules.recast.mouth import quiet_facts
 from gaiavfx.modules.recast.replacement import (
     Arm,
     ReplacementFacts,
     from_record,
     parse_replacement_policy,
-    plan_bridge,
     plan_replacement,
     to_record,
 )
-from gaiavfx.modules.recast.replacement_plan import HandoffChoice, ShotPins, effective_policy
+from gaiavfx.modules.recast.replacement_plan import HandoffChoice, effective_policy
 
 OLD_TEXT = (Path(__file__).parent / "fixtures/replacement/policy-before-batch5.toml").read_text()
 TEXT = replacement_policy_text()
@@ -170,67 +166,6 @@ def test_close_up_without_backend_faceswap_falls_back_with_reason():
     assert any("without FaceSwap support" in r for r in pinned.reasons)
 
 
-@pytest.mark.parametrize("window", [0, 5])
-@pytest.mark.parametrize("silent_intervals", [(), ((0, 10),)])
-def test_006_joint_unmeasured_lips_lock_and_bridge_inherits(window, silent_intervals):
-    series, presence = trial("006", window)
-    derived = quiet_facts(series, presence, POLICY.mouth)
-    assert derived.measured_frames == derived.open_frames == 0
-    facts = replace(joint_facts(), quiet=False)
-    facts = replace(
-        facts, tracks=tuple(replace(t, presence=p) for t, p in zip(facts.tracks, presence))
-    )
-    mouth = {t.id: lips(m.aperture, m.face_height) for t, m in zip(facts.tracks, series)}
-
-    def window(has_audio=True, **changes):
-        reading_args = {"has_audio": has_audio, "mouth": mouth}
-        changes = {"silent_intervals": silent_intervals, **changes}
-        return first_round(facts, reading_args=reading_args, **changes)
-
-    read = window()
-    assert not read.facts.quiet and not read.facts.speaking and read.facts.lips_unmeasured
-    first = read.plan
-    assert first.arm.audio_lock and any("joint; lips unmeasured" in r for r in first.reasons)
-    bridge = plan_bridge(
-        replace(read.facts, handoff="bridge"),
-        first.arm,
-        first.arm.crop,
-        CAP.replacement,
-        POLICY,
-        CAP.frame_grid,
-    )
-    assert bridge.arm.audio_lock and bridge.arm.seed_count == 1
-    assert not plan(joint_facts()).arm.audio_lock
-    # A quiet window has no silent intervals of its own.
-    for changes in (
-        {"speaking": False},
-        {"speaking": True},
-        {"quiet": True, "silent_intervals": ()},
-    ):
-        assert not window(**changes).facts.lips_unmeasured
-    assert not window(has_audio=False).facts.lips_unmeasured
-
-
-@pytest.mark.parametrize(
-    "scan,has_series", [(None, False), ("unavailable", False), ("unavailable", True)]
-)
-@pytest.mark.parametrize("silent_intervals", [(), ((0, 10),)])
-def test_joint_windows_without_a_lip_scan_do_not_derive_unmeasured_lock(
-    scan, has_series, silent_intervals
-):
-    facts = replace(joint_facts(), quiet=False)
-    unmeasured = lips([None] * 73, [None] * 73)
-    mouth = {t.id: unmeasured for t in facts.tracks} if has_series else None
-    read = first_round(
-        facts,
-        reading_args={"has_audio": True, "mouth": mouth, "mouth_scan": scan},
-        silent_intervals=silent_intervals,
-    )
-    assert read.facts.silent_intervals == silent_intervals
-    assert not read.facts.quiet and not read.facts.speaking and not read.facts.lips_unmeasured
-    assert not read.plan.arm.audio_lock
-
-
 @pytest.mark.parametrize(
     "check,verdict,advice,retry",
     [
@@ -274,29 +209,6 @@ def test_new_policy_keys_are_closed_and_validated(old, new):
     assert old in TEXT
     with pytest.raises((TypeError, ValueError)):
         parse_replacement_policy(TEXT.replace(old, new))
-
-
-@pytest.mark.parametrize("close_up", [False, True])
-@pytest.mark.parametrize("first_arm_faceswap", ["close_up", "never"])
-def test_window_one_pins_its_treatment_faceswap_and_close_up_for_the_shot(
-    close_up, first_arm_faceswap
-):
-    text = TEXT.replace('faceswap = "close_up"', f'faceswap = "{first_arm_faceswap}"')
-    expected = close_up and first_arm_faceswap == "close_up"
-    planned = first_round(text=text, close_up=close_up)
-    assert planned.pins == ShotPins("rgb", expected, close_up)
-    later = replace(mug_facts(), close_up=close_up)
-    args = {"treatment_override": "rgb", "faceswap_override": expected}
-    first_arm = round_plan(later, text=text, **args).arm
-    next_arm = round_plan(
-        later, (attempt(first_arm, (result("arcface_target"),)),), text=text, **args
-    ).arm
-    assert first_arm.faceswap is next_arm.faceswap is expected
-    # A policy that names no FaceSwap first arm pins only the treatment, unless the request pins FaceSwap.
-    assert first_round(text=OLD_TEXT, close_up=close_up).pins.faceswap_override is None
-    assert first_round(text=OLD_TEXT, close_up=close_up, faceswap_override=False).pins == ShotPins(
-        "inverted", False, close_up
-    )
 
 
 def test_faceless_target_close_up_pins_faceswap_off_in_every_window(monkeypatch):

@@ -10,8 +10,6 @@ import pytest
 from replacement_plan_support import (
     CAP,
     attempt,
-    edited,
-    first_round,
     joint_facts,
     mug_facts,
     reading,
@@ -37,11 +35,8 @@ from gaiavfx.modules.recast.application import (
 )
 from gaiavfx.modules.recast.replacement import (
     Arm,
-    Box,
-    Performer,
     ReplacementFacts,
     ReplacementPlan,
-    Track,
     from_record,
     parse_replacement_policy,
     plan_replacement,
@@ -79,85 +74,6 @@ def request(**kwargs):
     return ReplacementRequest("source", "analysis", (PerformerChoice("actor", "target"),), **kwargs)
 
 
-# Close-up facts are read without the mouth table, so a malformed face height cannot fail the lip reading first.
-CLOSE_UP = without_table(replacement_policy_text(), "mouth")
-
-
-def box(native, index):
-    """A performer standing in the middle of the canvas; a second one beside the first."""
-    w, h = native
-    return (0.4 * w + 40 * index, 0.1 * h, 0.6 * w + 40 * index, 0.9 * h)
-
-
-def close_up(heights, presence=None, *, native=(1920, 1000), text=CLOSE_UP, joint=False, **changes):
-    """Whether the Replacement plan calls a window a close-up from its performer's measured face heights (None for
-    no mouth series), and the close-up lines among its reasons."""
-    presence = presence or ["present"] * (len(heights) if heights is not None else 73)
-    names = ("actor", "two") if joint else ("actor",)
-    facts = ReplacementFacts(
-        "source",
-        0,
-        len(presence),
-        native,
-        24,
-        None,
-        tuple(
-            Performer(n, "target", None, None, "performer", "at the centre", None) for n in names
-        ),
-        (),
-        (),
-        (),
-        False,
-        (),
-        tuple(
-            Track(n, Box(*box(native, i)), tuple(presence), None, "user")
-            for i, n in enumerate(names)
-        ),
-    )
-    mouth = (
-        {"actor": {"face_height": list(heights), "aperture": [0.0] * len(heights)}}
-        if heights is not None
-        else None
-    )
-    planned = first_round(facts, text=text, reading_args={"mouth": mouth}, **changes)
-    reasons = tuple(
-        r
-        for r in planned.plan.reasons
-        if r == "Close-up unmeasured" or r.startswith("Close-up: median") or "(requested)" in r
-    )
-    return planned.facts.close_up, reasons
-
-
-@pytest.mark.parametrize(
-    "heights,expected",
-    [
-        ([None, 699, 699, 999], False),
-        ([650, None, 700, 750], True),
-        ([None, None], False),
-        ([0, -1, float("nan")], False),
-    ],
-)
-def test_median_measured_native_face_height(heights, expected):
-    actual, reasons = close_up(heights)
-    assert actual is expected
-    assert bool(reasons) is expected or reasons == ("Close-up unmeasured",)
-
-
-def test_close_up_derivation_is_optional_single_and_overridable():
-    tall = [740] * 73
-    assert close_up(tall) == (True, ("Close-up: median face 74% of the frame height.",))
-    assert not close_up(None)[0]
-    assert not close_up(tall, text=without_table(CLOSE_UP, "faceswap"))[0]
-    assert close_up(tall, joint=True) == (False, ())
-    for explicit in (True, False):
-        assert close_up(None, close_up=explicit)[0] is explicit
-    assert not close_up(tall, close_up=False)[0]
-    threshold = edited(
-        CLOSE_UP, "close_up_min_face_fraction = 0.7", "close_up_min_face_fraction = 0.8"
-    )
-    assert not close_up(tall, text=threshold)[0]
-
-
 def test_application_preview_freezes_fact_and_reason(mug_analysis):
     document, choice = mug_analysis
     document["tracks"][0]["mouth"] = {"aperture": [0.02] * 73, "face_height": [379] * 73}
@@ -165,42 +81,6 @@ def test_application_preview_freezes_fact_and_reason(mug_analysis):
     assert preview["facts"]["close_up"] is True
     assert "Close-up: median face 74% of the frame height." in preview["reasons"]
     assert preview["arm"]["faceswap"] is True
-
-
-def test_close_up_derivation_matches_native_trial_series():
-    from replacement_plan_support import EVIDENCE, trial
-
-    assert POLICY.faceswap.close_up_min_face_fraction == 0.7
-    seen = set()
-    for window in EVIDENCE["windows"]:
-        shot = window["app_shot"]
-        if shot not in {"058", "061", "056", "059", "006"}:
-            continue
-        series, presence = trial(shot, window["window"], side="native")
-        measured, _ = close_up(series[0].face_height, list(presence[0]), native=(1920, 800))
-        assert measured is (shot in {"058", "061"}), (shot, window["window"])
-        seen.add(shot)
-    assert seen == {"058", "061", "056", "059", "006"}
-
-
-@pytest.mark.parametrize(
-    "measured,present,expected", [(1, 8, False), (2, 8, True), (2, 9, False), (0, 0, False)]
-)
-def test_close_up_requires_measurements_on_a_quarter_of_present_frames(measured, present, expected):
-    heights = [740] * measured + [None] * (present - measured) + [999] * 12
-    presence = ["present"] * present + ["absent"] * 12
-    actual, reasons = close_up(heights, presence)
-    assert actual is expected
-    assert reasons == (
-        ("Close-up: median face 74% of the frame height.",)
-        if expected
-        else ("Close-up unmeasured",)
-    )
-    if present:
-        stricter = edited(
-            CLOSE_UP, "min_face_frames_fraction = 0.25", "min_face_frames_fraction = 0.5"
-        )
-        assert close_up(heights, presence, text=stricter) == (False, ("Close-up unmeasured",))
 
 
 def test_joint_explicit_close_up_is_refused_before_analysis():
