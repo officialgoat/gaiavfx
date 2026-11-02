@@ -153,33 +153,12 @@ def start_shot_assembly(
             raise ApplicationError("Replacement operations do not cover this source shot.", 422)
         takes.append(window_takes(session, library, operation))
         ops.append(operation)
-    chained = any(o["request"].get("chain") for o in ops)
     draft = ops[-1]["request"].get("draft", False)
     modern = handoff is not None or any(
         o["request"].get("handoff") or o["request"].get("save_latent") for o in ops
     )
     fixed = []
-    if chained:
-        if ops[0]["request"].get("chain"):
-            raise ApplicationError("First window cannot depend on another window.", 422)
-        for index in range(1, len(ops)):
-            chain = ops[index]["request"].get("chain", {})
-            if chain.get("predecessor_operation") != window_operations[index - 1]:
-                raise ApplicationError("Chain predecessor does not match window order.", 422)
-            entry = next(
-                (
-                    e
-                    for e in takes[index - 1].values()
-                    if e["window"]["candidate_id"] == chain.get("candidate_id")
-                ),
-                None,
-            )
-            if entry is None:
-                raise ApplicationError("Chain candidate is not a succeeded predecessor take.", 422)
-            if library.asset_info(session, entry["asset"])["sha256"] != chain["sha256"]:
-                raise ApplicationError("Chain candidate differs from its frozen SHA-256.", 422)
-            fixed.append(entry)
-    elif modern or draft:
+    if modern or draft:
         for index in range(len(ops) - 1):
             choice = ops[index + 1]["request"].get("handoff")
             if choice:
@@ -205,7 +184,7 @@ def start_shot_assembly(
         if stopped is not None or ((modern or draft) and any(e is None for e in fixed))
         else (
             sorted(takes[-1])
-            if chained or modern or draft
+            if modern or draft
             else sorted(set.intersection(*(set(t) for t in takes)))
         )
     )
@@ -223,9 +202,7 @@ def start_shot_assembly(
     source = library.asset_info(session, source_asset)
     versions, jobs = [], []
     for take in common:
-        entries = (
-            [*fixed, takes[-1][take]] if chained or modern or draft else [t[take] for t in takes]
-        )
+        entries = [*fixed, takes[-1][take]] if modern or draft else [t[take] for t in takes]
         bridge_entries, joins = [], []
         for join in range(1, len(entries)):
             expected_candidates = [entries[i]["window"]["candidate_id"] for i in (join - 1, join)]
@@ -290,11 +267,6 @@ def start_shot_assembly(
             ),
             "windows": [
                 {
-                    **e["window"],
-                    "chained_from": ops[i]["request"].get("chain", {}).get("candidate_id"),
-                }
-                if chained
-                else {
                     **e["window"],
                     "handoff": "latent" if ops[i]["request"].get("handoff") else None,
                 }

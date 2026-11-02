@@ -47,7 +47,6 @@ class ReplacementSupport:
     canvas_high: int
     canvas_aspect: tuple[float, float]
     audio_lock: bool = False
-    motion_context: bool = False
     faceswap: bool = False
     masked_span: bool = False
 
@@ -77,7 +76,6 @@ class ReplacementSupport:
             for v in (
                 self.guide_video,
                 self.audio_lock,
-                self.motion_context,
                 self.faceswap,
                 self.masked_span,
             )

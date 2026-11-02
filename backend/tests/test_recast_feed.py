@@ -807,7 +807,6 @@ def test_latent_feed_waits_reserves_replays_and_retakes(world):
     with world.db.transaction() as session:
         second = world.ops.operation(session, world.calls["replacement"][1])
         assert second["request"]["handoff"]["predecessor_operation"] == first["id"]
-        assert "chain" not in second["request"]
     state = drain(world, state["id"])
     assert state["run"]["renders_used"] == 2
     state = run(world, state, budget=6)
@@ -882,7 +881,7 @@ def test_failed_window_stops_and_retake_renders_windows_and_bridges(world):
     assert len(world.calls["bridge"]) == 2 and state["shots"][0]["status"] == "needs_review"
 
 
-def test_legacy_inflight_chain_is_superseded_without_a_successor(world):
+def test_legacy_inflight_shot_without_a_handoff_is_superseded(world):
     state = run(world, long_shots(world, length=124), budget=4)
     world.invoke(recast.feed)
     with world.db.transaction() as session:
@@ -897,51 +896,6 @@ def test_legacy_inflight_chain_is_superseded_without_a_successor(world):
         assert assembly["request"]["stopped"] == {"window": 1, "reason": "handoff_superseded"}
     state = drain(world, state["id"])
     assert state["shots"][0]["status"] == "failed"
-
-
-def test_stored_chained_operation_is_superseded_even_with_a_current_handoff_plan(world):
-    from gaiavfx.modules.generation.operations.lifecycle import JobSpec
-
-    state = run(world, long_shots(world), budget=5)
-    with world.db.transaction() as session:
-        stored = p.store.load(session, state["id"])
-        shot = stored["shots"][0]
-        assert shot["plan"]["_handoff"]["kind"] == "bridge"
-        legacy = []
-        for index, analysis in enumerate(shot["window_analysis_ops"][:2]):
-            request = {
-                "source_asset": "film",
-                "analysis_operation": analysis,
-                "seed": 7,
-                "facts": {"context_frames": 22 if index else 0},
-            }
-            if index:
-                request["chain"] = {
-                    "predecessor_operation": legacy[0],
-                    "candidate_id": legacy[0] + "-candidate",
-                    "asset_id": "previous-composite",
-                    "sha256": "frozen",
-                }
-            operation = world.ops.create(
-                session,
-                kind="character_replacement",
-                request=request,
-                request_key=f"stored-chain-{index}",
-                jobs=[JobSpec("video", "local", "fixture", step="replacement_composite")],
-                budget_limit=None,
-                budget=1,
-            )
-            legacy.append(operation["id"])
-            world.settle(session, operation["id"])
-        shot["window_replacement_ops"] = legacy
-        p.store.save(session, stored)
-    world.invoke(recast.feed)
-    assert not world.calls["replacement"] and not world.calls.get("bridge")
-    with world.db.transaction() as session:
-        assembly = world.ops.operation(session, world.calls["assembly"][-1])
-        assert assembly["request"]["window_operations"] == legacy
-        assert assembly["request"]["stopped"] == {"window": 2, "reason": "handoff_superseded"}
-    assert drain(world, state["id"])["shots"][0]["status"] == "failed"
 
 
 def test_single_window_feed_omits_handoff_arguments(world, monkeypatch):

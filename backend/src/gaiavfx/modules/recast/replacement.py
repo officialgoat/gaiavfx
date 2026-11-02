@@ -211,7 +211,6 @@ class ReplacementFacts:
     required_context: tuple[Box, ...] = ()
     avoided_regions: tuple[Box, ...] = ()
     speaking: bool = False
-    context_frames: int = 0
     close_up: bool = False
     handoff: Literal["none", "latent", "bridge"] = "none"
     lips_unmeasured: bool = False
@@ -220,8 +219,6 @@ class ReplacementFacts:
         _text(self.source_asset, "source_asset")
         if self.handoff not in {"none", "latent", "bridge"}:
             raise ValueError("invalid handoff")
-        if self.handoff != "none" and self.context_frames:
-            raise ValueError("handoff cannot also use pixel context")
         if type(self.close_up) is not bool:
             raise ValueError("close_up must be boolean")
         if type(self.lips_unmeasured) is not bool or (self.quiet and self.lips_unmeasured):
@@ -230,9 +227,6 @@ class ReplacementFacts:
             raise ValueError("speaking must be boolean and quiet windows cannot speak")
         _integer(self.shot_start, "shot_start")
         _integer(self.shot_end, "shot_end", self.shot_start + 1)
-        _integer(self.context_frames, "context_frames")
-        if self.context_frames >= self.delivered_frames:
-            raise ValueError("context_frames must be shorter than the delivered window")
         if isinstance(self.fps, bool) or not isinstance(self.fps, (int, Fraction)) or self.fps <= 0:
             raise ValueError("fps must be a positive fraction")
         object.__setattr__(self, "fps", Fraction(self.fps))
@@ -1186,10 +1180,6 @@ def scope_gaps(facts, support, policy, grid):
     gaps = []
     if facts.handoff != "none" and (support is None or not support.masked_span):
         gaps.append(Gap("handoff_unsupported", "integration does not support masked spans"))
-    if facts.context_frames and (support is None or not support.motion_context):
-        gaps.append(Gap("chain_unsupported", "integration does not support motion context"))
-    if facts.context_frames not in {0, grid.context_default}:
-        gaps.append(Gap("untested_context", "only 22 context frames are tested"))
     if support is None or not support.guide_video:
         gaps.append(Gap("replacement_unsupported", "integration does not support replacement"))
         return tuple(gaps)
@@ -1599,13 +1589,15 @@ def from_record(kind, record):
     if kind is CheckResult and isinstance(record, dict):
         record = {"reason": "", **record}
     if kind is ReplacementFacts and isinstance(record, dict):
+        # Pixel-chained windows are superseded; a stored record without pixel context drops the key.
+        if record.get("context_frames", 0) != 0:
+            raise ValueError("pixel-chained facts are superseded")
         record = {
             "speaking": False,
-            "context_frames": 0,
             "close_up": False,
             "handoff": "none",
             "lips_unmeasured": False,
-            **record,
+            **{k: v for k, v in record.items() if k != "context_frames"},
         }
     if kind is Arm and isinstance(record, dict):
         record = {"audio_lock": False, "faceswap": False, **record}

@@ -125,7 +125,6 @@ class CompiledReplacement:
     window_frames: int
     canvas: tuple[int, int]
     audio_lock: bool = False
-    context_frames: int = 0
     faceswap: bool = False
     handoff: str = "none"
     save_latent: bool = False
@@ -133,15 +132,8 @@ class CompiledReplacement:
     def __post_init__(self):
         if self.handoff not in {"none", "latent", "bridge"}:
             raise ValueError("invalid handoff")
-        if self.handoff != "none" and self.context_frames:
-            raise ValueError("handoff cannot also use pixel context")
         if type(self.save_latent) is not bool:
             raise ValueError("save_latent must be boolean")
-        if (
-            type(self.context_frames) is not int
-            or not 0 <= self.context_frames < self.window_frames
-        ):
-            raise ValueError("context_frames must be inside the render window")
         if type(self.faceswap) is not bool:
             raise ValueError("faceswap must be boolean")
         if type(self.audio_lock) is not bool:
@@ -336,7 +328,6 @@ def compile_replacement(
         window,
         arm.crop.canvas if arm.crop else tuple(presets.replacement["full_canvas"]),
         audio_lock=arm.audio_lock,
-        context_frames=facts.context_frames,
         faceswap=arm.faceswap,
         handoff=facts.handoff,
         save_latent=save_latent,
@@ -352,14 +343,11 @@ def build_replacement_graph(
     canvas: tuple[int, int] | None = None,
     output_prefix: str,
     presets: RenderPresets | None = None,
-    context_file: str | None = None,
     latent_file: str | None = None,
     bridge_file: str | None = None,
 ) -> dict:
     """Lower uploaded filenames to a graph; never read, submit or persist them."""
     presets = presets or render_presets()
-    if (context_file is not None) != (compiled.context_frames > 0) or context_file == "":
-        raise ValueError("context_file is required exactly when context_frames is positive")
     for name, value, kind in (
         ("latent_file", latent_file, "latent"),
         ("bridge_file", bridge_file, "bridge"),
@@ -454,22 +442,6 @@ def build_replacement_graph(
             audio=["components", 1],
         )
         latent = ["audio_lock", 1]
-    if compiled.context_frames:
-        context = add(
-            "context_components",
-            "GetVideoComponents",
-            video=add("context_video", "LoadVideo", file=context_file),
-        )
-        cond = add(
-            "motion_context",
-            "MiniMaxH3MotionContext",
-            conditioning=cond,
-            vae=vae,
-            latent=["conditioning", 1],
-            context_length=str(compiled.context_frames),
-            audio_context_length=presets.conditioning["audio_context_frames"],
-            context_frames=context,
-        )
     if compiled.handoff != "none":
         grid = capabilities().frame_grid
         steps = grid.latent_steps(grid.context_default)

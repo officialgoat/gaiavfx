@@ -279,49 +279,26 @@ def test_head_pass_409_commits_missing_or_retried_target_report(world, monkeypat
     assert current["run"]["renders_used"] == state["run"]["renders_used"]
 
 
-@pytest.mark.parametrize("legacy", [False, True])
-def test_handoff_provenance_stays_out_of_the_blind_read(world, monkeypatch, legacy):
+def test_handoff_provenance_stays_out_of_the_blind_read(world):
     from recast_world_support import drain, long_shots, run
 
     state = drain(world, run(world, long_shots(world), budget=8)["id"])
-    if legacy:
-        versions = world.window_api.shot_versions
-
-        def stored_chain(*args, **kwargs):
-            rows = versions(*args, **kwargs)
-            for row in rows:
-                row.pop("bridges", None)
-                row.pop("joins", None)
-                for index, window in enumerate(row["windows"]):
-                    window.pop("handoff", None)
-                    window["chained_from"] = "candidate" if index else None
-            return rows
-
-        monkeypatch.setattr(world.window_api, "shot_versions", stored_chain)
     app = FastAPI()
     routes, _ = recast_router(workspace(world), lambda: None, "test-token")
     app.include_router(routes)
     with TestClient(app) as client:
         base = "/api/recasts/" + state["id"]
         blind = client.get(base)
-        assert blind.status_code == 200 and "chained_from" not in blind.text
+        assert blind.status_code == 200
         assert '"bridges"' not in blind.text and '"joins"' not in blind.text
         # The provenance is still recorded on the shot's versions (the projection), only never served blind.
         version = shot_versions(world, state["id"], "s0001")[0]
-        if legacy:
-            assert [w["chained_from"] for w in version["windows"]] == [
-                None,
-                "candidate",
-                "candidate",
-            ]
-            assert "bridges" not in version and "joins" not in version
-        else:
-            assert len(version["bridges"]) == 2
-            assert version["joins"] == [
-                {"join": 1, "handoff": "bridge"},
-                {"join": 2, "handoff": "bridge"},
-            ]
-            assert all(w["handoff"] is None for w in version["windows"])
+        assert len(version["bridges"]) == 2
+        assert version["joins"] == [
+            {"join": 1, "handoff": "bridge"},
+            {"join": 2, "handoff": "bridge"},
+        ]
+        assert all(w["handoff"] is None for w in version["windows"])
 
 
 def test_appearance_api_is_additive_and_decisions_are_human(world, monkeypatch):

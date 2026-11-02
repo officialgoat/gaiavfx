@@ -189,7 +189,7 @@ def _feed_recast(session, library, recast_id):
         kind = shot["plan"].get("_handoff", {}).get("kind")
         incomplete = len(operations) < len(shot["window_analysis_ops"])
         # A stored operation finishes its own rounds, but the retired feeder never grows it.
-        if incomplete and (kind is None or any(o["request"].get("chain") for o in operations)):
+        if incomplete and kind is None:
             stopped = {"window": len(operations), "reason": "handoff_superseded"}
         chosen = []
         for index, operation in enumerate(operations):

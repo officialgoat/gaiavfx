@@ -323,7 +323,7 @@ def continue_shot_replacement(
     if take is None:
         raise ChainBroken()
     first = operations.operation(session, window_operations[0])
-    if first["request"].get("chain") or not first["request"].get("save_latent"):
+    if not first["request"].get("save_latent"):
         raise ApplicationError("Pixel chaining is superseded; retake the shot.", 409)
     if not predecessor["request"].get("save_latent"):
         raise ApplicationError("Predecessor must save a latent for continuation.", 409)

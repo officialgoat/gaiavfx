@@ -313,10 +313,6 @@ def test_three_window_operations_assembly_and_lossless_patch(tmp_path, monkeypat
             source = library.path(session, assets[0])
             source_before = library.get(session, assets[0])
         assert len(windows) == 3
-        assert all(
-            not w["request"].get("chain") and w["request"]["facts"]["context_frames"] == 0
-            for w in windows
-        )
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
         assert all(w["budget_reserved"] == (2 if mode == "draft" else 4) for w in windows)
         assert all(w["request"]["first_seeds"] == list(range(43, 43 + count)) for w in windows)
@@ -693,17 +689,8 @@ def test_chain_take_uses_calibrated_checks_only(monkeypatch, verdicts, expected)
     assert (result["take"] if result else None) == expected
 
 
-@pytest.mark.parametrize(
-    "stopped,mismatch,unchained",
-    [
-        (False, None, False),
-        (False, "predecessor", False),
-        (False, "sha256", False),
-        (True, None, False),
-        (False, None, True),
-    ],
-)
-def test_chained_versions_follow_candidate_identity(monkeypatch, stopped, mismatch, unchained):
+@pytest.mark.parametrize("stopped", [False, True])
+def test_plain_windows_assemble_only_the_takes_every_window_kept(monkeypatch, stopped):
     from gaiavfx.application import shot_assembly as assembly
 
     ops, tables = {}, {}
@@ -713,20 +700,7 @@ def test_chained_versions_follow_candidate_identity(monkeypatch, stopped, mismat
             "id": key,
             "kind": "character_replacement",
             "state": "succeeded",
-            "request": {
-                "facts": {"source_asset": "source", "shot_start": start, "shot_end": end},
-                **(
-                    {
-                        "chain": {
-                            "predecessor_operation": f"op{i - 1}",
-                            "candidate_id": f"c{i - 1}-1",
-                            "sha256": "frozen",
-                        }
-                    }
-                    if i
-                    else {}
-                ),
-            },
+            "request": {"facts": {"source_asset": "source", "shot_start": start, "shot_end": end}},
         }
         tables[key] = {
             t: {
@@ -740,14 +714,7 @@ def test_chained_versions_follow_candidate_identity(monkeypatch, stopped, mismat
             }
             for t in (0, 1)
         }
-    if unchained:
-        for op in ops.values():
-            op["request"].pop("chain", None)
-        del tables["op1"][0]
-    if mismatch == "predecessor":
-        ops["op2"]["request"]["chain"]["predecessor_operation"] = "op0"
-    elif mismatch == "sha256":
-        ops["op2"]["request"]["chain"]["sha256"] = "changed"
+    del tables["op1"][0]
     monkeypatch.setattr(assembly.operations, "operation", lambda session, key: ops[key])
     monkeypatch.setattr(OperationService, "create", lambda self, session, **kwargs: kwargs)
     monkeypatch.setattr(assembly, "window_takes", lambda session, library, op: tables[op["id"]])
@@ -761,32 +728,21 @@ def test_chained_versions_follow_candidate_identity(monkeypatch, stopped, mismat
         "window_operations": list(ops)[:2] if stopped else list(ops),
         "request_key": "assembly",
     }
-    if mismatch:
-        with pytest.raises(ApplicationError) as exc:
-            assembly.start_shot_assembly(None, library, **args)
-        assert exc.value.status == 422
-        return
     stop = {"window": 1, "reason": "no_usable_take"}
     result = assembly.start_shot_assembly(
         None, library, **args, **({"stopped": stop} if stopped else {})
     )
-    if unchained:
+    if stopped:
+        assert result["request"]["versions"] == []
+        assert result["request"]["stopped"] == stop
+        assert [j.step for j in result["jobs"]] == ["shot_assembly_empty"]
+    else:
         assert [v["take"] for v in result["request"]["versions"]] == [1]
         assert [w["candidate_id"] for w in result["request"]["versions"][0]["windows"]] == [
             "c0-1",
             "c1-1",
             "c2-1",
         ]
-        assert all("chained_from" not in w for w in result["request"]["versions"][0]["windows"])
-    elif stopped:
-        assert result["request"]["versions"] == []
-        assert result["request"]["stopped"] == stop
-        assert [j.step for j in result["jobs"]] == ["shot_assembly_empty"]
-    else:
-        assert [v["take"] for v in result["request"]["versions"]] == [0, 1]
-        for t, version in enumerate(result["request"]["versions"]):
-            assert [w["candidate_id"] for w in version["windows"]] == ["c0-1", "c1-1", f"c2-{t}"]
-            assert [w["chained_from"] for w in version["windows"]] == [None, "c0-1", "c1-1"]
 
 
 @pytest.mark.parametrize("kind", ["none", "latent", "crossfade"])

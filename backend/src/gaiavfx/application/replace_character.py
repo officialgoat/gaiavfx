@@ -269,7 +269,6 @@ def bridge_facts(predecessor_request, successor_request, layout):
         silent_intervals=tuple(intervals),
         required_context=tuple(dict.fromkeys((*left.required_context, *right.required_context))),
         avoided_regions=tuple(dict.fromkeys((*left.avoided_regions, *right.avoided_regions))),
-        context_frames=0,
         handoff="bridge",
     )
 
@@ -1208,9 +1207,6 @@ def _round_jobs(request, arm, start):
     if request.get("bridge") and not request.get("head"):
         for window in request["bridge"]["windows"]:
             prepare_source[window["render_asset"]] = {"sha256": window["render_sha256"]}
-    if request.get("chain"):
-        prepare_spec["chain"] = request["chain"]
-        prepare_source[request["chain"]["asset"]] = {"sha256": request["chain"]["sha256"]}
     jobs = [
         JobSpec(
             "video",
@@ -1227,7 +1223,6 @@ def _round_jobs(request, arm, start):
         # rename any repeated upload, and the gateway must preserve graph bindings.
         prefix = f"gaiavfx/{new_id()}"
         guide = f"{prefix}/guide.mkv"
-        context_file = f"{prefix}/context.mkv" if request.get("chain") else None
         bridge_file = f"{prefix}/bridge.mkv" if facts.handoff == "bridge" else None
         latent_file = f"{prefix}/context.safetensors" if request.get("handoff") else None
         pictures = picture_inputs(prefix)
@@ -1240,7 +1235,6 @@ def _round_jobs(request, arm, start):
             output_prefix=prefix
             if compiled.save_latent
             else f"gaiavfx/replacement/r{arm.round}-s{seed}",
-            context_file=context_file,
             latent_file=latent_file,
             bridge_file=bridge_file,
         )
@@ -1277,17 +1271,6 @@ def _round_jobs(request, arm, start):
                             }
                         }
                         if latent_file
-                        else {}
-                    ),
-                    **(
-                        {
-                            "context": {
-                                "source": "job_output",
-                                "output_key": "context",
-                                "remote_name": context_file,
-                            }
-                        }
-                        if context_file
                         else {}
                     ),
                 },

@@ -721,21 +721,13 @@ def test_records_round_trip_typed_values_and_finite_clearance():
         from_record(CropPlan, {**to_record(arm.crop), "clearance": float("inf")})
 
 
-def test_motion_context_contract_and_old_facts():
+def test_stored_facts_without_pixel_context_load_and_chained_ones_are_refused():
     from gaiavfx.modules.recast.replacement import from_record, to_record
 
-    facts = replace(mug_facts(), context_frames=22)
-    assert plan(facts).arm is not None
-    assert {
-        g.code for g in plan(facts, support=replace(CAP.replacement, motion_context=False)).gaps
-    } == {"chain_unsupported"}
-    assert {g.code for g in plan(replace(facts, context_frames=17)).gaps} == {"untested_context"}
-    old = to_record(facts)
-    del old["context_frames"]
-    assert from_record(ReplacementFacts, old).context_frames == 0
-    for value in (-1, 73, True, 22.0):
-        with pytest.raises(ValueError):
-            replace(facts, context_frames=value)
+    facts = mug_facts()
+    assert from_record(ReplacementFacts, {**to_record(facts), "context_frames": 0}) == facts
+    with pytest.raises(ValueError, match="pixel-chained facts are superseded"):
+        from_record(ReplacementFacts, {**to_record(facts), "context_frames": 22})
 
 
 def test_handoff_request_validation():
@@ -808,5 +800,3 @@ def test_handoff_capability_and_old_facts_backfill():
     record = to_record(facts)
     del record["handoff"]
     assert from_record(ReplacementFacts, record).handoff == "none"
-    with pytest.raises(ValueError):
-        replace(facts, context_frames=22)

@@ -167,9 +167,8 @@ def test_joint_explicit_close_up_is_refused_before_analysis():
 
 
 @pytest.mark.parametrize("knowledge_kind", ["missing", "legacy", "current"])
-@pytest.mark.parametrize("context_frames", [0, 22])
-def test_advancer_gates_faceswap_from_frozen_knowledge(knowledge_kind, context_frames, monkeypatch):
-    facts = replace(mug_facts(), close_up=True, context_frames=context_frames)
+def test_advancer_gates_faceswap_from_frozen_knowledge(knowledge_kind, monkeypatch):
+    facts = replace(mug_facts(), close_up=True)
     first = plan(facts).arm
     stored = {
         "facts": to_record(facts),
@@ -183,8 +182,6 @@ def test_advancer_gates_faceswap_from_frozen_knowledge(knowledge_kind, context_f
             stored["knowledge"]["render.toml"] = without_table(
                 stored["knowledge"]["render.toml"], "faceswap"
             )
-    if context_frames:
-        stored["chain"] = {"predecessor_operation": "window0", "candidate_id": "chosen"}
     # Current defaults disagree with the frozen snapshot in both directions.
     current = render_presets()
     if knowledge_kind == "current":
@@ -443,7 +440,7 @@ def test_legacy_facts_plans_and_arms_advance_and_lower_identically():
     for key in ("audio_lock", "faceswap"):
         del record["arm"][key]
     fact_record = to_record(facts)
-    for key in ("speaking", "close_up", "context_frames"):
+    for key in ("speaking", "close_up"):
         del fact_record[key]
     loaded = from_record(ReplacementPlan, record)
     loaded_facts = from_record(ReplacementFacts, fact_record)

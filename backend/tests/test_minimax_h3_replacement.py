@@ -326,13 +326,11 @@ def test_pack_cannot_emit_generic_motion(phrase):
         parse_replacement_wording(wording_text().replace("Render natural scene colors.", phrase))
 
 
-def product_graph(
-    name, *, audio_lock=False, context_frames=0, faceswap=False, handoff="none", save_latent=False
-):
+def product_graph(name, *, audio_lock=False, faceswap=False, handoff="none", save_latent=False):
     research = fixture(name)
     _f, arm, compiled = case("mug-full" if name == "FULL" else "mug-crop")
     compiled = compile_replacement(
-        replace(_f, context_frames=context_frames, handoff=handoff),
+        replace(_f, handoff=handoff),
         replace(arm, audio_lock=audio_lock, faceswap=faceswap),
         save_latent=save_latent,
     )
@@ -343,7 +341,6 @@ def product_graph(
         seed=research["seed"],
         canvas=arm.crop.canvas if arm.crop else tuple(render_presets().replacement["full_canvas"]),
         output_prefix=f"replacement/{research['id']}",
-        context_file="context.mkv" if context_frames else None,
         latent_file="context.safetensors" if handoff == "latent" else None,
         bridge_file="bridge.mkv" if handoff == "bridge" else None,
     )
@@ -351,23 +348,14 @@ def product_graph(
 
 
 @pytest.mark.parametrize("audio_lock", [False, True])
-@pytest.mark.parametrize("context_frames", [0, 22])
-def test_faceswap_only_adds_the_stacked_lora_edges_and_trigger(audio_lock, context_frames):
-    _, baseline = product_graph("CROP", audio_lock=audio_lock, context_frames=context_frames)
-    _, stacked = product_graph(
-        "CROP", audio_lock=audio_lock, context_frames=context_frames, faceswap=True
-    )
+def test_faceswap_only_adds_the_stacked_lora_edges_and_trigger(audio_lock):
+    _, baseline = product_graph("CROP", audio_lock=audio_lock)
+    _, stacked = product_graph("CROP", audio_lock=audio_lock, faceswap=True)
     suffix = "-AUDIO-LOCK" if audio_lock else ""
-    suffix += "-CHAINED" if context_frames else ""
     snapshot(
         GOLDEN / f"REPL-MUG-CROP-FACESWAP{suffix}.graph.json",
         json.dumps(stacked, indent=2) + "\n",
     )
-    if context_frames:
-        assert stacked["guider"]["inputs"]["conditioning"] == ["motion_context", 0]
-        assert stacked["motion_context"]["inputs"]["conditioning"] == ["conditioning", 0]
-        assert stacked["motion_context"]["inputs"]["context_length"] == str(context_frames)
-        assert stacked["context_video"]["inputs"]["file"] == "context.mkv"
     if audio_lock:
         assert stacked["guider"]["inputs"]["model"] == ["audio_lock", 0]
         assert stacked["sigmas"]["inputs"]["model"] == ["audio_lock", 0]
@@ -464,7 +452,6 @@ def test_old_request_and_plan_records_advance_and_lower_without_a_lock():
     del record["arm"]["audio_lock"]
     fact_record = to_record(facts)
     del fact_record["speaking"]
-    del fact_record["context_frames"]
     # The snapshot uses historical policy text and knowledge, not current defaults.
     policy = (
         replacement_policy_text()
@@ -693,53 +680,3 @@ def test_active_canvas_and_serial_comma_match_research_wording():
     assert compiled.canvas == tuple(render_presets().replacement["full_canvas"])
     assert "the yellow mug, the blue cup, and tableware and furniture" in compiled.text
     assert "letterbox" not in compiled.text
-
-
-@pytest.mark.parametrize("locked", [False, True])
-def test_chained_graph_only_adds_pixel_context_and_conditioning(locked):
-    _, original = product_graph("CROP", audio_lock=locked)
-    _, chained = product_graph("CROP", audio_lock=locked, context_frames=22)
-    name = "REPL-MUG-CROP" + ("-AUDIO-LOCK" if locked else "") + "-CHAIN.graph.json"
-    snapshot(GOLDEN / name, json.dumps(chained, indent=2) + "\n")
-    assert chained.pop("context_video") == {
-        "class_type": "LoadVideo",
-        "inputs": {"file": "context.mkv"},
-    }
-    assert chained.pop("context_components") == {
-        "class_type": "GetVideoComponents",
-        "inputs": {"video": ["context_video", 0]},
-    }
-    assert chained.pop("motion_context") == {
-        "class_type": "MiniMaxH3MotionContext",
-        "inputs": {
-            "conditioning": ["conditioning", 0],
-            "vae": ["video_vae", 0],
-            "latent": ["conditioning", 1],
-            "context_length": "22",
-            "audio_context_length": 24,
-            "context_frames": ["context_components", 0],
-        },
-    }
-    assert chained["guider"]["inputs"]["conditioning"] == ["motion_context", 0]
-    chained["guider"]["inputs"]["conditioning"] = ["conditioning", 0]
-    assert chained == original
-    if locked:
-        assert chained["guider"]["inputs"]["model"] == ["audio_lock", 0]
-        assert chained["sample"]["inputs"]["latent_image"] == ["audio_lock", 1]
-
-
-def test_context_file_and_compiled_frames_must_agree():
-    _, _, compiled = case("mug-crop")
-    args = {
-        "guide_file": "guide.mkv",
-        "picture_files": {"target": "target.png"},
-        "seed": 7,
-        "output_prefix": "out",
-    }
-    with pytest.raises(ValueError, match="context_file"):
-        build_replacement_graph(compiled, context_file="context.mkv", **args)
-    with pytest.raises(ValueError, match="context_file"):
-        build_replacement_graph(replace(compiled, context_frames=22), **args)
-    for value in (-1, 73, True):
-        with pytest.raises(ValueError, match="context_frames"):
-            replace(compiled, context_frames=value)

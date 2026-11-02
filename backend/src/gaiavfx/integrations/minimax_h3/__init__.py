@@ -34,7 +34,6 @@ def capabilities(presets=None) -> Capabilities:
         replacement=ReplacementSupport(
             guide_video=True,
             audio_lock=True,
-            motion_context=True,
             masked_span=True,
             faceswap=(presets or render_presets()).faceswap is not None,
             pictures=2,

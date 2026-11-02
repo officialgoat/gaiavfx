@@ -1027,7 +1027,7 @@ def test_handoff_freezes_native_candidate_and_round_job_bindings(monkeypatch, in
         "crop": to_record(arm.arm.crop),
     }
     prepare, comfy, composite = result["jobs"][:3]
-    assert "delivery" not in prepare.inputs and "chain" not in prepare.snapshot["step_spec"]
+    assert "delivery" not in prepare.inputs
     binding = comfy.inputs["latent"]
     assert binding["source"] == "artifact" and binding["directory"] == "output"
     assert binding["artifact_id"] == "latent" and binding["sha256"] == "latent-sha"

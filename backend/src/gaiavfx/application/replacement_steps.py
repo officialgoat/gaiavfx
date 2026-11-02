@@ -660,19 +660,6 @@ def replacement_prepare(context):
             guide_fps,
         )
         outputs.append(("pixels", target, "video"))
-    if chain := spec.get("chain"):
-        frames = decode_rgb(
-            context.library.media,
-            context.paths[chain["asset"]],
-            chain["start"] - chain["predecessor_start"],
-            chain["end"] - chain["predecessor_start"],
-        )
-        context_frames = np.stack(
-            [mask_canvas(crop(frame, plan), frame, plan, arm, facts) for frame in frames]
-        )
-        target = context.staging / "context.mkv"
-        lossless_video(context.library.media, context_frames, target, guide_fps)
-        outputs.append(("context", target, "video"))
     return outputs
 
 
