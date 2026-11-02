@@ -38,6 +38,35 @@ from sqlalchemy import delete
 MEDIA = Path(__file__).resolve().parents[1] / ".cache" / "recast-world"
 
 
+class Check(BaseModel):
+    """One check a version was measured with, as a replacement's checks record it."""
+
+    check: str
+    verdict: Literal["pass", "fail", "unsupported"]
+    calibrated: bool
+    measured: float | None
+    reason: str
+
+
+# What a version's checks say when a scene names none: an uncalibrated identity score and an unsupported seam check.
+CHECKS = [
+    Check(
+        check="identity",
+        verdict="pass",
+        calibrated=False,
+        measured=0.87,
+        reason="Identity scoring is not calibrated.",
+    ),
+    Check(
+        check="seam",
+        verdict="unsupported",
+        calibrated=False,
+        measured=None,
+        reason="Window seams have no qualified check.",
+    ),
+]
+
+
 class Link(BaseModel):
     """A person the shot's window analysis found with no face, linked to a character: proposed by the analysis with
     its evidence, or then confirmed by the user."""
@@ -56,7 +85,8 @@ class Scene(BaseModel):
     Library picture. `similar` pairs of characters look alike; `hidden` characters are set aside; `unknown` face tracks
     belong to no character (from Shot 003 on). `sheets` take a character's face sheet to waiting, approved or rejected.
     `faceless` characters have no face crop yet.
-    `rendered` shots from the start get a finished Draft run's versions, `takes` of them; a planned shot's `links` join
+    `rendered` shots from the start get a finished Draft run's versions, `takes` of them, and `retakes` more on the
+    shots it names; `checks` are each take's checks (the last repeats). A planned shot's `links` join
     a faceless person to a character. `pictures` are more Library portraits, by name."""
 
     shots: int = Field(8, ge=1, le=2000)
@@ -79,7 +109,9 @@ class Scene(BaseModel):
     sheets: list[Literal["waiting", "approved", "rejected"] | None] = []
     planned: bool = False
     rendered: int = 0
-    takes: int = Field(1, ge=1, le=4)
+    takes: int = Field(1, ge=1, le=6)
+    retakes: dict[int, int] = {}
+    checks: list[list[Check]] = [CHECKS]
     links: list[Link] = []
     pictures: list[str] = []
 
@@ -427,6 +459,9 @@ class BrowserWorld:
                 )
             if scene.rendered:
                 state = self.render(state, scene.rendered, scene.takes)
+                for index, times in scene.retakes.items():
+                    state = self.retake(state, index, times)
+                self.measure(state, scene.checks)
             state = self.links(state, scene)
             # The scene is where the spec starts, not a history: its cast edits leave no entries to undo.
             edits = Base.metadata.tables["editing_recast_edits"]
@@ -637,6 +672,47 @@ class BrowserWorld:
                 ):
                     break
         return state
+
+    def retake(self, state, index, times):
+        """`times` more finished Draft takes of one shot."""
+        world = self.get()
+        shot = state["shots"][index]["id"]
+        for _ in range(times):
+            state = world.invoke(recast.recast_state, state["id"])
+            state = world.invoke(
+                recast.retake_shot,
+                state["id"],
+                shot,
+                expected_revision=state["revision"],
+                mode="draft",
+            )
+            for _ in range(12):
+                self.feed()
+                for kind in ("character_replacement", "shot_assembly"):
+                    with world.db.transaction() as session:
+                        for operation in world.ops.recent(
+                            session, kind=kind, limit=500
+                        ):
+                            world.settle(session, operation["id"])
+                    self.feed()
+                state = world.invoke(recast.recast_state, state["id"])
+                if state["shots"][index]["status"] not in {"rendering", "queued"}:
+                    break
+        return state
+
+    def measure(self, state, checks):
+        """Each shot's versions carry their take's checks, in the order the shot's takes were made."""
+        from gaiavfx.application import recast_projection as p
+
+        world = self.get()
+        with world.db.transaction() as session:
+            stored = p.store.load(session, state["id"])
+            for shot in stored["shots"]:
+                for take, assembly in enumerate(p.assemblies(session, shot)):
+                    for version in world.versions.get(assembly, []):
+                        version["checks"] = [
+                            c.model_dump() for c in checks[min(take, len(checks) - 1)]
+                        ]
 
     def feed(self):
         """Feed every recast until nothing changes, as the runner's timer would."""

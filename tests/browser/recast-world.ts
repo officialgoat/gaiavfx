@@ -41,6 +41,16 @@ export type Scene = {
   /** The first shots with a finished Draft run's versions, `takes` of each. */
   rendered?: number;
   takes?: number;
+  /** More finished takes of the shots named (by index). */
+  retakes?: Record<number, number>;
+  /** Each take's checks (the last repeats); by default an uncalibrated identity score and an unsupported seam. */
+  checks?: {
+    check: string;
+    verdict: "pass" | "fail" | "unsupported";
+    calibrated: boolean;
+    measured: number | null;
+    reason: string;
+  }[][];
   /** People a planned shot's window analysis found with no face, linked to a character (by index). */
   links?: {
     shot: number;
