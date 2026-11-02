@@ -7,6 +7,7 @@ import {
   laneHeader,
   openFilm,
   panel,
+  readAs,
   test,
   type RecastWorld,
   type Scene,
@@ -51,24 +52,6 @@ async function openConform(page: Page) {
     .getByRole("button", { name: /^Conform: / })
     .click();
   return page.getByRole("dialog", { name: "Conform film" });
-}
-
-/** The service's read of the recast with `change` applied: a state the live service passes through too fast. */
-async function readAs(
-  page: Page,
-  world: RecastWorld,
-  change: (read: S["RecastDTO"]) => void,
-) {
-  await page.route(
-    (url) => url.pathname === `/api/recasts/${world.id}`,
-    async (route) => {
-      if (route.request().method() !== "GET") return route.fallback();
-      const response = await route.fetch();
-      const read = await response.json();
-      change(read);
-      return route.fulfill({ response, json: read });
-    },
-  );
 }
 
 const operation = (

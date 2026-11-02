@@ -14,24 +14,36 @@ import subprocess
 import threading
 import time
 import uuid
+import wave
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
 import pytest
 from fastapi import HTTPException
-from gaiavfx.application import operations, recast
+from gaiavfx.application import (
+    operations,
+    recast,
+    recast_lines,
+    recast_voice,
+)
 from gaiavfx.infrastructure.database import Base
 from gaiavfx.infrastructure.media import MediaTools
+from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.modules.library.assets import AssetRecord
 from PIL import Image, ImageDraw
 from pydantic import BaseModel, Field
 from recast_world_support import (
+    STOPPED,
     RecastWorld,
+    audition,
+    drive,
+    feed_writes,
     film_report,
     install_dialogue,
     install_voice_builds,
+    succeed,
 )
 from sqlalchemy import delete
 
@@ -67,6 +79,33 @@ CHECKS = [
 ]
 
 
+class Run(BaseModel):
+    """A run the scene leaves running, paused or cancelled (idle again), over a range of frames (None: the whole
+    film), with its work waiting."""
+
+    state: Literal["running", "paused", "cancelled"] = "running"
+    mode: Literal["draft", "final"] = "draft"
+    range: dict | None = None
+    budget: int = 20
+
+
+class Recording(BaseModel):
+    """A Library recording of a target voice, `seconds` long; the world names it `<name>-<tag>.wav`."""
+
+    name: str
+    seconds: float
+
+
+class Voice(BaseModel):
+    """A character's voice from the scene's `recordings` (by index), chosen by the user or proposed by Gaia, and its
+    build left `building`, `failed` (it stopped while training) or `waiting` (its audition reel waits for review)."""
+
+    character: int = 0
+    recordings: list[int]
+    proposed: bool = False
+    build: Literal["building", "failed", "waiting"] | None = None
+
+
 class Link(BaseModel):
     """A person the shot's window analysis found with no face, linked to a character: proposed by the analysis with
     its evidence, or then confirmed by the user."""
@@ -87,8 +126,14 @@ class Scene(BaseModel):
     `faceless` characters have no face crop yet.
     `rendered` shots from the start get a finished Draft run's versions, `takes` of them, and `retakes` more on the
     shots it names; `checks` are each take's checks (the last repeats). `states` hold a shot back: a planner `gap`, a
-    `failed` render, or one still `rendering` until the spec settles it. A planned shot's `links` join
-    a faceless person to a character. `pictures` are more Library portraits, by name."""
+    `failed` render, or one still `rendering` until the spec settles it. A scene's `run` is left running, paused or
+    cancelled with its work waiting; with `pending_windows`, every shot planned in the film waits for its window
+    analyses (settle `person_analysis`). A planned shot's `links` join a faceless person to a character. `pictures` are more Library portraits, by name.
+    The film's `audio` is mono, none or six channels. Its `dialogue` analysis is left running, succeeded or failed;
+    the user `confirmed` the proposed lines of the characters it names (journaled, so they stay on the undo stack).
+    `recordings` are Library recordings, and `voices` the characters' voices made from them; with `expressive`, an
+    expressive recordings folder (clips per category) is set in Settings, and with `expressive_changed` the voices
+    were built from an earlier folder."""
 
     shots: int = Field(8, ge=1, le=2000)
     length: int = Field(48, ge=8)
@@ -113,9 +158,18 @@ class Scene(BaseModel):
     takes: int = Field(1, ge=1, le=6)
     retakes: dict[int, int] = {}
     states: dict[int, Literal["gap", "failed", "rendering"]] = {}
+    run: Run | None = None
+    pending_windows: bool = False
     checks: list[list[Check]] = [CHECKS]
     links: list[Link] = []
     pictures: list[str] = []
+    audio: Literal["mono", "none", "six"] = "mono"
+    dialogue: Literal["running", "succeeded", "failed"] | None = None
+    confirmed: list[int] = []
+    recordings: list[Recording] = []
+    voices: list[Voice] = []
+    expressive: dict[str, int] = {}
+    expressive_changed: bool = False
 
 
 class Picture(BaseModel):
@@ -190,6 +244,10 @@ class BrowserWorld:
         self.lock = threading.RLock()
         self.patcher = pytest.MonkeyPatch()
         self.world = None
+        self.voice_builds = None
+        self.expressive_worlds = (
+            set()
+        )  # recasts whose scene set Settings' expressive folder
         self.count = 0
 
     @property
@@ -202,8 +260,14 @@ class BrowserWorld:
                 workspace = self.workspace
                 self.world = RecastWorld(workspace.db, workspace.library, park=True)
                 self.world.install(self.patcher)
-                install_dialogue(self.world, self.patcher)
-                install_voice_builds(self.world, self.patcher)
+                dialogue = install_dialogue(self.world, self.patcher)
+                # An audition cuts its lines from the dialogue stem (test_recast_voice's `heard`).
+                dialogue.fake.stem_artifact = lambda operation: {
+                    "artifact_id": "hidden-stem",
+                    "sha256": "stem-sha",
+                }
+                self.voice_builds = install_voice_builds(self.world, self.patcher)
+                self.voice_builds.fake.retry_stopped = resumed(self.world)
                 # Versions show real previews whose names the page must never show (the blind checks); like an
                 # assembly's previews they are process files, which the Library leaves out.
                 self.world.previews = [
@@ -267,6 +331,12 @@ class BrowserWorld:
         frames = scene.shots * scene.length
         rate = f"{scene.rate[0]}/{scene.rate[1]}"
         tools = MediaTools()
+        sound = ["-f", "lavfi", "-i", "sine=frequency=220:sample_rate=48000"]
+        audio = {
+            "mono": sound + ["-shortest", "-c:a", "aac"],
+            "six": sound + ["-shortest", "-c:a", "aac", "-ac", "6"],
+            "none": ["-an"],
+        }[scene.audio]
 
         def make(path):
             subprocess.run(
@@ -278,26 +348,22 @@ class BrowserWorld:
                     "lavfi",
                     "-i",
                     f"testsrc2=size=320x180:rate={rate}",
-                    "-f",
-                    "lavfi",
-                    "-i",
-                    "sine=frequency=220:sample_rate=48000",
+                    *audio[: 4 if scene.audio != "none" else 0],
                     "-frames:v",
                     str(frames),
-                    "-shortest",
+                    *audio[4 if scene.audio != "none" else 0 :],
                     "-c:v",
                     "libx264",
                     "-pix_fmt",
                     "yuv420p",
-                    "-c:a",
-                    "aac",
                     str(path),
                 ],
                 check=True,
             )
 
+        sounds = "" if scene.audio == "mono" else f"-{scene.audio}"
         original = self.media(
-            f"film-{frames}-{scene.rate[0]}-{scene.rate[1]}.mp4", make
+            f"film-{frames}-{scene.rate[0]}-{scene.rate[1]}{sounds}.mp4", make
         )
         unique = MEDIA / f"film-{tag}.mp4"
         subprocess.run(
@@ -324,6 +390,29 @@ class BrowserWorld:
         pictures.mkdir(parents=True, exist_ok=True)
         path = portrait(pictures / f"{tag}.png", int(tag, 16), face, mark=tag)
         return self.workspace.import_media(path, name + ".png")["asset"]["id"]
+
+    def wav(self, path, seconds, tag):
+        """A 16 kHz tone `seconds` long; the tag's bytes open its samples, so two worlds never share a recording."""
+        frames = int(16000 * seconds)
+        samples = (
+            (np.sin(np.arange(frames) * 2 * np.pi * 180 / 16000) * 8000)
+            .astype("<i2")
+            .tobytes()
+        )
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with wave.open(str(path), "wb") as out:
+            out.setnchannels(1)
+            out.setsampwidth(2)
+            out.setframerate(16000)
+            out.writeframes(tag.encode() + samples[len(tag.encode()) :])
+        return path
+
+    def recording(self, name, seconds, tag):
+        """A Library recording unique to this world."""
+        named = f"{name}-{tag}.wav"
+        path = self.wav(MEDIA / "recordings" / named, seconds, tag)
+        asset = self.workspace.import_media(path, named)["asset"]
+        return {"id": asset["id"], "name": asset["name"]}
 
     def artifact(self, session, path):
         library = self.workspace.library
@@ -405,20 +494,29 @@ class BrowserWorld:
         crops = MEDIA / "crops"
         crops.mkdir(parents=True, exist_ok=True)
         with world.db.transaction() as session:
+            # Two dozen faces, each registered once, however long the film.
+            faces = {}
             for track in report["tracks"]:
                 index = track["shot"]
                 # A `faceless` character's tracks have no face crop yet.
                 if owners.get(track["id"]) in scene.faceless:
                     continue
-                face = portrait(crops / f"face-{index % 24}.jpg", index * 37)
-                track["crop_artifact"] = self.artifact(session, face)
-                report["shots"][index]["poster_artifact"] = track["crop_artifact"]
+                key = index % 24
+                if key not in faces:
+                    face = portrait(crops / f"face-{key}.jpg", key * 37)
+                    faces[key] = self.artifact(session, face)
+                track["crop_artifact"] = faces[key]
+                report["shots"][index]["poster_artifact"] = faces[key]
             for cluster in report["clusters"]:
                 first = next(
                     t for t in report["tracks"] if t["id"] == cluster["track_ids"][0]
                 )
                 cluster["face_artifact"] = first["crop_artifact"]
         world.add_film(film_id, report)
+        recordings = [
+            self.recording(r.name, r.seconds, f"{tag}{i:02x}")
+            for i, r in enumerate(scene.recordings)
+        ]
         if not scene.recast:
             # A Library film the user has not opened yet: opening it asks before its analysis creates the recast.
             return {
@@ -428,6 +526,7 @@ class BrowserWorld:
                 "shots": [],
                 "characters": [],
                 "pictures": [],
+                "recordings": recordings,
             }
         state = world.invoke(
             recast.create_recast,
@@ -452,7 +551,9 @@ class BrowserWorld:
                 )
             state = self.cast(state, scene, tag)
             state = self.sheets(state, scene)
-            if scene.planned or scene.rendered:
+            if scene.pending_windows:
+                world.held_windows.add(film_id)
+            if scene.planned or scene.rendered or scene.run:
                 state = world.invoke(
                     recast.plan_recast,
                     state["id"],
@@ -465,11 +566,23 @@ class BrowserWorld:
                 for index, times in scene.retakes.items():
                     state = self.retake(state, index, times)
                 self.measure(state, scene.checks)
+            if scene.run:
+                state = self.run(state, scene.run)
             state = self.links(state, scene)
+            state = self.dialogue(state, scene)
+            state = self.voices(state, scene, recordings, tag)
             # The scene is where the spec starts, not a history: its cast edits leave no entries to undo.
             edits = Base.metadata.tables["editing_recast_edits"]
             with world.db.transaction() as session:
                 session.execute(delete(edits).where(edits.c.recast_id == state["id"]))
+            # The user's line decisions stay on the film's one undo stack.
+            for index in scene.confirmed:
+                state = world.invoke(
+                    recast_lines.confirm_lines,
+                    state["id"],
+                    expected_revision=state["revision"],
+                    character_id=state["characters"][index]["id"],
+                )
         pictures = []
         for index, label in enumerate(scene.pictures):
             named = f"{label} · {tag}-p{index}"
@@ -483,6 +596,7 @@ class BrowserWorld:
             "shots": [s["id"] for s in state["shots"]],
             "characters": [c["id"] for c in state["characters"]],
             "pictures": pictures,
+            "recordings": recordings,
         }
 
     def cast(self, state, scene, tag):
@@ -603,6 +717,121 @@ class BrowserWorld:
                 )
         return state
 
+    def dialogue(self, state, scene):
+        """The film's dialogue analysis, asked for by the user and left in the scene's state."""
+        world = self.get()
+        if scene.dialogue is None:
+            return state
+        state = world.invoke(
+            recast_lines.start_dialogue_analysis,
+            state["id"],
+            expected_revision=state["revision"],
+        )
+        if scene.dialogue != "running":
+            with world.db.transaction() as session:
+                world.settle(session, state["dialogue"]["operation_id"], scene.dialogue)
+        return world.invoke(recast.recast_state, state["id"])
+
+    def expressive(self, counts, name):
+        """An expressive recordings folder: a subfolder per category with `count` clips (the scan reads no audio)."""
+        folder = MEDIA / "expressive" / name
+        for category, count in counts.items():
+            (folder / category).mkdir(parents=True, exist_ok=True)
+            for index in range(count):
+                (folder / category / f"{category}-{index:02d}.wav").write_bytes(
+                    f"{name} {category} {index}".encode()
+                )
+        return str(folder)
+
+    def use_expressive(self, recast_id, folder):
+        """Settings' expressive recordings folder; the world's retirement clears it again."""
+        settings = self.workspace.settings()
+        self.workspace.save_settings({**settings, "expressive_library": folder})
+        self.expressive_worlds.add(recast_id)
+
+    def voices(self, state, scene, recordings, tag):
+        """Each voice's recordings, chosen by the user or proposed by Gaia, and its build taken to the state asked:
+        building, stopped while training, or built with its audition reel waiting for review."""
+        world = self.get()
+        folder = ""
+        if scene.expressive:
+            folder = self.expressive(scene.expressive, f"{tag}")
+            if scene.expressive_changed:
+                # Built from an earlier folder with one clip fewer; Settings then names the current one.
+                first, *_ = scene.expressive
+                earlier = {**scene.expressive, first: scene.expressive[first] - 1}
+                built = self.expressive(earlier, f"{tag}-earlier")
+                self.use_expressive(state["id"], built)
+            else:
+                self.use_expressive(state["id"], folder)
+        for order in scene.voices:
+            character = state["characters"][order.character]
+            ids = [recordings[i]["id"] for i in order.recordings]
+            if order.proposed:
+                state = world.invoke(
+                    recast_voice.propose_voice,
+                    state["id"],
+                    character["id"],
+                    expected_revision=state["revision"],
+                    asset_ids=ids,
+                    proposed_by="agent",
+                    user_message=f"Use these recordings for {character['label']}.",
+                )
+            else:
+                state = world.invoke(
+                    recast_voice.set_voice,
+                    state["id"],
+                    character["id"],
+                    expected_revision=state["revision"],
+                    asset_ids=ids,
+                )
+            if order.build is None:
+                continue
+            state = world.invoke(
+                recast_voice.build_voice,
+                state["id"],
+                character["id"],
+                expected_revision=state["revision"],
+                expressive_library=self.workspace.settings()["expressive_library"],
+            )
+            build = self.build_of(ids)
+            if order.build == "failed":
+                drive(world, build["id"], ["succeeded", "failed"])
+            elif order.build == "waiting":
+                # What the voice feed does once the build succeeds: its audition, finished with a reel.
+                succeed(world, build["id"])
+                heard = audition(world, state, character["id"], build)
+                self.voice_builds.reels[heard["id"]] = self.reel(heard["id"], tag)
+                feed_writes(
+                    world,
+                    state,
+                    character["id"],
+                    voice_model_state="waiting",
+                    voice_model_artifact_id="hidden-artifact-" + build["id"],
+                )
+            state = world.invoke(recast.recast_state, state["id"])
+        if scene.expressive_changed:
+            self.use_expressive(state["id"], folder)
+        return world.invoke(recast.recast_state, state["id"])
+
+    def build_of(self, asset_ids):
+        """The voice build of these recordings, found by their content as the build module finds it."""
+        world = self.get()
+        with world.db.transaction() as session:
+            shas = [world.library.get(session, i)["sha256"] for i in asset_ids]
+            operation, _ = self.voice_builds.fake.latest(session, shas)
+        return operation
+
+    def reel(self, operation_id, tag):
+        """An audition reel, a Library candidate of the audition that made it."""
+        path = self.wav(MEDIA / "recordings" / f"audition-{tag}.wav", 9.0, tag)
+        asset_id = self.workspace.import_media(path, "audition.wav")["asset"]["id"]
+        with self.get().db.transaction() as session:
+            session.get(AssetRecord, asset_id).provenance = [
+                {"type": "generation_candidate", "operation_id": operation_id}
+            ]
+        return asset_id
+
     def target(self, recast_id: str, order: Picture):
         world = self.get()
         tag = uuid.uuid4().hex[:8]
@@ -635,6 +864,29 @@ class BrowserWorld:
                 return
             time.sleep(0.05)
         raise RuntimeError("The target picture's face check did not finish.")
+
+    def run(self, state, order: Run):
+        """Start a run and leave it as the scene says; its windows' work waits for the spec."""
+        world = self.get()
+        state = world.invoke(recast.recast_state, state["id"])
+        state = world.invoke(
+            recast.start_run,
+            state["id"],
+            expected_revision=state["revision"],
+            mode=order.mode,
+            range=order.range,
+            render_budget=order.budget,
+        )
+        self.feed()
+        state = world.invoke(recast.recast_state, state["id"])
+        command = {"paused": recast.pause_run, "cancelled": recast.cancel_run}.get(
+            order.state
+        )
+        if command:
+            state = world.invoke(
+                command, state["id"], expected_revision=state["revision"]
+            )
+        return state
 
     def gaps(self, state, scene):
         """A `gap` shot's window analysis tells the planner who it cannot tell apart, so its plan has a gap."""
@@ -782,6 +1034,12 @@ class BrowserWorld:
                 and (order.head is None or bool(o["request"].get("head")) == order.head)
             ]
             for operation in waiting[: order.count]:
+                if order.kind == "person_analysis" and order.outcome == "succeeded":
+                    # A held window analysis finishes with the report the world wrote for it.
+                    world.succeed_with(
+                        session, operation["jobs"][0], "people", operation["id"]
+                    )
+                    continue
                 if order.kind == "recast_conform" and order.outcome == "succeeded":
                     # A finished conform's film: the recast's own source stands in for it.
                     job = operation["jobs"][0]
@@ -807,8 +1065,14 @@ class BrowserWorld:
             self.retire(row.id)
 
     def retire(self, recast_id: str):
-        """Remove the recast's Editing rows so later specs' lists and feeds stay small."""
+        """Remove the recast's Editing rows so later specs' lists and feeds stay small, and clear an expressive folder
+        its scene set."""
         world = self.get()
+        if recast_id in self.expressive_worlds:
+            self.expressive_worlds.discard(recast_id)
+            self.workspace.save_settings(
+                {**self.workspace.settings(), "expressive_library": ""}
+            )
         tables = [
             t
             for t in Base.metadata.sorted_tables
@@ -819,6 +1083,28 @@ class BrowserWorld:
                 session.execute(delete(table).where(table.c.recast_id == recast_id))
             recasts = Base.metadata.tables["editing_recasts"]
             session.execute(delete(recasts).where(recasts.c.id == recast_id))
+
+
+def resumed(world):
+    """A stopped voice build's retry, as the build module resumes one: a replacement for each stopped job, in the
+    same operation, waiting for the spec."""
+
+    def retry_stopped(session, operation):
+        stopped = [j for j in operation["jobs"] if j["state"] in STOPPED]
+        world.ops.resume(
+            session,
+            operation["id"],
+            {"retry": "stopped"},
+            jobs=[
+                JobSpec("analysis", "local", "fixture", step=j["step"]) for j in stopped
+            ],
+        )
+        for job in world.ops.operation(session, operation["id"])["jobs"]:
+            if job["state"] == "queued":
+                world.ops.transition(session, job["id"], "claimed")
+        return world.ops.operation(session, operation["id"])
+
+    return retry_stopped
 
 
 def held(advance):

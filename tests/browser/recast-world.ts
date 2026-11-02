@@ -3,6 +3,7 @@ import {
   expect,
   type APIRequestContext,
   type Page,
+  type Route,
 } from "@playwright/test";
 import { browserTestOrigin } from "../browser-origin";
 import type { components } from "../../frontend/src/shared/api.generated";
@@ -45,6 +46,15 @@ export type Scene = {
   retakes?: Record<number, number>;
   /** Shots (by index) held back: a planner gap, a failed render, or one rendering until the spec settles it. */
   states?: Record<number, "gap" | "failed" | "rendering">;
+  /** A run left running, paused or cancelled (idle again), over a range (none: the whole film), its work waiting. */
+  run?: {
+    state?: "running" | "paused" | "cancelled";
+    mode?: "draft" | "final";
+    range?: { start: number; end: number } | null;
+    budget?: number;
+  };
+  /** Every shot planned in the film, at seed or later, waits for its window analyses (settle `person_analysis`). */
+  pending_windows?: boolean;
   /** Each take's checks (the last repeats); by default an uncalibrated identity score and an unsupported seam. */
   checks?: {
     check: string;
@@ -63,6 +73,25 @@ export type Scene = {
   }[];
   /** More Library portraits, by name; the world names each `<name> · <tag>`. */
   pictures?: string[];
+  /** The film's soundtrack: mono (default), none, or six channels. */
+  audio?: "mono" | "none" | "six";
+  /** The film's dialogue analysis, asked for and left in this state. */
+  dialogue?: "running" | "succeeded" | "failed";
+  /** Characters (by index) whose proposed lines the user confirmed, one journaled edit each. */
+  confirmed?: number[];
+  /** Library recordings of target voices; the world names each `<name>-<tag>.wav`. */
+  recordings?: { name: string; seconds: number }[];
+  /** Characters' voices from `recordings` (by index), chosen or proposed by Gaia, and their builds' states. */
+  voices?: {
+    character?: number;
+    recordings: number[];
+    proposed?: boolean;
+    build?: "building" | "failed" | "waiting";
+  }[];
+  /** An expressive recordings folder set in Settings: clips per category. */
+  expressive?: Record<string, number>;
+  /** The voices were built from an earlier expressive folder. */
+  expressive_changed?: boolean;
 };
 
 /** A real recast in the suite's library, seeded through the Recast test world (tests/browser_recast.py). */
@@ -93,6 +122,7 @@ export async function seedRecast(
     shots: string[];
     characters: string[];
     pictures: { id: string; label: string }[];
+    recordings: { id: string; name: string }[];
   };
   const at = `/api/test/recast-world/${world.id}`;
   async function call(method: "POST" | "DELETE", path: string, data = {}) {
@@ -177,6 +207,49 @@ export const test = base.extend<{ scene: Scene; world: RecastWorld }>({
 });
 export { expect };
 
+/** A recast a spec file's tests only read, seeded once for the file and retired after it; long films live here, so
+ * their seed is paid once. Each page reads it as the service read it after the seed, and every command it sends is
+ * refused (409), so it never changes. Call at the file's top level; the returned function opens it for a page. */
+export function sharedRecast(scene: Scene) {
+  let context: APIRequestContext | undefined;
+  let shared: (RecastWorld & { seeded: S["RecastDTO"] }) | undefined;
+  test.beforeAll(async ({ playwright }) => {
+    // Seeding a long film owns its time: a cold media cache encodes it once.
+    test.setTimeout(600_000);
+    context = await playwright.request.newContext({
+      baseURL: browserTestOrigin,
+    });
+    const world = await seedRecast(context, scene);
+    shared = { ...world, seeded: await world.read() };
+  });
+  test.afterAll(async () => {
+    await shared?.retire();
+    await context?.dispose();
+  });
+  const refuse = (route: Route) =>
+    route.fulfill({
+      status: 409,
+      json: { detail: "The recast changed. Refresh and try again." },
+    });
+  return async (page: Page) => {
+    const recast = shared!;
+    const calls = recastCommands(page);
+    await page.route(
+      (url) => url.pathname === `/api/recasts/${recast.id}`,
+      (route) =>
+        route.request().method() === "GET"
+          ? route.fulfill({ json: recast.seeded })
+          : refuse(route),
+    );
+    await page.route(
+      (url) => url.pathname.startsWith(`/api/recasts/${recast.id}/`),
+      (route) =>
+        route.request().method() === "GET" ? route.fallback() : refuse(route),
+    );
+    return { ...recast, calls };
+  };
+}
+
 /** The Recast commands the page sends: every request under /api/recasts that is not a read, with its body. */
 export function recastCommands(page: Page) {
   const calls: {
@@ -194,6 +267,24 @@ export function recastCommands(page: Page) {
       });
   });
   return calls;
+}
+
+/** The service's read of the recast with `change` applied, for a state the live service passes through too fast. */
+export async function readAs(
+  page: Page,
+  world: RecastWorld,
+  change: (read: S["RecastDTO"]) => void,
+) {
+  await page.route(
+    (url) => url.pathname === `/api/recasts/${world.id}`,
+    async (route) => {
+      if (route.request().method() !== "GET") return route.fallback();
+      const response = await route.fetch();
+      const read = await response.json();
+      change(read);
+      return route.fulfill({ response, json: read });
+    },
+  );
 }
 
 /** Opens the world's film from File › Open film. */
@@ -214,18 +305,24 @@ export async function reopen(page: Page, world: RecastWorld) {
   await expect(page.locator(".timeline-heading")).toContainText(world.title);
 }
 
-/** No version's asset name reaches the page: text, titles, labels, alt text or values. */
-export async function expectBlind(page: Page) {
-  const leaks = await page.evaluate(() => {
-    const secret = "PRIVATE SEED ARM ROUND";
-    const found: string[] = [];
-    if (document.body.innerText.includes(secret)) found.push("text");
-    for (const element of Array.from(document.querySelectorAll("*")))
-      for (const attribute of Array.from(element.attributes))
-        if (attribute.value.includes(secret))
-          found.push(`${element.tagName} ${attribute.name}`);
-    return found;
-  });
+/** No version's asset name, nor any of `also` (operations, artifacts, folders), reaches the page: text, titles,
+ * labels, alt text or values. */
+export async function expectBlind(page: Page, also: string[] = []) {
+  const leaks = await page.evaluate(
+    (secrets) => {
+      const found: string[] = [];
+      for (const secret of secrets) {
+        if (document.body.innerText.includes(secret))
+          found.push(`text: ${secret}`);
+        for (const element of Array.from(document.querySelectorAll("*")))
+          for (const attribute of Array.from(element.attributes))
+            if (attribute.value.includes(secret))
+              found.push(`${element.tagName} ${attribute.name}: ${secret}`);
+      }
+      return found;
+    },
+    ["PRIVATE SEED ARM ROUND", ...also],
+  );
   expect(leaks).toEqual([]);
 }
 

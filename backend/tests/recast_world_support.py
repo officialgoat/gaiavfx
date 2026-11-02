@@ -117,6 +117,7 @@ class RecastWorld:
         self.versions = {}  # assembly operation id -> the versions it made
         self.previews = ["preview"]  # the preview assets versions show, in turn
         self.patch = "patch"  # the replacement patch artifact every version names
+        self.held_windows = set()  # films whose window analyses wait; others succeed at once
         self.film_api = _module(FILM_ANALYSIS, FilmAnalysis(self))
         self.window_api = _module("fake_shot_work", ShotWork(self), names=recast_take.MODULES)
         self.real_planner = replace_character.replacement_plan
@@ -427,7 +428,9 @@ class ShotWork:
                 }
                 world.blobs[op["id"]] = blob
                 world.window_reports[op["id"]] = blob
-                world.succeed_with(session, op["jobs"][0], "people", op["id"])
+                # A world that holds its windows leaves their analyses for the tests to settle.
+                if source_asset not in world.held_windows:
+                    world.succeed_with(session, op["jobs"][0], "people", op["id"])
             result.append(world.ops.operation(session, op["id"]))
         return result
 
