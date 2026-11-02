@@ -62,6 +62,7 @@ def judge(arrays: dict, rules: dict) -> dict:
             "glass_ignored": too_much,
             "typical_distance": round(typical, 4),
             "passed": surface >= float(rules["min_surface"]),
+            "reason": None if surface >= float(rules["min_surface"]) else "little_surface",
         },
     }
 

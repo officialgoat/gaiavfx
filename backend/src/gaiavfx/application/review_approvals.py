@@ -1,9 +1,10 @@
 """A person approves one candidate, by the kind of operation that made it: a plate, an angle view, a pin or a
-replacement composite. Only the person's routes call this: Gaia never approves (test_boundaries keeps the harness
+replacement composite; and chooses the panorama a stage is built from (`choose_panorama`). Only the person's routes call this: Gaia never approves (test_boundaries keeps the harness
 from importing it)."""
 
 from __future__ import annotations
 
+from gaiavfx.application import panoramas
 from gaiavfx.application.prepare_references import (
     VIEW_PRODUCERS,
     approve_pin,
@@ -44,3 +45,8 @@ def approve(session, candidate_id: str, *, replace: bool = False) -> dict:
     if approver is None:
         raise ApplicationError("This candidate is selected or kept, not approved.", 422)
     return approver(session, candidate_id, replace)
+
+
+def choose_panorama(session, library, candidate_id: str) -> dict:
+    """The person chooses one panorama of an attempt; the stage is built from the chosen one."""
+    return panoramas.choose(session, library, candidate_id)

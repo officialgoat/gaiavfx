@@ -22,7 +22,15 @@ from gaiavfx.modules.generation.operations.persistence import (
 )
 from gaiavfx.shared.errors import ApplicationError
 
-PURPOSES = {"segment_takes", "angle_views", "insertion", "sheet", "plate", "character_replacement"}
+PURPOSES = {
+    "segment_takes",
+    "angle_views",
+    "insertion",
+    "sheet",
+    "plate",
+    "character_replacement",
+    "panorama",
+}
 
 
 @cache
@@ -115,7 +123,7 @@ class ReviewService:
     def reject_references(self, session, set_id, *, expected_revision, note, rejected_by):
         """Record a human decision on this exact set; never rank, reveal or approve."""
         row = _get(session, set_id)
-        if row.purpose not in {"plate", "angle_views", "insertion"}:
+        if row.purpose not in {"plate", "angle_views", "insertion", "panorama"}:
             raise ApplicationError("Only reference reviews can be rejected here.", 422)
         if rejected_by != "user":
             raise ApplicationError("Only the user can reject references.", 422)
@@ -143,6 +151,24 @@ class ReviewService:
         context = deepcopy(row.context)
         context.pop("reference_rejection")
         self._set_reference_context(session, row, row.revision, context)
+
+    def choose(self, session, set_id, candidate_id, *, chosen_by):
+        """A person's choice of one member (a panorama): kept in the set's context with its audit history; a later
+        choice replaces it and clears a rejection. Never ranks, reveals or approves."""
+        row = _get(session, set_id)
+        if row.purpose != "panorama":
+            raise ApplicationError("Only a panorama review is chosen from.", 422)
+        if chosen_by != "user":
+            raise ApplicationError("Only the user chooses a panorama.", 422)
+        if candidate_id not in {m.candidate_id for m in _members(session, set_id)}:
+            raise ApplicationError("Candidate is not in this review.", 422)
+        choice = {"candidate_id": candidate_id, "chosen_by": chosen_by, "chosen_at": timestamp()}
+        context = deepcopy(row.context)
+        context.pop("reference_rejection", None)
+        context["chosen"] = choice
+        context.setdefault("choices", []).append(choice)
+        self._set_reference_context(session, row, row.revision, context)
+        return self.blind(session, set_id)
 
     def _set_reference_context(self, session, row, expected_revision, context):
         if type(expected_revision) is not int or expected_revision < 1:

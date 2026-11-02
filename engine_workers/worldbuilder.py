@@ -28,8 +28,9 @@ read `inputs["atlas"]`, or, with `atlas_state`, the atlas that `atlas_prepare` l
 - `atlas_from_panorama`  (CPU) a set built from a panorama: its MoGe geometry and SAM 3 finds judged as the research
                          did (`worldbuilder_splat/panorama.py`: sky, glass, the measured-surface gate) and the
                          panorama as the atlas's one keyframe, K0, with its map. inputs: `geometry` (the npz
-                         GaiaSaveMoGeGeometry saves), `panorama` (the closed panorama). params: `name`, `place`,
-                         `rules` (the `[masks]` and `[gate]` settings). Outputs as `atlas_from_frames`'s, the summary's
+                         GaiaSaveMoGeGeometry saves) and the closed panorama (the Library asset that params
+                         `panorama` names). params: `name`, `place`, `panorama`, `rules` (the `[masks]` and `[gate]`
+                         settings). Outputs as `atlas_from_frames`'s, the summary's
                          `gate` holding the judged shares and `layout` "panorama" (or null when refused).
 - `splat_init_atlas`     rebuild the set's splat from every current keyframe of the atlas. params: `name` (the state's
                          folder), `steps` (default 3000), `seam_mask_deg` (default 0), `atlas_state`. An atlas
@@ -489,10 +490,11 @@ def atlas_from_panorama(job: Job) -> None:
     from worldbuilder_splat import panorama as pano
 
     folder = _folder(job, "atlas", job.params["name"])
+    picture = job.inputs[job.params["panorama"]]
     identity = {
         "task": job.task,
         "geometry": _sha(job.inputs["geometry"]),
-        "panorama": _sha(job.inputs["panorama"]),
+        "panorama": _sha(picture),
         **{k: job.params.get(k) for k in ("place", "rules")},
     }
     done = folder / "worker-summary.json"
@@ -502,7 +504,7 @@ def atlas_from_panorama(job: Job) -> None:
         folder.mkdir(parents=True)
         job.progress(0.1, "Judging the panorama's sky and glass")
         place = job.params.get("place") or "Set"
-        atlas, gate = pano.build_atlas(job.inputs["panorama"], job.inputs["geometry"], folder, place, job.params["rules"])
+        atlas, gate = pano.build_atlas(picture, job.inputs["geometry"], folder, place, job.params["rules"])
         summary = {"gate": gate, "layout": "panorama" if atlas else None, "levelling": None}
         if atlas:
             job.check()

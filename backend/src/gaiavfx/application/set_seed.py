@@ -53,6 +53,9 @@ SPLAT = "worldbuilder.splat_init_atlas"
 GEOMETRY_OUTPUT = "save:geometry:0"
 operations = OperationService()
 
+# A panorama's gate (`set_panorama`): its measured surface.
+PANORAMA_SHORT_REFUSAL = "Refused: too little measured surface"
+PANORAMA_REFUSAL = "Too little of this panorama is measured surface to build a stage from: it may be mostly open sky or water."
 # The gate's reasons for the person who chose the take, and the few words the References row shows.
 SHORT_REFUSALS = {
     "little_surface": "Refused: too little still surface",
@@ -216,7 +219,7 @@ def times(start: int, end: int, fps: int = 24) -> str:
     return f"{clock(start)}–{clock(end)}"
 
 
-def _unique(session, name: str) -> str:
+def unique_name(session, name: str) -> str:
     """`name`, or `name 2`, `name 3`… when a set already has it: two sets must never read alike."""
     taken = {STORE.get(session, set_id)["name"] for set_id in STORE.ids(session)}
     if name not in taken:
@@ -280,7 +283,7 @@ def seed_preview(
         "renders": fill_renders() if fill_unseen else 0,
         "estimate": estimate(frames, fill_unseen),
         "what": what(fill_unseen),
-        "name": _unique(
+        "name": unique_name(
             session,
             clip_words(f"{place['name']} from a take" if place else "Stage from a take", 120),
         ),
@@ -371,6 +374,10 @@ def retry_seed(session, library, operation_id: str) -> dict:
             "is done.",
             409,
         )
+    if request.get("source") == "panorama":
+        from gaiavfx.application.set_panorama import retry_panorama_stage
+
+        return retry_panorama_stage(session, library, previous)
     if "take" not in request:
         raise ApplicationError(
             "This build was started before builds kept their settings; build the stage again from the take.",
@@ -520,11 +527,14 @@ def advance_seed(session, operation, *, library):
         # An atlas laid out before filling existed has no layout: it passed or it was refused.
         layout = summary.get("layout", "moving" if gate["passed"] else None)
         if not layout:
+            panorama = operation["request"].get("source") == "panorama"
             decision = _decision(
                 "refused",
                 reason=gate["reason"],
-                message=refusal(gate),
-                label=SHORT_REFUSALS.get(_reason(gate), "Refused"),
+                message=PANORAMA_REFUSAL if panorama else refusal(gate),
+                label=PANORAMA_SHORT_REFUSAL
+                if panorama
+                else SHORT_REFUSALS.get(_reason(gate), "Refused"),
                 gate=gate,
             )
             return operations.resume(session, operation["id"], decision, jobs=[])
@@ -565,6 +575,25 @@ def advance_seed(session, operation, *, library):
     return operations.resume(session, operation["id"], decision, jobs=[])
 
 
+def _origin(request: dict) -> dict:
+    """Where a seed's stage came from, for its provenance: the take's interval, or the chosen panorama."""
+    if request.get("source") == "panorama":
+        return {
+            "source": "panorama",
+            "panorama_operation_id": request["panorama_operation_id"],
+            "candidate_id": request["candidate_id"],
+            "asset_sha256": request["asset_sha256"],
+        }
+    return {
+        "source": "take",
+        "candidate_id": request["candidate_id"],
+        "asset_sha256": request["asset_sha256"],
+        "segment_id": request["segment_id"],
+        "frames": [request["start"], request["end"]],
+        "sampling": request["sampling"],
+    }
+
+
 def _write_set(session, library, operation, filled: set_fill.Done | None = None) -> tuple[str, str]:
     """The new set with v1 proposed, from the checkpoint's atlas and splat (the seed's own, or the last round's whose
     extension finished); the place built as it when the request asked and the place is still not built as a set."""
@@ -588,13 +617,8 @@ def _write_set(session, library, operation, filled: set_fill.Done | None = None)
         name=request["name"],
         place_text=request["place_text"],
         provenance={
-            "source": "take",
+            **_origin(request),
             "operation_id": operation["id"],
-            "candidate_id": request["candidate_id"],
-            "asset_sha256": request["asset_sha256"],
-            "segment_id": request["segment_id"],
-            "frames": [request["start"], request["end"]],
-            "sampling": request["sampling"],
             "settings": request["settings"],
             "gate": seeded["gate"],
             "layout": seeded.get("layout", "moving"),
@@ -620,7 +644,11 @@ def _write_set(session, library, operation, filled: set_fill.Done | None = None)
         splat_id=set_fill.output(splat_job, "splat")["artifact_id"],
         map_meta=summary["map_meta"],
         metrics=set_fill.metrics(fit),
-        note=f"Built from a take: f{request['start']}–f{request['end']}"
+        note=(
+            "Built from a panorama"
+            if request.get("source") == "panorama"
+            else f"Built from a take: f{request['start']}–f{request['end']}"
+        )
         + (f"; it {filled.words}." if filled else "."),
     )
     if request.get("place_id"):
@@ -662,7 +690,7 @@ def seed_state(session, operation) -> dict:
         "operation_id": operation["id"],
         "set_id": None,
         "name": name,
-        "shot": request["shot"],
+        "shot": request.get("shot"),
         "waiting": False,
         "can_retry": False,
     }
@@ -703,6 +731,8 @@ def seed_state(session, operation) -> dict:
         if stage == "fill"
         else "Fitting the splat…"
         if stage == "splat"
+        else "Building from the panorama…"
+        if request.get("source") == "panorama"
         else "Building from this take…"
     )
     return base | {

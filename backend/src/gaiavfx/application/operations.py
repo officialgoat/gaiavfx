@@ -31,6 +31,13 @@ from gaiavfx.application.operation_steps import (
     portrait_sheet,
     views_sheet,
 )
+from gaiavfx.application.panorama_steps import (
+    panorama_band,
+    panorama_canvas,
+    panorama_plate,
+    panorama_seam,
+)
+from gaiavfx.application.panoramas import advance_panorama
 from gaiavfx.application.recast_conform import run_conform
 from gaiavfx.application.recast_steps import film_cast, film_proxy, film_shots
 from gaiavfx.application.replacement_steps import (
@@ -106,6 +113,14 @@ STEPS.update(
 ADVANCERS.update(voice_build=advance_voice_build)
 # A set build (ADR 0018 §4): engine jobs only, a staged advancer that writes the proposed version.
 ADVANCERS.update(set_build=advance_set_build)
+# Panoramas: local steps around the Krea and Fibo jobs, a staged advancer that closes the seams.
+STEPS.update(
+    panorama_plate=panorama_plate,
+    panorama_canvas=panorama_canvas,
+    panorama_band=panorama_band,
+    panorama_seam=panorama_seam,
+)
+ADVANCERS.update(panorama=advance_panorama)
 
 
 def sweep_recasts(session, *, library):

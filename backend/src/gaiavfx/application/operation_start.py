@@ -8,13 +8,20 @@ from __future__ import annotations
 
 from importlib import resources
 
-from gaiavfx.integrations import minimax_h3, person_analysis, qwen_image_edit, worldbuilder
+from gaiavfx.integrations import (
+    minimax_h3,
+    panorama,
+    person_analysis,
+    qwen_image_edit,
+    worldbuilder,
+)
 from gaiavfx.modules.generation.operations.lifecycle import JobSpec
 from gaiavfx.modules.generation.operations.service import OperationService
 from gaiavfx.shared.errors import ApplicationError
 
 PRODUCERS = {
     minimax_h3.NAME: minimax_h3.OUTPUT_KINDS,
+    panorama.NAME: panorama.OUTPUT_KINDS,
     person_analysis.NAME: person_analysis.OUTPUT_KINDS,
     qwen_image_edit.NAME: qwen_image_edit.OUTPUT_KINDS,
     worldbuilder.NAME: worldbuilder.OUTPUT_KINDS,

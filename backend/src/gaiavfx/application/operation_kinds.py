@@ -11,6 +11,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from gaiavfx.application.candidate_review import awaits_ranking, existing_review
+from gaiavfx.application.panoramas import open_panorama_review, panorama_review_pending
 from gaiavfx.application.prepare_references import (
     VIEW_PRODUCERS,
     insertion_review_pending,
@@ -71,6 +72,14 @@ KINDS = {
             blind_render=True,
         ),
         OperationKind("shot_assembly", blind_render=True),
+        # Panoramas are chosen in Stages, never by Gaia.
+        OperationKind(
+            "panorama",
+            "place_id",
+            open_panorama_review,
+            panorama_review_pending,
+            gaia_opens=False,
+        ),
     )
 }
 PREPARATION = {

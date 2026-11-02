@@ -28,6 +28,7 @@ from .agent import agent_router
 from .direction import direction_router
 from .export import export_router
 from .library import library_router
+from .panoramas import panoramas_router
 from .production import production_router
 from .recast import recast_router
 from .sets import sets_router
@@ -264,6 +265,7 @@ def create_app(
     set_routes, set_media = sets_router(workspace, authenticate, token)
     app.include_router(set_routes)
     app.include_router(set_media)
+    app.include_router(panoramas_router(workspace, authenticate, token))
     app.include_router(agent_router(agent.harness, authenticate))
     if frontend and frontend.is_dir():
         app.mount("/", StaticFiles(directory=frontend, html=True), name="frontend")
