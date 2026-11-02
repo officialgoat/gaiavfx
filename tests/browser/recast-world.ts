@@ -18,7 +18,9 @@ export type Scene = {
   title?: string;
   analysed?: boolean;
   /** Each character's picture: the user's portrait, Gaia's portrait, the user's picture with no face, or none. */
-  targets?: ("confirmed" | "proposed" | "faceless" | null)[];
+  targets?: ("confirmed" | "proposed" | "faceless" | "unreadable" | null)[];
+  /** The first shots in which every character is seen. */
+  ensemble?: number;
   /** Pairs of characters (by index) whose faces look alike. */
   similar?: [number, number][];
   planned?: boolean;
@@ -64,10 +66,19 @@ export async function seedRecast(
   return {
     ...world,
     headers,
-    /** End the waiting fixture jobs of one operation kind, then feed the recast as the runner's timer would. */
-    settle: (kind: string, outcome = "succeeded") =>
-      call("POST", "/settle", { kind, outcome }),
+    /** End the waiting fixture jobs of one operation kind (the oldest `count` operations, or all; only head-pass
+     * windows with `head`), then feed the recast as the runner's timer would. */
+    settle: (
+      kind: string,
+      outcome = "succeeded",
+      only: { count?: number; head?: boolean } = {},
+    ) => call("POST", "/settle", { kind, outcome, ...only }),
     feed: () => call("POST", "/feed"),
+    /** The user sets a new picture for a character; resolves once its face check has run. */
+    target: (
+      character: number,
+      kind: "confirmed" | "faceless" | "unreadable",
+    ) => call("POST", "/target", { character, kind }),
     /** The recast as the service reads it now. */
     read: async () => {
       const response = await request.get(`/api/recasts/${world.id}`, {

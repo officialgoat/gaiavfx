@@ -48,23 +48,39 @@ class Scene(BaseModel):
     characters: list[str] = ["Mara"]
     title: str | None = None
     analysed: bool = True
-    targets: list[Literal["confirmed", "proposed", "faceless"] | None] = ["confirmed"]
+    targets: list[Literal["confirmed", "proposed", "faceless", "unreadable"] | None] = [
+        "confirmed"
+    ]
+    ensemble: int = 0
     similar: list[tuple[int, int]] = []
     planned: bool = False
     rendered: int = 0
     takes: int = Field(1, ge=1, le=4)
 
 
+class Picture(BaseModel):
+    """A new picture for one character, set by the user, once its face check has run."""
+
+    character: int
+    kind: Literal["confirmed", "faceless", "unreadable"] = "confirmed"
+
+
 class Settle(BaseModel):
-    """End the waiting jobs of the world's operations of one kind, then feed."""
+    """End the waiting jobs of the world's operations of one kind (the oldest `count` of them, or all), then feed. A
+    head pass's windows are `head` operations."""
 
     kind: str
     outcome: str = "succeeded"
+    count: int | None = None
+    head: bool | None = None
 
 
 def portrait(path: Path, seed: int, face=True):
-    """A small picture; a portrait has a light face the fixture face scan finds, a faceless one is flat."""
-    image = Image.new("RGB", (192, 256), (40 + seed % 160, 60, 90))
+    """A small picture; a portrait has a light face the fixture face scan finds, a faceless one is flat, and an
+    unreadable one (face=None) is black."""
+    image = Image.new(
+        "RGB", (192, 256), (40 + seed % 160, 60, 90) if face is not None else (0, 0, 0)
+    )
     if face:
         ImageDraw.Draw(image).ellipse((56, 48, 136, 152), fill=(222, 190, 170))
     image.save(path, "JPEG", quality=85)
@@ -72,9 +88,12 @@ def portrait(path: Path, seed: int, face=True):
 
 
 def faces_in(data: bytes):
-    """The fixture face scan: one centred face in a picture that is not flat, none in a flat one."""
+    """The fixture face scan: one centred face in a picture that is not flat, none in a flat one, and no reading of a
+    black one (its report is unreadable)."""
     with Image.open(io.BytesIO(data)) as image:
         grey = np.asarray(image.convert("L"), dtype=np.float32)
+    if grey.max() < 8:
+        return None
     if grey.std() < 4:
         return []
     height, width = grey.shape
@@ -83,6 +102,10 @@ def faces_in(data: bytes):
 
 def face_scan_answer(data: bytes):
     faces = faces_in(data)
+    if faces is None:
+        return {"faces": {"reports": [{"filename": "faces.npz", "type": "output"}]}}, {
+            "faces:reports:0": b"not a report"
+        }
     report = io.BytesIO()
     np.savez(
         report,
@@ -241,22 +264,39 @@ class BrowserWorld:
         for track in report["tracks"]:
             track["shot"] -= 1
         count = len(scene.characters)
+        # Characters take the shots in turn; in the first `ensemble` shots every character is seen.
+        owners = {t["id"]: t["shot"] % count for t in report["tracks"]}
+        for shot in report["shots"][: scene.ensemble]:
+            base = next(t for t in report["tracks"] if t["shot"] == shot["index"])
+            for k in range(count):
+                if k == owners[base["id"]]:
+                    continue
+                n = len(report["tracks"]) + 1
+                report["tracks"].append(
+                    {
+                        **base,
+                        "id": f"t{n}",
+                        "faces": list(range(15 * (n - 1), 15 * n)),
+                    }
+                )
+                owners[f"t{n}"] = k
         report["clusters"] = [
             {
                 "id": f"c{k + 1:02d}",
                 "track_ids": [
-                    t["id"] for t in report["tracks"] if t["shot"] % count == k
+                    t["id"] for t in report["tracks"] if owners[t["id"]] == k
                 ],
                 "screen_time_frames": sum(
-                    scene.length for t in report["tracks"] if t["shot"] % count == k
+                    scene.length for t in report["tracks"] if owners[t["id"]] == k
                 ),
-                "shot_count": sum(
-                    1 for t in report["tracks"] if t["shot"] % count == k
-                ),
+                "shot_count": sum(1 for t in report["tracks"] if owners[t["id"]] == k),
                 "presence": [
                     [s["start"], s["end"]]
                     for s in report["shots"]
-                    if s["index"] % count == k
+                    if any(
+                        owners[t["id"]] == k and t["shot"] == s["index"]
+                        for t in report["tracks"]
+                    )
                 ],
                 "face_artifact": None,
             }
@@ -331,9 +371,9 @@ class BrowserWorld:
             if kind is None:
                 continue
             picture = self.picture(
-                f"{'Arin' if kind != 'faceless' else 'Hallway'} · {tag}-{index}",
+                f"{'Arin' if kind in {'confirmed', 'proposed'} else 'Hallway'} · {tag}-{index}",
                 f"{tag}{index:02x}",
-                face=kind != "faceless",
+                face={"faceless": False, "unreadable": None}.get(kind, True),
             )
             state = world.invoke(
                 commands.get(kind, recast.set_target),
@@ -341,17 +381,35 @@ class BrowserWorld:
                 character["id"],
                 expected_revision=state["revision"],
                 asset_id=picture,
-                label="Arin"
-                if kind == "confirmed"
-                else "Arin proposal"
-                if kind == "proposed"
-                else "Hallway",
+                label={"confirmed": "Arin", "proposed": "Arin proposal"}.get(
+                    kind, "Hallway"
+                ),
             )
         # The live runner checks each picture the user set on the fixture ComfyUI, as the app would.
         for index, kind in enumerate(scene.targets[: len(state["characters"])]):
             if kind not in {None, "proposed"}:
                 self.checked(state["id"], index)
         return world.invoke(recast.recast_state, state["id"])
+
+    def target(self, recast_id: str, order: Picture):
+        world = self.get()
+        tag = uuid.uuid4().hex[:8]
+        state = world.invoke(recast.recast_state, recast_id)
+        picture = self.picture(
+            f"{'Arin' if order.kind == 'confirmed' else 'Hallway'} · {tag}",
+            tag,
+            face={"faceless": False, "unreadable": None}.get(order.kind, True),
+        )
+        world.invoke(
+            recast.set_target,
+            recast_id,
+            state["characters"][order.character]["id"],
+            expected_revision=state["revision"],
+            asset_id=picture,
+            label="Arin" if order.kind == "confirmed" else "Hallway",
+        )
+        self.checked(recast_id, order.character)
+        return world.invoke(recast.recast_state, recast_id)
 
     def checked(self, recast_id, index, timeout=30):
         """Wait until the character's picture has its face check."""
@@ -416,7 +474,13 @@ class BrowserWorld:
     def settle(self, recast_id: str, order: Settle):
         world = self.get()
         with world.db.transaction() as session:
-            for operation in world.ops.recent(session, kind=order.kind, limit=500):
+            waiting = [
+                o
+                for o in reversed(world.ops.recent(session, kind=order.kind, limit=500))
+                if any(j["state"] in {"queued", "claimed"} for j in o["jobs"])
+                and (order.head is None or bool(o["request"].get("head")) == order.head)
+            ]
+            for operation in waiting[: order.count]:
                 world.settle(session, operation["id"], order.outcome)
         self.feed()
         return world.invoke(recast.recast_state, recast_id)
@@ -464,6 +528,10 @@ def install(app):
     @app.post("/api/test/recast-world/{recast_id}/settle")
     def settle_world(recast_id: str, order: Settle):
         return browser.settle(recast_id, order)
+
+    @app.post("/api/test/recast-world/{recast_id}/target")
+    def target_world(recast_id: str, order: Picture):
+        return browser.target(recast_id, order)
 
     @app.post("/api/test/recast-world/{recast_id}/feed")
     def feed_world(recast_id: str):
