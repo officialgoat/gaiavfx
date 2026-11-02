@@ -1,5 +1,12 @@
 import type { Page } from "@playwright/test";
-import { expect, recastCommands, test, type RecastWorld } from "./recast-world";
+import {
+  expect,
+  openFilm,
+  recastCommands,
+  reopen,
+  test,
+  type RecastWorld,
+} from "./recast-world";
 
 // U5a: the Recast page's head-pass tests, ported to the film (retained regression coverage rows 6 to 17
 // and 30 to 32). The film's head pass is `HeadPassControl` in the Shot card (Properties); when Properties is closed,
@@ -15,17 +22,6 @@ const ENSEMBLE = {
   ensemble: 1,
   rendered: 2,
 };
-
-async function openFilm(page: Page, world: RecastWorld) {
-  await page.getByRole("button", { name: "File", exact: true }).click();
-  await page.getByRole("menuitem", { name: /Open film/ }).click();
-  await page
-    .getByRole("dialog", { name: "Open film" })
-    .getByRole("button", { name: new RegExp(world.title) })
-    .first()
-    .click();
-  await expect(page.locator(".timeline-heading")).toContainText(world.title);
-}
 
 /** No version's asset name reaches the page: text, titles, labels, alt text or values. */
 async function expectBlind(page: Page) {
@@ -84,8 +80,7 @@ async function start(page: Page, world: RecastWorld, shot = "Shot 001") {
 }
 
 async function reload(page: Page, world: RecastWorld, shot = "Shot 001") {
-  await page.reload();
-  await expect(page.locator(".timeline-heading")).toContainText(world.title);
+  await reopen(page, world);
   await expect(
     card(page).getByRole("heading", { name: shot, exact: true }),
   ).toBeVisible();

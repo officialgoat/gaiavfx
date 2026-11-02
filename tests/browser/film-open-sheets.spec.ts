@@ -55,10 +55,11 @@ async function openFilm(page: Page, world: RecastWorld) {
   const heading = page.locator(".timeline-heading", {
     hasText: world.film.name,
   });
-  await expect(ask.or(heading)).toBeVisible();
+  // Opening waits behind the newest movie's reads (recast-world.ts openFilm).
+  await expect(ask.or(heading)).toBeVisible({ timeout: 20_000 });
   if (await ask.isVisible())
     await ask.getByRole("button", { name: "Analyse film" }).click();
-  await expect(heading).toBeVisible();
+  await expect(heading).toBeVisible({ timeout: 20_000 });
 }
 
 const program = (page: Page) =>

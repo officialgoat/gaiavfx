@@ -307,6 +307,10 @@ export async function readAs(
   );
 }
 
+/** How long a film may take to open: the page first opens the newest movie, whose reads a long run's shared fixtures
+ * make many (one per place), and the film's reads wait behind them. */
+const OPENING = { timeout: 20_000 };
+
 /** Opens the world's film from File › Open film. */
 export async function openFilm(page: Page, world: RecastWorld) {
   await page.getByRole("button", { name: "File", exact: true }).click();
@@ -316,13 +320,19 @@ export async function openFilm(page: Page, world: RecastWorld) {
     .getByRole("button", { name: new RegExp(world.title) })
     .first()
     .click();
-  await expect(page.locator(".timeline-heading")).toContainText(world.title);
+  await expect(page.locator(".timeline-heading")).toContainText(
+    world.title,
+    OPENING,
+  );
 }
 
 /** Reloads the page with the world's film open. */
 export async function reopen(page: Page, world: RecastWorld) {
   await page.reload();
-  await expect(page.locator(".timeline-heading")).toContainText(world.title);
+  await expect(page.locator(".timeline-heading")).toContainText(
+    world.title,
+    OPENING,
+  );
 }
 
 /** No version's asset name, nor any of `also` (operations, artifacts, folders), reaches the page: text, titles,

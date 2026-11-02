@@ -15,7 +15,8 @@ export function PlateProducer(props: ShotProducerProps) {
   const [emptyPlate, setEmptyPlate] = useState(false);
   const assets = useQuery({
     queryKey: ["assets", "prepare"],
-    queryFn: () => studio.assets({ limit: "100" }),
+    // Sources the user made or imported, as the Library lists them: no renders' working files or stage stills.
+    queryFn: () => studio.assets({ limit: "100", hide_process: "true" }),
   });
   const sourceKind = assets.data?.items.find((a) => a.id === sourceId)?.kind;
   const empty = emptyPlate && sourceKind === "image";

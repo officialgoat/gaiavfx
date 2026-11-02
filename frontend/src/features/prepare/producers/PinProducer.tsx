@@ -42,7 +42,8 @@ export function PinProducer(props: ShotProducerProps) {
     .filter((e) => e.approved && e.angle_id === cut?.to_angle_id);
   const assets = useQuery({
     queryKey: ["assets", "prepare"],
-    queryFn: () => studio.assets({ limit: "100" }),
+    // Sources the user made or imported, as the Library lists them: no renders' working files or stage stills.
+    queryFn: () => studio.assets({ limit: "100", hide_process: "true" }),
   });
   return (
     <ProducerSheet
