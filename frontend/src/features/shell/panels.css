@@ -194,6 +194,13 @@
 .monitor-well .asset-player audio {
   width: 100%;
 }
+/* A preview still loading says so on the matte, which is dark in both themes: light text, as an empty monitor's. */
+.monitor-well > p[role="status"],
+.recast-wipe p[role="status"] {
+  margin: auto;
+  color: #b1b1ba;
+  font-size: 11px;
+}
 .monitor-empty {
   display: flex;
   flex: 1;

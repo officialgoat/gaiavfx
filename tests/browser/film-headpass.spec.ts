@@ -148,6 +148,7 @@ test.describe("one performer, two takes", () => {
       {
         method: "POST",
         path: `/${world.id}/shots/${world.shots[5]}/head-pass`,
+        body: { ...body, character_id: world.characters[0] },
       },
     ]);
     const layers = (await world.read()).shots[5].layers ?? [];

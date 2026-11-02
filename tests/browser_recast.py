@@ -13,6 +13,7 @@ import io
 import subprocess
 import threading
 import time
+import traceback
 import uuid
 import wave
 from pathlib import Path
@@ -943,6 +944,7 @@ class BrowserWorld:
         """A finished Draft run over the first `shots` shots, run `takes` times: each shot has that many versions. A
         `failed` shot's renders fail and a `rendering` one's wait (`states`)."""
         world = self.get()
+        film = state["film"]["asset_id"]
         states = states or {}
         held = {i for i, kind in states.items() if kind in {"rendering", "gap"}}
         end = state["shots"][shots - 1]["end"]
@@ -968,14 +970,18 @@ class BrowserWorld:
                     range={"start": 0, "end": end},
                     render_budget=10 * shots * takes,
                 )
-            # The feed renders two shots at a time: a round settles their windows, then their assemblies.
-            for _ in range(4 + shots):
+            # The feed renders two shots at a time: a round settles their windows, then their assemblies, and a
+            # shot of two performers takes more rounds.
+            for _ in range(12 + 2 * shots):
                 self.feed()
                 for kind in ("character_replacement", "shot_assembly"):
                     with world.db.transaction() as session:
                         for operation in world.ops.recent(
                             session, kind=kind, limit=500
                         ):
+                            # Only this film's renders: earlier specs leave theirs, head passes among them.
+                            if operation["request"].get("source_asset") != film:
+                                continue
                             index = self.shot_of(session, operation)
                             if states.get(index) == "rendering":
                                 continue
@@ -1003,6 +1009,7 @@ class BrowserWorld:
     def retake(self, state, index, times):
         """`times` more finished Draft takes of one shot."""
         world = self.get()
+        film = state["film"]["asset_id"]
         shot = state["shots"][index]["id"]
         for _ in range(times):
             state = world.invoke(recast.recast_state, state["id"])
@@ -1020,7 +1027,8 @@ class BrowserWorld:
                         for operation in world.ops.recent(
                             session, kind=kind, limit=500
                         ):
-                            world.settle(session, operation["id"])
+                            if operation["request"].get("source_asset") == film:
+                                world.settle(session, operation["id"])
                     self.feed()
                 state = world.invoke(recast.recast_state, state["id"])
                 if state["shots"][index]["status"] not in {"rendering", "queued"}:
@@ -1173,7 +1181,13 @@ def install(app):
 
     @app.post("/api/test/recast-world")
     def seed_world(scene: Scene):
-        return browser.seed(scene)
+        try:
+            return browser.seed(scene)
+        except Exception as error:
+            # Why the seed failed, in the spec's failure: the world's own account, or where the service refused.
+            raise HTTPException(
+                500, "".join(traceback.format_exception(error)[-4:])
+            ) from error
 
     @app.post("/api/test/recast-world/{recast_id}/settle")
     def settle_world(recast_id: str, order: Settle):
