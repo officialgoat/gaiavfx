@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -9,7 +8,6 @@ import subprocess
 import sys
 import threading
 import time
-from array import array
 from contextlib import contextmanager
 from fractions import Fraction
 from pathlib import Path
@@ -225,43 +223,18 @@ class MediaTools:
             raise ApplicationError("This media could not be processed: " + detail, 422)
         return (stderr if return_log else stdout).decode("utf-8", errors="replace")
 
-    @observed("media.sample_frame", media_inputs=("source",), media_outputs=("output",))
-    def sample_frame(
-        self, source: Path, output: Path, seconds: float, thumbnail_width=None
-    ) -> dict:
-        log = self.run(
-            self.ffmpeg,
-            [
-                "-v",
-                "info",
-                "-y",
-                *(["-ss", str(max(0, seconds - 1)), "-copyts"] if thumbnail_width else []),
-                "-i",
-                str(source),
-                "-vf",
-                f"select=gte(t\\,{seconds}),showinfo"
-                + (
-                    f",scale={thumbnail_width}:{round(thumbnail_width * 9 / 16)}:force_original_aspect_ratio=decrease,pad={thumbnail_width}:{round(thumbnail_width * 9 / 16)}:(ow-iw)/2:(oh-ih)/2"
-                    if thumbnail_width
-                    else ""
-                ),
-                "-frames:v",
-                "1",
-                str(output),
-            ],
-            return_log=True,
-        )
-        match = re.search(r"n:\s*0\s+pts:\s*(-?\d+)\s+pts_time:([\d.e+\-]+)", log)
-        if not match:
-            raise ApplicationError("The requested video sample could not be identified.")
-        return {
-            "pts": int(match.group(1)),
-            "pts_seconds": match.group(2),
-            "requested_seconds": seconds,
-        }
-
     @observed("media.probe", media_inputs=(), media_outputs=())
-    def probe(self, source: Path, *, frame_range=None) -> dict:
+    def document(self, source: Path) -> dict:
+        """ffprobe's streams and format of a file: the one reading that probe, the frame stream and conform share."""
+        return json.loads(
+            self.run(
+                self.ffprobe,
+                ["-v", "error", "-show_streams", "-show_format", "-of", "json", str(source)],
+            )
+        )
+
+    def probe(self, source: Path, *, frame_range=None, document=None) -> dict:
+        """What the Library keeps about a file; `document` is its ffprobe reading when the caller already has it."""
         try:
             with Image.open(source) as image:
                 if image.format in {"PNG", "JPEG", "WEBP", "TIFF", "BMP"}:
@@ -275,12 +248,7 @@ class MediaTools:
                     }
         except (OSError, ValueError):
             pass
-        data = json.loads(
-            self.run(
-                self.ffprobe,
-                ["-v", "error", "-show_streams", "-show_format", "-of", "json", str(source)],
-            )
-        )
+        data = document if document is not None else self.document(source)
         streams = data.get("streams", [])
         video = next(
             (
@@ -325,8 +293,9 @@ class MediaTools:
             result["variable_frame_rate"] = not self.constant_frame_rate(source, *frame_range, fps)
         return result
 
-    def film_info(self, path):
-        """Validate upright CFR packet timing before any pixel decode (including B-frame order)."""
+    def film_info(self, path, *, document=None):
+        """Validate upright CFR packet timing before any pixel decode (including B-frame order); `packets` counts the
+        video's packets, its frames. `document` is the file's ffprobe reading when the caller already has it."""
         data = json.loads(
             self.run(
                 self.ffprobe,
@@ -379,8 +348,9 @@ class MediaTools:
                 raise ApplicationError(
                     "variable frame rate: re-export at a constant frame rate", 422
                 )
-        info = self.probe(path)
+        info = self.probe(path, document=document)
         info["frame_rate"] = str(fps)
+        info["packets"] = len(packets)
         return info
 
     def sampled_proxy(self, source, output, frames, *, width, height, fps):
@@ -569,49 +539,6 @@ class MediaTools:
             options += ["-vn", "-c:a", "aac", "-movflags", "+faststart"]
         self.run(self.ffmpeg, options + [str(output)], timeout=1800)
 
-    @observed("media.ending_frame", media_inputs=("source",), media_outputs=("output",))
-    def ending_frame(self, source: Path, output: Path, start_us: int, end_us: int) -> dict:
-        """Capture the last decoded presentation frame inside a visible half-open range."""
-        if not 0 <= start_us < end_us:
-            raise ApplicationError("Choose a nonempty visible source range.", 422)
-        selected, index = None, 0
-        command = [
-            str(self.ffprobe),
-            "-v",
-            "error",
-            "-select_streams",
-            "v:0",
-            "-show_frames",
-            "-show_entries",
-            "frame=best_effort_timestamp_time",
-            "-of",
-            "compact=p=0",
-            str(source),
-        ]
-        with self.process(
-            command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True
-        ) as process:
-            for line in process.stdout:
-                fields = dict(item.split("=", 1) for item in line.strip().split("|") if "=" in item)
-                if "best_effort_timestamp_time" not in fields:
-                    continue
-                at = round(float(fields["best_effort_timestamp_time"]) * 1e6)
-                if at >= end_us:
-                    break
-                if at >= start_us:
-                    selected = index
-                index += 1
-            if process.poll() is None:
-                process.terminate()
-            process.wait(timeout=10)
-        if selected is None:
-            raise ApplicationError("No decoded frame lies inside the visible source range.", 422)
-        return {
-            **self.frame(source, output, selected),
-            "source_start_us": start_us,
-            "source_end_us": end_us,
-        }
-
     @observed("media.frame", media_inputs=("source",), media_outputs=("output",))
     def frame(self, source: Path, output: Path, ordinal: int) -> dict:
         if ordinal < 0:
@@ -671,63 +598,6 @@ class MediaTools:
             "pts": int(selected["best_effort_timestamp"]),
             "pts_seconds": selected.get("best_effort_timestamp_time"),
         }
-
-    @observed("media.prepare_reference", media_inputs=("source",), media_outputs=("output",))
-    def prepare_reference(
-        self,
-        source: Path,
-        output: Path,
-        kind: str,
-        start: float,
-        end: float | None,
-        include_audio: bool,
-        crop: dict | None = None,
-        audio_rate: int = 48000,
-    ):
-        output.parent.mkdir(parents=True, exist_ok=True)
-        if output.exists():
-            return
-        staged = output.with_name(output.stem + ".processing" + output.suffix)
-        if kind == "image":
-            with Image.open(source) as image:
-                image = ImageOps.exif_transpose(image).convert("RGB")
-                if crop:
-                    w, h = image.size
-                    box = (
-                        round(crop["x"] * w),
-                        round(crop["y"] * h),
-                        round((crop["x"] + crop["width"]) * w),
-                        round((crop["y"] + crop["height"]) * h),
-                    )
-                    if not (0 <= box[0] < box[2] <= w and 0 <= box[1] < box[3] <= h):
-                        raise ApplicationError(
-                            "The crop must contain pixels inside the original image.", 422
-                        )
-                    image = image.crop(box)
-                image.save(staged, "PNG")
-                staged.replace(output)
-            return
-        options = ["-v", "error", "-y", "-i", str(source), "-ss", str(start)]
-        if end is not None:
-            options += ["-t", str(end - start)]
-        if kind == "video":
-            options += [
-                "-vf",
-                "fps=24,scale=1024:1024:force_original_aspect_ratio=decrease:force_divisible_by=2",
-                "-c:v",
-                "libx264",
-                "-preset",
-                "veryfast",
-                "-crf",
-                "18",
-                "-pix_fmt",
-                "yuv420p",
-            ]
-            options += ["-c:a", "aac"] if include_audio else ["-an"]
-        else:
-            options += ["-vn", "-ar", str(audio_rate), "-ac", "2", "-c:a", "pcm_s16le"]
-        self.run(self.ffmpeg, options + [str(staged)], timeout=600)
-        staged.replace(output)
 
     def _wav_samples(self, path: Path, sample_rate: int) -> int:
         stream = json.loads(
@@ -818,234 +688,6 @@ class MediaTools:
         self.run(self.ffmpeg, args + [str(staged)], timeout=3600)
         staged.replace(output)
         return {"samples": output.stat().st_size // (4 * channels), "channels": channels}
-
-    @observed("media.compose_audio", media_inputs=("video", "source"), media_outputs=("output",))
-    def compose_audio(self, video, source, output, policy, frames, cancelled):
-        """Preserve picture packets; assemble a documented source soundtrack outside diffusion."""
-        info = self.probe(source)
-        duration = frames / 24
-        start = policy.get("start_us", 0) / 1e6
-        end = (policy.get("end_us") or round(info["duration"] * 1e6)) / 1e6
-        offset = policy.get("offset_us", 0) / 1e6
-        with source.open("rb") as stream:
-            source_hash = hashlib.file_digest(stream, "sha256").hexdigest()
-        direct = (
-            policy["mode"] == "replace"
-            and start == 0
-            and policy.get("end_us") is None
-            and offset == 0
-            and policy.get("gain_db", 0) == 0
-            and abs(info["duration"] - duration) < 1 / max(info.get("audio_sample_rate", 48000), 1)
-            and info.get("audio_codec") in {"aac", "alac", "mp3"}
-        )
-        staged = output.with_name(output.stem + ".processing.mp4")
-        if direct:
-            self.run(
-                self.ffmpeg,
-                [
-                    "-v",
-                    "error",
-                    "-y",
-                    "-i",
-                    str(video),
-                    "-i",
-                    str(source),
-                    "-map",
-                    "0:v:0",
-                    "-map",
-                    "1:a:0",
-                    "-c:v",
-                    "copy",
-                    "-c:a",
-                    "copy",
-                    "-movflags",
-                    "+faststart",
-                    str(staged),
-                ],
-                cancelled=cancelled,
-                timeout=600,
-            )
-            staged.replace(output)
-            return {
-                "mode": policy["mode"],
-                "operation": "stream_copy",
-                "source_sha256": source_hash,
-                "policy": policy,
-            }
-        master = output.with_name("audio-master.f32le")
-        desired = frames * 2000
-        source_filter = f"atrim=start={start}:end={end},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,volume={policy.get('gain_db', 0)}dB,adelay={round(offset * 48000)}S:all=1,apad,atrim=end_sample={desired}"
-        options = ["-v", "error", "-y", "-i", str(video), "-i", str(source)]
-        if policy["mode"] == "mix":
-            filters = f"[1:a:0]{source_filter}[source];[0:a:0]aresample=48000,aformat=channel_layouts=stereo,volume={policy.get('generated_gain_db', 0)}dB,apad,atrim=end_sample={desired}[native];[native][source]amix=inputs=2:normalize=0:duration=longest,atrim=end_sample={desired}[out]"
-        else:
-            filters = f"[1:a:0]{source_filter}[out]"
-        self.run(
-            self.ffmpeg,
-            options
-            + [
-                "-filter_complex",
-                filters,
-                "-map",
-                "[out]",
-                "-c:a",
-                "pcm_f32le",
-                "-f",
-                "f32le",
-                str(master),
-            ],
-            timeout=600,
-            cancelled=cancelled,
-        )
-        data = array("f")
-        with master.open("rb") as stream:
-            data.fromfile(stream, master.stat().st_size // 4)
-        if sys.byteorder != "little":
-            data.byteswap()
-        if len(data) != desired * 2:
-            raise ApplicationError("The soundtrack did not match the planned stereo sample count.")
-        peak = max((abs(v) for v in data), default=0)
-        if peak > 1.001:
-            raise ApplicationError(
-                "This audio mix would clip. Lower the source or generated-audio gain, then create a revised candidate reusing these child takes."
-            )
-        with master.open("rb") as stream:
-            pcm_hash = hashlib.file_digest(stream, "sha256").hexdigest()
-        wav = master.with_suffix(".wav")
-        self.run(
-            self.ffmpeg,
-            [
-                "-v",
-                "error",
-                "-y",
-                "-f",
-                "f32le",
-                "-ar",
-                "48000",
-                "-ac",
-                "2",
-                "-i",
-                str(master),
-                "-c:a",
-                "pcm_f32le",
-                str(wav),
-            ],
-            timeout=600,
-            cancelled=cancelled,
-        )
-        self.run(
-            self.ffmpeg,
-            [
-                "-v",
-                "error",
-                "-y",
-                "-i",
-                str(video),
-                "-i",
-                str(wav),
-                "-map",
-                "0:v:0",
-                "-map",
-                "1:a:0",
-                "-c:v",
-                "copy",
-                "-c:a",
-                "aac",
-                "-b:a",
-                "192k",
-                "-movflags",
-                "+faststart",
-                str(staged),
-            ],
-            timeout=600,
-            cancelled=cancelled,
-        )
-        staged.replace(output)
-        return {
-            "mode": policy["mode"],
-            "operation": "pcm_mix" if policy["mode"] == "mix" else "pcm_replace",
-            "source_sha256": source_hash,
-            "pcm_sha256": pcm_hash,
-            "sample_rate": 48000,
-            "samples": desired,
-            "channels": 2,
-            "peak": peak,
-            "silence_padding_samples": max(0, desired - round((end - start + offset) * 48000)),
-            "master_path": str(wav),
-            "policy": policy,
-        }
-
-    @observed("media.prepare_continuation", media_inputs=("source",), media_outputs=("output",))
-    def prepare_continuation(
-        self,
-        source: Path,
-        output: Path,
-        start_us: int,
-        end_us: int,
-        width: int,
-        height: int,
-        context_frames: int,
-        audio_frames: int,
-    ):
-        output.parent.mkdir(parents=True, exist_ok=True)
-        if output.is_file():
-            return
-        # Normalize on a frame grid before selecting the tail. A container's
-        # rounded 5.167 s duration must not drop frame 114 of a 124-frame clip.
-        end_frame = round(end_us * 24 / 1e6)
-        start_frame = max(round(start_us * 24 / 1e6), end_frame - max(context_frames, audio_frames))
-        staged = output.with_name(output.stem + ".processing.mkv")
-        video_filter = (
-            f"fps=24,trim=start_frame={start_frame}:end_frame={end_frame},setpts=PTS-STARTPTS,"
-            f"scale={width}:{height}:force_original_aspect_ratio=decrease,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2"
-        )
-        audio_filter = f"aresample=48000,apad,atrim=start_sample={start_frame * 2000}:end_sample={end_frame * 2000},asetpts=N/SR/TB"
-        self.run(
-            self.ffmpeg,
-            [
-                "-v",
-                "error",
-                "-y",
-                "-i",
-                str(source),
-                "-vf",
-                video_filter,
-                "-af",
-                audio_filter,
-                "-c:v",
-                "ffv1",
-                "-pix_fmt",
-                "yuv444p",
-                "-c:a",
-                "pcm_s16le",
-                "-ar",
-                "48000",
-                str(staged),
-            ],
-            timeout=600,
-        )
-        counted = json.loads(
-            self.run(
-                self.ffprobe,
-                [
-                    "-v",
-                    "error",
-                    "-select_streams",
-                    "v:0",
-                    "-count_frames",
-                    "-show_entries",
-                    "stream=nb_read_frames",
-                    "-of",
-                    "json",
-                    str(staged),
-                ],
-            )
-        )
-        if int(counted["streams"][0]["nb_read_frames"]) < context_frames:
-            raise ApplicationError(
-                "The prepared source tail has too few frames for this context window."
-            )
-        staged.replace(output)
 
     @observed("media.export_sequence", media_inputs=(), media_outputs=("output",))
     def export_sequence(self, items, output: Path, width: int, height: int, cancelled, progress):

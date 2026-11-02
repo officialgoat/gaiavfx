@@ -139,22 +139,9 @@ def lossless_video(
         "1" if alpha else "2",
     ]
     if audio_source is not None:
-        audio_streams = json.loads(
-            media.run(
-                media.ffprobe,
-                [
-                    "-v",
-                    "error",
-                    "-select_streams",
-                    "a:0",
-                    "-show_entries",
-                    "stream=sample_fmt",
-                    "-of",
-                    "json",
-                    str(audio_source),
-                ],
-            )
-        )["streams"]
+        audio_streams = [
+            s for s in media.document(audio_source)["streams"] if s["codec_type"] == "audio"
+        ]
         fmt = audio_streams[0]["sample_fmt"].removesuffix("p") if audio_streams else "flt"
         codec = {
             "u8": "pcm_u8",

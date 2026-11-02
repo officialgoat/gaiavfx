@@ -13,7 +13,6 @@ A Runner spawns FFmpeg with one family of callers' global flags, timeout and err
 reader and writer produces are pinned by tests/test_frame_stream_pins.py.
 """
 
-import json
 import subprocess
 import tempfile
 from contextlib import contextmanager, suppress
@@ -83,24 +82,14 @@ class Source:
 
 
 def probe(media, path) -> Source:
-    info = media.probe(path)
-    data = json.loads(
-        media.run(
-            media.ffprobe,
-            [
-                "-v",
-                "error",
-                "-select_streams",
-                "v:0",
-                "-show_entries",
-                "stream=pix_fmt,color_space,color_range,start_time:format=start_time",
-                "-of",
-                "json",
-                str(path),
-            ],
-        )
-    )
-    stream = data["streams"][0]
+    data = media.document(path)
+    info = media.probe(path, document=data)
+    video = next(s for s in data["streams"] if s["codec_type"] == "video")
+    stream = {
+        key: video[key]
+        for key in ("pix_fmt", "color_space", "color_range", "start_time")
+        if key in video
+    }
     origin = Fraction(stream.get("start_time", "0")) - Fraction(
         data.get("format", {}).get("start_time", "0")
     )
@@ -124,8 +113,8 @@ def _colour_filter(colour, source, size):
     return ""
 
 
-# Each colour mode keeps the output options its callers always passed, in their order: FFmpeg reads output
-# options in any order, but the pinned tests hold every argument. {} stands for the pixel format.
+# Each colour mode keeps the output options its callers always passed, in their order (the byte pins hold what
+# they produce). {} stands for the pixel format.
 _OUTPUT = {
     "pinned": "-an -fps_mode passthrough -threads:v 1 -pix_fmt {} -f rawvideo",
     "native": "-an -fps_mode passthrough -pix_fmt {} -threads:v 1 -f rawvideo",

@@ -17,15 +17,6 @@ from gaiavfx.shared.errors import ApplicationError
 PART_FRAMES = 240
 
 
-def streams(media, path):
-    return json.loads(
-        media.run(
-            media.ffprobe,
-            ["-v", "error", "-show_streams", "-show_format", "-of", "json", str(path)],
-        )
-    )
-
-
 def packet_count(media, path):
     data = json.loads(
         media.run(
@@ -71,7 +62,7 @@ def frames(media, path, pix_fmt, size, start=0, end=None):
 
 def patch_info(media, entry, staging, index, native, fps):
     path = Path(entry["path"])
-    probe = streams(media, path)
+    probe = media.document(path)
     attachments = [s for s in probe["streams"] if s["codec_type"] == "attachment"]
     if len(attachments) != 1 or attachments[0].get("tags", {}).get("filename") != "patch.json":
         raise ApplicationError("Replacement patch needs its patch.json attachment.", 422)
@@ -148,13 +139,12 @@ def conform_patches(
     if source.resolve() == output.resolve():
         raise ApplicationError("Conform cannot overwrite its source.", 422)
     check_cancel(cancelled)
-    probe = streams(media, source)
+    probe = media.document(source)
     stream = next(s for s in probe["streams"] if s["codec_type"] == "video")
     native = NativePixels(stream)
     fps = Fraction(stream["avg_frame_rate"])
-    # Packet inspection establishes exact frame count without another pixel decode.
-    media.film_info(source)
-    count = packet_count(media, source)
+    # Packet inspection checks the timing and establishes the exact frame count without a pixel decode.
+    count = media.film_info(source, document=probe)["packets"]
     start, end = (0, count) if frame_range is None else (frame_range["start"], frame_range["end"])
     if type(start) is not int or type(end) is not int or not 0 <= start < end <= count:
         raise ApplicationError("Conform range is outside the source film.", 422)

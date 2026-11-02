@@ -48,9 +48,6 @@ def test_samples_include_actual_boundaries_and_deduplicate_pts(tmp_path):
         2533333,
         2700000,
     ]
-    ending = media.ending_frame(source, tmp_path / "ending.png", 501000, 2700000)
-    assert ending["source_end_us"] == 2700000
-    assert ending["frame_ordinal"] == 80  # 2.666667 s; exclude the frame exactly at out.
     with pytest.raises(ApplicationError, match="stopped"):
         sample_video(media, source, tmp_path / "cancelled", 0, 1000000, lambda: True)
     media.stop()

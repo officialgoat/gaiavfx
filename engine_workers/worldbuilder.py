@@ -288,10 +288,7 @@ def atlas_prepare(job: Job) -> None:
         atlas_path.write_text(json.dumps(atlas, indent=1), encoding="utf-8")
         job.check()
         summary = _describe(job, folder, atlas, atlas_path, "worldbuilder engine, atlas_prepare")
-        done.write_text(
-            json.dumps({"identity": identity, "summary": summary}, default=_plain),
-            encoding="utf-8",
-        )
+        _summarise(job, done, identity, summary)
         job.progress(0.95, "Prepared")
     summary = json.loads(done.read_text(encoding="utf-8"))["summary"]
     _publish_atlas(job, folder)
@@ -470,7 +467,7 @@ def atlas_from_frames(job: Job) -> None:
             atlas_path.write_text(json.dumps(atlas, indent=1), encoding="utf-8")
             summary |= _describe(job, folder, atlas, atlas_path, "worldbuilder engine, atlas_from_frames")
             summary["levelling"] = atlas["levelling"]
-        done.write_text(json.dumps({"identity": identity, "summary": summary}, default=_plain), encoding="utf-8")
+        _summarise(job, done, identity, summary)
         job.progress(0.95, "Prepared" if layout else "Refused")
     summary = json.loads(done.read_text(encoding="utf-8"))["summary"]
     if summary["layout"]:
@@ -531,11 +528,7 @@ def _fit(job: Job, state: Path, identity: dict, fit) -> None:
     job.progress(0.02, "Fitting the splat")
     summary = fit()
     job.check()
-    with job.writing(done) as partial:
-        partial.write_text(
-            json.dumps({"identity": identity, "summary": summary}, default=str),
-            encoding="utf-8",
-        )
+    _summarise(job, done, identity, summary, default=str)
     job.progress(1.0, "Fitted")
     _publish(job, state, summary)
 
@@ -711,10 +704,14 @@ def _done(folder: Path, identity: dict) -> dict | None:
     return None
 
 
-def _finish(folder: Path, identity: dict, summary: dict) -> None:
-    (folder / "worker-summary.json").write_text(
-        json.dumps({"identity": identity, "summary": summary}, default=_plain), encoding="utf-8"
-    )
+def _finish(job: Job, folder: Path, identity: dict, summary: dict) -> None:
+    _summarise(job, folder / "worker-summary.json", identity, summary)
+
+
+def _summarise(job: Job, path: Path, identity: dict, summary: dict, default=_plain) -> None:
+    """A step's summary, written whole or not at all: a relaunch that finds it skips the step (protocol.Job.writing)."""
+    with job.writing(path) as partial:
+        partial.write_text(json.dumps({"identity": identity, "summary": summary}, default=default), encoding="utf-8")
 
 
 def _image(path: Path, array) -> Path:
@@ -800,7 +797,7 @@ def fill_explore(job: Job) -> None:
             "probes": planned,
         }
         (folder / "probes.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
-        _finish(folder, identity, summary)
+        _finish(job, folder, identity, summary)
     for n, probe in enumerate(summary["probes"]):
         here = folder / probe["folder"]
         _output_file(job, f"p{n}-first.png", here / "first.png", f"first:{n}", "set_probe")
@@ -836,7 +833,7 @@ def fill_paths(job: Job) -> None:
             depth = np.stack([r[1] for r in rendered])
             alpha = np.stack([r[2] for r in rendered])
             splat2.encode_video(here / "depthvis.mp4", geo.depth_visualisation(depth, alpha), ffmpeg, lossless=True)
-        _finish(folder / "paths", identity, {"probes": len(plan["probes"])})
+        _finish(job, folder / "paths", identity, {"probes": len(plan["probes"])})
     for n, probe in enumerate(plan["probes"]):
         here = folder / probe["folder"]
         _output_file(job, f"p{n}-depth.mp4", here / "depthvis.mp4", f"depth:{n}", "set_probe")
@@ -892,7 +889,7 @@ def fill_stills(job: Job) -> None:
             (here / "merge.json").write_text(json.dumps(found["merge"]), encoding="utf-8")
             stills.append({"probe": n, "still": True, **found["merge"], "pose": found["pose"]})
         summary = {"stills": stills}
-        _finish(folder / "stills", identity, summary)
+        _finish(job, folder / "stills", identity, summary)
     for row in summary["stills"]:
         if row["still"]:
             here = folder / plan["probes"][row["probe"]]["folder"]
@@ -952,7 +949,7 @@ def fill_consolidate(job: Job) -> None:
         after = fill.coverage(fill.observed(keyframes, room, rules_of.margin, voxel=plan["voxel"]), keyframes, room)
         report |= {"coverage": after, "gain": fill.gain(plan["coverage"], after)}
         summary = {"round": report} | _describe(job, out, atlas, atlas_path, "worldbuilder engine, fill_consolidate")
-        _finish(out, identity, summary)
+        _finish(job, out, identity, summary)
     _publish_atlas(job, out)
     atlas = json.loads((out / "atlas.json").read_text(encoding="utf-8"))
     for record in mem.current(atlas):

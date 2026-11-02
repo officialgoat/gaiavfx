@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 
 from gaiavfx.infrastructure.media import MediaTools
-from gaiavfx.infrastructure.media_conform import frames, pipe, streams
+from gaiavfx.infrastructure.media_conform import frames, pipe
 from gaiavfx.shared.errors import ApplicationError
 
 
@@ -171,8 +171,8 @@ def test_native_frames_alpha_audio_packets_and_tags(tmp_path, fps, monkeypatch):
             a[:, y0:y1, x0:x1] * (1 - alpha) + red_yuv[:, None, None] * alpha
         ).astype(np.uint8)
         assert np.array_equal(b[:, y0:y1, x0:x1], expected)
-    old_video = next(s for s in streams(media, source)["streams"] if s["codec_type"] == "video")
-    new_video = next(s for s in streams(media, output)["streams"] if s["codec_type"] == "video")
+    old_video = next(s for s in media.document(source)["streams"] if s["codec_type"] == "video")
+    new_video = next(s for s in media.document(output)["streams"] if s["codec_type"] == "video")
     for key in (
         "width",
         "height",
@@ -218,14 +218,14 @@ def test_excerpt_pcm_sample_boundaries_and_lossless_resume(tmp_path, monkeypatch
     )
     assert part.stat().st_mtime_ns == stamp
     assert len(list(frames(media, output, "yuv444p", 64 * 48 * 3))) == 5
-    audio = next(s for s in streams(media, output)["streams"] if s["codec_type"] == "audio")
+    audio = next(s for s in media.document(output)["streams"] if s["codec_type"] == "audio")
     assert audio["codec_name"] == "pcm_f32le"
     pcm = subprocess.check_output(
         [str(media.ffmpeg), "-v", "error", "-i", str(output), "-map", "0:a:0", "-f", "s32le", "-"]
     )
     assert len(pcm) // 4 == 9600
     # Compare with a direct trim in source timestamps, including AAC preroll.
-    origin = next(s for s in streams(media, source)["streams"] if s["codec_type"] == "video")[
+    origin = next(s for s in media.document(source)["streams"] if s["codec_type"] == "video")[
         "start_time"
     ]
     expected = subprocess.check_output(
@@ -248,12 +248,23 @@ def test_excerpt_pcm_sample_boundaries_and_lossless_resume(tmp_path, monkeypatch
 
 
 @pytest.mark.parametrize("codec", ["h264", "prores"])
-def test_delivery_codecs_keep_audio_packets(tmp_path, codec):
+def test_delivery_codecs_keep_audio_packets(tmp_path, codec, monkeypatch):
     media, source = fixture_clip(tmp_path, Fraction(24), "yuv420p")
     output = tmp_path / "delivery.mkv"
+    probes = []
+    run = media.run
+
+    def counted(executable, args, **kwargs):
+        if executable == media.ffprobe and str(source) in args:
+            probes.append(args)
+        return run(executable, args, **kwargs)
+
+    monkeypatch.setattr(media, "run", counted)
     media.conform_patches(
         source, [], output, codec=codec, cancelled=lambda: False, progress=lambda _: None
     )
+    # The source is read twice: its streams and format, then its packets (timing and frame count).
+    assert len(probes) == 2
     assert audio_hashes(media, source) == audio_hashes(media, output)
     assert len(list(frames(media, output, "rgb24", 64 * 48 * 3))) == 24
 
@@ -268,7 +279,7 @@ def test_native_subsampling_and_ten_bit_untouched_frames(tmp_path, fmt):
     )
     from gaiavfx.infrastructure.conform_pixels import NativePixels
 
-    layout = NativePixels(streams(media, source)["streams"][0])
+    layout = NativePixels(media.document(source)["streams"][0])
     before = list(frames(media, source, fmt, layout.size))
     after = list(frames(media, output, fmt, layout.size))
     assert len(before) == len(after) == 25
@@ -342,7 +353,7 @@ def test_full_audio_offset_and_colour_tags(tmp_path):
     media.conform_patches(
         source, [], output, codec="h264", cancelled=lambda: False, progress=lambda _: None
     )
-    before, after = (streams(media, p)["streams"] for p in (source, output))
+    before, after = (media.document(p)["streams"] for p in (source, output))
     assert audio_hashes(media, source) == audio_hashes(media, output)
     assert len(list(frames(media, output, "rgb24", 64 * 48 * 3))) == 25
     for key in (
@@ -424,5 +435,5 @@ def test_excerpt_retains_audio_that_starts_after_picture(tmp_path):
         cancelled=lambda: False,
         progress=lambda _: None,
     )
-    audio = next(s for s in streams(media, output)["streams"] if s["codec_type"] == "audio")
+    audio = next(s for s in media.document(output)["streams"] if s["codec_type"] == "audio")
     assert abs(float(audio["start_time"]) - 0.2) < 0.002
