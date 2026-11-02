@@ -16,6 +16,8 @@ export type Scene = {
   rate?: [number, number];
   characters?: string[];
   title?: string;
+  /** False: only the Library film, which asks before its analysis creates the recast. */
+  recast?: boolean;
   analysed?: boolean;
   /** Each character's picture: the user's portrait, Gaia's portrait, the user's picture with no face, or none. */
   targets?: ("confirmed" | "proposed" | "faceless" | "unreadable" | null)[];
@@ -108,7 +110,15 @@ export async function seedRecast(
       expect(response.ok(), await response.text()).toBeTruthy();
       return (await response.json()) as S["RecastDTO"];
     },
-    retire: () => call("DELETE", ""),
+    /** Retires the recast; for a film seeded with none, the one the page created. */
+    retire: () =>
+      world.id
+        ? call("DELETE", "")
+        : request
+            .delete(`/api/test/recast-world/films/${world.film.asset_id}`, {
+              headers,
+            })
+            .then((r) => r.json()),
     /** Another client's command at the recast's current revision (the agent, another window); a DELETE sends the
      * revision as a query. */
     elsewhere: async (
@@ -141,11 +151,15 @@ export async function seedRecast(
 /** `world` is a fresh recast for each test, retired after it; a spec sets its `scene` with test.use. */
 export const test = base.extend<{ scene: Scene; world: RecastWorld }>({
   scene: [{}, { option: true }],
-  world: async ({ request, scene }, use) => {
-    const world = await seedRecast(request, scene);
-    await use(world);
-    await world.retire();
-  },
+  // Seeding owns its time: a cold media cache encodes the film once.
+  world: [
+    async ({ request, scene }, use) => {
+      const world = await seedRecast(request, scene);
+      await use(world);
+      await world.retire();
+    },
+    { timeout: 120_000 },
+  ],
 });
 export { expect };
 

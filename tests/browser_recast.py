@@ -61,6 +61,7 @@ class Scene(BaseModel):
     rate: tuple[int, int] = (24, 1)
     characters: list[str] = ["Mara"]
     title: str | None = None
+    recast: bool = True
     analysed: bool = True
     targets: list[Literal["confirmed", "proposed", "faceless", "unreadable"] | None] = [
         "confirmed"
@@ -96,15 +97,19 @@ class Settle(BaseModel):
     head: bool | None = None
 
 
-def portrait(path: Path, seed: int, face=True):
+def portrait(path: Path, seed: int, face=True, mark=""):
     """A small picture; a portrait has a light face the fixture face scan finds, a faceless one is flat, and an
-    unreadable one (face=None) is black."""
+    unreadable one (face=None) is black. `mark` is drawn in a corner pixel by pixel, so two pictures never share
+    their bytes (the Library keeps one asset per content)."""
     image = Image.new(
         "RGB", (192, 256), (40 + seed % 160, 60, 90) if face is not None else (0, 0, 0)
     )
     if face:
         ImageDraw.Draw(image).ellipse((56, 48, 136, 152), fill=(222, 190, 170))
-    image.save(path, "JPEG", quality=85)
+    for i, byte in enumerate(mark.encode()):
+        # Dim enough that a flat picture stays flat and a black one stays unreadable for the face scan.
+        image.putpixel((i % 16, 250 + i // 16), (byte % 6, 0, 0))
+    image.save(path, "PNG" if mark else "JPEG", **({} if mark else {"quality": 85}))
     return path
 
 
@@ -199,7 +204,10 @@ class BrowserWorld:
         MEDIA.mkdir(parents=True, exist_ok=True)
         original = MEDIA / name
         if not original.exists():
-            make(original)
+            # Written whole or not at all: a seed that times out midway leaves no half file for the next one.
+            partial = original.with_name(f"partial-{uuid.uuid4().hex[:8]}-{name}")
+            make(partial)
+            partial.replace(original)
         return original
 
     def film(self, scene: Scene, tag: str):
@@ -261,8 +269,8 @@ class BrowserWorld:
         """A Library picture unique to this world: a portrait, or a flat picture with no face."""
         pictures = MEDIA / "pictures"
         pictures.mkdir(parents=True, exist_ok=True)
-        path = portrait(pictures / f"{tag}.jpg", int(tag, 16), face)
-        return self.workspace.import_media(path, name + ".jpg")["asset"]["id"]
+        path = portrait(pictures / f"{tag}.png", int(tag, 16), face, mark=tag)
+        return self.workspace.import_media(path, name + ".png")["asset"]["id"]
 
     def artifact(self, session, path):
         library = self.workspace.library
@@ -355,6 +363,16 @@ class BrowserWorld:
                 )
                 cluster["face_artifact"] = first["crop_artifact"]
         world.add_film(film_id, report)
+        if not scene.recast:
+            # A Library film the user has not opened yet: opening it asks before its analysis creates the recast.
+            return {
+                "id": "",
+                "title": name,
+                "film": {"asset_id": film_id, "name": name + ".mp4"},
+                "shots": [],
+                "characters": [],
+                "pictures": [],
+            }
         state = world.invoke(
             recast.create_recast,
             source_asset_id=film_id,
@@ -619,6 +637,16 @@ class BrowserWorld:
         self.feed()
         return world.invoke(recast.recast_state, recast_id)
 
+    def retire_film(self, asset_id: str):
+        """Retire every recast of a Library film (the one the page created, when the spec seeded none)."""
+        recasts = Base.metadata.tables["editing_recasts"]
+        with self.get().db.transaction() as session:
+            ids = session.execute(
+                recasts.select().where(recasts.c.source_asset_id == asset_id)
+            ).fetchall()
+        for row in ids:
+            self.retire(row.id)
+
     def retire(self, recast_id: str):
         """Remove the recast's Editing rows so later specs' lists and feeds stay small."""
         world = self.get()
@@ -671,6 +699,11 @@ def install(app):
     def feed_world(recast_id: str):
         browser.feed()
         return browser.get().invoke(recast.recast_state, recast_id)
+
+    @app.delete("/api/test/recast-world/films/{asset_id}")
+    def retire_film(asset_id: str):
+        browser.retire_film(asset_id)
+        return {"retired": asset_id}
 
     @app.delete("/api/test/recast-world/{recast_id}")
     def retire_world(recast_id: str):
