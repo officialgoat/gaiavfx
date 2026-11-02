@@ -13,7 +13,7 @@ import { PanoramaViewer } from "./PanoramaViewer";
 import "./panoramas.css";
 
 const STATE_WORDS: Record<Panorama["state"], string> = {
-  building: "Drawing",
+  building: "In progress",
   ready: "Choose one",
   chosen: "Chosen",
   stopped: "Stopped",

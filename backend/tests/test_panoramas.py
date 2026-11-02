@@ -195,3 +195,11 @@ def test_a_request_needs_words_or_a_picture(work):
     assert (
         preview["prompt"].startswith("img-txt-2-360, ") and "non-commercial" in preview["licence"]
     )
+
+
+def test_a_picture_names_only_the_models_it_uses(work, tmp_path):
+    db, library, _, _ = work
+    asset_id = picture(db, library, tmp_path)
+    preview = transact(db, panoramas.preview, library, pictured=PicturedPlace(asset_id, place="A"))
+    assert preview["prompt"] is None and "Krea" not in preview["licence"]
+    assert "Fibo 2.0" in preview["licence"] and "invented" in preview["what"]

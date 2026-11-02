@@ -98,17 +98,19 @@ def preview(
         minutes = CANDIDATES * (estimate["draw"] + estimate["fill"])
         prompt = compile_description(described_place)
         what = "Krea 2 draws two panoramas from your words; Fibo 2.0 closes each one's seam."
+        licence = "Krea 2 and Fibo 2.0 are licensed for non-commercial use only."
     else:
         _picture(session, library, pictured.picture_id)
         minutes = estimate["measure"] + CANDIDATES * (estimate["draw"] + estimate["fill"])
         prompt = None
         what = "Keeps your picture; everything around it is invented by Fibo 2.0 — check it before building."
+        licence = "Fibo 2.0 is licensed for non-commercial use only."
     return {
         "what": what,
         "prompt": prompt,
         "estimate": f"About {max(1, round(minutes))} minutes on the tested GPU.",
         "renders": RENDERS,
-        "licence": "Krea 2 and Fibo 2.0 are licensed for non-commercial use only.",
+        "licence": licence,
     }
 
 
