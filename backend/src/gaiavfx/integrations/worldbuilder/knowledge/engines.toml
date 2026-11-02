@@ -19,6 +19,10 @@ gpu = false
 # pinhole keyframes, levelled, and their map. numpy on the CPU.
 [engines.worldbuilder.tasks.atlas_from_frames]
 gpu = false
+# A set built from a panorama: its MoGe geometry and SAM 3 finds judged (sky, glass, measured surface) and the
+# panorama laid out as K0 with its map. numpy on the CPU.
+[engines.worldbuilder.tasks.atlas_from_panorama]
+gpu = false
 # The research rebuilt and extended splats of about 0.4-0.6 M gaussians at 1024x576 on the 4090 in about 2-3 minutes;
 # the estimate leaves room for the held-out renders that measure them.
 [engines.worldbuilder.tasks.splat_init_atlas]

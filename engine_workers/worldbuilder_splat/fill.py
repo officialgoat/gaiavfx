@@ -28,6 +28,7 @@ import numpy as np
 from . import explore as ex
 from . import geometry as geo
 from . import memory as mem
+from .erp import crop_view
 
 UP = np.array([0.0, -1.0, 0.0])  # the levelled world's up (y is down)
 
@@ -178,6 +179,74 @@ def seen_headings(keyframes) -> float:
     return float(covered.sum())
 
 
+def start_keyframes(keyframes, every: float = 45.0, hfov: float = 75.0, width: int = 1024, height: int = 576):
+    """Where a round's probes may start: every perspective keyframe's own camera and, for a panorama, its level
+    crops at R5's probe camera, one every `every` degrees, named `<id>@<heading>` (`K0@045`). The crops live only for
+    the plan and the probes' memory: the atlas keeps the panorama whole."""
+    found = [key for key in keyframes if key.kind == "pinhole"]
+    for key in keyframes:
+        if key.kind != "erp":
+            continue
+        h, w = key.depth.shape
+        for yaw in np.arange(0.0, 360.0, every):
+            view, k = mem.probe_camera(key.centre, float(yaw), hfov, width, height)
+            u, v = geo.erp_coordinates(geo.camera_rays(k, width, height) @ view[:3, :3], w, h)
+            valid = geo.sample_float(key.valid.astype(float), u, v) >= 0.999
+            depth = geo.erp_view_depth(key.depth, view, k, width, height)
+            image = crop_view(np.asarray(key.image), float(yaw), hfov, width, height)
+            found.append(mem.Keyframe(f"{key.id}@{int(yaw):03d}", "pinhole", image, depth, valid, valid, view, k=k))
+    return found
+
+
+def panorama_plan(
+    space, keyframes, room: float, rules: Rules, seed: int = 0, toward: float | None = None
+) -> list[Probe]:
+    """A stage built from a panorama is filled by R5's own planner (`explore.plan_probes`), the one the research's
+    expandable splat used: standing points around each keyframe at `rules.steps` of the clearance there, every 45
+    degrees scored by what it would reveal while keeping `rules.min_known` of the view known, then (R5's later rounds)
+    short of each frontier cluster. Each probe starts from the panorama crop facing nearest its view, or from a
+    stored still's own camera, and walks there: a step."""
+    starts = start_keyframes(keyframes)
+    records = [
+        {"id": key.id, "kind": key.kind, "position": key.centre, "viewmat": key.viewmat} for key in keyframes
+    ]
+    explored = np.mean([key.centre for key in keyframes], axis=0)
+    height = float(np.mean([key.centre[1] for key in keyframes]))
+    plane = ex.eye_plane(space, height, max(2 * space.voxel, 0.15 * room))
+    targets = [target for target, _ in ex.frontier_targets(space, plane, height)[:8]]
+    picks = ex.plan_probes(
+        space,
+        records,
+        count=rules.probes,
+        min_known=rules.min_known,
+        step_range=tuple(rules.steps),
+        seed=seed,
+        targets=targets,
+        explored=explored,
+        toward=toward,
+    )
+
+    def started(pick):
+        parents = [key for key in starts if key.id == pick.parent or key.id.startswith(pick.parent + "@")]
+        best = min(parents, key=lambda key: abs((pick.yaw - heading(key.viewmat) + 180) % 360 - 180))
+        turn = (pick.yaw - heading(best.viewmat) + 180) % 360 - 180
+        return (best, turn) if abs(turn) <= max(rules.turns) else (None, 0.0)
+
+    chosen = []
+    for pick in picks:
+        key, turn = started(pick)
+        if key is None:
+            continue
+        step = float(np.linalg.norm((pick.position - key.centre)[[0, 2]])) / room
+        chosen.append(
+            Probe(
+                key.id, "step", turn, list(map(float, pick.position)), pick.yaw, step,
+                pick.known, pick.known, pick.unknown, pick.score,
+            )  # fmt: skip
+        )
+    return chosen
+
+
 def plan(
     space, keyframes, room: float, rules: Rules, seed: int = 0, toward: float | None = None
 ) -> list[Probe]:
@@ -194,6 +263,8 @@ def plan(
     from within half a step. With `toward` (a heading in degrees, an extension the user asked for), every score is
     weighted as R5 steered: by how squarely the probe faces it and how far round it stands that way
     (`explore.steering_weight`)."""
+    if any(key.kind == "erp" for key in keyframes):
+        return panorama_plan(space, keyframes, room, rules, seed, toward)
     rng = np.random.default_rng(seed)
     explored = np.mean([k.centre for k in keyframes], axis=0)
 
@@ -224,7 +295,7 @@ def plan(
             surface + free, surface, unknown, steered(score_of(unknown), position, looks),
         )  # fmt: skip
 
-    # Probes start from a perspective keyframe's own camera; a panorama's crops are not starts yet.
+    # Probes start from a perspective keyframe's own camera (a panorama's stage is planned by `panorama_plan`).
     starts = [key for key in keyframes if key.kind == "pinhole"]
     by_id = {key.id: key for key in starts}
     turns = [

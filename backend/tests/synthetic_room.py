@@ -77,3 +77,33 @@ def geometry_npz(shots, people=None) -> bytes:
         processed=np.asarray([H, W], np.int32),
     )
     return stream.getvalue()
+
+
+def panorama(width=256, height=128, room=(2.0, 1.2, 0.8, 2.0), phase=0.0, centre=(0.0, 0.0, 0.0)):
+    """The room seen as a 2:1 equirectangular panorama from `centre` (heading 0 at the image centre, the panorama
+    keyframe's convention): its image and exact radial distance."""
+    from worldbuilder_splat import erp
+
+    position = np.asarray(centre, float)
+    rays = erp.directions(width, height) @ geo.F  # unit world directions, y down
+    half_x, ceiling, floor, half_z = room
+    bound = np.where(
+        rays > 0, np.array([half_x, floor, half_z]), np.array([-half_x, -ceiling, -half_z])
+    )
+    with np.errstate(divide="ignore", invalid="ignore"):
+        t = np.where(np.abs(rays) > 1e-9, (bound - position) / rays, np.inf)
+    distance = t.min(-1)
+    return colour(position + rays * distance[..., None], phase), distance.astype(np.float32)
+
+
+def panorama_npz(distance, sky=None, glass=None) -> bytes:
+    """A panorama's distance as GaiaSaveMoGeGeometry's `geometry.npz` (MoGe measured every pixel)."""
+    stream = io.BytesIO()
+    np.savez_compressed(
+        stream,
+        depth=distance.astype(np.float32),
+        mask=np.ones(distance.shape, bool),
+        sky=np.zeros(distance.shape, bool) if sky is None else sky,
+        glass=np.zeros(distance.shape, bool) if glass is None else glass,
+    )
+    return stream.getvalue()

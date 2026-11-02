@@ -25,6 +25,12 @@ read `inputs["atlas"]`, or, with `atlas_state`, the atlas that `atlas_prepare` l
                          and numbers, the `layout` or null, and with a layout the map's metadata, the labelled
                          keyframes and the levelling) and, with a layout, `atlas`, `map`, and for each keyframe
                          `still:<id>` (`set_still`) and `data:<id>` (`set_keyframe`).
+- `atlas_from_panorama`  (CPU) a set built from a panorama: its MoGe geometry and SAM 3 finds judged as the research
+                         did (`worldbuilder_splat/panorama.py`: sky, glass, the measured-surface gate) and the
+                         panorama as the atlas's one keyframe, K0, with its map. inputs: `geometry` (the npz
+                         GaiaSaveMoGeGeometry saves), `panorama` (the closed panorama). params: `name`, `place`,
+                         `rules` (the `[masks]` and `[gate]` settings). Outputs as `atlas_from_frames`'s, the summary's
+                         `gate` holding the judged shares and `layout` "panorama" (or null when refused).
 - `splat_init_atlas`     rebuild the set's splat from every current keyframe of the atlas. params: `name` (the state's
                          folder), `steps` (default 3000), `seam_mask_deg` (default 0), `atlas_state`. An atlas
                          without a panorama (a seed's) is fitted by the frames path (`frames.fit_frames`).
@@ -479,6 +485,41 @@ def atlas_from_frames(job: Job) -> None:
     job.output("summary", _write_json(job, "summary.json", summary), "analysis_report")
 
 
+def atlas_from_panorama(job: Job) -> None:
+    from worldbuilder_splat import panorama as pano
+
+    folder = _folder(job, "atlas", job.params["name"])
+    identity = {
+        "task": job.task,
+        "geometry": _sha(job.inputs["geometry"]),
+        "panorama": _sha(job.inputs["panorama"]),
+        **{k: job.params.get(k) for k in ("place", "rules")},
+    }
+    done = folder / "worker-summary.json"
+    if not done.is_file() or json.loads(done.read_text(encoding="utf-8")).get("identity") != identity:
+        if folder.exists():
+            shutil.rmtree(folder)
+        folder.mkdir(parents=True)
+        job.progress(0.1, "Judging the panorama's sky and glass")
+        place = job.params.get("place") or "Set"
+        atlas, gate = pano.build_atlas(job.inputs["panorama"], job.inputs["geometry"], folder, place, job.params["rules"])
+        summary = {"gate": gate, "layout": "panorama" if atlas else None, "levelling": None}
+        if atlas:
+            job.check()
+            summary |= _describe(job, folder, atlas, folder / "atlas.json", "worldbuilder engine, atlas_from_panorama")
+        _summarise(job, done, identity, summary)
+        job.progress(0.95, "Prepared" if atlas else "Refused")
+    summary = json.loads(done.read_text(encoding="utf-8"))["summary"]
+    if summary["layout"]:
+        _publish_atlas(job, folder)
+        record = pano.RECORD
+        atlas = json.loads((folder / "atlas.json").read_text(encoding="utf-8"))
+        files = next(r for r in atlas["keyframes"] if r["id"] == record)
+        _output_file(job, f"{record}.png", folder / files["image"], f"still:{record}", "set_still")
+        _output_file(job, f"{record}.npz", folder / files["data"], f"data:{record}", "set_keyframe")
+    job.output("summary", _write_json(job, "summary.json", summary), "analysis_report")
+
+
 # ---------------------------------------------------------------- splat
 
 
@@ -755,7 +796,7 @@ def fill_explore(job: Job) -> None:
             seed=int(job.params.get("seed") or 0),
             toward=job.params.get("toward"),
         )
-        by_id = {k.id: k for k in keyframes}
+        by_id = {k.id: k for k in fill.start_keyframes(keyframes)}  # a panorama's crops start probes too
         planned = []
         for n, probe in enumerate(probes):
             job.check()
@@ -960,6 +1001,7 @@ def fill_consolidate(job: Job) -> None:
 
 TASKS = {
     "atlas_from_frames": atlas_from_frames,
+    "atlas_from_panorama": atlas_from_panorama,
     "atlas_prepare": atlas_prepare,
     "render_views": render_views,
     "splat_init_atlas": splat_init_atlas,
