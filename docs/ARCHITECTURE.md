@@ -41,6 +41,7 @@ Each of these concepts has one module, and its callers and tests go through that
 | Operation start | `application/operation_start.py` | Starting an operation: each ComfyUI job's output kind is one its integration declares; the frozen knowledge snapshot. The runner in `operations.py` advances what it starts. |
 | Staged jobs | `modules/generation/operations/staged.py` | A staged operation's jobs read one way: a job's stage, the current job of each unit, the stopped ones, a unique output and that output frozen as an input. |
 | Frame stream | `infrastructure/frame_stream.py` | Reading and writing raw video frames through ffmpeg: one frame range, colour mode and process runner for every decoder and writer. |
+| Media reading | `infrastructure/media.py` `MediaTools.document` | The one ffprobe reading of a file's streams and format, which probe, the frame stream's source and conform share; `film_info` adds the packet scan. |
 | Replacement pixels | `application/replacement_pixels.py` | The numpy pixel operations of a replacement: resampling, crops, masks, pastes and letterbox checks. |
 | Signed links | `api/signed_links.py` | Media, splat and face URLs the renderer loads without its token: signed for what they serve, with one expiry rule. |
 | Stage build | `application/set_build.py`, `sets.build_view` | A stage build's operation and its readings: state, spend, and the workbench's label and banner. Why it stopped (`sets.stop_cause`, `STOP_WORDS`) is one rule the banner and Gaia both word. |
@@ -49,6 +50,7 @@ Each of these concepts has one module, and its callers and tests go through that
 | Character derivatives | `application/recast_derivatives.py` | A character's face sheet and voice model: feed, approval, cancel and reconcile. |
 | Run scope | `application/recast_run.py` | Which shots a Recast run renders, its reservation and its estimate, why Plan, Start and Pause may not run (`refusals`, `start_blocked`), and when a range is reviewed (`reviewed`). |
 | Shot work | `application/recast_take.py` | The seam through which Recast asks for analyses, replacements, bridges and assembly. |
+| Recast test world | `backend/tests/recast_world_support.py`, `tests/browser_recast.py` | The second adapter at Recast's seams (film analysis, shot work, planner, dialogue, voice builds) for pytest and for the browser suite, which seeds real recasts through it instead of mocking Recast. |
 | Conversation record | `application/harness/conversation.py` | A session's turns, its saved document and its summary. |
 | Grant budget | `application/harness/budget.py` | What Gaia has reserved, the session's limit, the current step's allowance, and every "jobs left". |
 | Report checks | `application/harness/tools/report_checks.py` | The current human turn and what a check remembers in it, read from the turns; say and ask_human run through it. |
@@ -56,7 +58,7 @@ Each of these concepts has one module, and its callers and tests go through that
 | Turn request | `application/harness/request.py` | The tools offered, their schema and the assembled request, and the reply parsed against the offer. |
 | Plan proposal checker | `application/harness/tools/plan_check.py` | Completing and checking a proposed plan. |
 | Plan review | `application/harness/session.py` (`ReviewRef`, `Plan.current`) | What the user reviews to finish a step, and the step a plan is on. |
-| Tool admission | each tool's declaration (`application/harness/actions.py` `Tool`) | Which step kind, scope and overflow rank admit a tool; the registry derives its tables. |
+| Tool admission | each tool's declaration (`application/harness/actions.py` `Tool`) | Which step kind, scope and overflow rank admit a tool, and whether it only reads, reports or leaves the conversation waiting for the user; the registry derives its tables (`READS` for the promise check among them). |
 | Process files | `application/process_media.py` | Which media are process files the Library hides. |
 | Typed routes | `frontend/src/shared/routes.ts` | Requests typed from the generated contracts. |
 | Navigator | `frontend/src/app/navigator.ts` | The shell's workspace, Library section, open document and open stage. |
