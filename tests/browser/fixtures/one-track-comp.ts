@@ -41,6 +41,6 @@ export const compScene: Scene = {
   run: {
     state: "running",
     range: { start: Math.round(260 * fps), end: Math.round(280 * fps) },
-    budget: 200,
+    budget: 5000,
   },
 };

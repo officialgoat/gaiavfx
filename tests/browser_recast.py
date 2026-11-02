@@ -952,7 +952,13 @@ class BrowserWorld:
         request = operation["request"]
         analysis = request.get("analysis")
         if analysis is None:
-            window = world.ops.operation(session, request["window_operations"][0])
+            # An assembly names its windows; a bridge, the window takes it joins.
+            first = (
+                request["bridge"]["windows"][0]["operation_id"]
+                if "bridge" in request
+                else request["window_operations"][0]
+            )
+            window = world.ops.operation(session, first)
             analysis = window["request"]["analysis"]
         start = world.window_reports[analysis]["shot_start"]
         shots = world.film_of(request["source_asset"]).report["shots"]
