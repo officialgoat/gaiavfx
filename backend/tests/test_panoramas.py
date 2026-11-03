@@ -136,6 +136,11 @@ def test_a_picture_grows_into_panoramas_that_keep_it(work, tmp_path):
     assert operation["state"] == "succeeded", operation["review"]
     state = transact(db, panoramas.panorama_state, library, operation)
     assert len(state["candidates"]) == 2
+    # Fibo reads the place in words after the fill instruction (round 2 of the H3 trial).
+    fills = [g["encode"]["inputs"]["prompt"] for g in comfy.answers.graphs if "encode" in g]
+    assert any(
+        p.startswith("<image_1> is a 360") and p.endswith(" The place: A hall.") for p in fills
+    )
     measured = [g for g in comfy.answers.graphs if "picture" in g]
     assert (
         measured
@@ -202,4 +207,4 @@ def test_a_picture_names_only_the_models_it_uses(work, tmp_path):
     asset_id = picture(db, library, tmp_path)
     preview = transact(db, panoramas.preview, library, pictured=PicturedPlace(asset_id, place="A"))
     assert preview["prompt"] is None and "Krea" not in preview["licence"]
-    assert "Fibo 2.0" in preview["licence"] and "invented" in preview["what"]
+    assert "Fibo 2.0" in preview["licence"] and "continues the place" in preview["what"]

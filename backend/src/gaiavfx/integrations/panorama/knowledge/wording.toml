@@ -12,4 +12,7 @@ tail = "Continuous geometry, no people, no labels."
 
 [edit]
 outpaint = "<image_1> is a 360-degree equirectangular panorama canvas: the photograph in its centre is real, the bright green area around it is unknown. Fill all of the green area so that the whole image becomes one seamless 360-degree equirectangular panorama of the same place, with the horizon level across the middle and the left and right edges matching. Keep the photograph in the centre unchanged."
+# Round 2 of the H3 trial (3 Nov): with the place in words, Fibo continued the place instead of inventing another
+# (unusable 5 of 14 against 11 of 14 without).
+outpaint_place = " The place: {place}."
 seam = "Replace the bright green vertical band in the middle of <image_1> with the scenery that continues seamlessly from both of its sides, in the same light, perspective and level horizon. Change nothing else in the image."

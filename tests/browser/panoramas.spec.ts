@@ -8,6 +8,8 @@ import {
 import AxeBuilder from "@axe-core/playwright";
 import path from "node:path";
 import { browserTestOrigin } from "../browser-origin";
+import { openMovie } from "./direct-fixture";
+import { seedProduction } from "./production-fixture";
 
 // Panoramas in Library › Stages: a place described in words becomes two 360° candidates (the browser service's fakes
 // draw the synthetic room and close its seam); the person looks around them, chooses one and builds a stage from it
@@ -203,9 +205,13 @@ test("a picture grows into two panoramas that keep it", async ({
   await page.getByRole("radio", { name: "A picture" }).check();
   await page.getByRole("radio", { name: "hall-frame.png" }).first().check();
   await expect(
-    page.getByText(/Keeps your picture; everything around it is invented/),
+    page.getByText(
+      /Keeps your picture; Fibo 2.0 continues the place you describe/,
+    ),
   ).toBeVisible();
-  await page.getByLabel("The place, for its name").fill("The hall, grown");
+  await page
+    .getByLabel("The place in words")
+    .fill("The grown hall: parquet and a coat rack");
   await page.getByRole("button", { name: "Grow two panoramas" }).click();
   await expect(
     page.getByRole("heading", { name: "The hall, grown" }),
@@ -222,7 +228,33 @@ test("a picture grows into two panoramas that keep it", async ({
   await audit(page, info, "picture-review");
   // Back to the list: the attempt is there with both candidates.
   await page.getByRole("button", { name: "All stages" }).click();
-  const row = page.getByRole("button", { name: /The hall, grown/ });
+  const row = page.getByRole("button", { name: /The grown hall/ });
   await expect(row).toContainText("Choose one");
   await expect(row.locator("img")).toHaveCount(2);
+});
+
+test("a scene's approved plate grows into two panoramas from Prepare", async ({
+  page,
+  request,
+}) => {
+  // The scene's place has an approved plate (its people removed): one click grows it, and the attempt opens in
+  // Library › Stages, where the person chooses one and builds the stage.
+  const data = await seedProduction(request);
+  await openMovie(page, data.movie.title);
+  await page.getByRole("button", { name: /Cut f36/ }).click();
+  await page
+    .getByRole("navigation", { name: "Workspaces" })
+    .getByRole("button", { name: "Prepare", exact: true })
+    .click();
+  const flow = page.getByRole("region", { name: "Prepare reference flow" });
+  const grow = flow.getByRole("button", {
+    name: "Grow a 360 panorama from the plate",
+  });
+  await expect(grow).toBeVisible();
+  await grow.focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByText("Grown from a picture")).toBeVisible();
+  await expect(
+    page.getByText("Choose the panorama to build a stage from."),
+  ).toBeVisible({ timeout: 60_000 });
 });

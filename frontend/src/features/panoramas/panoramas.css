@@ -598,3 +598,17 @@
   color: var(--muted);
   cursor: pointer;
 }
+
+.plate-panorama {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+.plate-panorama button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}

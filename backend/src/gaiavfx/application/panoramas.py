@@ -103,7 +103,7 @@ def preview(
         _picture(session, library, pictured.picture_id)
         minutes = estimate["measure"] + CANDIDATES * (estimate["draw"] + estimate["fill"])
         prompt = None
-        what = "Keeps your picture; everything around it is invented by Fibo 2.0 — check it before building."
+        what = "Keeps your picture; Fibo 2.0 continues the place you describe around it — check it before building."
         licence = "Fibo 2.0 is licensed for non-commercial use only."
     return {
         "what": what,
@@ -353,7 +353,7 @@ def _grow(operation, render) -> list[JobSpec]:
             _comfy(
                 "image",
                 fibo_edit_graph(
-                    outpaint_prompt(),
+                    outpaint_prompt(place=request["place"]),
                     image_file=canvas_remote,
                     seed=seed,
                     prefix=f"{prefix}/o{unit}",

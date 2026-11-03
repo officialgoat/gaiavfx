@@ -110,8 +110,9 @@ class MakePanorama(TransactionTool):
         f"titled for panoramas ({panoramas.RENDERS} jobs; one call draws both). From words: description is the place "
         "as someone standing in it sees it, with up to eight landmarks by heading and the light; never describe the "
         "image format, Python writes the model's prompt. From a picture: picture_id grows that still into a "
-        "panorama that keeps it; everything around it is invented, so say so. The user chooses one; never choose "
-        "for them."
+        "panorama that keeps it, and from_plate grows the place's approved plate (its scene with the people "
+        "removed; plan the plate step first when it has none). Around the picture Fibo continues the place's words "
+        "but invents what it cannot see, so say so. The user chooses one; never choose for them."
     )
 
     class Input(StrictModel):
@@ -126,6 +127,10 @@ class MakePanorama(TransactionTool):
         light: str = Field(default="", max_length=2 * MAX_WHAT, description="The light, in words.")
         picture_id: str | None = Field(
             default=None, description="A still to grow into the panoramas instead of words."
+        )
+        from_plate: bool = Field(
+            default=False,
+            description="Grow the place's approved plate (its scene with the people removed) instead of a picture.",
         )
         # Unbounded here: the live eval's model sent 360 for a panorama from words, which the schema then refused.
         hfov: float | None = Field(
@@ -162,14 +167,24 @@ class MakePanorama(TransactionTool):
         # The live eval's model sent landmarks and light under a place_id but never the words: the film's own
         # description of the place stands in for them.
         words = value.description.strip() or film_words(place)
-        if value.picture_id:
+        picture_id = value.picture_id
+        if value.from_plate:
+            row = next((p for p in context.state.places if p["id"] == place_id), None)
+            picture_id = ((row or {}).get("plate") or {}).get("asset_id")
+            if not picture_id:
+                raise ApplicationError(
+                    f"{row['name'] if row else 'This place'} has no approved plate yet: plan a prepare step that "
+                    "makes one from the scene with the people removed; the user approves it.",
+                    409,
+                )
+        if picture_id:
             if value.hfov is not None and not 30 <= value.hfov <= 120:
                 raise ApplicationError(
                     "hfov is the still's own field of view, 30 to 120 degrees; leave it out to measure it.",
                     422,
                 )
             name = words or (place["name"] if place else "")
-            request = {"pictured": PicturedPlace(value.picture_id, value.hfov, name)}
+            request = {"pictured": PicturedPlace(picture_id, value.hfov, name)}
         elif words:
             landmarks = [item.model_dump() for item in value.landmarks]
             request = {"described_place": panoramas.described(words, landmarks, value.light)}
@@ -181,8 +196,9 @@ class MakePanorama(TransactionTool):
             )
         operation = panoramas.start_panorama(session, context.library, place_id=place_id, **request)
         words = (
-            "growing the picture into two panoramas that keep it; everything around it is invented"
-            if value.picture_id
+            "growing the picture into two panoramas that keep it; Fibo continues the place around it but "
+            "invents what it cannot see"
+            if picture_id
             else "drawing two panoramas from the description"
         )
         return ToolResult(

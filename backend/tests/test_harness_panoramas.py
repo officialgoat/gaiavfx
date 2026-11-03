@@ -2,6 +2,7 @@
 (never Gaia's), and a stage built from the chosen one in a build step. The shared scene drives real transactions with
 fake inference only."""
 
+from PIL import Image
 from test_harness_build import context, drain, harness, planned
 from test_set_seed import scene as scene  # noqa: PLC0414
 
@@ -171,6 +172,27 @@ def test_the_place_s_own_words_stand_in_for_a_description(scene):
         request = OPERATIONS.operation(session, started.waits_on)["request"]
     assert request["place"] == "A small box room. Pale walls."
     assert request["place_id"] == s.place["id"] and request["mode"] == "description"
+
+
+def test_from_the_scene_gaia_grows_the_place_s_approved_plate(scene, tmp_path):
+    s = scene
+    h, row, document = panorama_plan(s, ("prepare", DRAW, s.place["id"], RENDERS))
+    refused = MakePanorama().run(context(h, row, document), MakePanorama.Input(from_plate=True))
+    assert not refused.ok and "has no approved plate yet" in refused.discrepancy
+    Image.new("RGB", (320, 180), (120, 110, 100)).save(tmp_path / "plate.png")
+    with s.workspace.db.transaction() as session:
+        plate = s.workspace.library.register(
+            session,
+            s.workspace.library.prepare(tmp_path / "plate.png", "plate.png"),
+            {"type": "import"},
+        )["id"]
+        direction.set_plate(session, s.place["id"], asset_id=plate, angle_id=s.angles["door"]["id"])
+    started = MakePanorama().run(context(h, row, document), MakePanorama.Input(from_plate=True))
+    assert started.ok, started
+    with s.workspace.db.transaction() as session:
+        request = OPERATIONS.operation(session, started.waits_on)["request"]
+    assert request["mode"] == "picture" and request["ask"]["picture_id"] == plate
+    assert request["place_id"] == s.place["id"]
 
 
 def test_gaia_cannot_build_from_a_panorama_the_user_did_not_choose(scene):

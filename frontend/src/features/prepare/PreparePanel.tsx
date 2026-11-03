@@ -15,6 +15,7 @@ import { ReferenceRejection } from "../review/ReferenceRejection";
 import { Prescreen } from "../review/Prescreen";
 import { PinReplacement } from "../review/PinReplacement";
 import { sets } from "../sets/client";
+import { PlatePanorama } from "../panoramas/PlatePanorama";
 import { useWorkspaceActions } from "../../shared/workspace-actions";
 import { preparationShot, shotPlace } from "./shot";
 import { preparationSteps, type PreparationStep } from "./preparation-steps";
@@ -244,6 +245,7 @@ export function PreparePanel({
               }
             />
           ))}
+          <PlatePanorama place={place} />
         </div>
       )}
     </section>

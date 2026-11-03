@@ -296,13 +296,17 @@ export function PanoramaForm({
             )}
           </fieldset>
           <label className="panorama-field">
-            <span>The place, for its name</span>
+            <span>The place in words</span>
             <input
               value={place}
               maxLength={600}
               onChange={(e) => setPlace(e.target.value)}
-              placeholder="The hall of the city flat"
+              placeholder="The hall of the city flat: parquet, a coat rack, doors to the kitchen and bedroom"
             />
+            <span className="muted small">
+              Fibo continues what you describe; name what lies outside the
+              picture.
+            </span>
           </label>
         </>
       )}

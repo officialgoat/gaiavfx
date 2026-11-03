@@ -19,9 +19,13 @@ const STATE_WORDS: Record<Panorama["state"], string> = {
   stopped: "Stopped",
 };
 
+/** The place's words name the attempt by their first clause, at most 60 characters, as its stage is named
+ * (application/set_panorama.default_name). */
 export function panoramaTitle(panorama: Panorama) {
+  let first = (panorama.place ?? "").split(/[,.;:]/)[0].trim();
+  if (first.length > 60) first = first.slice(0, 60).replace(/\s+\S*$/, "");
   return (
-    panorama.place ||
+    first ||
     (panorama.mode === "picture" ? "Panorama from a picture" : "Panorama")
   );
 }

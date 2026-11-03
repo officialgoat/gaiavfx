@@ -16,6 +16,7 @@ class Wording:
     landmark: str
     tail: str
     outpaint: str
+    outpaint_place: str
     seam: str
 
 
@@ -26,8 +27,8 @@ def parse_wording(text: str) -> Wording:
     description, edit = data["description"], data["edit"]
     if set(description) != {"trigger", "preamble", "viewpoint", "landmark", "tail"}:
         raise ValueError("[description] requires trigger, preamble, viewpoint, landmark and tail")
-    if set(edit) != {"outpaint", "seam"}:
-        raise ValueError("[edit] requires outpaint and seam")
+    if set(edit) != {"outpaint", "outpaint_place", "seam"}:
+        raise ValueError("[edit] requires outpaint, outpaint_place and seam")
     values = [*description.values(), *edit.values()]
     if not all(isinstance(value, str) and value.strip() for value in values):
         raise ValueError("every wording is a non-empty string")
@@ -62,8 +63,11 @@ def compile_description(request: DescribedPlace, words: Wording | None = None) -
     return f"{words.trigger}, " + " ".join(parts)
 
 
-def outpaint_prompt(words: Wording | None = None) -> str:
-    return (words or wording()).outpaint
+def outpaint_prompt(words: Wording | None = None, place: str = "") -> str:
+    """The fill instruction for a picture's canvas, ending with the place in words when the person gave any."""
+    words = words or wording()
+    place = " ".join(place.split())
+    return words.outpaint + (words.outpaint_place.format(place=place) if place else "")
 
 
 def seam_prompt(words: Wording | None = None) -> str:
