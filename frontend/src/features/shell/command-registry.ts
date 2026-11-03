@@ -115,6 +115,7 @@ export function timelineCommands(editor: {
   setSnap: (snap: boolean) => void;
   tool?: string;
   setTool?: (tool: "select") => void;
+  seek?: (frame: number) => void;
 }): CommandGroup {
   return {
     scope: "editor",
@@ -125,6 +126,13 @@ export function timelineCommands(editor: {
         shortcut: "Space",
         // The timeline plays through: the movie's Program or a film's Source answers (monitors/playback.ts).
         run: () => usePlaybackRequest.getState().toggle(),
+      },
+      {
+        // Home goes to the start from anywhere in the editor, not only on the Playhead (round 2, R3-F1).
+        id: "start",
+        label: "Go to start",
+        shortcut: "Home",
+        run: () => editor.seek?.(0),
       },
       {
         id: "fit",

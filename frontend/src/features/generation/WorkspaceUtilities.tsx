@@ -420,7 +420,10 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
                 {render ? "Recast render" : operation.kind.replaceAll("_", " ")}
               </h3>
               <span className="run-state">
-                {operation.state.replaceAll("_", " ")}
+                {/* Round 2 (R2-F6): a cancel took a while to settle and said nothing meanwhile. */}
+                {operation.cancel_requested && !operation.settled
+                  ? "cancelling"
+                  : operation.state.replaceAll("_", " ")}
               </span>
             </div>
             <small className="muted">
@@ -436,6 +439,14 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
                     ),
                   ).length
                 } steps done so far`}
+              {/* Round 2 (R2-F5): how long a running job has been at it. */}
+              {!operation.settled &&
+                ` · running for ${Math.max(
+                  0,
+                  Math.round(
+                    (Date.now() - Date.parse(operation.created_at)) / 60000,
+                  ),
+                )} min`}
             </small>
             {operation.error &&
               (render ? (

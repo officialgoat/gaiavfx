@@ -153,6 +153,17 @@ export const saveAngle = (
     "Angle saved",
   );
 
+/** Who is in a segment (its subjects); round 2, R1: a segment made without cast could never be given one. */
+export const saveSegmentCast = (d: Editor, segment: Segment, cast: string[]) =>
+  d.perform(
+    () =>
+      direction.updateSegment(segment.id, {
+        expected_revision: segment.revision,
+        content: { ...segment.content, subjects: cast },
+      }),
+    "Segment cast saved",
+  );
+
 export const removeSegment = (
   d: Editor,
   movie: { revision: number },

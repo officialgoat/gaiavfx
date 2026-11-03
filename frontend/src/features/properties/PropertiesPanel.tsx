@@ -2,7 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { DirectController } from "../project/use-direction";
 import { relationWords, type Cut, type CutPlan } from "../project/client";
-import { saveCut, savePhase } from "../project/edits";
+import { saveCut, savePhase, saveSegmentCast } from "../project/edits";
 import { movieFps, movieSeconds } from "../project/movie-model";
 import { formText, formValue } from "../../shared/form";
 import { studio } from "../generation/client";
@@ -197,6 +197,33 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
               plan={d.segmentPlanMap.get(segment.id)}
               wordsOnly={!segment.content.subjects.length}
             />
+            {!!d.movie.data?.subjects.length && (
+              <fieldset className="segment-cast" disabled={d.busy}>
+                <legend>Cast in this segment</legend>
+                {d.movie.data.subjects.map((s) => (
+                  <label key={s.id}>
+                    <input
+                      type="checkbox"
+                      checked={segment.content.subjects.includes(s.id)}
+                      onChange={(e) =>
+                        void saveSegmentCast(
+                          d,
+                          segment,
+                          d.movie
+                            .data!.subjects.map((x) => x.id)
+                            .filter((id) =>
+                              id === s.id
+                                ? e.target.checked
+                                : segment.content.subjects.includes(id),
+                            ),
+                        )
+                      }
+                    />
+                    {s.name}
+                  </label>
+                ))}
+              </fieldset>
+            )}
             <CommandButton
               id="render"
               className="primary-button"

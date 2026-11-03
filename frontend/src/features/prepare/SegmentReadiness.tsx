@@ -29,9 +29,10 @@ export function SegmentReadiness({
       </p>
       {plan.ready && wordsOnly && (
         <p className="muted">
-          No cast or place picture anchors it yet. Add characters in Project ›
-          Cast and prepare its place's plate, so faces and the setting stay the
-          same in every take.
+          No one is cast in it and no place picture anchors it yet. Tick its
+          characters under Cast in this segment (they come from Project › Cast),
+          and prepare its place's plate in Prepare, so faces and the setting
+          stay the same in every take.
         </p>
       )}
       {/* The first shot's own line only where cuts share its window; alone, the title already names it. */}

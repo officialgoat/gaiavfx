@@ -119,7 +119,7 @@ export function makeCommands(
   add(
     "movie",
     "redo",
-    "Redo",
+    d.redoLabel ? `Redo: ${d.redoLabel}` : "Redo",
     () => void d.redo(),
     "Mod+Shift+Z",
     () => (d.canRedo ? undefined : "No change to redo."),

@@ -60,8 +60,10 @@ export function AddCast({
         placeholder="Lena"
       />
       <label htmlFor={`${id}-about`}>Who they are</label>
+      {/* Required, as Python requires it (round 2, R1-F1: the add failed silently without it). */}
       <input
         id={`${id}-about`}
+        required
         value={about}
         maxLength={2000}
         onChange={(e) => setAbout(e.target.value)}
@@ -94,9 +96,9 @@ export function AddCast({
         <button
           type="submit"
           className="primary-button"
-          disabled={!name.trim() || d.busy}
+          disabled={!name.trim() || !about.trim() || d.busy}
         >
-          Add to the cast
+          {d.busy ? "Saving…" : "Add to the cast"}
         </button>
       </div>
     </form>
@@ -155,7 +157,7 @@ export function AddPlace({ d }: { d: DirectController }) {
           className="primary-button"
           disabled={!name.trim() || d.busy}
         >
-          Add the place
+          {d.busy ? "Saving…" : "Add the place"}
         </button>
       </div>
     </form>

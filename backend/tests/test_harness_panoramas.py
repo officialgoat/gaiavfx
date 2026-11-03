@@ -95,6 +95,12 @@ def test_the_plan_prices_panoramas_and_builds_only_from_the_place_it_drew(scene)
     ]
     refused = check(ctx, as_prepare).discrepancy
     assert refused.startswith("wrong_step_kind:") and s.place["id"] in refused
+    # With a second place, a panorama step names its place (round 2, R3-F3).
+    with s.workspace.db.transaction() as session:
+        direction.create_place(session, "Rooftop")
+    ctx = context(h, row, document)
+    unnamed = [PlanStep(kind="prepare", title=DRAW, target="", jobs=RENDERS)]
+    assert check(ctx, unnamed).discrepancy.startswith("panorama_target:")
 
 
 def test_gaia_draws_waits_for_the_user_s_choice_and_builds_from_it(scene):

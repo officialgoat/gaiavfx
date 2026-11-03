@@ -287,7 +287,9 @@ def check(context, steps):
         if step.kind == "prepare" and panorama_title(step.title):
             # A place's panoramas: the place (or none) is the target, and no cut's preparation applies.
             ids = [p["id"] for p in context.state.places]
-            if step.target and step.target not in ids:
+            # With several places a panorama step names its place, or a build step after it has none to build from
+            # (round 2, R3-F3: Gaia could not plan "panoramas of the rooftop, then its stage").
+            if (step.target and step.target not in ids) or (not step.target and len(ids) > 1):
                 return refuse("panorama_target", places=", ".join(ids) or "none")
             if any(
                 s.kind == "prepare" and panorama_title(s.title) and s.target == step.target

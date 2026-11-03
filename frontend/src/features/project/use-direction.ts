@@ -150,6 +150,11 @@ export function useDirection(enabled: boolean) {
   // Python says what Undo and Redo reverse next; undoing an Undo redoes, so a reload keeps the history.
   const targets = read.data?.undo;
   const latest = receipts.data?.find((r) => r.id === targets?.undo);
+  // Redo undoes an undo: it names the change that undo reversed (round 2, R1-F6).
+  const undoing = receipts.data?.find((r) => r.id === targets?.redo);
+  const redoLabel =
+    receipts.data?.find((r) => r.id === undoing?.undoes)?.label ??
+    undoing?.label;
   async function undo(receipt: Receipt | undefined = latest) {
     if (receipt)
       await perform(() => direction.undo(receipt.id), "Change undone");
@@ -210,6 +215,7 @@ export function useDirection(enabled: boolean) {
     receipts,
     latest,
     canRedo: !!targets?.redo,
+    redoLabel,
     /** Where each cut's pin sits and how many identity lanes the References row needs, from Python. */
     pinOffsets: read.data?.pin_offsets ?? {},
     identityLanes: read.data?.identity_lanes ?? 0,

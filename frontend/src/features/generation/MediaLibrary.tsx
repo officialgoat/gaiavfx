@@ -349,7 +349,10 @@ export function LibraryPanel({
             <div className="entity-item" key={entity.id}>
               <div>
                 <strong>{entity.name}</strong>
-                <small>{entity.assets.length} references</small>
+                <small>
+                  {entity.assets.length}{" "}
+                  {entity.assets.length === 1 ? "reference" : "references"}
+                </small>
               </div>
               <button
                 className="text-button"
