@@ -3,9 +3,12 @@ import type { SegmentPlan } from "../project/client";
 export function SegmentReadiness({
   plan,
   compact = false,
+  wordsOnly = false,
 }: {
   plan?: SegmentPlan;
   compact?: boolean;
+  /** The segment has no cast: it renders from its words alone (round 1, T1-F2). */
+  wordsOnly?: boolean;
 }) {
   if (!plan) return <p role="status">Loading segment plan…</p>;
   if (compact)
@@ -18,8 +21,19 @@ export function SegmentReadiness({
     <>
       <p>{plan.title}</p>
       <p role="status">
-        {plan.ready ? "Ready to render" : "Needs preparation"}
+        {plan.ready
+          ? wordsOnly
+            ? "Ready to render from its words alone"
+            : "Ready to render"
+          : "Needs preparation"}
       </p>
+      {plan.ready && wordsOnly && (
+        <p className="muted">
+          No cast or place picture anchors it yet. Add characters in Project ›
+          Cast and prepare its place's plate, so faces and the setting stay the
+          same in every take.
+        </p>
+      )}
       {/* The first shot's own line only where cuts share its window; alone, the title already names it. */}
       {!!plan.cuts.length &&
         plan.opening?.recommended &&

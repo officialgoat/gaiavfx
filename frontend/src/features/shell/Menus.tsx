@@ -148,6 +148,8 @@ function Items({
             key={entry}
             className="command-item"
             aria-disabled={!!reason}
+            aria-label={command.label}
+            aria-description={reason}
             title={reason}
             onSelect={(e) => {
               if (reason) {
@@ -164,7 +166,7 @@ function Items({
             <span>{command.label}</span>
             {command.shortcut && <kbd>{shortcutLabel(command.shortcut)}</kbd>}
             {reason && (
-              <span className="command-reason" role="tooltip">
+              <span className="command-reason" aria-hidden="true">
                 {reason}
               </span>
             )}

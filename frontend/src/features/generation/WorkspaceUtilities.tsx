@@ -425,6 +425,16 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
             </div>
             <small className="muted">
               {new Date(operation.created_at).toLocaleString()}
+              {/* Round 1 (T1-F3, T3-F9): a running job said nothing about how far it had got. */}
+              {!operation.settled &&
+                operation.jobs.length > 1 &&
+                ` · ${
+                  operation.jobs.filter((job) =>
+                    ["succeeded", "failed", "cancelled", "skipped"].includes(
+                      job.state,
+                    ),
+                  ).length
+                } of ${operation.jobs.length} steps done`}
             </small>
             {operation.error &&
               (render ? (

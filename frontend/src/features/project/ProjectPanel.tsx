@@ -7,6 +7,7 @@ import { HIDE_PROCESS_MEDIA } from "../generation/process-media";
 import type { DirectController } from "./use-direction";
 import { CommandButton, ContextArea } from "../shell/Menus";
 import { ASSET_DRAG_TYPE } from "../chat/ChatMedia";
+import { AddCast, AddPlace } from "./AddRecords";
 
 export function ProjectPanel({
   d,
@@ -169,6 +170,14 @@ export function ProjectPanel({
                 </button>
               </ContextArea>
             ))}
+        {bin === "Cast" && (
+          <AddCast
+            d={d}
+            images={(assets.data?.items ?? []).filter(
+              (a) => a.kind === "image",
+            )}
+          />
+        )}
         {bin === "Cast" &&
           d.movie.data?.subjects
             .filter((s) => matches(s.name))
@@ -201,6 +210,7 @@ export function ProjectPanel({
                 </button>
               </ContextArea>
             ))}
+        {bin === "Places" && <AddPlace d={d} />}
         {bin === "Places" &&
           d.places.data
             ?.filter((p) => matches(p.name))

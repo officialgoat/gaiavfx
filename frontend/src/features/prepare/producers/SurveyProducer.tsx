@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { direction } from "../../project/client";
 import { ProducerSheet, TextField } from "./ProducerSheet";
 import {
   shotDescription,
@@ -7,7 +9,8 @@ import {
 
 /** H3 survey views of the place from its plate, one per described angle. */
 export function SurveyProducer(props: ShotProducerProps) {
-  const { r, place, angles } = props;
+  const { d, r, place, angles } = props;
+  const [angle, setAngle] = useState("");
   const others = angles.filter((a) => a.id !== place.plate_angle_id);
   return (
     <ProducerSheet
@@ -18,9 +21,11 @@ export function SurveyProducer(props: ShotProducerProps) {
       formKey={shotFormKey("surveys", props)}
       seeds="one"
       missing={
-        !place.plate_asset_id || angles.length < 2
-          ? "Approve a plate and define at least two place angles before a survey."
-          : undefined
+        !place.plate_asset_id
+          ? "Approve a plate of the place first: the survey starts from it."
+          : angles.length < 2
+            ? `A survey shows ${place.name} from each of its angles, and it has ${angles.length}: add another below.`
+            : undefined
       }
       build={(get, seeds) => ({
         place_id: place.id,
@@ -52,6 +57,32 @@ export function SurveyProducer(props: ShotProducerProps) {
         />
       ))}
       <TextField name="overhead" label="Overhead view" value={place.overhead} />
+      {/* Round 1 (T3-F1): the survey needs two angles, and nothing here could add one. */}
+      <div className="survey-add-angle">
+        <label>
+          Another angle of {place.name}
+          <input
+            value={angle}
+            maxLength={120}
+            placeholder="Reverse, from the door"
+            onChange={(e) => setAngle(e.target.value)}
+          />
+        </label>
+        <button
+          type="button"
+          disabled={!angle.trim() || d.busy}
+          onClick={() =>
+            void d
+              .perform(
+                () => direction.addAngle(place.id, { name: angle.trim() }),
+                "Angle added",
+              )
+              .then((added) => added && setAngle(""))
+          }
+        >
+          Add angle
+        </button>
+      </div>
     </ProducerSheet>
   );
 }

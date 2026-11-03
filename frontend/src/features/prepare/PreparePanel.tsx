@@ -113,7 +113,10 @@ export function PreparePanel({
         </h2>
         {segment ? (
           <>
-            <SegmentReadiness plan={d.segmentPlanMap.get(segment.id)} />
+            <SegmentReadiness
+              plan={d.segmentPlanMap.get(segment.id)}
+              wordsOnly={!segment.content.subjects.length}
+            />
             <CommandButton
               id="render"
               className="primary-button"
@@ -238,6 +241,7 @@ export function PreparePanel({
               approvedAssets={approvedAssets}
               rejected={rejected}
               rejectedOperations={rejectedOperations}
+              optional={!!segment && !!d.segmentPlanMap.get(segment.id)?.ready}
               onOpenSet={
                 step.kind === "camera" && place.set_id
                   ? () => useNavigator.getState().openStage(place.set_id!)
@@ -260,6 +264,7 @@ function PreparationStepCard({
   rejected,
   rejectedOperations,
   onOpenSet,
+  optional = false,
 }: {
   step: PreparationStep;
   number: number;
@@ -268,6 +273,8 @@ function PreparationStepCard({
   rejected: Set<string>;
   rejectedOperations: Set<string>;
   onOpenSet?: () => void;
+  /** The segment can render without this step: an unprepared step reads Optional, not Missing (round 1, T3-F3). */
+  optional?: boolean;
 }) {
   const latest = attempts.find(
     (o) => ["succeeded", "partial"].includes(o.state) && o.candidates.length,
@@ -293,7 +300,9 @@ function PreparationStepCard({
     step.kind === "camera"
       ? step.approved
         ? "Aimed"
-        : "Missing"
+        : optional
+          ? "Optional"
+          : "Missing"
       : running
         ? "Running"
         : step.approved
@@ -304,7 +313,9 @@ function PreparationStepCard({
             ? "Awaiting your review"
             : attempts.some((o) => rejectedOperations.has(o.id))
               ? "Rejected"
-              : "Missing";
+              : optional
+                ? "Optional"
+                : "Missing";
   const Icon = step.icon;
   return (
     <section className="prepare-step" aria-label={step.title}>

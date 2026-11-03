@@ -252,28 +252,32 @@ export function Monitors({
   useEffect(() => {
     advanced.current = null;
   }, [segment?.id]);
-  // A segment without a take plays on a frame clock, so the movie runs through it instead of stopping there.
+  // A segment without a take plays on a frame clock, so the movie runs through it instead of stopping there. A timer,
+  // not animation frames: those stop altogether in a hidden window (round 1, T2), where a timer only slows.
   useEffect(() => {
     if (!segment || media || arriving !== segment.id) return;
     const start = d.starts.get(segment.id)!;
     const end = start + segment.delivered_frames;
-    let request = 0;
     let previous = performance.now();
     let carry = 0;
-    const tick = (now: number) => {
+    const timer = window.setInterval(() => {
+      const now = performance.now();
       const editor = useEditor.getState();
-      if (editor.playhead < start || editor.playhead >= end)
+      if (editor.playhead < start || editor.playhead >= end) {
+        window.clearInterval(timer);
         return setArriving(null);
+      }
       carry += ((now - previous) * fps) / 1000;
       previous = now;
       const step = Math.floor(carry);
       carry -= step;
-      if (editor.playhead + step >= end) return advance();
+      if (editor.playhead + step >= end) {
+        window.clearInterval(timer);
+        return advance();
+      }
       if (step) editor.seek(editor.playhead + step);
-      request = requestAnimationFrame(tick);
-    };
-    request = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(request);
+    }, 1000 / fps);
+    return () => window.clearInterval(timer);
   }, [segment?.id, media, arriving, fps]);
   return (
     <>

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { DirectController } from "../project/use-direction";
 import type { Schema } from "../project/client";
 import { useCommands } from "../shell/Menus";
@@ -10,11 +11,14 @@ export function AngleEditor({
   d: DirectController;
 }) {
   const { commands } = useCommands();
+  // Its own error only, beside its own Save (round 1, T3-F7: both forms showed one error and the layout shifted).
+  const [submitted, setSubmitted] = useState(false);
   return (
     <form
       className="property-form property-section"
       aria-label={`Edit angle ${angle.name}`}
       onSubmit={(event) => {
+        setSubmitted(true);
         event.preventDefault();
         const form = new FormData(event.currentTarget);
         const target = {
@@ -42,7 +46,7 @@ export function AngleEditor({
           defaultValue={angle.description}
         />
       </label>
-      {d.error && <p role="alert">{d.error}</p>}
+      {submitted && d.error && <p role="alert">{d.error}</p>}
       <button className="secondary-button" disabled={d.busy || !d.movie.data}>
         Save angle
       </button>

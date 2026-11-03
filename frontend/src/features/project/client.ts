@@ -157,6 +157,18 @@ export const direction = {
   places: () => route("get", `${D}/places`),
   angles: (id: string) =>
     route("get", `${D}/places/{place_id}/angles`, { path: { place_id: id } }),
+  createPlace: (body: Schema["NameInput"]) =>
+    route("post", `${D}/places`, { body }),
+  addAngle: (placeId: string, body: Schema["AngleInput"]) =>
+    route("post", `${D}/places/{place_id}/angles`, {
+      path: { place_id: placeId },
+      body,
+    }),
+  addSubject: (movieId: string, body: Schema["SubjectCreate"]) =>
+    route("post", `${D}/movies/{movie_id}/subjects`, {
+      path: { movie_id: movieId },
+      body,
+    }),
   updatePlace: (id: string, body: Schema["DirectionPlaceTextPatch"]) =>
     route("patch", `${D}/places/{place_id}`, { path: { place_id: id }, body }),
   updateAngle: (id: string, body: Schema["DirectionAngleTextPatch"]) =>

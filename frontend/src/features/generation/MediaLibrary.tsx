@@ -46,7 +46,13 @@ export function LibraryPanel({
     [name, setName] = useState(""),
     [entityType, setEntityType] = useState(entityKind || "character");
   const [entitySelection, setEntitySelection] = useState(""),
-    [description, setDescription] = useState("");
+    [description, setDescription] = useState(""),
+    [assigned, setAssigned] = useState("");
+  // Each picture starts with no reference chosen and no past confirmation (round 1, T1-F4: it kept the last one).
+  useEffect(() => {
+    setEntitySelection("");
+    setAssigned("");
+  }, [selected?.id]);
   const [editEntity, setEditEntity] = useState<Entity | null>(null),
     [showEntities, setShowEntities] = useState(false);
   const [formError, setFormError] = useState("");
@@ -331,6 +337,14 @@ export function LibraryPanel({
             <Plus size={14} />
             New {entityKind ?? "reusable reference"}
           </button>
+          {/* Round 1 (T1-F5, T6-F3): an empty list read as "the cast is missing"; the cast lives in the movie. */}
+          {entities.data?.length === 0 && (
+            <p className="muted small">
+              No reusable {entityKind ?? "reference"}s yet. A movie's own cast
+              and places are in Direct › Project; the ones you make here can be
+              used in any movie.
+            </p>
+          )}
           {entities.data?.map((entity) => (
             <div className="entity-item" key={entity.id}>
               <div>
@@ -348,6 +362,7 @@ export function LibraryPanel({
           ))}
         </div>
       )}
+      {entityKind && <h3 className="library-grid-heading">Media</h3>}
       <div className="library-asset-grid">
         {assets.data?.items.map((asset) => (
           <div className="library-asset" key={asset.id}>
@@ -517,9 +532,14 @@ export function LibraryPanel({
                             ? "outfit"
                             : "place",
                     )
-                    .then(() =>
-                      client.invalidateQueries({ queryKey: ["entities"] }),
-                    )
+                    .then(() => {
+                      setAssigned(
+                        `${selected.name} is now part of ${entity?.name ?? "the reference"}.`,
+                      );
+                      return client.invalidateQueries({
+                        queryKey: ["entities"],
+                      });
+                    })
                     .catch((e) =>
                       setMediaError({
                         assetId: selected.id,
@@ -531,6 +551,11 @@ export function LibraryPanel({
               >
                 Assign reference
               </button>
+              {assigned && (
+                <p role="status" className="small muted">
+                  {assigned}
+                </p>
+              )}
               {mediaFeedback("entity")}
             </section>
             <MediaProvenance asset={selected} />

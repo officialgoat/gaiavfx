@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { DirectController } from "../project/use-direction";
 import type { Schema } from "../project/client";
 import { savePlace } from "../project/edits";
@@ -10,11 +11,14 @@ export function PlaceEditor({
   place: Schema["PlaceDTO"];
   d: DirectController;
 }) {
+  // Its own error only, beside its own Save (round 1, T3-F7: both forms showed one error and the layout shifted).
+  const [submitted, setSubmitted] = useState(false);
   return (
     <form
       className="property-form property-section"
       aria-label={`Edit place ${place.name}`}
       onSubmit={(event) => {
+        setSubmitted(true);
         event.preventDefault();
         if (!d.movie.data) return;
         const form = new FormData(event.currentTarget);
@@ -45,7 +49,7 @@ export function PlaceEditor({
           />
         </label>
       ))}
-      {d.error && <p role="alert">{d.error}</p>}
+      {submitted && d.error && <p role="alert">{d.error}</p>}
       <button className="secondary-button" disabled={d.busy || !d.movie.data}>
         Save place
       </button>

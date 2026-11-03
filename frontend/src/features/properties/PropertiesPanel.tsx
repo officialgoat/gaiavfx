@@ -193,7 +193,10 @@ export function PropertiesPanel({ d }: { d: DirectController }) {
           target.kind === "continuation") && (
           <section className="property-section">
             <h3>Segment render</h3>
-            <SegmentReadiness plan={d.segmentPlanMap.get(segment.id)} />
+            <SegmentReadiness
+              plan={d.segmentPlanMap.get(segment.id)}
+              wordsOnly={!segment.content.subjects.length}
+            />
             <CommandButton
               id="render"
               className="primary-button"

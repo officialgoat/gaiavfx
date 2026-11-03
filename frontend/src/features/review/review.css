@@ -569,3 +569,15 @@
   padding-block: 8px;
   border-bottom: 1px solid var(--line);
 }
+
+/* The survey form's own way to add a place angle (prepare/producers/SurveyProducer.tsx). */
+.survey-add-angle {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+}
+.survey-add-angle label {
+  flex: 1;
+  display: grid;
+  gap: 3px;
+}

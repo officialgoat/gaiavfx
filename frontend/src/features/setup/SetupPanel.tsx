@@ -10,7 +10,7 @@ function CheckItem({ check }: { check: SetupCheck }) {
     <li className="setup-check-item">
       <strong>{item}</strong>
       <p>{check.detail}</p>
-      {check.fix && (
+      {check.fix && isGap(check) && (
         <div className="setup-fix">
           <code tabIndex={0}>{check.fix}</code>
           <button

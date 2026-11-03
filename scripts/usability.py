@@ -276,7 +276,7 @@ def copy(args) -> None:
             server.terminate()
             server.wait(timeout=30)
     else:
-        shutil.copytree(GOLDEN, library, ignore=shutil.ignore_patterns(".service.lock", "cache"))
+        shutil.copytree(GOLDEN, library, ignore=shutil.ignore_patterns(".service.lock"))
     launch = json.loads(LAUNCH.read_text("utf-8"))
     name = f"usability-{args.tester}"
     launch["configurations"] = [c for c in launch["configurations"] if c["name"] != name]

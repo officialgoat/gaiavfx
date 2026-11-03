@@ -110,7 +110,8 @@ export function makeCommands(
   add(
     "movie",
     "undo",
-    "Undo",
+    // It names what it undoes, as a film's Undo does (round 1, T1-F9: a bare "Undo" left the user guessing).
+    d.latest ? `Undo: ${d.latest.label}` : "Undo",
     () => void d.undo(),
     "Mod+Z",
     () => (d.latest ? undefined : "No change to undo."),
@@ -495,7 +496,8 @@ export function makeCommands(
     "movie",
     "pin",
     "Add pin at playhead",
-    "Prepare and review a pin before attaching it to a cut.",
+    // Round 1 (T3-F2): the reason named no way forward.
+    "A pin belongs to a cut: add a cut at the playhead (Ctrl+Shift+K), then prepare its pin in Prepare.",
   );
   disabled(
     "movie",

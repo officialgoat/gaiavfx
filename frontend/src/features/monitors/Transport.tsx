@@ -86,7 +86,9 @@ export function Transport({
         <span className="timecode">
           {fps
             ? frameTimecode(ready ? position : frame, fps)
-            : "Frame rate unknown"}
+            : assetId
+              ? "Frame rate unknown"
+              : ""}
         </span>
         <button
           disabled={!ready || !fps}

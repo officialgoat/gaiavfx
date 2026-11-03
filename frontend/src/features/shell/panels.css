@@ -387,3 +387,32 @@
 .first-shot-actions button {
   white-space: nowrap;
 }
+
+/* The Project panel's add forms for cast and places (project/AddRecords.tsx). */
+.project-add-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin-bottom: 6px;
+  justify-content: flex-start;
+}
+.project-add {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+}
+.project-add label {
+  font-size: 11px;
+  color: var(--muted);
+}
+.project-add-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 4px;
+}
