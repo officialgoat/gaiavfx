@@ -291,7 +291,12 @@ class PlanCommands:
                     )
             record.turn(
                 "system",
-                action={"message": message, "review_operation_id": operation["id"]},
+                action={
+                    "message": message,
+                    # The chat shows the person's decision in plain words (round 1, T5-F3: ids and tool names).
+                    "notice": review_notice(operation, review),
+                    "review_operation_id": operation["id"],
+                },
             )
             changed = True
         if changed:
@@ -379,6 +384,19 @@ class PlanCommands:
             if step:
                 step.status = "awaiting_user"
                 step.review = OperationReview(operation_id=operation_id)
+
+
+def review_notice(operation, review) -> str:
+    """The person's decision in the chat's words: no ids, no tool names (round 1, T5-F3)."""
+    if operation["kind"] == "panorama":
+        chosen = (review or {}).get("context", {}).get("chosen")
+        letter = letter_of(operation, chosen["candidate_id"]) if chosen else None
+        return (
+            f"You chose panorama {letter}; Gaia goes on with the plan."
+            if letter
+            else "You chose a panorama."
+        )
+    return "You finished the review; Gaia goes on with the plan."
 
 
 def review_outcome(session, movie_id, operation):

@@ -247,7 +247,9 @@ export function Transcript({
                 <div className="stage-build" data-state="started">
                   <Orbit size={14} aria-hidden />
                   <span className="stage-build-text">
-                    {string(payload.message) || "Drawing two panoramas"}
+                    {string(payload.notice) ||
+                      string(payload.message) ||
+                      "Drawing two panoramas"}
                   </span>
                   {string(payload.operation_id) && (
                     <button

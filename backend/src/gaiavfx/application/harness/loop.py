@@ -47,6 +47,14 @@ from gaiavfx.shared.errors import ApplicationError
 STALLED = 2
 
 
+# What the chat shows when the agent stops to wait for the person (its message stays the agent's own).
+YIELD_NOTICES = {
+    "repeated action": "Gaia kept repeating the same step. Tell it what to do next, or stop the plan.",
+    "repeated invalid action": "Gaia's step was refused more than once. Tell it what to do next, or stop the plan.",
+    "no state change": "Gaia made no progress for several turns. Tell it what to do next, or stop the plan.",
+}
+
+
 class Harness(ConversationCommands, PlanCommands):
     def __init__(
         self, db, store: AgentStore, model, settings, tools=DEFAULT_TOOLS, *, library=None
@@ -134,7 +142,13 @@ class Harness(ConversationCommands, PlanCommands):
             session_id,
             "system",
             "accepted",
-            action={"message": f"{reason}: {detail} How should I proceed?"},
+            # The chat shows the notice; the message is the agent's (round 1, T5-F2: the raw reason reached the user).
+            action={
+                "message": f"{reason}: {detail} How should I proceed?",
+                "notice": YIELD_NOTICES.get(
+                    reason, "Gaia stopped and is waiting for you: tell it how to go on."
+                ),
+            },
             provenance={"synthetic": True, "reason": reason},
         )
         document.stop_reason = reason
@@ -404,7 +418,8 @@ class Harness(ConversationCommands, PlanCommands):
                     "system",
                     "accepted",
                     action={
-                        "message": f"You already called {tool.name} with those arguments. Choose another action, say or ask_human."
+                        "message": f"You already called {tool.name} with those arguments. Choose another action, say or ask_human.",
+                        "notice": "Gaia repeated a step and was asked to try another.",
                     },
                     provenance={"synthetic": True, "reason": "repeat correction"},
                 )
@@ -428,4 +443,19 @@ def ended_turn(session, operation) -> dict:
         message = f"The stage build ended. {ended['action']['message']}"
         return {"action": ended["action"] | {"message": message}, "receipts": ended["receipts"]}
     message = f"Operation {operation['id']} ({operation['kind']}) ended {operation['state']}"
-    return {"action": {"message": f"{message} with {len(operation['candidates'])} candidates."}}
+    return {
+        "action": {
+            "message": f"{message} with {len(operation['candidates'])} candidates.",
+            "notice": ended_notice(operation),
+        }
+    }
+
+
+def ended_notice(operation) -> str:
+    """The chat's words for a job the agent waited on: what ended and what is next, never ids or tool names."""
+    count = len(operation["candidates"])
+    if operation["kind"] == "panorama" and operation["state"] in {"succeeded", "partial"}:
+        return f"The panoramas are ready ({count}): choose one in Library › Stages."
+    what = operation["kind"].replace("_", " ")
+    state = operation["state"].replace("_", " ")
+    return f"The {what} job ended {state}" + (f" with {count} candidates." if count else ".")

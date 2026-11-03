@@ -425,7 +425,8 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
             </div>
             <small className="muted">
               {new Date(operation.created_at).toLocaleString()}
-              {/* Round 1 (T1-F3, T3-F9): a running job said nothing about how far it had got. */}
+              {/* Round 1 (T1-F3, T3-F9): a running job said nothing about how far it had got. A staged job adds its
+                  steps as it goes (T5-F4), so it counts what is done, not a total that keeps growing. */}
               {!operation.settled &&
                 operation.jobs.length > 1 &&
                 ` · ${
@@ -434,7 +435,7 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
                       job.state,
                     ),
                   ).length
-                } of ${operation.jobs.length} steps done`}
+                } steps done so far`}
             </small>
             {operation.error &&
               (render ? (

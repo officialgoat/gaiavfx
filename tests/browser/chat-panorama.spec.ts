@@ -86,7 +86,7 @@ for (const theme of ["dark", "light"] as const) {
       await plan.getByRole("button", { name: "Approve", exact: true }).click();
 
       const card = page.locator(".stage-build", {
-        hasText: "the user chooses one in Library > Stages",
+        hasText: "Choose one in Library › Stages",
       });
       await expect(card).toBeVisible({ timeout: 60_000 });
       await expect(

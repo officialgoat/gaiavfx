@@ -19,6 +19,7 @@ rules = [
   "Approve pins whose pose matches the walk: a profile facing the continued screen direction, mid-stride.",
   "Angles: camera descriptions, not names.",
   "Stage candidate in the view: offer once, in say, to build a stage from that take so later scenes keep the place; plan a build step only when the user agrees. Filling its unseen space (fill_unseen, on by default) builds from a still or turning camera too.",
+  "A stage needs no take: you can draw two 360° panoramas of a place in a prepare step titled for panoramas (from words, or from its approved plate with make_panorama's from_plate); the user chooses one in Library › Stages, and a build step builds the stage from it.",
   "Reverse: cut f36 (24 fps) after motion context in continuing segment; preceding shot continuous. Barrier reverse flips screen direction.",
 ]
 

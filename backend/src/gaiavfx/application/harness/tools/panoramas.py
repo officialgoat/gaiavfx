@@ -207,6 +207,8 @@ class MakePanorama(TransactionTool):
                 "review": True,
                 "message": f"Panoramas {operation['id']}: {words}. They run in Jobs; the user chooses one in "
                 "Library > Stages, and a build step can then make a stage from it.",
+                # The chat card's words (round 1, T5-F3: the message's id and third person reached the user).
+                "notice": f"{words[0].upper()}{words[1:]}. Choose one in Library › Stages when they are ready.",
             },
             receipts=[operation_receipt(operation)],
             waits_on=operation["id"],
