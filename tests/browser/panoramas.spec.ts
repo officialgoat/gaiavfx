@@ -214,7 +214,7 @@ test("a picture grows into two panoramas that keep it", async ({
     .fill("The grown hall: parquet and a coat rack");
   await page.getByRole("button", { name: "Grow two panoramas" }).click();
   await expect(
-    page.getByRole("heading", { name: "The hall, grown" }),
+    page.getByRole("heading", { name: "The grown hall" }),
   ).toBeVisible();
   await expect(
     page.getByText("Choose the panorama to build a stage from."),
