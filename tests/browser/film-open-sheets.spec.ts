@@ -10,6 +10,7 @@ import {
   type RecastWorld,
   type Scene,
 } from "./recast-world";
+import { viewCommand } from "./timeline-fixture";
 
 // U5a: the Recast page's tests of its landing list, face sheets, merge suggestion, playback, pinned headers and axe,
 // ported to the film document: the "Open film" sheet (File › Open film…), the character card in Properties, the
@@ -762,11 +763,10 @@ test("track headers stay pinned when the timeline scrolls sideways", async ({
   await page.goto("/");
   await openFilm(page, world);
   const scroll = page.locator(".timeline-scroll");
-  const zoomIn = page.getByRole("button", { name: "Zoom in", exact: true });
   for (let i = 0; i < 12; i++) {
     if ((await scroll.evaluate((el) => el.scrollWidth - el.clientWidth)) > 1000)
       break;
-    await zoomIn.click();
+    await viewCommand(page, "Zoom in");
   }
   expect(
     await scroll.evaluate((el) => el.scrollWidth - el.clientWidth),

@@ -195,6 +195,7 @@ export function menuEntries(
       "chat",
     ],
     View: [
+      "play",
       "fit",
       "zoom.in",
       "zoom.out",

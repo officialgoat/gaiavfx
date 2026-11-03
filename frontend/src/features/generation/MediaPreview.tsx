@@ -36,11 +36,17 @@ export function AssetPlayer({
   range,
   initialTime,
   controls = true,
+  autoPlay = false,
+  through = false,
 }: {
   asset: Asset;
   range?: { start_us: number; end_us: number };
   initialTime?: number;
   controls?: boolean;
+  /** Start playing once loaded: the timeline playing on into this media. */
+  autoPlay?: boolean;
+  /** Play on past the range's end (a film played through, its shots following the playhead). */
+  through?: boolean;
 }) {
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -120,6 +126,7 @@ export function AssetPlayer({
                 Math.max(0, initialTime),
               );
             else if (range) e.currentTarget.currentTime = range.start_us / 1e6;
+            if (autoPlay) void e.currentTarget.play().catch(() => undefined);
           }}
           onPlay={(e) => {
             if (
@@ -132,6 +139,7 @@ export function AssetPlayer({
           onTimeUpdate={(e) => {
             if (
               range &&
+              !through &&
               !e.currentTarget.paused &&
               e.currentTarget.currentTime >= range.end_us / 1e6
             ) {

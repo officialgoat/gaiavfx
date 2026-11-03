@@ -1,5 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 import { openMovie, seedDirect } from "./direct-fixture";
+import { viewCommand } from "./timeline-fixture";
 
 // ADR 0017 makes the timeline a generic renderer of a presentation document. The movie timeline must not change:
 // the accessibility and geometry snapshots were recorded on the renderer before that refactor (f6373b2); the
@@ -83,8 +84,7 @@ test.describe("movie timeline lock", () => {
         .replace(/></g, ">\n<");
     }, data.movie.title);
     expect(dom).toMatchSnapshot("movie-timeline-dom.html");
-    for (let step = 0; step < 4; step += 1)
-      await page.getByRole("button", { name: "Zoom in" }).click();
+    for (let step = 0; step < 4; step += 1) await viewCommand(page, "Zoom in");
     expect(JSON.stringify(await geometry(page), null, 1)).toMatchSnapshot(
       "movie-timeline-geometry-zoomed.json",
     );

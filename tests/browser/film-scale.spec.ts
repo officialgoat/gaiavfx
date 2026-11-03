@@ -7,6 +7,7 @@ import {
   sharedRecast,
   test,
 } from "./recast-world";
+import { setZoom, viewCommand, visibleEnd } from "./timeline-fixture";
 
 // A long film (ADR 0017 U5a): its timeline draws a bounded number of items, the status strip stands for the shots and
 // reaches the last one, the ruler's ticks stay few, the trackbar's counts fold before a step is clipped, and opening,
@@ -59,19 +60,6 @@ async function keys(page: Page, key: string) {
   await page.keyboard.press(key);
 }
 
-/** Sets the zoom slider as a pointer drag would (the slider's own input event). */
-async function setZoom(page: Page, zoom: number) {
-  await page
-    .getByRole("slider", { name: "Timeline zoom" })
-    .evaluate((element: HTMLInputElement, value) => {
-      Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!.call(element, String(value));
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-    }, zoom);
-}
-
 /** The zoom at which one 50-frame shot is `pixels` wide. */
 async function zoomForShotWidth(page: Page, pixels: number) {
   const available = await page
@@ -116,8 +104,8 @@ test("a long film draws a bounded number of items, reaches the last shot, and a 
     card(page).getByRole("heading", { name: "Shot 2000", exact: true }),
   ).toBeVisible();
   // Zoomed in to single shots at the end of the film, the rows draw only what is near the viewport.
-  await page.getByLabel("Timeline zoom").press("End");
-  await expect(page.getByLabel("Timeline zoom")).toHaveValue("400");
+  await setZoom(page, 400);
+  expect(await visibleEnd(page)).toBeLessThan((2000 * 50) / 300);
   await page.locator(".timeline-scroll").evaluate((el) => {
     el.scrollLeft = el.scrollWidth;
   });
@@ -162,8 +150,7 @@ test("the status strip selects shots by keyboard and pointer", async ({
   const width = async () => (await strip(page).boundingBox())!.width;
   const shot = (await width()) / 2000;
   const steps = Math.floor(Math.log(7.5 / shot) / Math.log(1.25));
-  for (let i = 0; i < steps; i++)
-    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  for (let i = 0; i < steps; i++) await viewCommand(page, "Zoom in");
   const zoomed = (await width()) / 2000;
   expect(zoomed).toBeGreaterThan(3);
   expect(zoomed).toBeLessThan(8);

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Film } from "lucide-react";
 import { MediaMonitor } from "../monitors/Monitors";
 import { CompareProgram } from "../monitors/CompareMonitor";
@@ -20,6 +21,17 @@ export function FilmMonitors({
   const fps = value.film.fps_num / value.film.fps_den;
   const version = r.previewVersion;
   const label = r.original || !version ? "Original" : version.letter;
+  // The comparison plays on into the next shot: it starts there once both of its previews load.
+  const [arriving, setArriving] = useState<string | null>(null);
+  const playOn = () => {
+    if (!shot) return;
+    const next = value.shots
+      .filter((s) => s.start >= shot.end)
+      .sort((a, b) => a.start - b.start)[0];
+    if (!next) return;
+    setArriving(next.id);
+    seek(next.start);
+  };
   return (
     <>
       <MediaMonitor
@@ -35,6 +47,8 @@ export function FilmMonitors({
         frame={playhead}
         onFrame={seek}
         rate={fps}
+        primary
+        through
         range={
           shot
             ? {
@@ -78,6 +92,9 @@ export function FilmMonitors({
               showOriginal={r.original}
               playhead={playhead}
               onFrame={seek}
+              onEnd={playOn}
+              autoplay={arriving === shot.id}
+              onArrived={() => setArriving(null)}
             />
           ) : (
             <div className="monitor-well">

@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { openMovie, seedDirect } from "./direct-fixture";
+import { viewCommand } from "./timeline-fixture";
 
 // docs/CONTINUATION.md: a continuing segment hands over its predecessor's motion on the Continuation track. Python
 // resolves the method, the lengths (5, 22, 39, 56) and the recommendation. Segment 02 continues Segment 01 and cuts
@@ -104,14 +105,13 @@ test("the continuation track drags its context and undoes it", async ({
 
   // Fitted, the default band shows its length; zoomed in, its method and whether that follows the rule.
   await expect(band).toHaveText("22 f");
-  for (let i = 0; i < 4; i++)
-    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+  for (let i = 0; i < 4; i++) await viewCommand(page, "Zoom in");
   await expect(band.locator("small")).toHaveText("Recommended");
   await expect(band).toContainText("Paired");
   await page.screenshot({
     path: test.info().outputPath("continuation-zoomed-dark.png"),
   });
-  await page.getByRole("button", { name: "Fit timeline", exact: true }).click();
+  await viewCommand(page, "Fit timeline");
 
   // Masked handoff cannot render with the planned pin; the menu says why instead of offering it.
   await band.click({ button: "right" });

@@ -32,7 +32,8 @@ export function shortcutLabel(value: string) {
 }
 function matches(e: KeyboardEvent, shortcut: string) {
   const pieces = shortcut.toLowerCase().split("+");
-  const key = shortcut === "+" ? "+" : pieces.at(-1);
+  const last = pieces.at(-1);
+  const key = shortcut === "+" ? "+" : last === "space" ? " " : last;
   return (
     e.key.toLowerCase() === key &&
     !!(e.ctrlKey || e.metaKey) === pieces.includes("mod") &&

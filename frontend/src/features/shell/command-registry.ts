@@ -1,3 +1,4 @@
+import { usePlaybackRequest } from "../monitors/playback";
 import type { Command, MenuEntry } from "./commands";
 
 // ADR 0017 §11: commands are scoped to the open document. Each factory says which scope its commands act in (a
@@ -118,6 +119,13 @@ export function timelineCommands(editor: {
   return {
     scope: "editor",
     commands: [
+      {
+        id: "play",
+        label: "Play / pause",
+        shortcut: "Space",
+        // The timeline plays through: the movie's Program or a film's Source answers (monitors/playback.ts).
+        run: () => usePlaybackRequest.getState().toggle(),
+      },
       {
         id: "fit",
         label: "Fit timeline",

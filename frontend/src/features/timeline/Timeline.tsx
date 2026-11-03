@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -8,9 +9,7 @@ import {
 import {
   ChevronRight,
   Magnet,
-  Minus,
-  Plus,
-  Scan,
+  Play,
   SkipBack,
   MousePointer2,
   Scissors,
@@ -18,6 +17,7 @@ import {
 import { ContextArea, CommandButton } from "../shell/Menus";
 import { timecode } from "./editor-state";
 import { TrackItem } from "./TrackItem";
+import { TimelineNavigator } from "./TimelineNavigator";
 import { frameTicks, timecodeTicks } from "./time";
 import {
   markerRoom,
@@ -78,6 +78,30 @@ export function Timeline({
     );
   const seek = (frame: number) =>
     editor.seek(Math.min(Math.max(0, doc.duration - 1), frame));
+  // The navigator shows a span of frames: its length is the zoom, its start the scroll. A new zoom re-lays the canvas
+  // first, so its start is scrolled to once the new scale is drawn.
+  const zoomMax = doc.zoomMax ?? 12;
+  const pending = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (pending.current === null || !viewport.current) return;
+    viewport.current.scrollLeft = pending.current * scale;
+    pending.current = null;
+  }, [scale]);
+  const view = (start: number, span: number) => {
+    const zoom = Math.max(1, Math.min(zoomMax, duration / span));
+    if (Math.abs(zoom - editor.zoom) > 1e-6) {
+      pending.current = start;
+      editor.setZoom(zoom);
+    } else if (viewport.current) viewport.current.scrollLeft = start * scale;
+  };
+  // The view follows the playhead, so a film or movie played through stays in sight.
+  useEffect(() => {
+    const element = viewport.current;
+    if (!element) return;
+    const x = editor.playhead * scale;
+    if (x < element.scrollLeft || x > element.scrollLeft + available - 24)
+      element.scrollLeft = Math.max(0, x - available * 0.15);
+  }, [editor.playhead]);
   function lane(row: TrackRow) {
     const spans = row.items.filter((item) => item.length !== undefined);
     const width = spans.length
@@ -170,36 +194,21 @@ export function Timeline({
       ...(open ? row.children!.flatMap((child) => trackRow(child, true)) : []),
     ];
   }
-  const zoom = (
-    <>
-      <CommandButton id="snap" className="icon-button" title="Snap to markers">
-        <Magnet size={15} />
-        <span className="sr-only">Snap to markers</span>
-      </CommandButton>
-      <CommandButton id="fit" className="icon-button" title="Fit timeline">
-        <Scan size={15} />
-        <span className="sr-only">Fit timeline</span>
-      </CommandButton>
-      <CommandButton id="zoom.out" className="icon-button" title="Zoom out">
-        <Minus size={15} />
-        <span className="sr-only">Zoom out</span>
-      </CommandButton>
-      <label className="timeline-zoom">
-        <span className="sr-only">Timeline zoom</span>
-        <input
-          type="range"
-          min="0.5"
-          max={doc.zoomMax ?? "12"}
-          step="0.1"
-          value={editor.zoom}
-          onChange={(e) => editor.setZoom(Number(e.target.value))}
-        />
-      </label>
-      <CommandButton id="zoom.in" className="icon-button" title="Zoom in">
-        <Plus size={15} />
-        <span className="sr-only">Zoom in</span>
-      </CommandButton>
-    </>
+  const play = (
+    <CommandButton
+      id="play"
+      className="icon-button"
+      title="Play / pause (Space)"
+    >
+      <Play size={15} />
+      <span className="sr-only">Play / pause</span>
+    </CommandButton>
+  );
+  const snap = (
+    <CommandButton id="snap" className="icon-button" title="Snap to markers">
+      <Magnet size={15} />
+      <span className="sr-only">Snap to markers</span>
+    </CommandButton>
   );
   return (
     <>
@@ -239,11 +248,12 @@ export function Timeline({
             >
               <SkipBack size={14} />
             </button>
+            {play}
             <output className="timecode">
               {timecode(editor.playhead, doc.fps)}
             </output>
             <span className="tool-spacer" />
-            {zoom}
+            {snap}
           </>
         )}
       </div>
@@ -377,19 +387,21 @@ export function Timeline({
       <div className="timeline-navigator">
         <span className="timeline-context-hint">{doc.hint}</span>
         <span>{doc.place}</span>
-        <input
-          type="range"
-          aria-label="Timeline scroll"
-          min={0}
-          max={Math.ceil(maxScroll)}
-          value={Math.min(scroll, maxScroll)}
-          onChange={(e) => {
-            if (viewport.current)
-              viewport.current.scrollLeft = Number(e.target.value);
-          }}
+        <TimelineNavigator
+          duration={duration}
+          start={Math.min(scroll, maxScroll) / scale}
+          span={available / scale}
+          minSpan={duration / zoomMax}
+          fps={doc.fps}
+          onChange={view}
         />
         <span>{timecode(doc.duration, doc.fps)}</span>
-        {doc.bar && <span className="navigator-zoom">{zoom}</span>}
+        {doc.bar && (
+          <span className="navigator-zoom">
+            {play}
+            {snap}
+          </span>
+        )}
       </div>
     </>
   );

@@ -480,11 +480,53 @@
   font-size: 10px;
   font-variant-numeric: tabular-nums;
 }
-.timeline-navigator input {
+/* The scroll bar is the zoom: the thumb is the visible span, its ends are handles (Timeline.tsx, TimelineNavigator). */
+.timeline-range {
+  position: relative;
   flex: 1;
-  height: 12px;
-  min-width: 40px;
-  padding: 0;
+  min-width: 60px;
+  height: 14px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  cursor: pointer;
+  touch-action: none;
+}
+.timeline-range-window {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  min-width: 28px;
+}
+.timeline-range-thumb {
+  position: absolute;
+  inset: 0;
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+  cursor: grab;
+}
+.timeline-range-thumb:active {
+  cursor: grabbing;
+}
+.timeline-range-handle {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  cursor: ew-resize;
+}
+.timeline-range-handle.start {
+  left: 0;
+}
+.timeline-range-handle.end {
+  right: 0;
+}
+.timeline-range-thumb:focus-visible,
+.timeline-range-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 .segment-item.razor-item {
   cursor: crosshair;

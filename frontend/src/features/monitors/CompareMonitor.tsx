@@ -24,12 +24,14 @@ function useComparison({
   shot,
   version,
   onFrame,
+  onEnd,
 }: {
   filmAssetId: string;
   fps: number;
   shot: Shot;
   version?: Version;
   onFrame?: (frame: number) => void;
+  onEnd?: () => void;
 }) {
   const source = useQuery({
     queryKey: ["asset", filmAssetId],
@@ -92,6 +94,8 @@ function useComparison({
       const elapsed = before.currentTime - shot.start / fps;
       if (before.paused || before.ended || elapsed >= last / fps) {
         pause();
+        // At the shot's end the film plays on into the next shot (a pause elsewhere just stops).
+        if (before.ended || elapsed >= last / fps) onEnd?.();
         return;
       }
       const f = Math.max(0, Math.round(elapsed * fps));
@@ -234,16 +238,30 @@ type Props = {
   showOriginal: boolean;
   /** The film frame under the comparison while it plays or is scrubbed. */
   onFrame?: (frame: number) => void;
+  /** The comparison played to the shot's end. */
+  onEnd?: () => void;
 };
 
 /** A film's Program monitor (ADR 0017 §8): the comparison at the film's playhead, with a transport row like the
  * Source monitor's. Stepping and playing move the film's playhead; the timeline scrubs it. */
 export function CompareProgram({
   playhead,
+  autoplay = false,
+  onArrived,
   ...props
-}: Props & { playhead: number }) {
+}: Props & {
+  playhead: number;
+  /** Start playing once both previews load: the film played on into this shot. */
+  autoplay?: boolean;
+  onArrived?: () => void;
+}) {
   const { fps, shot, onFrame } = props;
   const c = useComparison(props);
+  useEffect(() => {
+    if (!c.ready || !autoplay || c.playing) return;
+    onArrived?.();
+    void c.toggle();
+  }, [c.ready, autoplay]);
   const relative = Math.max(0, Math.min(c.last, playhead - shot.start));
   // The film's playhead drives the comparison. While it plays, the playhead follows it; a seek elsewhere (the ruler,
   // a key) stops the playback there.

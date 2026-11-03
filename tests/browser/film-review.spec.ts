@@ -81,7 +81,7 @@ test("Program compares the current shot blind; W and \\ switch the wipe and the 
   await expectBlind(page);
 });
 
-test("Source plays only the current shot at the film's rate; the comparison follows the playhead", async ({
+test("Source plays the film through its shots at the film's rate; the comparison follows the playhead", async ({
   page,
   world,
 }) => {
@@ -101,29 +101,25 @@ test("Source plays only the current shot at the film's rate; the comparison foll
   await expect(
     page.getByRole("region", { name: "Source monitor" }),
   ).toContainText("00:00:04:00");
-  // Playing the Source stops at the shot's end; the playhead stays in the shot.
+  // Playing the Source plays on past the shot's end: the playhead moves into the next shot, which becomes current
+  // (the user's request: the player stopped at every segment's end). Space pauses it, from the timeline.
   await page
     .getByRole("region", { name: "Source monitor" })
     .getByRole("button", { name: "Play preview" })
     .click();
-  await expect
-    .poll(() => source.evaluate((v: HTMLVideoElement) => v.paused), {
-      timeout: 8000,
-    })
-    .toBe(true);
-  const stopped = await source.evaluate((v: HTMLVideoElement) => v.currentTime);
-  expect(stopped).toBeGreaterThan(shot.start / fps + 1);
-  expect(stopped).toBeLessThan(shot.end / fps);
-  const playhead = Number(
-    await page
-      .getByRole("slider", { name: "Playhead" })
-      .getAttribute("aria-valuenow"),
-  );
-  expect(playhead).toBeGreaterThanOrEqual(shot.start);
-  expect(playhead).toBeLessThan(shot.end);
-  await expect(page.locator(".workspace-breadcrumb")).toContainText("Shot 003");
-  // Program follows the film's playhead; stepping the comparison moves the playhead.
   const head = page.getByRole("slider", { name: "Playhead" });
+  await expect
+    .poll(async () => Number(await head.getAttribute("aria-valuenow")), {
+      timeout: 10000,
+    })
+    .toBeGreaterThan(shot.end + 2);
+  await expect(page.locator(".workspace-breadcrumb")).toContainText("Shot 004");
+  await head.focus();
+  await page.keyboard.press(" ");
+  await expect
+    .poll(() => source.evaluate((v: HTMLVideoElement) => v.paused))
+    .toBe(true);
+  // Program follows the film's playhead; stepping the comparison moves the playhead.
   await head.focus();
   await page.keyboard.press("Home");
   await page.getByRole("button", { name: "Shot 003", exact: true }).click();

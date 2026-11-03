@@ -6,6 +6,7 @@ import {
   compScene,
   compShot,
 } from "./fixtures/one-track-comp";
+import { setZoom, viewCommand } from "./timeline-fixture";
 
 // Screenshots of the film view for design review (ADR 0017); run with GAIAVFX_CAPTURE=1. Captures go to
 // .cache/film-capture/ and are not test evidence. The film is the service's own recast, seeded once for this file
@@ -47,9 +48,7 @@ for (const theme of ["dark", "light"] as const)
     await page.setViewportSize({ width: 1586, height: 992 });
     await page.emulateMedia({ colorScheme: theme });
     await open(page, theme);
-    await page.getByRole("button", { name: "Zoom in" }).click();
-    await page.getByRole("button", { name: "Zoom in" }).click();
-    await page.getByRole("button", { name: "Zoom in" }).click();
+    await viewCommand(page, "Zoom in", 3);
     await page.getByRole("button", { name: "Recast lanes" }).click();
     await page.waitForTimeout(500);
     await page.screenshot({ path: `.cache/film-capture/${theme}.png` });
@@ -111,9 +110,7 @@ test.describe("comp state", () => {
     const perFrame = 0.75 / 1.1;
     const scroll = page.locator(".timeline-scroll");
     const available = await scroll.evaluate((el) => el.clientWidth - 220 - 20);
-    await page
-      .getByLabel("Timeline zoom")
-      .fill(String(((perFrame * compFrames) / available).toFixed(1)));
+    await setZoom(page, (perFrame * compFrames) / available);
     await scroll.evaluate(
       (el, left) => {
         el.scrollLeft = left;

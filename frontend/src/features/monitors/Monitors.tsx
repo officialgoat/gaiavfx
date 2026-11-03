@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { movieFps } from "../project/movie-model";
+import { useEditor } from "../timeline/editor-state";
+import { usePlaybackRequest } from "./playback";
 import { useQuery } from "@tanstack/react-query";
 import { Film, Image } from "lucide-react";
 import { studio } from "../generation/client";
@@ -23,6 +26,12 @@ export function MediaMonitor({
   poster,
   range,
   rate,
+  autoplay = false,
+  through = false,
+  primary = false,
+  onEnded,
+  onPaused,
+  onToggleEmpty,
 }: {
   title: string;
   assetId?: string;
@@ -41,6 +50,18 @@ export function MediaMonitor({
   range?: { start_us: number; end_us: number };
   /** The document's frame rate, when it is exact and the asset's metadata may be rounded (a film's rational fps). */
   rate?: number;
+  /** Start playing as soon as the media loads: the timeline played on into it. */
+  autoplay?: boolean;
+  /** Play past the range's end instead of stopping there. */
+  through?: boolean;
+  /** The document's main monitor: the `play` command (Space) toggles it. */
+  primary?: boolean;
+  /** The media played to its end. */
+  onEnded?: () => void;
+  /** The person paused it (not its end). */
+  onPaused?: () => void;
+  /** Space with no media here (a segment without a take). */
+  onToggleEmpty?: () => void;
 }) {
   const asset = useQuery({
     queryKey: ["asset", assetId],
@@ -49,6 +70,16 @@ export function MediaMonitor({
   });
   const fps = rate ?? assetFrameRate(asset.data);
   const well = useRef<HTMLDivElement>(null);
+  const request = usePlaybackRequest((s) => s.count);
+  const answered = useRef(request);
+  useEffect(() => {
+    if (!primary || request === answered.current) return;
+    answered.current = request;
+    const media = well.current?.querySelector<HTMLMediaElement>("video,audio");
+    if (!media) onToggleEmpty?.();
+    else if (media.paused) void media.play().catch(() => undefined);
+    else media.pause();
+  }, [primary, request]);
   useEffect(() => {
     if (!onFrame || !fps) return;
     const video = well.current?.querySelector("video");
@@ -85,6 +116,10 @@ export function MediaMonitor({
             const media = e.target as HTMLMediaElement;
             if (onFrame && fps && !media.paused)
               onFrame(Math.round(media.currentTime * fps));
+          }}
+          onEnded={() => onEnded?.()}
+          onPause={(e) => {
+            if (!(e.target as HTMLMediaElement).ended) onPaused?.();
           }}
         >
           {poster ? (
@@ -139,6 +174,8 @@ export function MediaMonitor({
               }
               initialTime={fps ? frame / fps : undefined}
               range={range}
+              autoPlay={autoplay}
+              through={through}
             />
           ) : (
             <div className="monitor-empty">
@@ -195,8 +232,49 @@ export function Monitors({
       d.editor.playhead < d.starts.get(s.id)! + s.delivered_frames,
   );
   // B18: Program shows the take under the playhead; the selection's only past the last segment or for its candidates.
-  const segment = chosen && (candidate ? chosen : (atPlayhead ?? chosen));
+  // With nothing selected it is the segment under the playhead, so Space plays the movie from wherever it stands.
+  const segment = candidate && chosen ? chosen : (atPlayhead ?? chosen);
   const selected = segment && d.selectionMap.get(segment.id);
+  const media = candidate?.asset_id ?? selected?.asset_id;
+  const fps = movieFps(d.movie.data);
+  // The movie plays through: at a take's end the playhead moves to the next segment, whose take starts once loaded.
+  const [arriving, setArriving] = useState<string | null>(null);
+  const advanced = useRef<string | null>(null);
+  const advance = () => {
+    if (!segment || advanced.current === segment.id) return;
+    advanced.current = segment.id;
+    const next =
+      d.segments[d.segments.findIndex((s) => s.id === segment.id) + 1];
+    if (!next) return setArriving(null);
+    setArriving(next.id);
+    d.editor.seek(d.starts.get(next.id)!);
+  };
+  useEffect(() => {
+    advanced.current = null;
+  }, [segment?.id]);
+  // A segment without a take plays on a frame clock, so the movie runs through it instead of stopping there.
+  useEffect(() => {
+    if (!segment || media || arriving !== segment.id) return;
+    const start = d.starts.get(segment.id)!;
+    const end = start + segment.delivered_frames;
+    let request = 0;
+    let previous = performance.now();
+    let carry = 0;
+    const tick = (now: number) => {
+      const editor = useEditor.getState();
+      if (editor.playhead < start || editor.playhead >= end)
+        return setArriving(null);
+      carry += ((now - previous) * fps) / 1000;
+      previous = now;
+      const step = Math.floor(carry);
+      carry -= step;
+      if (editor.playhead + step >= end) return advance();
+      if (step) editor.seek(editor.playhead + step);
+      request = requestAnimationFrame(tick);
+    };
+    request = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(request);
+  }, [segment?.id, media, arriving, fps]);
   return (
     <>
       <MediaMonitor
@@ -229,7 +307,16 @@ export function Monitors({
           candidateLabel={
             candidate ? `Candidate ${candidate.letter}` : undefined
           }
-          assetId={candidate?.asset_id ?? selected?.asset_id}
+          assetId={media}
+          primary
+          autoplay={!!segment && arriving === segment.id}
+          onEnded={advance}
+          onPaused={() => setArriving(null)}
+          onToggleEmpty={() =>
+            setArriving((now) =>
+              segment && now !== segment.id ? segment.id : null,
+            )
+          }
           frame={
             segment
               ? Math.min(
@@ -239,6 +326,7 @@ export function Monitors({
               : 0
           }
           onFrame={(frame) => {
+            if (segment && frame >= segment.delivered_frames) return advance();
             if (segment)
               d.editor.seek(
                 d.starts.get(segment.id)! +

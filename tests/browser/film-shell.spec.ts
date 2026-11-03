@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { openMovie, seedDirect } from "./direct-fixture";
 import { expect, recastCommands, test } from "./recast-world";
+import { viewCommand, visibleEnd } from "./timeline-fixture";
 
 // ADR 0017 U3a: a film opens as a document in the track workspace, and its keys and menus never reach the movie
 // that stays loaded behind it.
@@ -82,14 +83,14 @@ test.describe("film document shell", () => {
     const seen = watch(page);
     await openMovie(page, data.movie.title);
     await page.getByRole("button", { name: "Segment 02", exact: true }).click();
-    await page.getByRole("button", { name: "Zoom in" }).click();
+    await viewCommand(page, "Zoom in");
     const playhead = page.getByRole("slider", { name: "Playhead" });
     await playhead.focus();
     await page.keyboard.press("ArrowRight");
     await page.keyboard.press("ArrowRight");
     const before = {
       playhead: await playhead.getAttribute("aria-valuenow"),
-      zoom: await page.getByLabel("Timeline zoom").inputValue(),
+      zoom: String(await visibleEnd(page)),
     };
 
     await openFilm(page, world.title);
@@ -128,7 +129,9 @@ test.describe("film document shell", () => {
       "aria-valuenow",
       before.playhead ?? "",
     );
-    await expect(page.getByLabel("Timeline zoom")).toHaveValue(before.zoom);
+    await expect(
+      page.getByRole("slider", { name: "Visible end" }),
+    ).toHaveAttribute("aria-valuenow", before.zoom);
     expect(seen.direction).toEqual([]);
     expect(seen.problems).toEqual([]);
   });

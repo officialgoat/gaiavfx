@@ -7,6 +7,7 @@ import {
   test,
   type RecastWorld,
 } from "./recast-world";
+import { setZoom } from "./timeline-fixture";
 
 // ADR 0017 U3b (Fable review #3, P2-4): what the timeline renderer adds for a film document. Ticks are windowed at any
 // length and zoom (film-scale.spec.ts covers the long film), the ruler counts the film's rational rate, the Recast
@@ -22,19 +23,6 @@ const ticks = (page: Page) =>
   page
     .locator(".ruler-scale > span")
     .evaluateAll((els) => els.map((el) => el.textContent ?? ""));
-
-/** Sets the zoom slider as a pointer drag would (the slider's own input event). */
-async function setZoom(page: Page, zoom: number) {
-  await page
-    .getByRole("slider", { name: "Timeline zoom" })
-    .evaluate((element: HTMLInputElement, value) => {
-      Object.getOwnPropertyDescriptor(
-        HTMLInputElement.prototype,
-        "value",
-      )!.set!.call(element, String(value));
-      element.dispatchEvent(new Event("input", { bubbles: true }));
-    }, zoom);
-}
 
 for (const [rate, words] of [
   [[24000, 1001], "23.976 fps"],

@@ -34,6 +34,13 @@
 </path>
 </svg>
 </button>
+<button type="button" class="icon-button" title="Play / pause (Space) (Space)">
+<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-play" aria-hidden="true">
+<path d="M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z">
+</path>
+</svg>
+<span class="sr-only">Play / pause</span>
+</button>
 <output class="timecode">00:00:00:00</output>
 <span class="tool-spacer">
 </span>
@@ -47,39 +54,6 @@
 </path>
 </svg>
 <span class="sr-only">Snap to markers</span>
-</button>
-<button type="button" class="icon-button" title="Fit timeline (\)">
-<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-scan" aria-hidden="true">
-<path d="M3 7V5a2 2 0 0 1 2-2h2">
-</path>
-<path d="M17 3h2a2 2 0 0 1 2 2v2">
-</path>
-<path d="M21 17v2a2 2 0 0 1-2 2h-2">
-</path>
-<path d="M7 21H5a2 2 0 0 1-2-2v-2">
-</path>
-</svg>
-<span class="sr-only">Fit timeline</span>
-</button>
-<button type="button" class="icon-button" title="Zoom out (-)">
-<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus" aria-hidden="true">
-<path d="M5 12h14">
-</path>
-</svg>
-<span class="sr-only">Zoom out</span>
-</button>
-<label class="timeline-zoom">
-<span class="sr-only">Timeline zoom</span>
-<input min="0.5" max="12" step="0.1" type="range" value="1">
-</label>
-<button type="button" class="icon-button" title="Zoom in (+)">
-<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus" aria-hidden="true">
-<path d="M5 12h14">
-</path>
-<path d="M12 5v14">
-</path>
-</svg>
-<span class="sr-only">Zoom in</span>
 </button>
 </div>
 <div class="context-area timeline-context">
@@ -375,6 +349,15 @@
 <div class="timeline-navigator">
 <span class="timeline-context-hint">Right-click an item for actions</span>
 <span>Segment 01</span>
-<input aria-label="Timeline scroll" min="0" max="0" type="range" value="0">
+<div class="timeline-range">
+<div class="timeline-range-window" style="left: min(0%, 100% - 28px); width: 100%;">
+<div class="timeline-range-thumb" role="slider" tabindex="0" aria-label="Timeline scroll" aria-valuemin="0" aria-valuemax="0" aria-valuenow="0" aria-valuetext="Showing 00:00:00:00 to 00:00:10:00" title="Drag to scroll; drag an end to zoom; double-click to fit">
+</div>
+<span class="timeline-range-handle start" role="slider" tabindex="0" aria-label="Visible start" aria-valuemin="0" aria-valuemax="220" aria-valuenow="0" aria-valuetext="00:00:00:00" title="Drag to show more or less before">
+</span>
+<span class="timeline-range-handle end" role="slider" tabindex="0" aria-label="Visible end" aria-valuemin="20" aria-valuemax="240" aria-valuenow="240" aria-valuetext="00:00:10:00" title="Drag to show more or less after">
+</span>
+</div>
+</div>
 <span>00:00:10:00</span>
 </div>

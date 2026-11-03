@@ -1,3 +1,5 @@
 - text: /Right-click an item for actions Segment \d+/
-- slider "Timeline scroll": "0"
+- slider "Timeline scroll"
+- slider "Visible start"
+- slider "Visible end"
 - text: /\d+:\d+:\d+:\d+/

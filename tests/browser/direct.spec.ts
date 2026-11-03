@@ -2,6 +2,7 @@ import { test, expect } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import fs from "node:fs/promises";
 import { openMovie, seedDirect, withSelection } from "./direct-fixture";
+import { viewCommand, visibleEnd } from "./timeline-fixture";
 
 test.describe("Direct on the real Direction and Library APIs", () => {
   let data: Awaited<ReturnType<typeof seedDirect>>;
@@ -363,13 +364,11 @@ test.describe("Direct on the real Direction and Library APIs", () => {
     await ruler.focus();
     await page.keyboard.press("ArrowRight");
     await expect(ruler).toHaveAttribute("aria-valuenow", "1");
-    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-    await expect(
-      page.getByRole("slider", { name: "Timeline zoom" }),
-    ).toHaveValue("1.3");
-    await page
-      .getByRole("button", { name: "Fit timeline", exact: true })
-      .click();
+    const fitted = await visibleEnd(page);
+    await viewCommand(page, "Zoom in");
+    expect(await visibleEnd(page)).toBeLessThan(fitted);
+    await viewCommand(page, "Fit timeline");
+    expect(await visibleEnd(page)).toBe(fitted);
     await fs.mkdir(".cache/s6-build", { recursive: true });
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.getByLabel("Search project").fill("Arin reference.jpg");
