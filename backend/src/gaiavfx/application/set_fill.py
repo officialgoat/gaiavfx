@@ -54,7 +54,10 @@ FPS = 24
 ENDED = {
     "rounds": "filled its unseen space in {rounds}",
     "renders": "filled until its {renders} renders were spent",
-    "gain": "stopped filling after round {round}: the stage grew too little to go on",
+    "gain": (
+        "stopped filling after round {round}: the stage grew too little to go on (Fill more unseen space tries "
+        "again from here)"
+    ),
     "closure": "stopped filling after round {round}: the place is closed",
     "acceptance": "stopped filling after round {round}: no probe's still fitted the stage for {without} rounds",
     "no_probe": (

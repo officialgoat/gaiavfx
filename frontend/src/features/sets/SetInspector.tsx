@@ -126,7 +126,11 @@ function InspectorBody({
         {metrics.heldout_psnr && (
           <>
             <dt>Held-out match</dt>
-            <dd>{metrics.heldout_psnr.toFixed(1)} dB (uncalibrated)</dd>
+            {/* Round 1 (T4-F6): "uncalibrated" alone gave no sense of scale. */}
+            <dd title="How closely the stage reproduces views it was not fitted to. There is no pass mark yet.">
+              {metrics.heldout_psnr.toFixed(1)} dB · higher is closer (about 20
+              is usual for a stage from one panorama)
+            </dd>
           </>
         )}
       </dl>

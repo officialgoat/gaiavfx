@@ -118,6 +118,6 @@ def panorama_seam(context: LocalContext) -> list[tuple[str, Path, str]]:
         _read(context.paths[spec["raw"]]), _read(context.paths[spec["fill"]]), _band(spec)
     )
     return [
-        ("panorama", _image(context, "panorama.png", closed), "image"),
+        ("panorama", _image(context, f"{spec.get('name') or 'panorama'}.png", closed), "image"),
         ("seam", _report(context, "seam.json", report), "analysis_report"),
     ]

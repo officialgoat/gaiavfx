@@ -5,6 +5,7 @@ import { useNavigator } from "../../app/navigator";
 import { PanoramaForm } from "../panoramas/PanoramaForm";
 import { PanoramaReview } from "../panoramas/PanoramaReview";
 import { PanoramasSection } from "../panoramas/PanoramasSection";
+import { panoramas } from "../panoramas/client";
 import { sets, versionLabel, type SetSummary } from "./client";
 import "./sets.css";
 
@@ -25,6 +26,12 @@ function StagesList({ onOpen }: { onOpen: (set: SetSummary) => void }) {
   const client = useQueryClient();
   const [panorama, setPanorama] = useState(false);
   const list = useQuery({ queryKey: ["sets"], queryFn: sets.list });
+  // A stage being built from a panorama is not a stage yet; the list says so instead of "No stages yet" (T4-F4).
+  const attempts = useQuery({
+    queryKey: ["panoramas", "list"],
+    queryFn: () => panoramas.list(),
+  });
+  const building = attempts.data?.some((p) => p.build?.state === "building");
   const [folder, setFolder] = useState("");
   const [importing, setImporting] = useState(false);
   const importSet = useMutation({
@@ -114,6 +121,11 @@ function StagesList({ onOpen }: { onOpen: (set: SetSummary) => void }) {
           {list.error instanceof Error
             ? list.error.message
             : "Stages could not be loaded."}
+        </p>
+      ) : !list.data?.length && building ? (
+        <p className="set-empty" role="status">
+          A stage is being built from a panorama below; it appears here when it
+          is ready.
         </p>
       ) : !list.data?.length ? (
         <p className="set-empty">

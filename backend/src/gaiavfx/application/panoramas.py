@@ -14,6 +14,7 @@ plate check) as report artifacts."""
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import asdict
 from hashlib import sha256
 
@@ -405,6 +406,14 @@ def _grow(operation, render) -> list[JobSpec]:
     return jobs
 
 
+def library_name(place: str, letter: str) -> str:
+    """A panorama's name in the Library: the place's first clause and its letter, as the review shows it (round 1 of
+    the usability campaign, T4-F3: every one was "panorama.png")."""
+    first = re.split(r"[,.;:]", " ".join(place.split()), maxsplit=1)[0]
+    safe = re.sub(r"[^\w '\-]", "", first).strip()[:48].strip()
+    return f"{safe or 'Place'} panorama {letter}"
+
+
 def _seams(operation, render) -> list[JobSpec]:
     """The last stage: each unit whose band was filled gets its seam closed."""
     request = operation["request"]
@@ -425,7 +434,12 @@ def _seams(operation, render) -> list[JobSpec]:
                 request,
                 "seam",
                 unit,
-                {"raw": raw["asset_id"], "fill": filled["asset_id"], "seam": render["seam"]},
+                {
+                    "raw": raw["asset_id"],
+                    "fill": filled["asset_id"],
+                    "seam": render["seam"],
+                    "name": library_name(request["place"], LETTERS[unit]),
+                },
                 {
                     raw["asset_id"]: {"sha256": raw["sha256"]},
                     filled["asset_id"]: {"sha256": filled["sha256"]},

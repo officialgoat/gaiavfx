@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useId, useState } from "react";
 import { ArrowLeft, Check, Clapperboard, RefreshCw } from "lucide-react";
 import { useNavigator } from "../../app/navigator";
+import { CommandButton } from "../shell/Menus";
 import { route } from "../../shared/routes";
 import {
   panoramas,
@@ -296,6 +297,29 @@ function BuildStage({
       <section className="panorama-build" aria-labelledby={`${id}-build`}>
         <h3 id={`${id}-build`}>{build.name}</h3>
         <p role="status">{build.message}</p>
+        {/* Round 1 (T4-F1, T4-F8): a long build said nothing of what to expect or what came next. */}
+        {build.state === "building" && (
+          <>
+            <p className="muted small">
+              It runs in Jobs while you work elsewhere. With filling it can take
+              15 to 25 minutes.
+            </p>
+            <CommandButton
+              id="operation.cancel"
+              className="secondary-button"
+              target={{ kind: "preparation", id: build.operation_id }}
+            >
+              Cancel the build
+            </CommandButton>
+          </>
+        )}
+        {build.state === "done" && (
+          <p className="muted small">
+            Next: open the stage, look around and accept its v1; then use it for
+            a scene in Direct (a segment's Properties › First shot › Use a stage
+            for this scene…).
+          </p>
+        )}
         {build.state === "done" && build.set_id && (
           <button
             className="primary-button"

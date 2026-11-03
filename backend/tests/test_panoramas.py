@@ -102,6 +102,9 @@ def test_words_become_two_panoramas_with_closed_seams(work):
         assert member["plate"] is None
         path = transact(db, library.path, member["asset_id"])
         assert Image.open(path).size == (WIDTH, HEIGHT)
+        # The Library names it by its place and letter, not "panorama.png" (round 1, T4-F3).
+        named = transact(db, library.get, member["asset_id"])["name"]
+        assert named == f"A narrow city-flat hall with worn parquet panorama {member['letter']}.png"
     prompts = [g["positive"]["inputs"]["text"] for g in comfy.answers.graphs if "positive" in g]
     assert len(prompts) == 2 and all(p.startswith("img-txt-2-360, ") for p in prompts)
     assert {g["sample"]["inputs"]["seed"] for g in comfy.answers.graphs if "positive" in g} == {

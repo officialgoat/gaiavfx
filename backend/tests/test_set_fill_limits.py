@@ -34,7 +34,12 @@ def chain(monkeypatch):
 @pytest.mark.parametrize(
     "gain,closure,reason,words",
     [
-        (0.099, 0.5, "gain", "the stage grew too little to go on"),
+        (
+            0.099,
+            0.5,
+            "gain",
+            "the stage grew too little to go on (Fill more unseen space tries again from here)",
+        ),
         (0.2, 0.9, "closure", "the place is closed"),
     ],
 )
