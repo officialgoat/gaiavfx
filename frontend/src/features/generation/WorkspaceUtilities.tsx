@@ -431,9 +431,9 @@ export function OperationList({ blind = false }: { blind?: boolean }) {
               {/* Round 1 (T1-F3, T3-F9): a running job said nothing about how far it had got. A staged job adds its
                   steps as it goes (T5-F4), so it counts what is done, not a total that keeps growing. */}
               {!operation.settled &&
-                operation.jobs.length > 1 &&
+                (operation.jobs?.length ?? 0) > 1 &&
                 ` · ${
-                  operation.jobs.filter((job) =>
+                  (operation.jobs ?? []).filter((job) =>
                     ["succeeded", "failed", "cancelled", "skipped"].includes(
                       job.state,
                     ),
